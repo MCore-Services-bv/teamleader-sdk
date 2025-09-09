@@ -1,0 +1,33 @@
+{
+    "name": "mcore-services/teamleader-sdk",
+    "description": "Laravel SDK for Teamleader Focus API",
+    "type": "library",
+    "version": "1.0.0",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "MCore Services",
+            "email": "help@mcore-services.be"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "guzzlehttp/guzzle": "^7.0",
+        "illuminate/support": "^10.0|^12.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "McoreServices\\TeamleaderSDK\\": "src/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "McoreServices\\TeamleaderSDK\\TeamleaderServiceProvider"
+            ],
+            "aliases": {
+                "Teamleader": "McoreServices\\TeamleaderSDK\\Facades\\Teamleader"
+            }
+        }
+    }
+}
