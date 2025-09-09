@@ -35,7 +35,7 @@ class TeamleaderSDK
         'emailTracking' => Resources\General\EmailTracking::class,
         'closingDays' => Resources\General\ClosingDays::class,
         'dayOffTypes' => Resources\General\DayOffTypes::class,
-//        'daysOff' => Resources\General\DaysOff::class,
+        'daysOff' => Resources\General\DaysOff::class,
 
         // CRM
 //        'companies' => Resources\CRM\Companies::class,
