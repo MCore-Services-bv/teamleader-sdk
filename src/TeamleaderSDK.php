@@ -38,11 +38,11 @@ class TeamleaderSDK
         'daysOff' => Resources\General\DaysOff::class,
 
         // CRM
-//        'companies' => Resources\CRM\Companies::class,
-//        'contacts' => Resources\CRM\Contacts::class,
-//        'businessTypes' => Resources\CRM\BusinessTypes::class,
-//        'tags' => Resources\CRM\Tags::class,
-//        'addresses' => Resources\CRM\Addresses::class,
+        'companies' => Resources\CRM\Companies::class,
+        'contacts' => Resources\CRM\Contacts::class,
+        'businessTypes' => Resources\CRM\BusinessTypes::class,
+        'tags' => Resources\CRM\Tags::class,
+        'addresses' => Resources\CRM\Addresses::class,
 //
 //        // Deals
 //        'deals' => Resources\Deals\Deals::class,
