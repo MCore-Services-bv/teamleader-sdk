@@ -82,7 +82,7 @@ class DayOffTypes extends Resource
      * @param string $id Day off type UUID
      * @return array
      */
-    public function delete($id): array
+    public function delete($id, ...$additionalParams): array
     {
         return $this->api->request('POST', $this->getBasePath() . '.delete', ['id' => $id]);
     }

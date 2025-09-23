@@ -286,7 +286,7 @@ class DocumentTemplates extends Resource
     /**
      * Override delete method since it's not supported
      */
-    public function delete($id)
+    public function delete($id, ...$additionalParams): array
     {
         throw new BadMethodCallException('Document templates do not support deletion via API');
     }

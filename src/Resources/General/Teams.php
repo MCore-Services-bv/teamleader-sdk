@@ -220,7 +220,7 @@ class Teams extends Resource
     }
 
     /**
-     * Override info method to indicate it's not supported
+     * Override info method with compatible signature but throw exception
      */
     public function info($id, $includes = null)
     {
@@ -228,7 +228,7 @@ class Teams extends Resource
     }
 
     /**
-     * Override create method to indicate it's not supported
+     * Override create method with compatible signature but throw exception
      */
     public function create(array $data)
     {
@@ -236,7 +236,7 @@ class Teams extends Resource
     }
 
     /**
-     * Override update method to indicate it's not supported
+     * Override update method with compatible signature but throw exception
      */
     public function update($id, array $data)
     {
@@ -244,9 +244,10 @@ class Teams extends Resource
     }
 
     /**
-     * Override delete method to indicate it's not supported
+     * Override delete method with compatible signature but throw exception
+     * Fixed signature to match parent class
      */
-    public function delete($id)
+    public function delete($id, ...$additionalParams): array
     {
         throw new BadMethodCallException('The teams resource does not support team deletion via API.');
     }

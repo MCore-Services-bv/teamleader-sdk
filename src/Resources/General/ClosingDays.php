@@ -60,7 +60,7 @@ class ClosingDays extends Resource
      * @param string $id Closing day UUID
      * @return array
      */
-    public function delete($id): array
+    public function delete($id, ...$additionalParams): array
     {
         if (empty($id)) {
             throw new InvalidArgumentException('Closing day ID is required for deletion');

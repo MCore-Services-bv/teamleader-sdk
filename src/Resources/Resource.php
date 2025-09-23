@@ -2,6 +2,7 @@
 
 namespace McoreServices\TeamleaderSDK\Resources;
 
+use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\TeamleaderSDK;
 use McoreServices\TeamleaderSDK\Traits\FilterTrait;
 
@@ -433,15 +434,30 @@ abstract class Resource
     /**
      * Delete a resource.
      */
-    public function delete($id)
+    public function delete($id, ...$additionalParams): array
     {
         if (!$this->supportsDeletion) {
-            throw new \InvalidArgumentException(
+            throw new InvalidArgumentException(
                 "The {$this->getBasePath()} resource does not support deletion"
             );
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.delete', ['id' => $id]);
+        $data = ['id' => $id];
+
+        // Allow subclasses to handle additional parameters
+        $additionalData = $this->prepareDeleteData($id, ...$additionalParams);
+        $data = array_merge($data, $additionalData);
+
+        return $this->api->request('POST', $this->getBasePath() . '.delete', $data);
+    }
+
+    /**
+     * Prepare additional data for delete operation
+     * Override this in subclasses that need special delete parameters
+     */
+    protected function prepareDeleteData($id, ...$additionalParams): array
+    {
+        return [];
     }
 
     /**
