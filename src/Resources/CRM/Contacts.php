@@ -131,7 +131,7 @@ class Contacts extends Resource
     /**
      * Delete a contact
      */
-    public function delete($id): array
+    public function delete($id, ...$additionalParams): array
     {
         return $this->api->request('POST', $this->getBasePath() . '.delete', ['id' => $id]);
     }

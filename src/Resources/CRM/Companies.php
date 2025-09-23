@@ -210,7 +210,7 @@ class Companies extends Resource
     /**
      * Delete a company
      */
-    public function delete($id)
+    public function delete($id, ...$additionalParams): array
     {
         return $this->api->request('POST', $this->getBasePath() . '.delete', ['id' => $id]);
     }
