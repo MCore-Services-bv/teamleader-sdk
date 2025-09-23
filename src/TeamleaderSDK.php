@@ -43,16 +43,16 @@ class TeamleaderSDK
         'businessTypes' => Resources\CRM\BusinessTypes::class,
         'tags' => Resources\CRM\Tags::class,
         'addresses' => Resources\CRM\Addresses::class,
-//
-//        // Deals
-//        'deals' => Resources\Deals\Deals::class,
+
+        // Deals
+        'deals' => Resources\Deals\Deals::class,
 //        'quotations' => Resources\Deals\Quotations::class,
 //        'orders' => Resources\Deals\Orders::class,
-//        'dealPhases' => Resources\Deals\DealPhases::class,
-//        'dealPipelines' => Resources\Deals\DealPipelines::class,
-//        'dealSources' => Resources\Deals\DealSources::class,
-//        'lostReasons' => Resources\Deals\LostReasons::class,
-//
+        'dealPhases' => Resources\Deals\Phases::class,
+        'dealPipelines' => Resources\Deals\Pipelines::class,
+        'dealSources' => Resources\Deals\Sources::class,
+        'lostReasons' => Resources\Deals\LostReasons::class,
+
 //        // Calendar
 //        'meetings' => Resources\Calender\Meetings::class,
 //        'calls' => Resources\Calender\Calls::class,
