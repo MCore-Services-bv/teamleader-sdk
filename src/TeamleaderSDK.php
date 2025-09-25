@@ -73,7 +73,7 @@ class TeamleaderSDK
 //        // Products
         'priceLists' => Resources\Products\PriceLists::class,
         'productCategories' => Resources\Products\Categories::class,
-//        'products' => Resources\Products\Products::class,
+        'products' => Resources\Products\Products::class,
         'unitsOfMeasure' => Resources\Products\UnitOfMeasure::class,
 //
 //        // Legacy Projects
