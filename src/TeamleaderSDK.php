@@ -45,7 +45,7 @@ class TeamleaderSDK
         'addresses' => Resources\CRM\Addresses::class,
 
         // Deals
-        'deals' => Resources\Deals\Deals::class,
+//        'deals' => Resources\Deals\Deals::class,
 //        'quotations' => Resources\Deals\Quotations::class,
 //        'orders' => Resources\Deals\Orders::class,
         'dealPhases' => Resources\Deals\Phases::class,
@@ -72,7 +72,7 @@ class TeamleaderSDK
 //
 //        // Products
 //        'priceLists' => Resources\Products\PriceLists::class,
-//        'productCategories' => Resources\Products\ProductCategories::class,
+        'productCategories' => Resources\Products\Categories::class,
 //        'products' => Resources\Products\Products::class,
 //        'unitsOfMeasure' => Resources\Products\UnitsOfMeasure::class,
 //
