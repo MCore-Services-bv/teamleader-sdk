@@ -71,10 +71,10 @@ class TeamleaderSDK
 //        'commercialDiscounts' => Resources\Invoicing\CommercialDiscounts::class,
 //
 //        // Products
-//        'priceLists' => Resources\Products\PriceLists::class,
+        'priceLists' => Resources\Products\PriceLists::class,
         'productCategories' => Resources\Products\Categories::class,
 //        'products' => Resources\Products\Products::class,
-//        'unitsOfMeasure' => Resources\Products\UnitsOfMeasure::class,
+        'unitsOfMeasure' => Resources\Products\UnitOfMeasure::class,
 //
 //        // Legacy Projects
 //        'legacyMilestones' => Resources\Projects\Legacy\Milestones::class,
