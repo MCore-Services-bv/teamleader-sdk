@@ -18,17 +18,21 @@ class TeamleaderServiceProvider extends ServiceProvider
     /**
      * Bootstrap the application services.
      */
-    public function boot()
+    public function boot(): void
     {
+        // Publish configuration file
         $this->publishes([
             __DIR__.'/../config/teamleader.php' => config_path('teamleader.php'),
         ], 'teamleader-config');
 
-        $this->publishes([
-            __DIR__.'/../docs' => resource_path('docs/teamleader'),
-        ], 'teamleader-docs');
+        // Publish documentation (optional)
+        if (is_dir(__DIR__.'/../docs')) {
+            $this->publishes([
+                __DIR__.'/../docs' => resource_path('docs/teamleader'),
+            ], 'teamleader-docs');
+        }
 
-        // Register commands
+        // Register console commands
         if ($this->app->runningInConsole()) {
             $this->commands([
                 TeamleaderStatusCommand::class,
@@ -36,22 +40,18 @@ class TeamleaderServiceProvider extends ServiceProvider
                 TeamleaderConfigValidateCommand::class,
             ]);
         }
-
-        // Register custom validation rules
-        $this->registerValidationRules();
-
-        // Register macros for testing
-        if ($this->app->environment(['testing', 'local'])) {
-            $this->registerTestingMacros();
-        }
     }
 
     /**
      * Register the application services.
      */
-    public function register()
+    public function register(): void
     {
-        $this->mergeConfigFrom(__DIR__.'/../config/teamleader.php', 'teamleader');
+        // Merge configuration
+        $this->mergeConfigFrom(
+            __DIR__.'/../config/teamleader.php',
+            'teamleader'
+        );
 
         // Register core services as singletons
         $this->registerCoreServices();
@@ -66,7 +66,7 @@ class TeamleaderServiceProvider extends ServiceProvider
             );
         });
 
-        // Register aliases
+        // Register convenient aliases
         $this->app->alias(TeamleaderSDK::class, 'teamleader');
         $this->app->alias(TokenService::class, 'teamleader.tokens');
         $this->app->alias(ApiRateLimiterService::class, 'teamleader.ratelimiter');
@@ -112,23 +112,26 @@ class TeamleaderServiceProvider extends ServiceProvider
     }
 
     /**
-     * Register custom validation rules
+     * Register custom validation rules for Teamleader-specific data
      */
     protected function registerValidationRules(): void
     {
-        // Add custom validation rules for Teamleader-specific data
+        // Teamleader UUID validation (standard UUID v4 format)
         $this->app->make('validator')->extend('teamleader_uuid', function ($attribute, $value, $parameters, $validator) {
-            // Teamleader UUIDs are typically 36-character UUIDs
             return preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $value);
         });
 
+        // Teamleader email array validation
         $this->app->make('validator')->extend('teamleader_email_array', function ($attribute, $value, $parameters, $validator) {
             if (!is_array($value)) {
                 return false;
             }
 
             foreach ($value as $email) {
-                if (!isset($email['type'], $email['email']) || !filter_var($email['email'], FILTER_VALIDATE_EMAIL)) {
+                if (!isset($email['type'], $email['email'])) {
+                    return false;
+                }
+                if (!filter_var($email['email'], FILTER_VALIDATE_EMAIL)) {
                     return false;
                 }
             }
@@ -136,6 +139,7 @@ class TeamleaderServiceProvider extends ServiceProvider
             return true;
         });
 
+        // Teamleader phone array validation
         $this->app->make('validator')->extend('teamleader_phone_array', function ($attribute, $value, $parameters, $validator) {
             if (!is_array($value)) {
                 return false;
@@ -149,38 +153,24 @@ class TeamleaderServiceProvider extends ServiceProvider
 
             return true;
         });
-    }
 
-    /**
-     * Register testing macros
-     */
-    protected function registerTestingMacros(): void
-    {
-        // Add collection macro for testing responses
-        if (class_exists('Illuminate\Support\Collection')) {
-            \Illuminate\Support\Collection::macro('assertStructure', function (array $structure) {
-                \McoreServices\TeamleaderSDK\Testing\TeamleaderTestHelpers::assertResponseStructure($this->toArray(), $structure);
-                return $this;
-            });
-        }
+        // Teamleader address validation
+        $this->app->make('validator')->extend('teamleader_address', function ($attribute, $value, $parameters, $validator) {
+            if (!is_array($value)) {
+                return false;
+            }
 
-        // Add HTTP testing macros if available
-        if (class_exists('Illuminate\Testing\TestResponse')) {
-            \Illuminate\Testing\TestResponse::macro('assertTeamleaderStructure', function (array $structure) {
-                \McoreServices\TeamleaderSDK\Testing\TeamleaderTestHelpers::assertResponseStructure($this->json(), $structure);
-                return $this;
-            });
+            // Required fields for a Teamleader address
+            $requiredFields = ['country'];
 
-            \Illuminate\Testing\TestResponse::macro('assertTeamleaderPagination', function () {
-                \McoreServices\TeamleaderSDK\Testing\TeamleaderTestHelpers::assertPaginationStructure($this->json());
-                return $this;
-            });
+            foreach ($requiredFields as $field) {
+                if (!isset($value[$field]) || empty($value[$field])) {
+                    return false;
+                }
+            }
 
-            \Illuminate\Testing\TestResponse::macro('assertTeamleaderError', function () {
-                \McoreServices\TeamleaderSDK\Testing\TeamleaderTestHelpers::assertErrorStructure($this->json());
-                return $this;
-            });
-        }
+            return true;
+        });
     }
 
     /**
