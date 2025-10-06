@@ -5,11 +5,11 @@ namespace McoreServices\TeamleaderSDK\Resources\Expenses;
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
 
-class Receipts extends Resource
+class IncomingCreditNotes extends Resource
 {
-    protected string $description = 'Manage expense receipts in Teamleader Focus';
+    protected string $description = 'Manage incoming credit notes from suppliers in Teamleader Focus';
 
-    // Resource capabilities - Receipts support create, update, delete, and info
+    // Resource capabilities - Incoming credit notes support create, update, delete, and info
     protected bool $supportsCreation = true;
     protected bool $supportsUpdate = true;
     protected bool $supportsDeletion = true;
@@ -42,70 +42,75 @@ class Receipts extends Resource
         'refused',
     ];
 
-    // Usage examples specific to receipts
+    // Usage examples specific to incoming credit notes
     protected array $usageExamples = [
         'create_basic' => [
-            'description' => 'Create a basic receipt',
-            'code' => '$receipt = $teamleader->receipts()->add([\'title\' => \'Office Lunch\', \'currency\' => [\'code\' => \'EUR\'], \'total\' => [\'tax_inclusive\' => [\'amount\' => 45.50]]]);'
+            'description' => 'Create a basic incoming credit note',
+            'code' => '$creditNote = $teamleader->incomingCreditNotes()->add([\'title\' => \'Credit Note\', \'currency\' => [\'code\' => \'EUR\'], \'total\' => [\'tax_exclusive\' => [\'amount\' => 500]]]);'
         ],
         'create_complete' => [
-            'description' => 'Create a complete receipt with all details',
-            'code' => '$receipt = $teamleader->receipts()->add([\'title\' => \'Business Dinner\', \'supplier_id\' => \'uuid\', \'document_number\' => \'REC-001\', \'receipt_date\' => \'2024-01-15\', \'currency\' => [\'code\' => \'EUR\'], \'total\' => [\'tax_inclusive\' => [\'amount\' => 125.00]]]);'
+            'description' => 'Create a complete incoming credit note with all details',
+            'code' => '$creditNote = $teamleader->incomingCreditNotes()->add([\'title\' => \'Return Credit\', \'supplier_id\' => \'uuid\', \'document_number\' => \'CN-001\', \'invoice_date\' => \'2024-01-15\', \'due_date\' => \'2024-02-15\', \'currency\' => [\'code\' => \'EUR\'], \'total\' => [\'tax_exclusive\' => [\'amount\' => 750]]]);'
         ],
         'get_info' => [
-            'description' => 'Get receipt details',
-            'code' => '$receipt = $teamleader->receipts()->info(\'receipt-uuid\');'
+            'description' => 'Get credit note details',
+            'code' => '$creditNote = $teamleader->incomingCreditNotes()->info(\'creditnote-uuid\');'
         ],
-        'update_receipt' => [
-            'description' => 'Update an existing receipt',
-            'code' => '$teamleader->receipts()->update(\'receipt-uuid\', [\'title\' => \'Updated Title\', \'receipt_date\' => \'2024-01-16\']);'
+        'update_creditnote' => [
+            'description' => 'Update an existing credit note',
+            'code' => '$teamleader->incomingCreditNotes()->update(\'creditnote-uuid\', [\'title\' => \'Updated Title\', \'due_date\' => \'2024-03-15\']);'
         ],
-        'approve_receipt' => [
-            'description' => 'Approve a receipt',
-            'code' => '$teamleader->receipts()->approve(\'receipt-uuid\');'
+        'approve_creditnote' => [
+            'description' => 'Approve a credit note',
+            'code' => '$teamleader->incomingCreditNotes()->approve(\'creditnote-uuid\');'
         ],
-        'refuse_receipt' => [
-            'description' => 'Refuse a receipt',
-            'code' => '$teamleader->receipts()->refuse(\'receipt-uuid\');'
+        'refuse_creditnote' => [
+            'description' => 'Refuse a credit note',
+            'code' => '$teamleader->incomingCreditNotes()->refuse(\'creditnote-uuid\');'
         ],
         'send_to_bookkeeping' => [
-            'description' => 'Send receipt to bookkeeping',
-            'code' => '$teamleader->receipts()->sendToBookkeeping(\'receipt-uuid\');'
+            'description' => 'Send credit note to bookkeeping',
+            'code' => '$teamleader->incomingCreditNotes()->sendToBookkeeping(\'creditnote-uuid\');'
         ],
-        'delete_receipt' => [
-            'description' => 'Delete a receipt',
-            'code' => '$teamleader->receipts()->delete(\'receipt-uuid\');'
+        'delete_creditnote' => [
+            'description' => 'Delete a credit note',
+            'code' => '$teamleader->incomingCreditNotes()->delete(\'creditnote-uuid\');'
         ]
     ];
 
     /**
-     * Get the base path for the receipts resource
+     * Get the base path for the incoming credit notes resource
      */
     protected function getBasePath(): string
     {
-        return 'receipts';
+        return 'incomingCreditNotes';
     }
 
     /**
-     * Create a new receipt
+     * Create a new incoming credit note
      *
-     * @param array $data Receipt data
-     * @return array Created receipt response
+     * @param array $data Credit note data
+     * @return array Created credit note response
      * @throws InvalidArgumentException When required fields are missing
      */
     public function add(array $data): array
     {
         // Validate required fields
         if (empty($data['title'])) {
-            throw new InvalidArgumentException('title is required for receipts');
+            throw new InvalidArgumentException('title is required for incoming credit notes');
         }
 
         if (empty($data['currency']['code'])) {
-            throw new InvalidArgumentException('currency.code is required for receipts');
+            throw new InvalidArgumentException('currency.code is required for incoming credit notes');
         }
 
-        if (empty($data['total']['tax_inclusive'])) {
-            throw new InvalidArgumentException('total.tax_inclusive is required for receipts');
+        if (empty($data['total'])) {
+            throw new InvalidArgumentException('total is required for incoming credit notes');
+        }
+
+        // Validate that either tax_exclusive or tax_inclusive is provided
+        if (empty($data['total']['tax_exclusive']) && empty($data['total']['tax_inclusive'])) {
+            throw new InvalidArgumentException('Either total.tax_exclusive or total.tax_inclusive is required');
         }
 
         // Validate currency code
@@ -121,7 +126,7 @@ class Receipts extends Resource
     /**
      * Alias for add() method to maintain consistency with other resources
      *
-     * @param array $data Receipt data
+     * @param array $data Credit note data
      * @return array
      */
     public function create(array $data): array
@@ -130,9 +135,9 @@ class Receipts extends Resource
     }
 
     /**
-     * Update an existing receipt
+     * Update an existing incoming credit note
      *
-     * @param string $id Receipt UUID
+     * @param string $id Credit note UUID
      * @param array $data Data to update
      * @return array Update response
      * @throws InvalidArgumentException When ID is empty
@@ -140,7 +145,7 @@ class Receipts extends Resource
     public function update(string $id, array $data): array
     {
         if (empty($id)) {
-            throw new InvalidArgumentException('Receipt ID is required');
+            throw new InvalidArgumentException('Credit note ID is required');
         }
 
         // Validate currency code if provided
@@ -156,104 +161,104 @@ class Receipts extends Resource
     }
 
     /**
-     * Get information about a specific receipt
+     * Get information about a specific incoming credit note
      *
-     * @param string $id Receipt UUID
-     * @param mixed $includes Not used for receipts
-     * @return array Receipt information
+     * @param string $id Credit note UUID
+     * @param mixed $includes Not used for incoming credit notes
+     * @return array Credit note information
      * @throws InvalidArgumentException When ID is empty
      */
     public function info(string $id, $includes = null): array
     {
         if (empty($id)) {
-            throw new InvalidArgumentException('Receipt ID is required');
+            throw new InvalidArgumentException('Credit note ID is required');
         }
 
         return $this->api->request('POST', $this->getBasePath() . '.info', ['id' => $id]);
     }
 
     /**
-     * Delete a receipt
+     * Delete an incoming credit note
      *
-     * @param string $id Receipt UUID
+     * @param string $id Credit note UUID
      * @return array Delete response
      * @throws InvalidArgumentException When ID is empty
      */
     public function delete(string $id): array
     {
         if (empty($id)) {
-            throw new InvalidArgumentException('Receipt ID is required');
+            throw new InvalidArgumentException('Credit note ID is required');
         }
 
         return $this->api->request('POST', $this->getBasePath() . '.delete', ['id' => $id]);
     }
 
     /**
-     * Approve a receipt
+     * Approve an incoming credit note
      *
-     * @param string $id Receipt UUID
+     * @param string $id Credit note UUID
      * @return array Approval response
      * @throws InvalidArgumentException When ID is empty
      */
     public function approve(string $id): array
     {
         if (empty($id)) {
-            throw new InvalidArgumentException('Receipt ID is required');
+            throw new InvalidArgumentException('Credit note ID is required');
         }
 
         return $this->api->request('POST', $this->getBasePath() . '.approve', ['id' => $id]);
     }
 
     /**
-     * Refuse a receipt
+     * Refuse an incoming credit note
      *
-     * @param string $id Receipt UUID
+     * @param string $id Credit note UUID
      * @return array Refusal response
      * @throws InvalidArgumentException When ID is empty
      */
     public function refuse(string $id): array
     {
         if (empty($id)) {
-            throw new InvalidArgumentException('Receipt ID is required');
+            throw new InvalidArgumentException('Credit note ID is required');
         }
 
         return $this->api->request('POST', $this->getBasePath() . '.refuse', ['id' => $id]);
     }
 
     /**
-     * Mark a receipt as pending review
+     * Mark an incoming credit note as pending review
      *
-     * @param string $id Receipt UUID
+     * @param string $id Credit note UUID
      * @return array Response
      * @throws InvalidArgumentException When ID is empty
      */
     public function markAsPendingReview(string $id): array
     {
         if (empty($id)) {
-            throw new InvalidArgumentException('Receipt ID is required');
+            throw new InvalidArgumentException('Credit note ID is required');
         }
 
         return $this->api->request('POST', $this->getBasePath() . '.markAsPendingReview', ['id' => $id]);
     }
 
     /**
-     * Send a receipt to bookkeeping for processing
+     * Send an incoming credit note to bookkeeping
      *
-     * @param string $id Receipt UUID
+     * @param string $id Credit note UUID
      * @return array Response
      * @throws InvalidArgumentException When ID is empty
      */
     public function sendToBookkeeping(string $id): array
     {
         if (empty($id)) {
-            throw new InvalidArgumentException('Receipt ID is required');
+            throw new InvalidArgumentException('Credit note ID is required');
         }
 
         return $this->api->request('POST', $this->getBasePath() . '.sendToBookkeeping', ['id' => $id]);
     }
 
     /**
-     * List method is not supported for receipts
+     * List method is not supported for incoming credit notes
      *
      * @param array $filters
      * @param array $options
@@ -263,12 +268,12 @@ class Receipts extends Resource
     public function list(array $filters = [], array $options = []): array
     {
         throw new InvalidArgumentException(
-            'The list method is not supported for receipts. Use info() to get a specific receipt.'
+            'The list method is not supported for incoming credit notes. Use info() to get a specific credit note.'
         );
     }
 
     /**
-     * Get valid currency codes for receipts
+     * Get valid currency codes for incoming credit notes
      *
      * @return array Array of valid currency codes
      */
@@ -278,7 +283,7 @@ class Receipts extends Resource
     }
 
     /**
-     * Get valid review statuses for receipts
+     * Get valid review statuses for incoming credit notes
      *
      * @return array Array of valid review statuses
      */
@@ -288,13 +293,13 @@ class Receipts extends Resource
     }
 
     /**
-     * Validate receipt data before creating or updating
+     * Validate credit note data before creating or updating
      *
-     * @param array $data Receipt data to validate
+     * @param array $data Credit note data to validate
      * @param bool $isUpdate Whether this is for an update operation
      * @return array Validated data
      */
-    protected function validateReceiptData(array $data, bool $isUpdate = false): array
+    protected function validateCreditNoteData(array $data, bool $isUpdate = false): array
     {
         // For updates, required fields are not mandatory
         if (!$isUpdate) {
@@ -306,8 +311,12 @@ class Receipts extends Resource
                 throw new InvalidArgumentException('currency.code is required');
             }
 
-            if (empty($data['total']['tax_inclusive'])) {
-                throw new InvalidArgumentException('total.tax_inclusive is required for receipts');
+            if (empty($data['total'])) {
+                throw new InvalidArgumentException('total is required');
+            }
+
+            if (empty($data['total']['tax_exclusive']) && empty($data['total']['tax_inclusive'])) {
+                throw new InvalidArgumentException('Either total.tax_exclusive or total.tax_inclusive is required');
             }
         }
 

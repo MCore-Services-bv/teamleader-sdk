@@ -46,9 +46,9 @@ class TeamleaderSDK
         'addresses' => Resources\CRM\Addresses::class,
 
         // Deals
-//        'deals' => Resources\Deals\Deals::class,
-//        'quotations' => Resources\Deals\Quotations::class,
-//        'orders' => Resources\Deals\Orders::class,
+        'deals' => Resources\Deals\Deals::class,
+        'quotations' => Resources\Deals\Quotations::class,
+        'orders' => Resources\Deals\Orders::class,
         'dealPhases' => Resources\Deals\Phases::class,
         'dealPipelines' => Resources\Deals\Pipelines::class,
         'dealSources' => Resources\Deals\Sources::class,
@@ -56,9 +56,9 @@ class TeamleaderSDK
 
         // Calendar
         'meetings' => Resources\Calendar\Meetings::class,
-//        'calls' => Resources\Calendar\Calls::class,
+        'calls' => Resources\Calendar\Calls::class,
         'callOutcomes' => Resources\Calendar\CallOutcomes::class,
-//        'calenderEvents' => Resources\Calendar\CalenderEvents::class,
+        'calenderEvents' => Resources\Calendar\Events::class,
         'activityTypes' => Resources\Calendar\ActivityTypes::class,
 
         // Invoicing
@@ -66,28 +66,28 @@ class TeamleaderSDK
         'creditnotes' => Resources\Invoicing\Creditnotes::class,
         'payment_methods' => Resources\Invoicing\PaymentMethods::class,
         'payment_terms' => Resources\Invoicing\PaymentTerms::class,
-//        'subscriptions' => Resources\Invoicing\Subscriptions::class,
+        'subscriptions' => Resources\Invoicing\Subscriptions::class,
         'taxRates' => Resources\Invoicing\TaxRates::class,
         'withholdingTaxRates' => Resources\Invoicing\WithholdingTaxRates::class,
         'commercialDiscounts' => Resources\Invoicing\CommercialDiscounts::class,
 
         // Expenses
-//        'expenses' => Resources\Expenses\Expenses::class,
-//        'bookkeepingSubmissions' => Resources\Expenses\BookkeepingSubmissions::class,
-//        'incomingInvoices' => Resources\Expenses\IncomingInvoices::class,
-//        'incomingCreditnotes' => Resources\Expenses\IncomingCreditnotes::class,
-//        'incomingCreditnotes' => Resources\Expenses\Receipts::class,
+        'expenses' => Resources\Expenses\Expenses::class,
+        'bookkeepingSubmissions' => Resources\Expenses\BookkeepingSubmissions::class,
+        'incomingInvoices' => Resources\Expenses\IncomingInvoices::class,
+        'incomingCreditNotes' => Resources\Expenses\IncomingCreditNotes::class,
+        'receipts' => Resources\Expenses\Receipts::class,
 
         // Products
         'priceLists' => Resources\Products\PriceLists::class,
         'productCategories' => Resources\Products\Categories::class,
         'products' => Resources\Products\Products::class,
         'unitsOfMeasure' => Resources\Products\UnitOfMeasure::class,
-//
+
         // Legacy Projects
         'legacyMilestones' => Resources\Projects\LegacyMilestones::class,
         'legacyProjects' => Resources\Projects\LegacyProjects::class,
-//
+
        // New Projects
         'external_parties' => Resources\Projects\ExternalParties::class,
         'groups' => Resources\Projects\Groups::class,
@@ -95,29 +95,29 @@ class TeamleaderSDK
         'projectLines' => Resources\Projects\ProjectLines::class,
         'projects' => Resources\Projects\Projects::class,
         'projectTasks' => Resources\Projects\ProjectTasks::class,
-//
+
         // Tasks
-//        'tasks' => Resources\Tasks\Tasks::class,
-//
+        'tasks' => Resources\Tasks\Tasks::class,
+
         // Time Tracking
         'timeTracking' => Resources\TimeTracking\TimeTracking::class,
         'timers' => Resources\TimeTracking\Timers::class,
-//
+
         // Tickets
-//        'ticketStatus' => Resources\Tickets\TicketStatus::class,
-//        'tickets' => Resources\Tickets\Tickets::class,
-//
+        'ticketStatus' => Resources\Tickets\TicketStatus::class,
+        'tickets' => Resources\Tickets\Tickets::class,
+
         // Files
-//        'files' => Resources\Files\Files::class,
-//
+        'files' => Resources\Files\Files::class,
+
         // Templates
-//        'mailTemplates' => Resources\Templates\MailTemplates::class,
-//
+        'mailTemplates' => Resources\Templates\MailTemplates::class,
+
         // Other
-//        'migrate' => Resources\Other\Migrate::class,
-//        'webhooks' => Resources\Other\Webhooks::class,
-//        'cloudPlatforms' => Resources\Other\CloudPlatforms::class,
-//        'accounts' => Resources\Other\Accounts::class,
+        'migrate' => Resources\Other\Migrate::class,
+        'webhooks' => Resources\Other\Webhooks::class,
+        'cloudPlatforms' => Resources\Other\CloudPlatforms::class,
+        'accounts' => Resources\Other\Accounts::class,
     ];
     protected $resourceInstances = [];
     private TokenService $tokenService;
