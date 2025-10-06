@@ -16,12 +16,13 @@ use Psr\Log\NullLogger;
 
 class TeamleaderSDK
 {
+    protected static $apiCallCount = 0;
+    protected static $apiCalls = [];
     protected $client;
     protected $accessToken;
     protected $baseUrl = 'https://api.focus.teamleader.eu';
     protected $authUrl = 'https://focus.teamleader.eu';
     protected string $apiVersion;
-
     protected $resources = [
         // General
         'departments' => Resources\General\Departments::class,
@@ -53,68 +54,72 @@ class TeamleaderSDK
         'dealSources' => Resources\Deals\Sources::class,
         'lostReasons' => Resources\Deals\LostReasons::class,
 
-//        // Calendar
-//        'meetings' => Resources\Calender\Meetings::class,
-//        'calls' => Resources\Calender\Calls::class,
-//        'callOutcomes' => Resources\Calender\CallOutcomes::class,
-//        'calenderEvents' => Resources\Calender\CalenderEvents::class,
-//        'activityTypes' => Resources\Calender\ActivityTypes::class,
-//
-//        // Invoicing
-//        'invoices' => Resources\Invoicing\Invoices::class,
-//        'creditnotes' => Resources\Invoicing\Creditnotes::class,
-//        'payment_methods' => Resources\Invoicing\PaymentMethods::class,
-//        'payment_terms' => Resources\Invoicing\PaymentTerms::class,
+        // Calendar
+        'meetings' => Resources\Calendar\Meetings::class,
+//        'calls' => Resources\Calendar\Calls::class,
+        'callOutcomes' => Resources\Calendar\CallOutcomes::class,
+//        'calenderEvents' => Resources\Calendar\CalenderEvents::class,
+        'activityTypes' => Resources\Calendar\ActivityTypes::class,
+
+        // Invoicing
+        'invoices' => Resources\Invoicing\Invoices::class,
+        'creditnotes' => Resources\Invoicing\Creditnotes::class,
+        'payment_methods' => Resources\Invoicing\PaymentMethods::class,
+        'payment_terms' => Resources\Invoicing\PaymentTerms::class,
 //        'subscriptions' => Resources\Invoicing\Subscriptions::class,
-//        'taxRates' => Resources\Invoicing\TaxRates::class,
-//        'withholdingTaxRates' => Resources\Invoicing\WithholdingTaxRates::class,
-//        'commercialDiscounts' => Resources\Invoicing\CommercialDiscounts::class,
-//
-//        // Products
+        'taxRates' => Resources\Invoicing\TaxRates::class,
+        'withholdingTaxRates' => Resources\Invoicing\WithholdingTaxRates::class,
+        'commercialDiscounts' => Resources\Invoicing\CommercialDiscounts::class,
+
+        // Expenses
+//        'expenses' => Resources\Expenses\Expenses::class,
+//        'bookkeepingSubmissions' => Resources\Expenses\BookkeepingSubmissions::class,
+//        'incomingInvoices' => Resources\Expenses\IncomingInvoices::class,
+//        'incomingCreditnotes' => Resources\Expenses\IncomingCreditnotes::class,
+//        'incomingCreditnotes' => Resources\Expenses\Receipts::class,
+
+        // Products
         'priceLists' => Resources\Products\PriceLists::class,
         'productCategories' => Resources\Products\Categories::class,
         'products' => Resources\Products\Products::class,
         'unitsOfMeasure' => Resources\Products\UnitOfMeasure::class,
 //
-//        // Legacy Projects
-//        'legacyMilestones' => Resources\Projects\Legacy\Milestones::class,
-//        'legacyProjects' => Resources\Projects\Legacy\Projects::class,
+        // Legacy Projects
+        'legacyMilestones' => Resources\Projects\LegacyMilestones::class,
+        'legacyProjects' => Resources\Projects\LegacyProjects::class,
 //
-//        // New Projects
-//        'groups' => Resources\Projects\Groups::class,
-//        'materials' => Resources\Projects\Materials::class,
-//        'projectLines' => Resources\Projects\ProjectLines::class,
-//        'projects' => Resources\Projects\Projects::class,
-//        'projectTasks' => Resources\Projects\Tasks::class,
+       // New Projects
+        'external_parties' => Resources\Projects\ExternalParties::class,
+        'groups' => Resources\Projects\Groups::class,
+        'materials' => Resources\Projects\Materials::class,
+        'projectLines' => Resources\Projects\ProjectLines::class,
+        'projects' => Resources\Projects\Projects::class,
+        'projectTasks' => Resources\Projects\ProjectTasks::class,
 //
-//        // Tasks
+        // Tasks
 //        'tasks' => Resources\Tasks\Tasks::class,
 //
-//        // Time Tracking
-//        'timeTracking' => Resources\TimeTracking\TimeTracking::class,
-//        'timers' => Resources\TimeTracking\Timers::class,
+        // Time Tracking
+        'timeTracking' => Resources\TimeTracking\TimeTracking::class,
+        'timers' => Resources\TimeTracking\Timers::class,
 //
-//        // Tickets
+        // Tickets
 //        'ticketStatus' => Resources\Tickets\TicketStatus::class,
 //        'tickets' => Resources\Tickets\Tickets::class,
 //
-//        // Files
+        // Files
 //        'files' => Resources\Files\Files::class,
 //
-//        // Templates
+        // Templates
 //        'mailTemplates' => Resources\Templates\MailTemplates::class,
 //
-//        // Other
+        // Other
 //        'migrate' => Resources\Other\Migrate::class,
 //        'webhooks' => Resources\Other\Webhooks::class,
 //        'cloudPlatforms' => Resources\Other\CloudPlatforms::class,
 //        'accounts' => Resources\Other\Accounts::class,
     ];
-
     protected $resourceInstances = [];
-    protected static $apiCallCount = 0;
-    protected static $apiCalls = [];
-
     private TokenService $tokenService;
     private ApiRateLimiterService $rateLimiter;
     private LoggerInterface $logger;
@@ -124,11 +129,12 @@ class TeamleaderSDK
     private bool $manualTokenSet = false;
 
     public function __construct(
-        TokenService $tokenService = null,
-        ApiRateLimiterService $rateLimiter = null,
-        LoggerInterface $logger = null,
+        TokenService           $tokenService = null,
+        ApiRateLimiterService  $rateLimiter = null,
+        LoggerInterface        $logger = null,
         TeamleaderErrorHandler $errorHandler = null
-    ) {
+    )
+    {
         $this->validateConfiguration();
 
         $this->client = new Client([
@@ -174,6 +180,30 @@ class TeamleaderSDK
         }
     }
 
+    public static function getApiCallCount()
+    {
+        return self::$apiCallCount;
+    }
+
+    public static function getApiCalls()
+    {
+        return self::$apiCalls;
+    }
+
+    public static function resetApiCallStats()
+    {
+        self::$apiCallCount = 0;
+        self::$apiCalls = [];
+    }
+
+    /**
+     * Get the current API version
+     */
+    public function getApiVersion(): string
+    {
+        return $this->apiVersion;
+    }
+
     /**
      * Set the API version to use for requests
      */
@@ -189,11 +219,11 @@ class TeamleaderSDK
     }
 
     /**
-     * Get the current API version
+     * Redirect to Teamleader authorization page
      */
-    public function getApiVersion(): string
+    public function authorize(string $state = null): RedirectResponse
     {
-        return $this->apiVersion;
+        return redirect($this->getAuthorizationUrl($state));
     }
 
     /**
@@ -219,14 +249,6 @@ class TeamleaderSDK
         ]);
 
         return $url;
-    }
-
-    /**
-     * Redirect to Teamleader authorization page
-     */
-    public function authorize(string $state = null): RedirectResponse
-    {
-        return redirect($this->getAuthorizationUrl($state));
     }
 
     /**
@@ -256,7 +278,7 @@ class TeamleaderSDK
             ]);
 
             if ($response->getStatusCode() !== 200) {
-                $responseBody = (string) $response->getBody();
+                $responseBody = (string)$response->getBody();
                 $this->logger->error('Token exchange failed', [
                     'status_code' => $response->getStatusCode(),
                     'response' => $responseBody
@@ -410,7 +432,7 @@ class TeamleaderSDK
             $response = $this->client->request($method, $fullUrl, $options);
 
             $statusCode = $response->getStatusCode();
-            $responseBody = (string) $response->getBody();
+            $responseBody = (string)$response->getBody();
             $responseData = json_decode($responseBody, true);
             $responseHeaders = $response->getHeaders();
 
@@ -479,6 +501,8 @@ class TeamleaderSDK
         }
     }
 
+    // Keep all your existing utility methods
+
     /**
      * Parse Teamleader-specific error format
      */
@@ -518,23 +542,6 @@ class TeamleaderSDK
     {
         $this->errorHandler->setThrowExceptions($throw);
         return $this;
-    }
-
-    // Keep all your existing utility methods
-    public static function getApiCallCount()
-    {
-        return self::$apiCallCount;
-    }
-
-    public static function getApiCalls()
-    {
-        return self::$apiCalls;
-    }
-
-    public static function resetApiCallStats()
-    {
-        self::$apiCallCount = 0;
-        self::$apiCalls = [];
     }
 
     /**
