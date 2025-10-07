@@ -452,28 +452,38 @@ class TimeTracking extends Resource
     /**
      * Apply sorting to the API request
      */
-    protected function applySorting(array $params, ?string $field, string $order = 'asc'): array
+    protected function applySorting(array $params = [], $sort = null, $order = 'asc'): array
     {
-        if (!$field) {
+        // Handle null sort - return params as-is
+        if (!$sort) {
             return $params;
         }
 
-        // Only starts_on is supported for sorting according to API docs
-        $validSortFields = ['starts_on'];
-
-        if (!in_array($field, $validSortFields)) {
-            throw new InvalidArgumentException(
-                'Invalid sort field. Only "starts_on" is supported'
-            );
+        // If sort is already an array with proper structure, use it directly
+        if (is_array($sort) && isset($sort[0]['field'])) {
+            $params['sort'] = $sort;
+            return $params;
         }
 
-        $params['sort'] = [
-            [
-                'field' => $field,
-                'order' => strtolower($order) === 'desc' ? 'desc' : 'asc'
-            ]
-        ];
+        // If sort is an array with 'field' and 'order' keys
+        if (is_array($sort) && isset($sort['field'])) {
+            $params['sort'] = [[
+                'field' => $sort['field'],
+                'order' => $sort['order'] ?? $order
+            ]];
+            return $params;
+        }
 
+        // If sort is a string (field name), convert to proper structure
+        if (is_string($sort)) {
+            $params['sort'] = [[
+                'field' => $sort,
+                'order' => $order
+            ]];
+            return $params;
+        }
+
+        // Default: return params unchanged if we can't handle the sort format
         return $params;
     }
 
