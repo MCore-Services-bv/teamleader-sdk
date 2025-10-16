@@ -1,6 +1,28 @@
 # Teams
 
-Manage teams in Teamleader Focus. This resource provides read-only access to team information and membership.
+Manage teams in Teamleader Focus.
+
+## Overview
+
+The Teams resource provides read-only access to team information in your Teamleader account. Teams are groups of users that work together, and can be used to organize and filter data throughout Teamleader.
+
+**Important:** The Teams resource is read-only. You cannot create, update, or delete teams through the API. Teams must be managed through the Teamleader interface.
+
+## Navigation
+
+- [Endpoint](#endpoint)
+- [Capabilities](#capabilities)
+- [Available Methods](#available-methods)
+    - [list()](#list)
+- [Helper Methods](#helper-methods)
+- [Filters](#filters)
+- [Sorting](#sorting)
+- [Response Structure](#response-structure)
+- [Usage Examples](#usage-examples)
+- [Common Use Cases](#common-use-cases)
+- [Best Practices](#best-practices)
+- [Error Handling](#error-handling)
+- [Related Resources](#related-resources)
 
 ## Endpoint
 
@@ -8,111 +30,90 @@ Manage teams in Teamleader Focus. This resource provides read-only access to tea
 
 ## Capabilities
 
-- **Supports Pagination**: ❌ Not Supported
-- **Supports Filtering**: ✅ Supported
-- **Supports Sorting**: ✅ Supported
-- **Supports Sideloading**: ❌ Not Supported
-- **Supports Creation**: ❌ Not Supported
-- **Supports Update**: ❌ Not Supported
-- **Supports Deletion**: ❌ Not Supported
-- **Supports Batch**: ❌ Not Supported
+- **Pagination**: ❌ Not Supported
+- **Filtering**: ✅ Supported
+- **Sorting**: ✅ Supported
+- **Sideloading**: ❌ Not Supported
+- **Creation**: ❌ Not Supported
+- **Update**: ❌ Not Supported
+- **Deletion**: ❌ Not Supported
 
 ## Available Methods
 
 ### `list()`
 
-Get a list of all teams with filtering and sorting options.
+Get a list of teams with optional filtering and sorting.
 
 **Parameters:**
-- `filters` (array): Array of filters to apply
+- `filters` (array): Filters to apply
 - `options` (array): Sorting options
 
 **Example:**
 ```php
-$teams = $teamleader->teams()->list(['term' => 'Designers']);
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
+// Get all teams
+$teams = Teamleader::teams()->list();
+
+// Search teams by name
+$teams = Teamleader::teams()->list([
+    'term' => 'Sales'
+]);
+
+// Get teams sorted by name
+$teams = Teamleader::teams()->list([], [
+    'sort' => [['field' => 'name', 'order' => 'asc']]
+]);
 ```
+
+**Note:** The Teams resource does not support the `info()` method. Use `list()` with filters to get specific teams.
+
+## Helper Methods
+
+The Teams resource provides convenient helper methods for common operations:
 
 ### `search()`
 
 Search teams by name.
 
-**Parameters:**
-- `term` (string): Search term for team name
-
-**Example:**
 ```php
-$teams = $teamleader->teams()->search('Designers');
+// Search for teams containing "Sales"
+$teams = Teamleader::teams()->search('Sales');
+
+// Search for teams containing "Marketing"
+$teams = Teamleader::teams()->search('Marketing');
 ```
 
-### `byIds()`
-
-Get specific teams by their UUIDs.
-
-**Parameters:**
-- `ids` (array): Array of team UUIDs
-
-**Example:**
-```php
-$teams = $teamleader->teams()->byIds(['team-uuid-1', 'team-uuid-2']);
-```
-
-### `byTeamLead()`
-
-Get teams led by a specific user.
-
-**Parameters:**
-- `teamLeadId` (string): User UUID of the team leader
-
-**Example:**
-```php
-$teams = $teamleader->teams()->byTeamLead('user-uuid-here');
-```
-
-### `sortedByName()`
-
-Get teams sorted by name.
-
-**Parameters:**
-- `order` (string): Sort order ('asc' or 'desc'), defaults to 'asc'
-
-**Example:**
-```php
-$teams = $teamleader->teams()->sortedByName('desc');
-```
-
-## Filtering
+## Filters
 
 ### Available Filters
 
-- **`ids`**: Array of team UUIDs to filter by
-- **`term`**: Filter by team name
-- **`team_lead_id`**: Filter teams by team leader user ID
-
-### Filter Examples
+#### `ids`
+Filter by specific team UUIDs.
 
 ```php
-// Search by team name
-$designTeams = $teamleader->teams()->list([
+$teams = Teamleader::teams()->list([
+    'ids' => ['team-uuid-1', 'team-uuid-2']
+]);
+```
+
+#### `term`
+Search filter on team name.
+
+```php
+// Find teams with "Design" in the name
+$teams = Teamleader::teams()->list([
     'term' => 'Design'
 ]);
+```
 
-// Filter by team leader
-$leaderTeams = $teamleader->teams()->list([
-    'team_lead_id' => '6a9106c3-ed2a-46a2-a919-eb3d41165dd2'
-]);
+#### `team_lead_id`
+Filter teams by team leader (user UUID).
 
-// Filter by specific IDs
-$specificTeams = $teamleader->teams()->list([
-    'ids' => [
-        '92296ad0-2d61-4179-b174-9f354ca2157f',
-        '53635682-c382-4fbf-9fd9-9506ca4fbcdd'
-    ]
-]);
-
-// Combine filters
-$filteredTeams = $teamleader->teams()->list([
-    'term' => 'Dev',
-    'team_lead_id' => 'user-uuid-here'
+```php
+// Get all teams led by a specific user
+$teams = Teamleader::teams()->list([
+    'team_lead_id' => 'user-uuid'
 ]);
 ```
 
@@ -120,241 +121,428 @@ $filteredTeams = $teamleader->teams()->list([
 
 ### Available Sort Fields
 
-- **`name`**: Sort by team name
+- `name` - Sort by team name
 
-### Sorting Examples
+### Sort Examples
 
 ```php
 // Sort by name (ascending)
-$teams = $teamleader->teams()->list([], [
-    'sort' => [
-        [
-            'field' => 'name',
-            'order' => 'asc'
-        ]
-    ]
+$teams = Teamleader::teams()->list([], [
+    'sort' => [['field' => 'name', 'order' => 'asc']]
 ]);
 
 // Sort by name (descending)
-$teams = $teamleader->teams()->list([], [
-    'sort' => [
-        [
-            'field' => 'name',
-            'order' => 'desc'
-        ]
-    ]
+$teams = Teamleader::teams()->list([], [
+    'sort' => [['field' => 'name', 'order' => 'desc']]
 ]);
 ```
 
-## Response Format
+## Response Structure
 
-### List Response
+### Team Object
 
-```json
-{
-    "data": [
-        {
-            "id": "4b5291aa-2d78-09d2-882c-6c1483f00d88",
-            "name": "Designers",
-            "team_lead": {
-                "id": "eab232c6-49b2-4b7e-a977-5e1148dad471",
-                "type": "user"
-            },
-            "members": [
-                {
-                    "id": "eab232c6-49b2-4b7e-a977-5e1148dad471",
-                    "type": "user"
-                }
-            ]
-        }
+```php
+[
+    'id' => 'team-uuid',
+    'name' => 'Sales Team',
+    'team_lead' => [
+        'type' => 'user',
+        'id' => 'user-uuid'
     ]
-}
+]
 ```
-
-## Data Fields
-
-### Team Fields
-
-- **`id`**: Team UUID
-- **`name`**: Team name
-- **`team_lead`**: Team leader object (nullable)
-    - **`id`**: User UUID of the team leader
-    - **`type`**: Resource type (always "user")
-- **`members`**: Array of team member objects
-    - **`id`**: User UUID of the team member
-    - **`type`**: Resource type (always "user")
 
 ## Usage Examples
 
-### Basic Operations
+### Get All Teams
 
 ```php
-// Get all teams
-$allTeams = $teamleader->teams()->list();
-
-// Search for design teams
-$designTeams = $teamleader->teams()->search('Design');
-
-// Get teams sorted by name
-$sortedTeams = $teamleader->teams()->sortedByName();
-```
-
-### Filtering Teams
-
-```php
-// Get teams led by a specific user
-$userTeams = $teamleader->teams()->byTeamLead('user-uuid-here');
-
-// Get specific teams by ID
-$specificTeams = $teamleader->teams()->byIds([
-    'team-uuid-1',
-    'team-uuid-2'
-]);
-
-// Complex filtering
-$filteredTeams = $teamleader->teams()->list([
-    'term' => 'Development',
-    'team_lead_id' => 'manager-uuid-here'
-]);
-```
-
-### Working with Team Data
-
-```php
-$teams = $teamleader->teams()->list();
+$teams = Teamleader::teams()->list();
 
 foreach ($teams['data'] as $team) {
-    echo "Team: " . $team['name'] . "\n";
-    
-    if ($team['team_lead']) {
-        echo "Team Lead ID: " . $team['team_lead']['id'] . "\n";
-    } else {
-        echo "No team lead assigned\n";
-    }
-    
-    echo "Members: " . count($team['members']) . "\n";
-    
-    foreach ($team['members'] as $member) {
-        echo "- Member ID: " . $member['id'] . "\n";
-    }
-    
-    echo "\n";
+    echo $team['name'] . ' (Leader: ' . $team['team_lead']['id'] . ')' . PHP_EOL;
 }
 ```
 
-### Sorting Teams
+### Search for Teams
 
 ```php
-// Alphabetical order (A-Z)
-$teamsAsc = $teamleader->teams()->sortedByName('asc');
+// Search for teams
+$salesTeams = Teamleader::teams()->search('Sales');
+$designTeams = Teamleader::teams()->search('Design');
+```
 
-// Reverse alphabetical order (Z-A)
-$teamsDesc = $teamleader->teams()->sortedByName('desc');
+### Get Teams by Leader
 
-// Using the general list method with sorting
-$customSort = $teamleader->teams()->list([], [
-    'sort' => [
-        [
-            'field' => 'name',
-            'order' => 'desc'
-        ]
-    ]
+```php
+// Get all teams for a specific team leader
+$userId = 'user-uuid';
+$teams = Teamleader::teams()->list([
+    'team_lead_id' => $userId
 ]);
+
+if (!empty($teams['data'])) {
+    echo "Teams led by this user:";
+    foreach ($teams['data'] as $team) {
+        echo "  - " . $team['name'] . PHP_EOL;
+    }
+}
+```
+
+### Build a Team Dropdown
+
+```php
+$teams = Teamleader::teams()->list([], [
+    'sort' => [['field' => 'name', 'order' => 'asc']]
+]);
+
+$dropdown = [];
+foreach ($teams['data'] as $team) {
+    $dropdown[$team['id']] = $team['name'];
+}
+
+// Use in Blade template
+<select name="team_id">
+    @foreach($dropdown as $id => $name)
+        <option value="{{ $id }}">{{ $name }}</option>
+    @endforeach
+</select>
+```
+
+### Find Team by Name
+
+```php
+function findTeamByName($searchName)
+{
+    $teams = Teamleader::teams()->search($searchName);
+    
+    foreach ($teams['data'] as $team) {
+        if (strcasecmp($team['name'], $searchName) === 0) {
+            return $team;
+        }
+    }
+    
+    return null;
+}
+
+$salesTeam = findTeamByName('Sales Team');
+```
+
+## Common Use Cases
+
+### Team Selection in Forms
+
+```php
+class ReportController extends Controller
+{
+    public function create()
+    {
+        $teams = Teamleader::teams()->list([], [
+            'sort' => [['field' => 'name', 'order' => 'asc']]
+        ]);
+        
+        return view('reports.create', [
+            'teams' => $teams['data']
+        ]);
+    }
+}
+```
+
+### Cache Teams
+
+```php
+use Illuminate\Support\Facades\Cache;
+
+class TeamService
+{
+    public function getAllTeams()
+    {
+        return Cache::remember('all_teams', 3600, function() {
+            return Teamleader::teams()->list([], [
+                'sort' => [['field' => 'name', 'order' => 'asc']]
+            ]);
+        });
+    }
+    
+    public function getTeamsByLeader($userId)
+    {
+        $cacheKey = "teams.leader.{$userId}";
+        
+        return Cache::remember($cacheKey, 3600, function() use ($userId) {
+            return Teamleader::teams()->list([
+                'team_lead_id' => $userId
+            ]);
+        });
+    }
+    
+    public function clearCache()
+    {
+        Cache::flush();
+    }
+}
+```
+
+### Sync Teams to Local Database
+
+```php
+use App\Models\Team;
+use Illuminate\Console\Command;
+
+class SyncTeamsCommand extends Command
+{
+    protected $signature = 'teamleader:sync-teams';
+    
+    public function handle()
+    {
+        $this->info('Syncing teams...');
+        
+        $teams = Teamleader::teams()->list();
+        
+        foreach ($teams['data'] as $teamData) {
+            Team::updateOrCreate(
+                ['teamleader_id' => $teamData['id']],
+                [
+                    'name' => $teamData['name'],
+                    'team_lead_id' => $teamData['team_lead']['id'],
+                ]
+            );
+        }
+        
+        $this->info('Teams synced successfully!');
+    }
+}
+```
+
+### Team-Based Filtering
+
+```php
+class DealService
+{
+    public function getDealsForTeam($teamId)
+    {
+        // Get team members
+        $team = $this->findTeamById($teamId);
+        
+        if (!$team) {
+            return [];
+        }
+        
+        // Get deals assigned to team members
+        // This would require getting user IDs for the team
+        // and then filtering deals by those users
+        
+        return $this->getDealsForUsers($this->getTeamUserIds($teamId));
+    }
+    
+    private function findTeamById($teamId)
+    {
+        $teams = Teamleader::teams()->list(['ids' => [$teamId]]);
+        return $teams['data'][0] ?? null;
+    }
+}
+```
+
+### Team Leadership Report
+
+```php
+class TeamLeadershipReport
+{
+    public function generate()
+    {
+        $teams = Teamleader::teams()->list();
+        $report = [];
+        
+        foreach ($teams['data'] as $team) {
+            $leaderId = $team['team_lead']['id'];
+            
+            if (!isset($report[$leaderId])) {
+                $leader = Teamleader::users()->info($leaderId);
+                $report[$leaderId] = [
+                    'leader_name' => $leader['data']['first_name'] . ' ' . $leader['data']['last_name'],
+                    'teams' => []
+                ];
+            }
+            
+            $report[$leaderId]['teams'][] = $team['name'];
+        }
+        
+        return $report;
+    }
+}
+```
+
+### Validate Team Assignment
+
+```php
+class TeamValidator
+{
+    public function isValidTeam($teamId): bool
+    {
+        $teams = Teamleader::teams()->list(['ids' => [$teamId]]);
+        return !empty($teams['data']);
+    }
+    
+    public function isUserTeamLead($userId): bool
+    {
+        $teams = Teamleader::teams()->list([
+            'team_lead_id' => $userId
+        ]);
+        
+        return !empty($teams['data']);
+    }
+    
+    public function getTeamsByLeader($userId): array
+    {
+        $teams = Teamleader::teams()->list([
+            'team_lead_id' => $userId
+        ]);
+        
+        return $teams['data'];
+    }
+}
+```
+
+## Best Practices
+
+### 1. Cache Team Data
+
+Teams change infrequently, so cache them:
+
+```php
+// Good: Cache for 1 hour
+$teams = Cache::remember('all_teams', 3600, function() {
+    return Teamleader::teams()->list();
+});
+
+// Bad: Fetching on every request
+$teams = Teamleader::teams()->list();
+```
+
+### 2. Use Search for Name Lookups
+
+```php
+// Good: Use search method
+$teams = Teamleader::teams()->search('Sales');
+
+// Less ideal: Manual filtering
+$allTeams = Teamleader::teams()->list();
+$filtered = array_filter($allTeams['data'], function($team) {
+    return stripos($team['name'], 'Sales') !== false;
+});
+```
+
+### 3. Sort Results for User-Facing Lists
+
+```php
+// Good: Sorted alphabetically
+$teams = Teamleader::teams()->list([], [
+    'sort' => [['field' => 'name', 'order' => 'asc']]
+]);
+
+// Bad: Unsorted (inconsistent order)
+$teams = Teamleader::teams()->list();
+```
+
+### 4. Handle Empty Results
+
+```php
+$teams = Teamleader::teams()->search('NonExistentTeam');
+
+if (empty($teams['data'])) {
+    // No teams found
+    return response()->json([
+        'message' => 'No teams found matching your search'
+    ], 404);
+}
+```
+
+### 5. Combine with User Data
+
+When displaying team information, combine with user data:
+
+```php
+$teams = Teamleader::teams()->list();
+
+foreach ($teams['data'] as &$team) {
+    $leader = Teamleader::users()->info($team['team_lead']['id']);
+    $team['leader_name'] = $leader['data']['first_name'] . ' ' . $leader['data']['last_name'];
+}
 ```
 
 ## Error Handling
 
 ```php
-$result = $teamleader->teams()->list();
+use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
 
-if (isset($result['error']) && $result['error']) {
-    // Handle error
-    $errorMessage = $result['message'] ?? 'Unknown error';
-    $statusCode = $result['status_code'] ?? 0;
-    
-    Log::error("Teams API error: {$errorMessage}", [
-        'status_code' => $statusCode
+try {
+    $teams = Teamleader::teams()->list();
+} catch (TeamleaderException $e) {
+    Log::error('Error fetching teams', [
+        'error' => $e->getMessage(),
+        'code' => $e->getCode()
     ]);
+    
+    // Provide fallback
+    return ['data' => []];
 }
 ```
 
-## Rate Limiting
+## Working with Team Members
 
-Teams API calls count towards your overall Teamleader API rate limit:
+**Note:** The Teams API endpoint only returns team information (name and leader). It does not include team members. To get team members, you would need to:
 
-- **List operations**: 1 request per call
-- **Convenience methods**: 1 request per call
-
-Rate limit cost: **1 request per method call**
-
-## Notes
-
-- Teams are **read-only** in the Teamleader API
-- No individual team info, create, update, or delete operations are supported
-- Teams don't support pagination - all teams are returned in a single response
-- Teams don't support sideloading/includes
-- The `team_lead` field can be null if no team leader is assigned
-- Team members are returned as an array of user reference objects
-- Only sorting by `name` is supported
-- The `term` filter searches within team names
-
-## Laravel Integration
-
-When using this resource in Laravel applications:
+1. Get all users
+2. Filter users based on their team assignment (if available in user data)
+3. Or manage team membership in your local database
 
 ```php
-use McoreServices\TeamleaderSDK\TeamleaderSDK;
-
-class TeamController extends Controller
+// Example: Get users and group by team
+class TeamMemberService
 {
-    public function index(TeamleaderSDK $teamleader)
+    public function getUsersByTeam()
     {
-        $teams = $teamleader->teams()->sortedByName();
-        return view('teams.index', compact('teams'));
-    }
-    
-    public function search(Request $request, TeamleaderSDK $teamleader)
-    {
-        $term = $request->get('q');
-        $teams = $teamleader->teams()->search($term);
-        return response()->json($teams);
-    }
-    
-    public function byLeader(TeamleaderSDK $teamleader, string $userId)
-    {
-        $teams = $teamleader->teams()->byTeamLead($userId);
-        return view('teams.by-leader', compact('teams'));
+        $users = Teamleader::users()->active();
+        $teams = Teamleader::teams()->list();
+        
+        $teamMembers = [];
+        
+        // Group users by team (if team info is available in user data)
+        foreach ($users['data'] as $user) {
+            if (isset($user['team']['id'])) {
+                $teamId = $user['team']['id'];
+                if (!isset($teamMembers[$teamId])) {
+                    $teamMembers[$teamId] = [];
+                }
+                $teamMembers[$teamId][] = $user;
+            }
+        }
+        
+        return $teamMembers;
     }
 }
-```
-
-### Example Integration with User Management
-
-```php
-// Get teams for a specific user (as team leader)
-$userTeams = $teamleader->teams()->byTeamLead($userId);
-
-// Get user details and their teams
-$user = $teamleader->users()->info($userId);
-$leaderTeams = $teamleader->teams()->byTeamLead($userId);
-
-// Find teams where user is a member (requires checking members array)
-$allTeams = $teamleader->teams()->list();
-$memberTeams = collect($allTeams['data'])->filter(function ($team) use ($userId) {
-    return collect($team['members'])->pluck('id')->contains($userId);
-});
 ```
 
 ## Limitations
 
-Since the Teams API only provides a list endpoint:
+1. **No info() method**: You cannot fetch individual team details. Use `list()` with the `ids` filter instead.
+2. **No pagination**: All teams are returned in a single response.
+3. **No team members**: The API does not return team member information.
 
-- **No individual team details**: You cannot get detailed information about a single team
-- **No team management**: Teams cannot be created, updated, or deleted via API
-- **No pagination**: All teams are returned at once
-- **Limited sorting**: Only name-based sorting is available
-- **No includes**: Additional related data cannot be sideloaded
+```php
+// To get a specific team, use list with ids filter
+$team = Teamleader::teams()->list(['ids' => ['team-uuid']]);
 
-If you need these capabilities, you'll need to use the Teamleader Focus web interface for team management.
+if (!empty($team['data'])) {
+    $teamData = $team['data'][0];
+}
+```
 
-For more information, refer to the [Teamleader API Documentation](https://developer.focus.teamleader.eu/).
+## Related Resources
+
+- [Users](users.md) - Users can be team leaders
+- [Departments](departments.md) - Another organizational structure
+
+## See Also
+
+- [Usage Guide](../usage.md) - General SDK usage
+- [Filtering](../filtering.md) - Advanced filtering techniques

@@ -1,6 +1,27 @@
 # Document Templates
 
-Manage document templates in Teamleader Focus. This resource provides read-only access to document template information for specific departments and document types.
+Manage document template definitions in Teamleader Focus.
+
+## Overview
+
+The Document Templates resource provides read-only access to document template information in your Teamleader account. Document templates are used for generating formatted documents like invoices, quotations, and other business documents.
+
+**Important:** This resource is read-only and requires both `department_id` and `document_type` filters. You cannot create, update, or delete document templates through the API.
+
+## Navigation
+
+- [Endpoint](#endpoint)
+- [Capabilities](#capabilities)
+- [Available Methods](#available-methods)
+    - [list()](#list)
+- [Helper Methods](#helper-methods)
+- [Document Types](#document-types)
+- [Response Structure](#response-structure)
+- [Usage Examples](#usage-examples)
+- [Common Use Cases](#common-use-cases)
+- [Best Practices](#best-practices)
+- [Error Handling](#error-handling)
+- [Related Resources](#related-resources)
 
 ## Endpoint
 
@@ -8,360 +29,507 @@ Manage document templates in Teamleader Focus. This resource provides read-only 
 
 ## Capabilities
 
-- **Supports Pagination**: ❌ Not Supported
-- **Supports Filtering**: ✅ Supported
-- **Supports Sorting**: ❌ Not Supported
-- **Supports Sideloading**: ❌ Not Supported
-- **Supports Creation**: ❌ Not Supported
-- **Supports Update**: ❌ Not Supported
-- **Supports Deletion**: ❌ Not Supported
-- **Supports Batch**: ❌ Not Supported
+- **Pagination**: ❌ Not Supported
+- **Filtering**: ✅ Required (department_id and document_type)
+- **Sorting**: ❌ Not Supported
+- **Sideloading**: ❌ Not Supported
+- **Creation**: ❌ Not Supported
+- **Update**: ❌ Not Supported
+- **Deletion**: ❌ Not Supported
 
 ## Available Methods
 
 ### `list()`
 
-Get document templates with required filtering by department and document type.
+Get document templates for a specific department and document type.
 
 **Parameters:**
-- `filters` (array): Array of filters to apply (department_id and document_type are **required**)
-- `options` (array): Additional options (not used for this endpoint)
+- `filters` (array): Required filters
+    - `department_id` (string, required): Department UUID
+    - `document_type` (string, required): Type of document
+    - `status` (string, optional): Filter by status ('active', 'archived')
 
 **Example:**
 ```php
-$templates = $teamleader->documentTemplates()->list([
-    'department_id' => 'a344c251-2494-0013-b433-ccee8e8435e5',
-    'document_type' => 'invoice'
-]);
-```
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
 
-### `byType()`
-
-Get document templates by document type for a specific department.
-
-**Parameters:**
-- `departmentId` (string): Department UUID
-- `documentType` (string): Document type
-- `additionalFilters` (array): Additional filters like status
-
-**Example:**
-```php
-$invoiceTemplates = $teamleader->documentTemplates()->byType(
-    'a344c251-2494-0013-b433-ccee8e8435e5',
-    'invoice'
-);
-```
-
-### `activeForDepartment()`
-
-Get only active document templates for a specific department and type.
-
-**Parameters:**
-- `departmentId` (string): Department UUID
-- `documentType` (string): Document type
-
-**Example:**
-```php
-$activeTemplates = $teamleader->documentTemplates()->activeForDepartment(
-    'a344c251-2494-0013-b433-ccee8e8435e5',
-    'quotation'
-);
-```
-
-### `archivedForDepartment()`
-
-Get only archived document templates for a specific department and type.
-
-**Parameters:**
-- `departmentId` (string): Department UUID
-- `documentType` (string): Document type
-
-**Example:**
-```php
-$archivedTemplates = $teamleader->documentTemplates()->archivedForDepartment(
-    'a344c251-2494-0013-b433-ccee8e8435e5',
-    'invoice'
-);
-```
-
-### `allForDepartment()`
-
-Get all document templates for a department across multiple document types. **Note:** This makes multiple API calls.
-
-**Parameters:**
-- `departmentId` (string): Department UUID
-- `documentTypes` (array): Array of document types to fetch (optional, defaults to all types)
-
-**Example:**
-```php
-$allTemplates = $teamleader->documentTemplates()->allForDepartment(
-    'a344c251-2494-0013-b433-ccee8e8435e5',
-    ['invoice', 'quotation', 'order']
-);
-```
-
-## Required Parameters
-
-⚠️ **Important**: The Teamleader API requires both `department_id` and `document_type` for all document template requests.
-
-- **`department_id`**: UUID of the department (required)
-- **`document_type`**: Type of document template (required)
-
-## Filtering
-
-### Available Filters
-
-- **`department_id`**: Department UUID (**required**)
-- **`document_type`**: Type of document template (**required**)
-- **`status`**: Filter by template status (active, archived)
-
-### Filter Examples
-
-```php
-// Basic required filters
-$templates = $teamleader->documentTemplates()->list([
-    'department_id' => 'a344c251-2494-0013-b433-ccee8e8435e5',
+// Get invoice templates for a department
+$templates = Teamleader::documentTemplates()->list([
+    'department_id' => 'department-uuid',
     'document_type' => 'invoice'
 ]);
 
-// Filter by status (active only)
-$activeTemplates = $teamleader->documentTemplates()->list([
-    'department_id' => 'a344c251-2494-0013-b433-ccee8e8435e5',
+// Get only active templates
+$templates = Teamleader::documentTemplates()->list([
+    'department_id' => 'department-uuid',
     'document_type' => 'invoice',
-    'status' => ['active']
+    'status' => 'active'
 ]);
+```
 
-// Filter by multiple statuses
-$allTemplates = $teamleader->documentTemplates()->list([
-    'department_id' => 'a344c251-2494-0013-b433-ccee8e8435e5',
-    'document_type' => 'quotation',
-    'status' => ['active', 'archived']
-]);
+## Helper Methods
+
+### `forDepartmentAndType()`
+
+Get templates for a specific department and document type.
+
+```php
+$templates = Teamleader::documentTemplates()->forDepartmentAndType(
+    'department-uuid',
+    'invoice'
+);
+```
+
+### `forDepartment()`
+
+Get templates for a specific department (must specify document_type separately).
+
+```php
+$invoiceTemplates = Teamleader::documentTemplates()->forDepartment(
+    'department-uuid',
+    'invoice'
+);
+```
+
+### `forInvoices()`
+
+Get invoice templates for a department.
+
+```php
+$templates = Teamleader::documentTemplates()->forInvoices('department-uuid');
+```
+
+### `forQuotations()`
+
+Get quotation templates for a department.
+
+```php
+$templates = Teamleader::documentTemplates()->forQuotations('department-uuid');
+```
+
+### `forCreditNotes()`
+
+Get credit note templates for a department.
+
+```php
+$templates = Teamleader::documentTemplates()->forCreditNotes('department-uuid');
 ```
 
 ## Document Types
 
-### Available Document Types
+Available document types:
 
-- **`delivery_note`**: Delivery Note
-- **`invoice`**: Invoice
-- **`order`**: Order
-- **`order_confirmation`**: Order Confirmation
-- **`quotation`**: Quotation
-- **`timetracking_report`**: Time Tracking Report
-- **`workorder`**: Work Order
+- `invoice` - Invoice templates
+- `quotation` - Quotation templates
+- `credit_note` - Credit note templates
 
-### Getting Available Types
+Get the list programmatically:
 
 ```php
-$documentTypes = $teamleader->documentTemplates()->getAvailableDocumentTypes();
-// Returns: ['delivery_note', 'invoice', 'order', ...]
-
-$displayNames = $teamleader->documentTemplates()->getDocumentTypeDisplayNames();
-// Returns: ['delivery_note' => 'Delivery Note', 'invoice' => 'Invoice', ...]
+$types = Teamleader::documentTemplates()->getAvailableDocumentTypes();
+// Returns: ['invoice', 'quotation', 'credit_note']
 ```
 
-## Response Format
+## Response Structure
 
-### List Response
+### Document Template Object
 
-```json
-{
-    "data": [
-        {
-            "id": "a344c251-2494-0013-b433-ccee8e8435e5",
-            "department": {
-                "id": "eab232c6-49b2-4b7e-a977-5e1148dad471",
-                "type": "department"
-            },
-            "document_type": "invoice",
-            "is_default": true,
-            "name": "new logo",
-            "status": "active"
-        }
-    ]
-}
+```php
+[
+    'id' => 'template-uuid',
+    'name' => 'Standard Invoice Template',
+    'type' => 'invoice',
+    'department' => [
+        'type' => 'department',
+        'id' => 'department-uuid'
+    ],
+    'status' => 'active', // or 'archived'
+    'language' => 'en',
+    'default' => true // Indicates if this is the default template
+]
 ```
-
-## Data Fields
-
-### Template Fields
-
-- **`id`**: Template UUID
-- **`department`**: Department reference object with id and type
-- **`document_type`**: Type of document (delivery_note, invoice, order, etc.)
-- **`is_default`**: Whether this template is the default for this document type
-- **`name`**: Template name/description
-- **`status`**: Template status ("active" or "archived")
 
 ## Usage Examples
 
-### Get Invoice Templates for Department
+### Get Invoice Templates
 
 ```php
-$invoiceTemplates = $teamleader->documentTemplates()->list([
-    'department_id' => 'a344c251-2494-0013-b433-ccee8e8435e5',
-    'document_type' => 'invoice'
+$departmentId = 'department-uuid';
+
+$templates = Teamleader::documentTemplates()->forInvoices($departmentId);
+
+foreach ($templates['data'] as $template) {
+    echo $template['name'] . ' (' . $template['language'] . ')' . PHP_EOL;
+}
+```
+
+### Get Default Template
+
+```php
+$templates = Teamleader::documentTemplates()->list([
+    'department_id' => 'department-uuid',
+    'document_type' => 'invoice',
+    'status' => 'active'
 ]);
 
-foreach ($invoiceTemplates['data'] as $template) {
-    echo "Template: {$template['name']} ({$template['status']})\n";
-    if ($template['is_default']) {
-        echo "This is the default template\n";
+// Find the default template
+$defaultTemplate = null;
+foreach ($templates['data'] as $template) {
+    if ($template['default'] === true) {
+        $defaultTemplate = $template;
+        break;
     }
 }
 ```
 
-### Get Active Templates Only
+### Get Templates for All Document Types
 
 ```php
-$activeQuotationTemplates = $teamleader->documentTemplates()->activeForDepartment(
-    'a344c251-2494-0013-b433-ccee8e8435e5',
-    'quotation'
-);
-```
+$departmentId = 'department-uuid';
+$documentTypes = ['invoice', 'quotation', 'credit_note'];
 
-### Get All Templates for a Department
-
-```php
-// Get templates for specific document types
-$selectedTypes = ['invoice', 'quotation', 'order'];
-$allTemplates = $teamleader->documentTemplates()->allForDepartment(
-    'a344c251-2494-0013-b433-ccee8e8435e5',
-    $selectedTypes
-);
-
-echo "Found {$allTemplates['meta']['total_templates']} templates\n";
-```
-
-### Find Default Template
-
-```php
-$templates = $teamleader->documentTemplates()->byType(
-    'a344c251-2494-0013-b433-ccee8e8435e5',
-    'invoice'
-);
-
-$defaultTemplate = collect($templates['data'])
-    ->firstWhere('is_default', true);
-
-if ($defaultTemplate) {
-    echo "Default invoice template: {$defaultTemplate['name']}\n";
+$allTemplates = [];
+foreach ($documentTypes as $type) {
+    $allTemplates[$type] = Teamleader::documentTemplates()->list([
+        'department_id' => $departmentId,
+        'document_type' => $type
+    ]);
 }
 ```
 
-### Working with Multiple Departments
+### Get Templates by Language
 
 ```php
-$departments = ['dept-uuid-1', 'dept-uuid-2', 'dept-uuid-3'];
-$documentType = 'invoice';
+function getTemplatesByLanguage($departmentId, $documentType, $language)
+{
+    $templates = Teamleader::documentTemplates()->list([
+        'department_id' => $departmentId,
+        'document_type' => $documentType
+    ]);
+    
+    $filtered = [];
+    foreach ($templates['data'] as $template) {
+        if ($template['language'] === $language) {
+            $filtered[] = $template;
+        }
+    }
+    
+    return $filtered;
+}
 
-foreach ($departments as $deptId) {
-    try {
-        $templates = $teamleader->documentTemplates()->activeForDepartment($deptId, $documentType);
-        echo "Department {$deptId} has " . count($templates['data']) . " active invoice templates\n";
-    } catch (Exception $e) {
-        echo "Error fetching templates for department {$deptId}: {$e->getMessage()}\n";
+$dutchInvoiceTemplates = getTemplatesByLanguage('dept-uuid', 'invoice', 'nl');
+```
+
+## Common Use Cases
+
+### Template Selector for Invoices
+
+```php
+class TemplateSelector
+{
+    public function getInvoiceTemplatesForDropdown($departmentId)
+    {
+        $templates = Teamleader::documentTemplates()->forInvoices($departmentId);
+        
+        $options = [];
+        foreach ($templates['data'] as $template) {
+            if ($template['status'] === 'active') {
+                $options[$template['id']] = $template['name'] . ' (' . strtoupper($template['language']) . ')';
+            }
+        }
+        
+        return $options;
+    }
+    
+    public function getDefaultTemplate($departmentId, $documentType)
+    {
+        $templates = Teamleader::documentTemplates()->list([
+            'department_id' => $departmentId,
+            'document_type' => $documentType
+        ]);
+        
+        foreach ($templates['data'] as $template) {
+            if ($template['default'] === true && $template['status'] === 'active') {
+                return $template;
+            }
+        }
+        
+        return $templates['data'][0] ?? null;
+    }
+}
+```
+
+### Cache Document Templates
+
+```php
+use Illuminate\Support\Facades\Cache;
+
+class DocumentTemplateService
+{
+    public function getTemplates($departmentId, $documentType)
+    {
+        $cacheKey = "doc_templates.{$departmentId}.{$documentType}";
+        
+        return Cache::remember($cacheKey, 7200, function() use ($departmentId, $documentType) {
+            return Teamleader::documentTemplates()->list([
+                'department_id' => $departmentId,
+                'document_type' => $documentType,
+                'status' => 'active'
+            ]);
+        });
+    }
+}
+```
+
+### Multi-Language Template Selection
+
+```php
+class MultiLanguageTemplateSelector
+{
+    public function getTemplateForCustomer($departmentId, $documentType, $customerLanguage)
+    {
+        $templates = Teamleader::documentTemplates()->list([
+            'department_id' => $departmentId,
+            'document_type' => $documentType,
+            'status' => 'active'
+        ]);
+        
+        // Try to find template in customer's language
+        foreach ($templates['data'] as $template) {
+            if ($template['language'] === $customerLanguage) {
+                return $template;
+            }
+        }
+        
+        // Fallback to default template
+        foreach ($templates['data'] as $template) {
+            if ($template['default'] === true) {
+                return $template;
+            }
+        }
+        
+        // Last resort: first active template
+        return $templates['data'][0] ?? null;
+    }
+}
+```
+
+### Template Availability Check
+
+```php
+class TemplateValidator
+{
+    public function hasActiveTemplates($departmentId, $documentType)
+    {
+        $templates = Teamleader::documentTemplates()->list([
+            'department_id' => $departmentId,
+            'document_type' => $documentType,
+            'status' => 'active'
+        ]);
+        
+        return !empty($templates['data']);
+    }
+    
+    public function validateTemplateId($templateId, $departmentId, $documentType)
+    {
+        $templates = Teamleader::documentTemplates()->list([
+            'department_id' => $departmentId,
+            'document_type' => $documentType
+        ]);
+        
+        foreach ($templates['data'] as $template) {
+            if ($template['id'] === $templateId && $template['status'] === 'active') {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+}
+```
+
+### Sync Templates to Local Database
+
+```php
+use App\Models\DocumentTemplate;
+use Illuminate\Console\Command;
+
+class SyncDocumentTemplatesCommand extends Command
+{
+    protected $signature = 'teamleader:sync-templates {department?}';
+    
+    public function handle()
+    {
+        $departments = $this->getDepartments();
+        $documentTypes = ['invoice', 'quotation', 'credit_note'];
+        
+        foreach ($departments as $dept) {
+            foreach ($documentTypes as $type) {
+                $this->info("Syncing {$type} templates for {$dept['name']}...");
+                
+                $templates = Teamleader::documentTemplates()->list([
+                    'department_id' => $dept['id'],
+                    'document_type' => $type
+                ]);
+                
+                foreach ($templates['data'] as $template) {
+                    DocumentTemplate::updateOrCreate(
+                        ['teamleader_id' => $template['id']],
+                        [
+                            'name' => $template['name'],
+                            'type' => $template['type'],
+                            'department_id' => $dept['id'],
+                            'language' => $template['language'],
+                            'status' => $template['status'],
+                            'is_default' => $template['default']
+                        ]
+                    );
+                }
+            }
+        }
+        
+        $this->info('Document templates synced successfully!');
+    }
+    
+    private function getDepartments()
+    {
+        // Get departments to sync
+        return Teamleader::departments()->active()['data'];
+    }
+}
+```
+
+## Best Practices
+
+### 1. Always Cache Templates
+
+```php
+// Good: Cache templates
+$templates = Cache::remember('templates_dept_invoice', 7200, function() {
+    return Teamleader::documentTemplates()->forInvoices($deptId);
+});
+
+// Bad: Fetch every time
+$templates = Teamleader::documentTemplates()->forInvoices($deptId);
+```
+
+### 2. Use Helper Methods
+
+```php
+// Good: Clear and readable
+$templates = Teamleader::documentTemplates()->forInvoices($deptId);
+
+// Less ideal: Manual filtering
+$templates = Teamleader::documentTemplates()->list([
+    'department_id' => $deptId,
+    'document_type' => 'invoice'
+]);
+```
+
+### 3. Handle Missing Templates
+
+```php
+// Good: Check for templates
+$templates = Teamleader::documentTemplates()->forInvoices($deptId);
+
+if (empty($templates['data'])) {
+    throw new \Exception('No invoice templates configured for this department');
+}
+
+// Bad: Assume templates exist
+$template = $templates['data'][0];
+```
+
+### 4. Filter by Status
+
+```php
+// Good: Only get active templates
+$templates = Teamleader::documentTemplates()->list([
+    'department_id' => $deptId,
+    'document_type' => 'invoice',
+    'status' => 'active'
+]);
+
+// Bad: Include archived templates
+$templates = Teamleader::documentTemplates()->forInvoices($deptId);
+```
+
+### 5. Respect Default Templates
+
+```php
+// Good: Use default when available
+$templates = Teamleader::documentTemplates()->forInvoices($deptId);
+
+foreach ($templates['data'] as $template) {
+    if ($template['default'] && $template['status'] === 'active') {
+        return $template['id'];
+    }
+}
+
+// Fallback to first active
+foreach ($templates['data'] as $template) {
+    if ($template['status'] === 'active') {
+        return $template['id'];
     }
 }
 ```
 
 ## Error Handling
 
-Document templates require both `department_id` and `document_type` parameters:
+```php
+use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
+
+try {
+    $templates = Teamleader::documentTemplates()->list([
+        'department_id' => $departmentId,
+        'document_type' => 'invoice'
+    ]);
+} catch (TeamleaderException $e) {
+    if ($e->getCode() === 400) {
+        // Missing required filters
+        Log::error('Missing required filters', [
+            'department_id' => $departmentId ?? 'missing'
+        ]);
+    } else {
+        Log::error('Error fetching templates', [
+            'error' => $e->getMessage()
+        ]);
+    }
+    
+    // Provide fallback
+    $templates = ['data' => []];
+}
+```
+
+## Required Filters
+
+Both `department_id` and `document_type` are **required**:
 
 ```php
-try {
-    // This will throw an InvalidArgumentException
-    $templates = $teamleader->documentTemplates()->list([
-        'department_id' => 'a344c251-2494-0013-b433-ccee8e8435e5'
-        // Missing required document_type
-    ]);
-} catch (InvalidArgumentException $e) {
-    echo "Missing required parameter: {$e->getMessage()}\n";
-}
-
-// Proper usage
-$templates = $teamleader->documentTemplates()->list([
-    'department_id' => 'a344c251-2494-0013-b433-ccee8e8435e5',
+// ✅ Correct
+$templates = Teamleader::documentTemplates()->list([
+    'department_id' => 'dept-uuid',
     'document_type' => 'invoice'
 ]);
 
-if (isset($templates['error']) && $templates['error']) {
-    $errorMessage = $templates['message'] ?? 'Unknown error';
-    Log::error("Document Templates API error: {$errorMessage}");
-}
+// ❌ Will fail - missing required filters
+$templates = Teamleader::documentTemplates()->list([
+    'document_type' => 'invoice'
+]);
+
+// ❌ Will fail - missing required filters
+$templates = Teamleader::documentTemplates()->list([
+    'department_id' => 'dept-uuid'
+]);
 ```
 
-## Rate Limiting
+## Related Resources
 
-Document template API calls count towards your overall Teamleader API rate limit:
+- [Departments](departments.md) - Templates are department-specific
+- [Invoices](../invoicing/invoices.md) - Use invoice templates
+- [Quotations](../deals/quotations.md) - Use quotation templates
 
-- **List operations**: 1 request per call
-- **Convenience methods**: 1 request per call
-- **`allForDepartment()`**: Multiple requests (1 per document type)
+## See Also
 
-Rate limit cost: **1 request per method call** (except `allForDepartment()`)
-
-## Helper Methods
-
-### Get Available Options
-
-```php
-// Get all supported document types
-$types = $teamleader->documentTemplates()->getAvailableDocumentTypes();
-
-// Get display names for UI
-$displayNames = $teamleader->documentTemplates()->getDocumentTypeDisplayNames();
-
-// Get available statuses
-$statuses = $teamleader->documentTemplates()->getAvailableStatuses();
-```
-
-## Notes
-
-- Document templates are **read-only** in the Teamleader API
-- No create, update, or delete operations are supported
-- Both `department_id` and `document_type` are **required** for all requests
-- Templates don't support sideloading/includes
-- No pagination is available for this endpoint
-- Use the `is_default` field to identify the default template for each document type
-- The `allForDepartment()` method makes multiple API calls and should be used carefully with rate limits
-
-## Laravel Integration
-
-When using this resource in Laravel applications:
-
-```php
-use McoreServices\TeamleaderSDK\TeamleaderSDK;
-
-class DocumentTemplateController extends Controller
-{
-    public function index(TeamleaderSDK $teamleader, Request $request)
-    {
-        $departmentId = $request->get('department_id');
-        $documentType = $request->get('document_type', 'invoice');
-        
-        if (!$departmentId) {
-            return redirect()->back()
-                ->with('error', 'Please select a department first.');
-        }
-        
-        $templates = $teamleader->documentTemplates()->byType(
-            $departmentId,
-            $documentType
-        );
-        
-        return view('document-templates.index', compact('templates', 'departmentId', 'documentType'));
-    }
-    
-    public function getByType(TeamleaderSDK $teamleader, string $departmentId, string $type)
-    {
-        $templates = $teamleader->documentTemplates()->activeForDepartment($departmentId, $type);
-        
-        return response()->json($templates);
-    }
-}
-```
-
-For more information, refer to the [Teamleader API Documentation](https://developer.focus.teamleader.eu/).
+- [Usage Guide](../usage.md) - General SDK usage
+- [Filtering](../filtering.md) - Advanced filtering techniques

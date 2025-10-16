@@ -1,6 +1,28 @@
 # Notes
 
-Manage notes in Teamleader Focus. Notes can be attached to various entities like companies, contacts, deals, projects, and more, providing a flexible way to add context and track communications.
+Manage notes in Teamleader Focus.
+
+## Overview
+
+The Notes resource allows you to create, update, and list notes attached to various resources in Teamleader. Notes can be added to contacts, companies, deals, meetings, and more. This is useful for documenting interactions, decisions, and important information.
+
+## Navigation
+
+- [Endpoint](#endpoint)
+- [Capabilities](#capabilities)
+- [Available Methods](#available-methods)
+    - [list()](#list)
+    - [create()](#create)
+    - [update()](#update)
+- [Helper Methods](#helper-methods)
+- [Filters](#filters)
+- [Available Subject Types](#available-subject-types)
+- [Response Structure](#response-structure)
+- [Usage Examples](#usage-examples)
+- [Common Use Cases](#common-use-cases)
+- [Best Practices](#best-practices)
+- [Error Handling](#error-handling)
+- [Related Resources](#related-resources)
 
 ## Endpoint
 
@@ -8,462 +30,564 @@ Manage notes in Teamleader Focus. Notes can be attached to various entities like
 
 ## Capabilities
 
-- **Supports Pagination**: ✅ Supported
-- **Supports Filtering**: ✅ Supported
-- **Supports Sorting**: ❌ Not Supported
-- **Supports Sideloading**: ❌ Not Supported
-- **Supports Creation**: ✅ Supported
-- **Supports Update**: ✅ Supported
-- **Supports Deletion**: ❌ Not Supported
-- **Supports Batch**: ❌ Not Supported
+- **Pagination**: ✅ Supported
+- **Filtering**: ✅ Supported (by subject only)
+- **Sorting**: ❌ Not Supported
+- **Sideloading**: ❌ Not Supported
+- **Creation**: ✅ Supported
+- **Update**: ✅ Supported
+- **Deletion**: ❌ Not Supported
 
 ## Available Methods
 
 ### `list()`
 
-Get a paginated list of notes with filtering support.
+Get notes for a specific subject (resource).
 
 **Parameters:**
-- `filters` (array): Array of filters to apply
+- `filters` (array): Must include subject filter
 - `options` (array): Pagination options
 
 **Example:**
 ```php
-$notes = $teamleader->notes()->list(['subject' => ['type' => 'contact', 'id' => 'contact-uuid']]);
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
+// Get notes for a company
+$notes = Teamleader::notes()->list([
+    'subject' => [
+        'type' => 'company',
+        'id' => 'company-uuid'
+    ]
+]);
+
+// With pagination
+$notes = Teamleader::notes()->list(
+    ['subject' => ['type' => 'contact', 'id' => 'contact-uuid']],
+    ['page_size' => 50, 'page_number' => 1]
+);
 ```
 
 ### `create()`
 
-Create a new note attached to a subject entity.
+Create a new note.
 
 **Parameters:**
 - `data` (array): Note data including subject, content, and optional notifications
 
 **Example:**
 ```php
-$note = $teamleader->notes()->create([
-    'subject' => ['type' => 'contact', 'id' => 'contact-uuid'],
-    'content' => 'Meeting notes from today'
+// Create a note for a company
+$note = Teamleader::notes()->create([
+    'subject' => [
+        'type' => 'company',
+        'id' => 'company-uuid'
+    ],
+    'content' => 'Had a great meeting today about the new contract.',
+]);
+
+// Create a note with user notifications
+$note = Teamleader::notes()->create([
+    'subject' => [
+        'type' => 'deal',
+        'id' => 'deal-uuid'
+    ],
+    'content' => 'Deal is moving to the next phase.',
+    'notify' => [
+        ['type' => 'user', 'id' => 'user-uuid-1'],
+        ['type' => 'user', 'id' => 'user-uuid-2']
+    ]
 ]);
 ```
 
 ### `update()`
 
-Update an existing note's content.
+Update an existing note.
 
 **Parameters:**
 - `id` (string): Note UUID
-- `data` (array): Data to update (typically just content)
+- `data` (array): Updated note data
 
 **Example:**
 ```php
-$note = $teamleader->notes()->update('note-uuid', [
-    'content' => 'Updated note content'
+// Update note content
+$note = Teamleader::notes()->update('note-uuid', [
+    'content' => 'Updated: Deal is now confirmed and moving forward.'
 ]);
 ```
 
-### Subject-Specific Methods
+## Helper Methods
 
-#### `forSubject()`
+The Notes resource provides convenient helper methods for working with specific resource types:
 
-Get notes for a specific subject entity.
+### List Notes for Specific Resources
 
-**Parameters:**
-- `subjectType` (string): Type of subject entity
-- `subjectId` (string): UUID of the subject entity
-- `options` (array): Pagination options
-
-**Example:**
-```php
-$notes = $teamleader->notes()->forSubject('company', 'company-uuid');
-```
-
-#### `createForSubject()`
-
-Create a note for a specific subject entity.
-
-**Parameters:**
-- `subjectType` (string): Type of subject entity
-- `subjectId` (string): UUID of the subject entity
-- `content` (string): Note content
-- `notify` (array): Optional array of users to notify
-
-**Example:**
-```php
-$note = $teamleader->notes()->createForSubject(
-    'deal', 
-    'deal-uuid', 
-    'Important client feedback',
-    [['type' => 'user', 'id' => 'user-uuid']]
-);
-```
-
-### Convenience Methods
-
-The SDK provides convenience methods for common subject types:
-
-#### Company Notes
 ```php
 // Get notes for a company
-$notes = $teamleader->notes()->forCompany('company-uuid');
+$notes = Teamleader::notes()->forCompany('company-uuid');
 
-// Create a note for a company
-$note = $teamleader->notes()->createForCompany(
-    'company-uuid', 
-    'Quarterly review completed'
-);
-```
-
-#### Contact Notes
-```php
 // Get notes for a contact
-$notes = $teamleader->notes()->forContact('contact-uuid');
+$notes = Teamleader::notes()->forContact('contact-uuid');
 
-// Create a note for a contact
-$note = $teamleader->notes()->createForContact(
-    'contact-uuid', 
-    'Follow-up call scheduled'
-);
-```
-
-#### Deal Notes
-```php
 // Get notes for a deal
-$notes = $teamleader->notes()->forDeal('deal-uuid');
+$notes = Teamleader::notes()->forDeal('deal-uuid');
 
-// Create a note for a deal
-$note = $teamleader->notes()->createForDeal(
-    'deal-uuid', 
-    'Client showed strong interest'
+// Get notes for any subject type
+$notes = Teamleader::notes()->forSubject('meeting', 'meeting-uuid');
+```
+
+### Create Notes for Specific Resources
+
+```php
+// Create note for a company
+$note = Teamleader::notes()->createForCompany(
+    'company-uuid',
+    'Meeting scheduled for next week'
+);
+
+// Create note for a contact with notifications
+$note = Teamleader::notes()->createForContact(
+    'contact-uuid',
+    'Follow-up required',
+    [
+        ['type' => 'user', 'id' => 'user-uuid']
+    ]
+);
+
+// Create note for a deal
+$note = Teamleader::notes()->createForDeal(
+    'deal-uuid',
+    'Contract signed!'
+);
+
+// Create note for any subject type
+$note = Teamleader::notes()->createForSubject(
+    'project',
+    'project-uuid',
+    'Project kickoff meeting completed'
 );
 ```
 
-## Subject Types
-
-Notes can be attached to the following entity types:
-
-- **`company`** - Company records
-- **`contact`** - Individual contacts
-- **`deal`** - Sales deals/opportunities
-- **`invoice`** - Invoices
-- **`quotation`** - Quotations
-- **`creditNote`** - Credit notes
-- **`product`** - Products
-- **`project`** - Legacy projects
-- **`nextgenProject`** - New generation projects
-- **`subscription`** - Subscriptions
-
-## Filtering
+## Filters
 
 ### Available Filters
 
-- **`subject`**: Filter notes by the subject entity they're attached to
-    - `subject.type` (string): Type of subject entity
-    - `subject.id` (string): UUID of the subject entity
-
-### Filter Examples
+#### `subject` (Required)
+Notes must be filtered by a specific subject. The subject filter requires both a type and an ID.
 
 ```php
-// Get all notes for a specific contact
-$contactNotes = $teamleader->notes()->list([
+$notes = Teamleader::notes()->list([
     'subject' => [
-        'type' => 'contact',
-        'id' => '36386b05-936e-4cc0-9523-bd20d797ebf5'
+        'type' => 'company',  // Subject type
+        'id' => 'company-uuid' // Subject UUID
     ]
 ]);
+```
 
-// Get all notes for a company
-$companyNotes = $teamleader->notes()->list([
+## Available Subject Types
+
+Notes can be attached to the following resource types:
+
+- `contact` - Contact notes
+- `company` - Company notes
+- `deal` - Deal notes
+- `project` - Project notes
+- `milestone` - Milestone notes
+- `ticket` - Ticket notes
+- `invoice` - Invoice notes
+- `meeting` - Meeting notes
+
+Get the list programmatically:
+
+```php
+$subjectTypes = Teamleader::notes()->getAvailableSubjectTypes();
+```
+
+## Response Structure
+
+### Note Object
+
+```php
+[
+    'id' => 'note-uuid',
+    'author' => [
+        'type' => 'user',
+        'id' => 'user-uuid'
+    ],
     'subject' => [
         'type' => 'company',
-        'id' => 'eab232c6-49b2-4b7e-a977-5e1148dad471'
-    ]
-]);
-
-// Get notes for a deal with pagination
-$dealNotes = $teamleader->notes()->list([
-    'subject' => [
-        'type' => 'deal',
-        'id' => 'deal-uuid-here'
-    ]
-], [
-    'page_size' => 50,
-    'page_number' => 1
-]);
-```
-
-## Creating Notes
-
-### Basic Note Creation
-
-```php
-$note = $teamleader->notes()->create([
-    'subject' => [
-        'type' => 'contact',
-        'id' => '36386b05-936e-4cc0-9523-bd20d797ebf5'
+        'id' => 'company-uuid'
     ],
-    'content' => 'Had a great conversation about their upcoming project needs.'
-]);
+    'content' => 'Had a great meeting today about the new contract.',
+    'created_at' => '2024-01-15T10:30:00+00:00',
+    'updated_at' => '2024-01-15T10:30:00+00:00'
+]
 ```
 
-### Note Creation with Notifications
+## Usage Examples
+
+### Get All Notes for a Company
 
 ```php
-$note = $teamleader->notes()->create([
-    'subject' => [
-        'type' => 'deal',
-        'id' => 'deal-uuid-here'
-    ],
-    'content' => 'Client confirmed budget approval. Moving to next phase.',
-    'notify' => [
-        [
-            'type' => 'user',
-            'id' => 'f29abf48-337d-44b4-aad4-585f5277a456'
-        ],
-        [
-            'type' => 'user', 
-            'id' => 'another-user-uuid'
-        ]
-    ]
-]);
-```
+$companyId = 'company-uuid';
+$notes = Teamleader::notes()->forCompany($companyId);
 
-### Using Convenience Methods
-
-```php
-// Simple note creation for a company
-$note = $teamleader->notes()->createForCompany(
-    'company-uuid',
-    'Annual contract renewal discussion completed'
-);
-
-// Note creation with user notification
-$note = $teamleader->notes()->createForContact(
-    'contact-uuid',
-    'Requested product demo for next week',
-    [['type' => 'user', 'id' => 'sales-manager-uuid']]
-);
-```
-
-## Updating Notes
-
-```php
-// Update note content
-$updatedNote = $teamleader->notes()->update('note-uuid-here', [
-    'content' => 'Updated: Client confirmed they want to proceed with the proposal.'
-]);
-```
-
-## Response Format
-
-### List Response
-
-```json
-{
-    "data": [
-        {
-            "id": "a344c251-2494-0013-b433-ccee8e8435e5",
-            "content": "Had a productive meeting discussing their Q4 requirements.",
-            "subject": {
-                "id": "eab232c6-49b2-4b7e-a977-5e1148dad471",
-                "type": "company"
-            },
-            "added_at": "2016-01-01T00:00:00+00:00"
-        }
-    ]
+foreach ($notes['data'] as $note) {
+    echo "[" . $note['created_at'] . "] " . $note['content'] . PHP_EOL;
 }
 ```
 
-### Create Response
+### Add a Note to a Contact
 
-```json
+```php
+$note = Teamleader::notes()->createForContact(
+    'contact-uuid',
+    'Customer requested a callback next week.'
+);
+
+if ($note) {
+    echo "Note created successfully!";
+}
+```
+
+### Create a Note with Team Notifications
+
+```php
+// Notify multiple team members about important information
+$note = Teamleader::notes()->create([
+    'subject' => [
+        'type' => 'deal',
+        'id' => 'deal-uuid'
+    ],
+    'content' => 'URGENT: Customer needs proposal by Friday!',
+    'notify' => [
+        ['type' => 'user', 'id' => 'sales-manager-uuid'],
+        ['type' => 'user', 'id' => 'account-manager-uuid'],
+        ['type' => 'user', 'id' => 'team-lead-uuid']
+    ]
+]);
+```
+
+### Update an Existing Note
+
+```php
+$noteId = 'note-uuid';
+
+$updatedNote = Teamleader::notes()->update($noteId, [
+    'content' => 'Updated information: Contract signed and payment terms agreed.'
+]);
+```
+
+### Paginate Through All Notes
+
+```php
+$subjectType = 'company';
+$subjectId = 'company-uuid';
+$allNotes = [];
+$page = 1;
+
+do {
+    $response = Teamleader::notes()->list(
+        ['subject' => ['type' => $subjectType, 'id' => $subjectId]],
+        ['page_size' => 100, 'page_number' => $page]
+    );
+    
+    $allNotes = array_merge($allNotes, $response['data']);
+    $hasMore = count($response['data']) === 100;
+    $page++;
+    
+} while ($hasMore);
+```
+
+## Common Use Cases
+
+### Activity Log for Resources
+
+```php
+class ActivityLogger
 {
-    "data": {
-        "id": "a344c251-2494-0013-b433-ccee8e8435e5",
-        "type": "note"
+    public function logActivity($resourceType, $resourceId, $message)
+    {
+        return Teamleader::notes()->createForSubject(
+            $resourceType,
+            $resourceId,
+            '[' . now()->toDateTimeString() . '] ' . $message
+        );
+    }
+    
+    public function getActivityLog($resourceType, $resourceId)
+    {
+        return Teamleader::notes()->forSubject($resourceType, $resourceId);
+    }
+}
+
+// Usage
+$logger = new ActivityLogger();
+$logger->logActivity('deal', 'deal-uuid', 'Customer requested pricing update');
+```
+
+### Add Notes During Deal Updates
+
+```php
+class DealService
+{
+    public function updateDealStatus($dealId, $newStatus, $reason)
+    {
+        // Update the deal
+        $deal = Teamleader::deals()->update($dealId, [
+            'status' => $newStatus
+        ]);
+        
+        // Add a note documenting the change
+        Teamleader::notes()->createForDeal(
+            $dealId,
+            "Status changed to {$newStatus}. Reason: {$reason}"
+        );
+        
+        return $deal;
     }
 }
 ```
 
-### Update Response
-
-Returns HTTP 204 No Content on successful update.
-
-## Data Fields
-
-### Note Fields
-
-- **`id`**: Note UUID
-- **`content`**: The note content/text
-- **`subject`**: Object containing the subject entity details
-    - `id`: UUID of the subject entity
-    - `type`: Type of subject entity
-- **`added_at`**: ISO 8601 timestamp when the note was created
-
-### Create Request Fields
-
-- **`subject`** (required): Object specifying what entity the note is attached to
-    - `type` (required): Subject entity type
-    - `id` (required): Subject entity UUID
-- **`content`** (required): Note content/text
-- **`notify`** (optional): Array of users to notify about the new note
-    - Each notification object must have `type: "user"` and `id` (user UUID)
-
-### Update Request Fields
-
-- **`id`** (required): Note UUID
-- **`content`** (optional): Updated note content
-
-## Usage Examples
-
-### Comprehensive Note Management
+### Customer Interaction Tracking
 
 ```php
-// Get all notes for a company
-$companyNotes = $teamleader->notes()->forCompany('company-uuid');
+class CustomerInteractionTracker
+{
+    public function logInteraction($companyId, $interactionType, $details, $notify = [])
+    {
+        $content = "Interaction Type: {$interactionType}\n";
+        $content .= "Details: {$details}\n";
+        $content .= "Date: " . now()->toDateTimeString();
+        
+        return Teamleader::notes()->createForCompany(
+            $companyId,
+            $content,
+            $notify
+        );
+    }
+    
+    public function getInteractionHistory($companyId)
+    {
+        return Teamleader::notes()->forCompany($companyId);
+    }
+}
 
-// Add a new note to the company
-$newNote = $teamleader->notes()->createForCompany(
+// Usage
+$tracker = new CustomerInteractionTracker();
+$tracker->logInteraction(
     'company-uuid',
-    'Initial consultation completed. Client interested in our enterprise package.'
-);
-
-// Update the note with additional information
-$updatedNote = $teamleader->notes()->update($newNote['data']['id'], [
-    'content' => 'Initial consultation completed. Client interested in our enterprise package. Follow-up scheduled for next week.'
-]);
-
-// Get all notes for a deal with pagination
-$dealNotes = $teamleader->notes()->forDeal('deal-uuid', [
-    'page_size' => 25,
-    'page_number' => 1
-]);
-```
-
-### Working with Different Entity Types
-
-```php
-// Create notes for different entity types
-$invoiceNote = $teamleader->notes()->createForSubject(
-    'invoice',
-    'invoice-uuid',
-    'Payment terms extended by 30 days per client request'
-);
-
-$projectNote = $teamleader->notes()->createForSubject(
-    'nextgenProject',
-    'project-uuid',
-    'Milestone 2 completed ahead of schedule'
-);
-
-$productNote = $teamleader->notes()->createForSubject(
-    'product',
-    'product-uuid',
-    'Updated pricing structure based on market analysis'
+    'Phone Call',
+    'Discussed renewal options for annual contract',
+    [['type' => 'user', 'id' => 'account-manager-uuid']]
 );
 ```
 
-### Team Collaboration with Notifications
+### Meeting Follow-up System
 
 ```php
-// Create a note and notify multiple team members
-$importantNote = $teamleader->notes()->create([
-    'subject' => [
-        'type' => 'deal',
-        'id' => 'high-value-deal-uuid'
-    ],
-    'content' => 'URGENT: Client needs proposal by tomorrow. All hands on deck.',
+class MeetingFollowUp
+{
+    public function addMeetingNotes($meetingId, $notes, $actionItems = [])
+    {
+        $content = "Meeting Notes:\n{$notes}\n\n";
+        
+        if (!empty($actionItems)) {
+            $content .= "Action Items:\n";
+            foreach ($actionItems as $item) {
+                $content .= "- {$item}\n";
+            }
+        }
+        
+        return Teamleader::notes()->createForSubject(
+            'meeting',
+            $meetingId,
+            $content
+        );
+    }
+}
+
+// Usage
+$followUp = new MeetingFollowUp();
+$followUp->addMeetingNotes(
+    'meeting-uuid',
+    'Discussed Q1 objectives and budget allocation',
+    [
+        'Send proposal by Friday',
+        'Schedule follow-up for next week',
+        'Prepare cost breakdown'
+    ]
+);
+```
+
+### Automated Note Generation
+
+```php
+class AutomatedNoteGenerator
+{
+    public function generateDealNote($dealId, $eventType, $details)
+    {
+        $templates = [
+            'created' => "Deal created: {$details['title']}",
+            'updated' => "Deal updated: {$details['changes']}",
+            'phase_changed' => "Deal moved to phase: {$details['new_phase']}",
+            'won' => "Deal won! Value: {$details['value']}"
+        ];
+        
+        $content = $templates[$eventType] ?? "Deal event: {$eventType}";
+        
+        return Teamleader::notes()->createForDeal($dealId, $content);
+    }
+}
+```
+
+### Timeline View
+
+```php
+class TimelineController extends Controller
+{
+    public function show($resourceType, $resourceId)
+    {
+        $notes = Teamleader::notes()->forSubject($resourceType, $resourceId);
+        
+        // Sort by date (newest first)
+        $timeline = collect($notes['data'])
+            ->sortByDesc('created_at')
+            ->map(function($note) {
+                $author = Teamleader::users()->info($note['author']['id']);
+                return [
+                    'id' => $note['id'],
+                    'content' => $note['content'],
+                    'author' => $author['data']['first_name'] . ' ' . $author['data']['last_name'],
+                    'date' => $note['created_at']
+                ];
+            });
+        
+        return view('timeline.show', [
+            'timeline' => $timeline
+        ]);
+    }
+}
+```
+
+## Best Practices
+
+### 1. Include Context in Note Content
+
+```php
+// Good: Clear context
+$note = Teamleader::notes()->createForDeal(
+    $dealId,
+    "Phone call with John Smith: Discussed pricing for Enterprise plan. Customer requested 15% discount. Follow-up scheduled for Monday."
+);
+
+// Bad: Vague note
+$note = Teamleader::notes()->createForDeal($dealId, "Had a call");
+```
+
+### 2. Use Notifications Wisely
+
+```php
+// Good: Notify relevant people
+$note = Teamleader::notes()->create([
+    'subject' => ['type' => 'deal', 'id' => $dealId],
+    'content' => 'Customer requested urgent meeting',
     'notify' => [
-        ['type' => 'user', 'id' => 'sales-manager-uuid'],
-        ['type' => 'user', 'id' => 'technical-lead-uuid'],
-        ['type' => 'user', 'id' => 'project-manager-uuid']
+        ['type' => 'user', 'id' => $accountManagerId],
+        ['type' => 'user', 'id' => $teamLeadId']
     ]
 ]);
+
+// Bad: Spamming everyone
+// Don't notify people unnecessarily
+```
+
+### 3. Structure Multi-Line Notes
+
+```php
+// Good: Well-structured
+$content = "Meeting Summary:\n\n";
+$content .= "Attendees: John, Sarah, Mike\n";
+$content .= "Topics Discussed:\n";
+$content .= "- Budget approval\n";
+$content .= "- Timeline adjustments\n";
+$content .= "- Resource allocation\n\n";
+$content .= "Next Steps:\n";
+$content .= "- Send updated proposal\n";
+$content .= "- Schedule follow-up\n";
+
+$note = Teamleader::notes()->createForCompany($companyId, $content);
+```
+
+### 4. Handle Note Updates Carefully
+
+```php
+// Good: Preserve history by appending
+$existingNote = Teamleader::notes()->info($noteId);
+$updatedContent = $existingNote['data']['content'] . "\n\n---UPDATE---\n" . $newInfo;
+
+Teamleader::notes()->update($noteId, ['content' => $updatedContent]);
+
+// Consider: Creating a new note instead of updating
+// to maintain a clear activity trail
+```
+
+### 5. Validate Subject Types
+
+```php
+// Good: Validate before creating
+$validTypes = Teamleader::notes()->getAvailableSubjectTypes();
+
+if (!in_array($subjectType, $validTypes)) {
+    throw new \InvalidArgumentException("Invalid subject type: {$subjectType}");
+}
+
+$note = Teamleader::notes()->createForSubject($subjectType, $subjectId, $content);
 ```
 
 ## Error Handling
 
 ```php
+use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
+
 try {
-    $note = $teamleader->notes()->create([
-        'subject' => ['type' => 'contact', 'id' => 'contact-uuid'],
-        'content' => 'Meeting notes'
+    $note = Teamleader::notes()->createForCompany(
+        $companyId,
+        $noteContent
+    );
+} catch (TeamleaderException $e) {
+    Log::error('Failed to create note', [
+        'company_id' => $companyId,
+        'error' => $e->getMessage()
     ]);
-} catch (InvalidArgumentException $e) {
-    // Handle validation errors (missing required fields, invalid subject type, etc.)
-    Log::error('Note creation validation error: ' . $e->getMessage());
-} catch (Exception $e) {
-    // Handle API errors
-    if (isset($result['error']) && $result['error']) {
-        Log::error('Note creation API error: ' . $result['message']);
-    }
+    
+    return response()->json([
+        'error' => 'Failed to create note: ' . $e->getMessage()
+    ], 500);
 }
 ```
 
-## Rate Limiting
+## Limitations
 
-Notes API calls count towards your overall Teamleader API rate limit:
-
-- **List operations**: 1 request per call
-- **Create operations**: 1 request per call
-- **Update operations**: 1 request per call
-
-## Validation
-
-The SDK automatically validates:
-
-- **Subject type**: Must be one of the supported entity types
-- **Required fields**: Subject and content for creation
-- **Notification format**: Proper structure for notify arrays
-- **Empty content**: Content cannot be empty when provided
-
-## Best Practices
-
-1. **Use specific subject types**: Always specify the correct entity type when creating notes
-2. **Meaningful content**: Write clear, actionable note content
-3. **Strategic notifications**: Only notify relevant team members to avoid notification fatigue
-4. **Batch operations**: When adding multiple notes, consider rate limiting
-5. **Error handling**: Always handle both validation and API errors appropriately
-
-## Laravel Integration
+1. **No Delete Method**: Notes cannot be deleted via the API
+2. **Subject Required**: You must specify a subject when listing notes
+3. **No Individual Info**: Cannot fetch a single note by ID without knowing its subject
 
 ```php
-use McoreServices\TeamleaderSDK\TeamleaderSDK;
-
-class NotesController extends Controller
-{
-    public function storeCompanyNote(Request $request, TeamleaderSDK $teamleader, string $companyId)
-    {
-        $request->validate([
-            'content' => 'required|string|max:5000',
-            'notify_users' => 'sometimes|array',
-            'notify_users.*' => 'uuid'
-        ]);
-
-        $notify = collect($request->input('notify_users', []))
-            ->map(fn($userId) => ['type' => 'user', 'id' => $userId])
-            ->toArray();
-
-        $note = $teamleader->notes()->createForCompany(
-            $companyId,
-            $request->input('content'),
-            $notify
-        );
-
-        return response()->json($note);
-    }
-}
+// To get a specific note, you need to list all notes for a subject
+// and filter by note ID
+$allNotes = Teamleader::notes()->forCompany($companyId);
+$specificNote = collect($allNotes['data'])->firstWhere('id', $noteId);
 ```
 
-## Notes vs Comments
+## Related Resources
 
-Notes in Teamleader are:
-- **Persistent**: Stored permanently with the entity
-- **Searchable**: Can be found through the notes API
-- **Notifiable**: Can trigger notifications to team members
-- **Timestamped**: Include creation timestamps
-- **Entity-specific**: Must be attached to a specific entity
+- [Companies](../crm/companies.md) - Add notes to companies
+- [Contacts](../crm/contacts.md) - Add notes to contacts
+- [Deals](../deals/deals.md) - Add notes to deals
+- [Projects](../projects/projects.md) - Add notes to projects
+- [Users](users.md) - Note authors are users
 
-For real-time communication, consider using other Teamleader features or integrating with chat systems.
+## See Also
 
-For more information, refer to the [Teamleader API Documentation](https://developer.focus.teamleader.eu/).
+- [Usage Guide](../usage.md) - General SDK usage
+- [Filtering](../filtering.md) - Advanced filtering techniques

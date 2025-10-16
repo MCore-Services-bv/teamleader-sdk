@@ -1,78 +1,89 @@
 # Currencies
 
-Get currency exchange rates from Teamleader Focus. This resource provides access to current exchange rates for supported currencies.
+Manage currency exchange rates in Teamleader Focus.
+
+## Overview
+
+The Currencies resource provides access to exchange rates for various currencies supported by Teamleader. Unlike most resources, this one uses a specialized approach focused on exchange rate retrieval and currency conversion rather than standard CRUD operations.
+
+**Important:** The Currencies resource is read-only and uses the `exchangeRates()` method instead of standard `list()` or `info()` methods.
+
+## Navigation
+
+- [Endpoint](#endpoint)
+- [Capabilities](#capabilities)
+- [Available Methods](#available-methods)
+    - [exchangeRates()](#exchangerates)
+    - [convert()](#convert)
+    - [getRate()](#getrate)
+- [Helper Methods](#helper-methods)
+- [Supported Currencies](#supported-currencies)
+- [Response Structure](#response-structure)
+- [Usage Examples](#usage-examples)
+- [Common Use Cases](#common-use-cases)
+- [Best Practices](#best-practices)
+- [Error Handling](#error-handling)
+- [Related Resources](#related-resources)
 
 ## Endpoint
 
-`currencies.exchangeRates`
+`currencies`
 
 ## Capabilities
 
-- **Supports Pagination**: ❌ Not Supported
-- **Supports Filtering**: ❌ Not Supported
-- **Supports Sorting**: ❌ Not Supported
-- **Supports Sideloading**: ❌ Not Supported
-- **Supports Creation**: ❌ Not Supported
-- **Supports Update**: ❌ Not Supported
-- **Supports Deletion**: ❌ Not Supported
-- **Supports Batch**: ❌ Not Supported
+- **Exchange Rates**: ✅ Supported
+- **Currency Conversion**: ✅ Supported
+- **Pagination**: ❌ Not Applicable
+- **Filtering**: ❌ Not Applicable
+- **Creation**: ❌ Not Supported
+- **Update**: ❌ Not Supported
+- **Deletion**: ❌ Not Supported
 
 ## Available Methods
 
-### `exchangeRates(string $baseCurrency)`
+### `exchangeRates()`
 
-Get exchange rates for a specific base currency.
+Get exchange rates for all supported currencies relative to a base currency.
 
 **Parameters:**
 - `baseCurrency` (string): The base currency code (e.g., 'EUR', 'USD')
 
 **Example:**
 ```php
-$rates = $teamleader->currencies()->exchangeRates('EUR');
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
+// Get exchange rates with EUR as base
+$rates = Teamleader::currencies()->exchangeRates('EUR');
+
+// Get exchange rates with USD as base
+$rates = Teamleader::currencies()->exchangeRates('USD');
 ```
 
-### `eurRates()`
-
-Get exchange rates with EUR as the base currency (convenience method).
-
-**Example:**
-```php
-$eurRates = $teamleader->currencies()->eurRates();
-```
-
-### `usdRates()`
-
-Get exchange rates with USD as the base currency (convenience method).
-
-**Example:**
-```php
-$usdRates = $teamleader->currencies()->usdRates();
-```
-
-### `gbpRates()`
-
-Get exchange rates with GBP as the base currency (convenience method).
-
-**Example:**
-```php
-$gbpRates = $teamleader->currencies()->gbpRates();
-```
-
-### `convert(float $amount, string $fromCurrency, string $toCurrency)`
+### `convert()`
 
 Convert an amount from one currency to another using current exchange rates.
 
 **Parameters:**
-- `amount` (float): The amount to convert
+- `amount` (float): Amount to convert
 - `fromCurrency` (string): Source currency code
 - `toCurrency` (string): Target currency code
 
 **Example:**
 ```php
-$conversion = $teamleader->currencies()->convert(100.00, 'EUR', 'USD');
+// Convert 100 EUR to USD
+$result = Teamleader::currencies()->convert(100, 'EUR', 'USD');
+
+// Returns:
+[
+    'amount' => 100,
+    'converted_amount' => 109.50,
+    'exchange_rate' => 1.095,
+    'from_currency' => 'EUR',
+    'to_currency' => 'USD'
+]
 ```
 
-### `getRate(string $baseCurrency, string $targetCurrency)`
+### `getRate()`
 
 Get the exchange rate for a specific currency pair.
 
@@ -82,32 +93,70 @@ Get the exchange rate for a specific currency pair.
 
 **Example:**
 ```php
-$rate = $teamleader->currencies()->getRate('EUR', 'USD');
+// Get EUR to USD exchange rate
+$rate = Teamleader::currencies()->getRate('EUR', 'USD');
+
+// Returns:
+[
+    'base' => 'EUR',
+    'target' => 'USD',
+    'rate' => 1.095,
+    'symbol' => '$',
+    'name' => 'US Dollar'
+]
 ```
 
-### Utility Methods
+## Helper Methods
 
-#### `getSupportedCurrencies()`
-Returns an array of all supported currency codes with their names.
+### Currency Shortcuts
 
-#### `getSupportedCurrencyCodes()`
-Returns an array of supported currency codes only.
+```php
+// Get EUR exchange rates
+$rates = Teamleader::currencies()->eurRates();
 
-#### `isValidCurrencyCode(string $currencyCode)`
-Check if a currency code is supported.
+// Get USD exchange rates
+$rates = Teamleader::currencies()->usdRates();
 
-#### `getCurrencyName(string $currencyCode)`
-Get the full name of a currency by its code.
+// Get GBP exchange rates
+$rates = Teamleader::currencies()->gbpRates();
+```
 
-#### `getCommonPairs()`
-Returns common currency pairs for quick reference.
+### Validation Methods
+
+```php
+// Check if currency code is valid
+if (Teamleader::currencies()->isValidCurrencyCode('EUR')) {
+    echo "EUR is supported";
+}
+
+// Get list of supported currencies
+$currencies = Teamleader::currencies()->getSupportedCurrencies();
+
+// Get list of currency codes only
+$codes = Teamleader::currencies()->getSupportedCurrencyCodes();
+```
+
+### Common Currency Pairs
+
+```php
+// Get common trading pairs
+$pairs = Teamleader::currencies()->getCommonPairs();
+
+// Returns:
+[
+    'EUR/USD' => ['base' => 'EUR', 'target' => 'USD'],
+    'USD/EUR' => ['base' => 'USD', 'target' => 'EUR'],
+    'GBP/EUR' => ['base' => 'GBP', 'target' => 'EUR'],
+    // ... more pairs
+]
+```
 
 ## Supported Currencies
 
-The following currency codes are supported:
+The following currencies are supported:
 
-| Code | Name |
-|------|------|
+| Code | Currency Name |
+|------|---------------|
 | BAM | Bosnian Mark |
 | CAD | Canadian Dollar |
 | CHF | Swiss Franc |
@@ -132,249 +181,390 @@ The following currency codes are supported:
 | USD | US Dollar |
 | ZAR | South African Rand |
 
-## Response Format
+Get the list programmatically:
+
+```php
+$currencies = Teamleader::currencies()->getSupportedCurrencies();
+$codes = Teamleader::currencies()->getSupportedCurrencyCodes();
+```
+
+## Response Structure
 
 ### Exchange Rates Response
 
-```json
-{
-    "data": [
-        {
-            "code": "USD",
-            "symbol": "$",
-            "name": "US Dollar",
-            "exchange_rate": 1.1238
-        },
-        {
-            "code": "GBP",
-            "symbol": "£",
-            "name": "British Pound",
-            "exchange_rate": 0.8642
-        }
+```php
+[
+    'data' => [
+        [
+            'code' => 'USD',
+            'name' => 'US Dollar',
+            'symbol' => '$',
+            'exchange_rate' => 1.095
+        ],
+        [
+            'code' => 'GBP',
+            'name' => 'British Pound',
+            'symbol' => '£',
+            'exchange_rate' => 0.857
+        ],
+        // ... more currencies
     ]
-}
-```
-
-### Currency Conversion Response
-
-```json
-{
-    "amount": 100.0,
-    "converted_amount": 112.38,
-    "exchange_rate": 1.1238,
-    "from_currency": "EUR",
-    "to_currency": "USD"
-}
-```
-
-### Single Rate Response
-
-```json
-{
-    "base": "EUR",
-    "target": "USD",
-    "rate": 1.1238,
-    "symbol": "$",
-    "name": "US Dollar"
-}
+]
 ```
 
 ## Usage Examples
 
-### Basic Exchange Rates
-
-Get exchange rates for EUR:
+### Get Current Exchange Rates
 
 ```php
-$rates = $teamleader->currencies()->exchangeRates('EUR');
+// Get all exchange rates relative to EUR
+$rates = Teamleader::currencies()->exchangeRates('EUR');
 
-// Access specific currency rates
 foreach ($rates['data'] as $currency) {
-    echo "{$currency['name']} ({$currency['code']}): {$currency['exchange_rate']}\n";
+    echo "{$currency['code']}: {$currency['exchange_rate']}\n";
 }
 ```
 
-### Convenience Methods
+### Convert Currency Amounts
 
 ```php
-// Get EUR rates (same as exchangeRates('EUR'))
-$eurRates = $teamleader->currencies()->eurRates();
+// Convert invoice amount
+$invoiceAmount = 1000; // EUR
+$result = Teamleader::currencies()->convert($invoiceAmount, 'EUR', 'USD');
 
-// Get USD rates
-$usdRates = $teamleader->currencies()->usdRates();
-
-// Get GBP rates
-$gbpRates = $teamleader->currencies()->gbpRates();
+echo "€{$invoiceAmount} = \${$result['converted_amount']}";
 ```
 
-### Currency Conversion
+### Build a Currency Converter
 
 ```php
-// Convert 100 EUR to USD
-$conversion = $teamleader->currencies()->convert(100.00, 'EUR', 'USD');
-
-if (!isset($conversion['error'])) {
-    echo "€{$conversion['amount']} = \${$conversion['converted_amount']}";
-    echo " (Rate: {$conversion['exchange_rate']})";
-}
-```
-
-### Get Specific Exchange Rate
-
-```php
-// Get EUR to USD rate
-$rate = $teamleader->currencies()->getRate('EUR', 'USD');
-
-if (!isset($rate['error'])) {
-    echo "1 {$rate['base']} = {$rate['rate']} {$rate['target']}";
-}
-```
-
-### Working with Supported Currencies
-
-```php
-// Get all supported currencies
-$currencies = $teamleader->currencies()->getSupportedCurrencies();
-
-foreach ($currencies as $code => $name) {
-    echo "{$code}: {$name}\n";
-}
-
-// Check if currency is supported
-if ($teamleader->currencies()->isValidCurrencyCode('EUR')) {
-    echo "EUR is supported";
-}
-
-// Get currency name
-$name = $teamleader->currencies()->getCurrencyName('USD');
-echo $name; // "US Dollar"
-```
-
-### Common Currency Pairs
-
-```php
-$pairs = $teamleader->currencies()->getCommonPairs();
-
-foreach ($pairs as $pairName => $pair) {
-    $rate = $teamleader->currencies()->getRate($pair['base'], $pair['target']);
-    if (!isset($rate['error'])) {
-        echo "{$pairName}: {$rate['rate']}\n";
-    }
-}
-```
-
-### Laravel Integration Example
-
-```php
-use McoreServices\TeamleaderSDK\TeamleaderSDK;
-
-class CurrencyController extends Controller
+class CurrencyConverter
 {
-    public function index(TeamleaderSDK $teamleader)
+    public function convert($amount, $from, $to)
     {
-        $baseCurrency = request('base', 'EUR');
+        // Validate currencies
+        $validator = Teamleader::currencies();
         
-        // Validate currency
-        if (!$teamleader->currencies()->isValidCurrencyCode($baseCurrency)) {
-            return back()->withErrors(['base' => 'Invalid currency code']);
+        if (!$validator->isValidCurrencyCode($from)) {
+            throw new \InvalidArgumentException("Invalid source currency: {$from}");
         }
         
-        $rates = $teamleader->currencies()->exchangeRates($baseCurrency);
-        $supportedCurrencies = $teamleader->currencies()->getSupportedCurrencies();
+        if (!$validator->isValidCurrencyCode($to)) {
+            throw new \InvalidArgumentException("Invalid target currency: {$to}");
+        }
         
-        return view('currencies.index', compact('rates', 'baseCurrency', 'supportedCurrencies'));
+        // Perform conversion
+        return Teamleader::currencies()->convert($amount, $from, $to);
+    }
+}
+```
+
+### Display Exchange Rate Widget
+
+```php
+class ExchangeRateWidget
+{
+    public function getRates($baseCurrency = 'EUR')
+    {
+        $rates = Teamleader::currencies()->exchangeRates($baseCurrency);
+        
+        $formatted = [];
+        foreach ($rates['data'] as $currency) {
+            $formatted[] = [
+                'code' => $currency['code'],
+                'name' => $currency['name'],
+                'symbol' => $currency['symbol'],
+                'rate' => number_format($currency['exchange_rate'], 4),
+                'flag' => $this->getCurrencyFlag($currency['code'])
+            ];
+        }
+        
+        return $formatted;
     }
     
-    public function convert(Request $request, TeamleaderSDK $teamleader)
+    private function getCurrencyFlag($code)
     {
-        $request->validate([
-            'amount' => 'required|numeric|min:0',
-            'from' => 'required|string|size:3',
-            'to' => 'required|string|size:3'
-        ]);
+        // Map currency codes to country flags
+        $flags = [
+            'EUR' => '🇪🇺',
+            'USD' => '🇺🇸',
+            'GBP' => '🇬🇧',
+            'JPY' => '🇯🇵',
+            'CHF' => '🇨🇭',
+            // ... more mappings
+        ];
         
-        $conversion = $teamleader->currencies()->convert(
-            $request->amount,
-            $request->from,
-            $request->to
+        return $flags[$code] ?? '🌍';
+    }
+}
+```
+
+## Common Use Cases
+
+### Multi-Currency Pricing
+
+```php
+class PricingService
+{
+    public function getPriceInCurrency($basePrice, $baseCurrency, $targetCurrency)
+    {
+        if ($baseCurrency === $targetCurrency) {
+            return $basePrice;
+        }
+        
+        $result = Teamleader::currencies()->convert(
+            $basePrice,
+            $baseCurrency,
+            $targetCurrency
         );
         
-        return response()->json($conversion);
+        return round($result['converted_amount'], 2);
+    }
+    
+    public function getAllPrices($basePrice, $baseCurrency)
+    {
+        $rates = Teamleader::currencies()->exchangeRates($baseCurrency);
+        $prices = [];
+        
+        foreach ($rates['data'] as $currency) {
+            $prices[$currency['code']] = [
+                'amount' => round($basePrice * $currency['exchange_rate'], 2),
+                'symbol' => $currency['symbol'],
+                'formatted' => $currency['symbol'] . number_format($basePrice * $currency['exchange_rate'], 2)
+            ];
+        }
+        
+        return $prices;
+    }
+}
+```
+
+### Invoice Currency Conversion
+
+```php
+class InvoiceService
+{
+    public function convertInvoiceAmount($invoiceAmount, $invoiceCurrency, $targetCurrency)
+    {
+        $result = Teamleader::currencies()->convert(
+            $invoiceAmount,
+            $invoiceCurrency,
+            $targetCurrency
+        );
+        
+        return [
+            'original_amount' => $invoiceAmount,
+            'original_currency' => $invoiceCurrency,
+            'converted_amount' => $result['converted_amount'],
+            'target_currency' => $targetCurrency,
+            'exchange_rate' => $result['exchange_rate'],
+            'conversion_date' => now()->toDateString()
+        ];
+    }
+}
+```
+
+### Cache Exchange Rates
+
+```php
+use Illuminate\Support\Facades\Cache;
+
+class CachedCurrencyService
+{
+    public function getRates($baseCurrency)
+    {
+        $cacheKey = "exchange_rates.{$baseCurrency}";
+        
+        // Cache for 1 hour
+        return Cache::remember($cacheKey, 3600, function() use ($baseCurrency) {
+            return Teamleader::currencies()->exchangeRates($baseCurrency);
+        });
+    }
+    
+    public function convert($amount, $from, $to)
+    {
+        // Get cached rates
+        $rates = $this->getRates($from);
+        
+        // Find target currency rate
+        foreach ($rates['data'] as $currency) {
+            if ($currency['code'] === $to) {
+                return [
+                    'amount' => $amount,
+                    'converted_amount' => round($amount * $currency['exchange_rate'], 2),
+                    'rate' => $currency['exchange_rate'],
+                    'from' => $from,
+                    'to' => $to
+                ];
+            }
+        }
+        
+        throw new \Exception("Currency {$to} not found");
+    }
+}
+```
+
+### Currency Dropdown Builder
+
+```php
+class CurrencyDropdownBuilder
+{
+    public function build()
+    {
+        $currencies = Teamleader::currencies()->getSupportedCurrencies();
+        
+        $options = [];
+        foreach ($currencies as $code => $name) {
+            $options[] = [
+                'value' => $code,
+                'label' => "{$code} - {$name}"
+            ];
+        }
+        
+        // Sort alphabetically by code
+        usort($options, function($a, $b) {
+            return strcmp($a['value'], $b['value']);
+        });
+        
+        return $options;
+    }
+}
+```
+
+### Real-time Exchange Rate Display
+
+```php
+class ExchangeRateDashboard
+{
+    public function getCurrentRates($baseCurrency = 'EUR', $targetCurrencies = ['USD', 'GBP', 'CHF'])
+    {
+        $rates = Teamleader::currencies()->exchangeRates($baseCurrency);
+        
+        $display = [];
+        foreach ($rates['data'] as $currency) {
+            if (in_array($currency['code'], $targetCurrencies)) {
+                $display[] = [
+                    'pair' => "{$baseCurrency}/{$currency['code']}",
+                    'rate' => $currency['exchange_rate'],
+                    'formatted' => "1 {$baseCurrency} = {$currency['exchange_rate']} {$currency['code']}",
+                    'timestamp' => now()->toDateTimeString()
+                ];
+            }
+        }
+        
+        return $display;
+    }
+}
+```
+
+## Best Practices
+
+### 1. Cache Exchange Rates
+
+Exchange rates don't change frequently, so cache them:
+
+```php
+// Good: Cache for 1 hour
+$rates = Cache::remember('exchange_rates_eur', 3600, function() {
+    return Teamleader::currencies()->exchangeRates('EUR');
+});
+
+// Bad: Fetch every time
+$rates = Teamleader::currencies()->exchangeRates('EUR');
+```
+
+### 2. Validate Currency Codes
+
+```php
+// Good: Validate before converting
+if (Teamleader::currencies()->isValidCurrencyCode($currency)) {
+    $result = Teamleader::currencies()->convert($amount, 'EUR', $currency);
+}
+
+// Bad: No validation
+$result = Teamleader::currencies()->convert($amount, 'EUR', $currency);
+```
+
+### 3. Handle Same Currency Conversions
+
+```php
+// Good: Check if same currency
+if ($fromCurrency === $toCurrency) {
+    return $amount;
+}
+
+$result = Teamleader::currencies()->convert($amount, $fromCurrency, $toCurrency);
+
+// Bad: Unnecessary API call
+$result = Teamleader::currencies()->convert($amount, $fromCurrency, $toCurrency);
+```
+
+### 4. Round Converted Amounts
+
+```php
+// Good: Round to appropriate decimal places
+$converted = round($result['converted_amount'], 2);
+
+// Bad: Using raw conversion
+$converted = $result['converted_amount']; // Could be 123.456789
+```
+
+### 5. Store Historical Rates
+
+```php
+// Good: Store rates for audit trail
+class RateHistory
+{
+    public function storeRate($from, $to, $rate)
+    {
+        \App\Models\ExchangeRate::create([
+            'from_currency' => $from,
+            'to_currency' => $to,
+            'rate' => $rate,
+            'date' => now()
+        ]);
     }
 }
 ```
 
 ## Error Handling
 
-Exchange rate requests follow standard SDK error handling:
-
 ```php
-$rates = $teamleader->currencies()->exchangeRates('EUR');
+use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
 
-if (isset($rates['error']) && $rates['error']) {
-    $errorMessage = $rates['message'] ?? 'Unknown error';
-    $statusCode = $rates['status_code'] ?? 0;
-    
-    Log::error("Currency API error: {$errorMessage}", [
-        'status_code' => $statusCode
-    ]);
-}
-```
-
-For invalid currency codes:
-
-```php
 try {
-    $rates = $teamleader->currencies()->exchangeRates('INVALID');
-} catch (InvalidArgumentException $e) {
-    Log::error("Invalid currency code: " . $e->getMessage());
+    $rates = Teamleader::currencies()->exchangeRates('EUR');
+} catch (TeamleaderException $e) {
+    Log::error('Error fetching exchange rates', [
+        'error' => $e->getMessage()
+    ]);
+    
+    // Use fallback rates or cached data
+    $rates = Cache::get('exchange_rates_eur_fallback');
 }
 ```
 
-## Rate Limiting
+## Method Restrictions
 
-Currency exchange rate calls count towards your Teamleader API rate limit:
+The following standard methods are **not available** for the Currencies resource:
 
-- **Exchange rates**: 1 request per call
-- **Convert**: 1 request per call (uses exchangeRates internally)
-- **Get rate**: 1 request per call (uses exchangeRates internally)
-
-Rate limit cost: **1 request per method call**
-
-## Notes
-
-- Exchange rates are provided by Teamleader and may not be real-time
-- The `convert()` method uses the current exchange rates from the API
-- Currency conversion includes rounding to 4 decimal places for accuracy
-- The API returns exchange rates relative to the specified base currency
-- All currency codes must be in the supported currencies list
-- Currency codes are automatically converted to uppercase
-- The `list()` and `info()` methods are not available for currencies - use `exchangeRates()` instead
-
-## JavaScript/Frontend Integration
-
-You can use the currency conversion functionality in AJAX requests:
-
-```javascript
-// Convert currency via AJAX
-fetch('/api/currency/convert', {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json',
-        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-    },
-    body: JSON.stringify({
-        amount: 100,
-        from: 'EUR',
-        to: 'USD'
-    })
-})
-.then(response => response.json())
-.then(data => {
-    if (!data.error) {
-        console.log(`${data.amount} ${data.from_currency} = ${data.converted_amount} ${data.to_currency}`);
-    }
-});
+```php
+// These will throw BadMethodCallException
+Teamleader::currencies()->list();      // ❌ Not available
+Teamleader::currencies()->info($id);   // ❌ Not available
+Teamleader::currencies()->create([]);  // ❌ Not available
+Teamleader::currencies()->update();    // ❌ Not available
+Teamleader::currencies()->delete();    // ❌ Not available
 ```
 
-For more information, refer to the [Teamleader API Documentation](https://developer.focus.teamleader.eu/).
+Use `exchangeRates()`, `convert()`, or `getRate()` instead.
+
+## Related Resources
+
+- [Departments](departments.md) - Departments may have different currencies
+- [Invoices](../invoicing/invoices.md) - Invoices support multiple currencies
+- [Deals](../deals/deals.md) - Deals can be in different currencies
+
+## See Also
+
+- [Usage Guide](../usage.md) - General SDK usage

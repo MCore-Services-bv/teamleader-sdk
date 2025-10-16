@@ -1,6 +1,33 @@
 # Users
 
-Manage users in Teamleader Focus. This resource provides comprehensive access to user information, schedules, and time-off data.
+Manage users in Teamleader Focus.
+
+## Overview
+
+The Users resource provides read-only access to user information in your Teamleader account. This resource is primarily used for retrieving user details, checking user status, and accessing work schedules.
+
+**Important:** The Users resource is read-only. You cannot create, update, or delete users through the API.
+
+## Navigation
+
+- [Endpoint](#endpoint)
+- [Capabilities](#capabilities)
+- [Available Methods](#available-methods)
+    - [list()](#list)
+    - [info()](#info)
+    - [me()](#me)
+    - [getWeekSchedule()](#getweekschedule)
+    - [listDaysOff()](#listdaysoff)
+- [Helper Methods](#helper-methods)
+- [Filters](#filters)
+- [Sorting](#sorting)
+- [Sideloading](#sideloading)
+- [Response Structure](#response-structure)
+- [Usage Examples](#usage-examples)
+- [Common Use Cases](#common-use-cases)
+- [Best Practices](#best-practices)
+- [Error Handling](#error-handling)
+- [Related Resources](#related-resources)
 
 ## Endpoint
 
@@ -8,28 +35,47 @@ Manage users in Teamleader Focus. This resource provides comprehensive access to
 
 ## Capabilities
 
-- **Supports Pagination**: ✅ Supported
-- **Supports Filtering**: ✅ Supported
-- **Supports Sorting**: ✅ Supported
-- **Supports Sideloading**: ✅ Supported
-- **Supports Creation**: ❌ Not Supported
-- **Supports Update**: ❌ Not Supported
-- **Supports Deletion**: ❌ Not Supported
-- **Supports Batch**: ❌ Not Supported
+- **Pagination**: ✅ Supported
+- **Filtering**: ✅ Supported
+- **Sorting**: ✅ Supported
+- **Sideloading**: ✅ Supported (external_rate)
+- **Creation**: ❌ Not Supported
+- **Update**: ❌ Not Supported
+- **Deletion**: ❌ Not Supported
 
 ## Available Methods
 
 ### `list()`
 
-Get a paginated list of users with filtering, sorting, and pagination options.
+Get a paginated list of users with optional filtering and sorting.
 
 **Parameters:**
-- `filters` (array): Array of filters to apply
+- `filters` (array): Filters to apply
 - `options` (array): Pagination and sorting options
 
 **Example:**
 ```php
-$users = $teamleader->users()->list(['status' => ['active']]);
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
+// Get all users
+$users = Teamleader::users()->list();
+
+// With filters
+$activeUsers = Teamleader::users()->list([
+    'status' => ['active']
+]);
+
+// With pagination and sorting
+$users = Teamleader::users()->list(
+    ['status' => ['active']],
+    [
+        'page_size' => 50,
+        'page_number' => 1,
+        'sort' => [
+            ['field' => 'first_name', 'order' => 'asc']
+        ]
+    ]
+);
 ```
 
 ### `info()`
@@ -38,135 +84,186 @@ Get detailed information about a specific user.
 
 **Parameters:**
 - `id` (string): User UUID
-- `includes` (array|string): Relations to include (external_rate)
+- `includes` (string|array): Optional includes (external_rate)
 
 **Example:**
 ```php
-$user = $teamleader->users()->info('user-uuid-here', 'external_rate');
+// Get user information
+$user = Teamleader::users()->info('user-uuid');
+
+// Get user with external rate
+$user = Teamleader::users()->info('user-uuid', 'external_rate');
+
+// Using fluent interface
+$user = Teamleader::users()
+    ->withExternalRate()
+    ->info('user-uuid');
 ```
 
 ### `me()`
 
-Get the current authenticated user information.
+Get information about the currently authenticated user.
+
+**Parameters:** None
 
 **Example:**
 ```php
-$currentUser = $teamleader->users()->me();
+// Get current user
+$currentUser = Teamleader::users()->me();
+
+echo "Hello, " . $currentUser['data']['first_name'];
 ```
 
 ### `getWeekSchedule()`
 
-Get week schedule information for a user. Only available with the Weekly working schedule feature.
+Get the weekly work schedule for a specific user. This method is only available if the "Weekly working schedule" feature is enabled in your Teamleader account.
 
 **Parameters:**
 - `id` (string): User UUID
 
 **Example:**
 ```php
-$schedule = $teamleader->users()->getWeekSchedule('user-uuid-here');
+// Get user's weekly schedule
+$schedule = Teamleader::users()->getWeekSchedule('user-uuid');
+
+// Access schedule details
+foreach ($schedule['data'] as $day) {
+    echo $day['day_of_week'] . ": " . $day['hours'] . " hours\n";
+}
 ```
 
 ### `listDaysOff()`
 
-Get days off information for a user within a specified period.
+Get a list of days off for a specific user.
 
 **Parameters:**
 - `id` (string): User UUID
-- `filters` (array): Filter options (starts_after, ends_before)
+- `filters` (array): Filter options
+    - `starts_after` (string): ISO 8601 date - Get days off starting after this date
+    - `ends_before` (string): ISO 8601 date - Get days off ending before this date
 - `options` (array): Pagination options
 
 **Example:**
 ```php
-$daysOff = $teamleader->users()->listDaysOff('user-uuid-here', [
-    'starts_after' => '2023-10-01',
-    'ends_before' => '2023-10-30'
+// Get all days off for a user
+$daysOff = Teamleader::users()->listDaysOff('user-uuid');
+
+// Get days off in a date range
+$daysOff = Teamleader::users()->listDaysOff('user-uuid', [
+    'starts_after' => '2024-01-01',
+    'ends_before' => '2024-12-31'
 ]);
+
+// With pagination
+$daysOff = Teamleader::users()->listDaysOff(
+    'user-uuid',
+    ['starts_after' => '2024-01-01'],
+    ['page_size' => 100]
+);
 ```
+
+## Helper Methods
+
+The Users resource provides convenient helper methods for common operations:
 
 ### `active()`
 
 Get only active users.
 
-**Example:**
 ```php
-$activeUsers = $teamleader->users()->active();
+$activeUsers = Teamleader::users()->active();
 ```
 
 ### `deactivated()`
 
 Get only deactivated users.
 
-**Example:**
 ```php
-$deactivatedUsers = $teamleader->users()->deactivated();
+$deactivatedUsers = Teamleader::users()->deactivated();
 ```
 
 ### `search()`
 
-Search users by term (first name, last name, email, function).
+Search users by term (searches first name, last name, email, and function).
 
-**Parameters:**
-- `term` (string): Search term
-
-**Example:**
 ```php
-$users = $teamleader->users()->search('John');
+// Search for users
+$users = Teamleader::users()->search('John');
+
+// Will match:
+// - First name: John
+// - Last name: Johnson
+// - Email: john@example.com
+// - Function: Marketing Manager John
 ```
 
 ### `byIds()`
 
 Get specific users by their UUIDs.
 
-**Parameters:**
-- `ids` (array): Array of user UUIDs
-
-**Example:**
 ```php
-$users = $teamleader->users()->byIds(['uuid1', 'uuid2']);
+$users = Teamleader::users()->byIds([
+    'user-uuid-1',
+    'user-uuid-2',
+    'user-uuid-3'
+]);
 ```
 
 ### `withExternalRate()`
 
-Fluent method to include external hourly rates in the response.
+Include external hourly rate information in the response.
 
-**Example:**
 ```php
-$users = $teamleader->users()->withExternalRate()->list();
+$user = Teamleader::users()
+    ->withExternalRate()
+    ->info('user-uuid');
+
+// Access the rate
+$hourlyRate = $user['data']['external_rate']['amount'];
+$currency = $user['data']['external_rate']['currency'];
 ```
 
-## Filtering
+## Filters
 
 ### Available Filters
 
-- **`ids`**: Array of user UUIDs to filter by
-- **`term`**: Search filter on first name, last name, email and function
-- **`status`**: Filter by user status (active, deactivated)
-
-### Filter Examples
+#### `ids`
+Filter by specific user UUIDs.
 
 ```php
-// Filter by status
-$activeUsers = $teamleader->users()->list([
+$users = Teamleader::users()->list([
+    'ids' => ['user-uuid-1', 'user-uuid-2']
+]);
+```
+
+#### `term`
+Search across first name, last name, email, and function.
+
+```php
+$users = Teamleader::users()->list([
+    'term' => 'john'
+]);
+```
+
+#### `status`
+Filter by user status. Must be an array.
+
+**Values:** `active`, `deactivated`
+
+```php
+// Active users only
+$users = Teamleader::users()->list([
     'status' => ['active']
 ]);
 
-// Search by term
-$users = $teamleader->users()->list([
-    'term' => 'John'
+// Deactivated users only
+$users = Teamleader::users()->list([
+    'status' => ['deactivated']
 ]);
 
-// Filter by specific IDs
-$specificUsers = $teamleader->users()->list([
-    'ids' => [
-        'cb8da52a-ce89-4bf6-8f7e-8ee6cb85e3b5',
-        'f8a57a6f-dd1e-41a3-b8d3-428663f1d09e'
-    ]
-]);
-
-// Combine filters
-$filteredUsers = $teamleader->users()->list([
-    'status' => ['active'],
-    'term' => 'Sales'
+// Both active and deactivated
+$users = Teamleader::users()->list([
+    'status' => ['active', 'deactivated']
 ]);
 ```
 
@@ -174,391 +271,444 @@ $filteredUsers = $teamleader->users()->list([
 
 ### Available Sort Fields
 
-- **`first_name`**: Sort by first name
-- **`last_name`**: Sort by last name
-- **`email`**: Sort by email address
-- **`function`**: Sort by user function/role
+- `first_name` - Sort by first name
+- `last_name` - Sort by last name
+- `email` - Sort by email address
+- `function` - Sort by user function/role
 
-### Sorting Examples
+### Sort Examples
 
 ```php
 // Sort by first name (ascending)
-$users = $teamleader->users()->list([], [
-    'sort' => [
-        [
-            'field' => 'first_name',
-            'order' => 'asc'
-        ]
-    ]
+$users = Teamleader::users()->list([], [
+    'sort' => [['field' => 'first_name', 'order' => 'asc']]
 ]);
 
 // Sort by last name (descending)
-$users = $teamleader->users()->list([], [
+$users = Teamleader::users()->list([], [
+    'sort' => [['field' => 'last_name', 'order' => 'desc']]
+]);
+
+// Multiple sort fields
+$users = Teamleader::users()->list([], [
     'sort' => [
-        [
-            'field' => 'last_name',
-            'order' => 'desc'
-        ]
+        ['field' => 'first_name', 'order' => 'asc'],
+        ['field' => 'last_name', 'order' => 'asc']
     ]
 ]);
 
-// Multiple sort criteria
-$users = $teamleader->users()->list([], [
-    'sort' => [
-        [
-            'field' => 'function',
-            'order' => 'asc'
-        ],
-        [
-            'field' => 'first_name',
-            'order' => 'asc'
-        ]
-    ]
-]);
+// Get available sort fields
+$sortFields = Teamleader::users()->getAvailableSortFields();
 ```
 
 ## Sideloading
 
 ### Available Includes
 
-- **`external_rate`**: Include external hourly rates for the user
+- `external_rate` - Include external hourly rate information for the user
 
-### Sideloading Examples
-
-```php
-// Include external rates
-$user = $teamleader->users()->info('user-uuid', 'external_rate');
-
-// Using fluent interface
-$users = $teamleader->users()->withExternalRate()->list();
-
-// Multiple users with external rates
-$users = $teamleader->users()->withExternalRate()->active();
-```
-
-## Pagination
+### Examples
 
 ```php
-// Custom pagination
-$users = $teamleader->users()->list([], [
-    'page_size' => 50,
-    'page_number' => 2
-]);
+// Single user with external rate
+$user = Teamleader::users()
+    ->withExternalRate()
+    ->info('user-uuid');
 
-// Default pagination (20 per page, page 1)
-$users = $teamleader->users()->list();
+// List users with external rate
+$users = Teamleader::users()
+    ->withExternalRate()
+    ->list();
+
+// Using the include parameter directly
+$user = Teamleader::users()->info('user-uuid', 'external_rate');
 ```
 
-## Response Formats
+## Response Structure
 
-### List Response
+### User Object
 
-```json
-{
-    "data": [
-        {
-            "id": "cb8da52a-ce89-4bf6-8f7e-8ee6cb85e3b5",
-            "account": {
-                "id": "eab232c6-49b2-4b7e-a977-5e1148dad471",
-                "type": "account"
-            },
-            "first_name": "John",
-            "last_name": "Smith",
-            "email": "john@teamleader.eu",
-            "telephones": [
-                {
-                    "type": "phone",
-                    "number": "092980615"
-                }
-            ],
-            "language": "nl",
-            "function": "Sales",
-            "status": "active",
-            "teams": []
-        }
-    ]
-}
-```
-
-### Single User Response (info/me)
-
-```json
-{
-    "data": {
-        "id": "cb8da52a-ce89-4bf6-8f7e-8ee6cb85e3b5",
-        "account": {
-            "id": "eab232c6-49b2-4b7e-a977-5e1148dad471",
-            "type": "account"
-        },
-        "first_name": "John",
-        "last_name": "Smith",
-        "email": "john@teamleader.eu",
-        "email_verification_status": "confirmed",
-        "telephones": [
-            {
-                "type": "phone",
-                "number": "092980615"
-            }
-        ],
-        "language": "nl-BE",
-        "function": "Sales",
-        "time_zone": "Europe/Brussels",
-        "preferences": {
-            "invoiceable": true,
-            "historic_time_tracking_limit": {
-                "unit": "hour",
-                "value": 24
-            },
-            "whitelabeling": true
-        },
-        "external_rate": {
-            "amount": 123.3,
-            "currency": "EUR"
-        }
-    }
-}
-```
-
-### Week Schedule Response
-
-```json
-{
-    "data": {
-        "periods": [
-            {
-                "type": "working_hours",
-                "start": {
-                    "day": "monday",
-                    "time": "09:00"
-                },
-                "end": {
-                    "day": "monday",
-                    "time": "17:00"
-                }
-            },
-            {
-                "type": "lunch_break",
-                "start": {
-                    "day": "monday",
-                    "time": "12:00"
-                },
-                "end": {
-                    "day": "monday",
-                    "time": "13:00"
-                }
-            }
-        ]
-    }
-}
-```
-
-### Days Off Response
-
-```json
-{
-    "data": [
-        {
-            "id": "f611da79-90c2-02b1-b819-a810e0c77291",
-            "starts_at": "2023-10-01T09:00:00+01:00",
-            "ends_at": "2023-10-20T18:00:00+01:00",
-            "user": {},
-            "leave_type": {},
-            "status": "approved"
-        }
+```php
+[
+    'id' => 'user-uuid',
+    'account' => ['type' => 'account', 'id' => 'account-uuid'],
+    'first_name' => 'John',
+    'last_name' => 'Doe',
+    'email' => 'john.doe@example.com',
+    'function' => 'Sales Manager',
+    'language' => 'en',
+    'telephones' => [
+        ['type' => 'phone', 'number' => '+32 123 456 789']
     ],
-    "meta": {
-        "page": {
-            "size": 10,
-            "number": 2
-        },
-        "matches": 12
-    }
-}
+    'status' => 'active',
+    'time_zone' => 'Europe/Brussels',
+    'avatar_url' => 'https://...',
+    // If withExternalRate() is used:
+    'external_rate' => [
+        'amount' => 100.00,
+        'currency' => 'EUR'
+    ]
+]
 ```
-
-## Data Fields
-
-### Common User Fields
-
-- **`id`**: User UUID
-- **`account`**: Account reference object
-- **`first_name`**: User's first name
-- **`last_name`**: User's last name
-- **`email`**: User's email address
-- **`telephones`**: Array of phone numbers with types (phone, mobile, fax)
-- **`language`**: User's language preference
-- **`function`**: User's role/function
-- **`status`**: User status (active, deactivated)
-- **`teams`**: Array of team memberships
-
-### Additional Fields (info/me only)
-
-- **`email_verification_status`**: Email verification status (pending, confirmed)
-- **`time_zone`**: User's timezone (e.g., "Europe/Brussels")
-- **`preferences`**: User preferences object
-    - **`invoiceable`**: Whether user time is billable
-    - **`historic_time_tracking_limit`**: Time tracking history limits
-    - **`whitelabeling`**: Whitelabel preferences
-- **`external_rate`**: External hourly rate (if included)
-    - **`amount`**: Rate amount
-    - **`currency`**: Currency code
-
-### Week Schedule Fields
-
-- **`periods`**: Array of schedule periods
-    - **`type`**: Period type (working_hours, lunch_break)
-    - **`start`**: Start time object (day, time)
-    - **`end`**: End time object (day, time)
-
-### Days Off Fields
-
-- **`id`**: Days off record UUID
-- **`starts_at`**: Start datetime (ISO 8601)
-- **`ends_at`**: End datetime (ISO 8601)
-- **`user`**: User reference object
-- **`leave_type`**: Leave type reference object
-- **`status`**: Approval status (approved, not_approved, pending)
 
 ## Usage Examples
 
-### Basic Operations
+### Get All Active Users
 
 ```php
-// Get all users
-$users = $teamleader->users()->list();
+// Using helper method
+$activeUsers = Teamleader::users()->active();
 
-// Get current user
-$me = $teamleader->users()->me();
-
-// Get specific user with external rate
-$user = $teamleader->users()->withExternalRate()->info('user-uuid');
-
-// Search for users
-$salesTeam = $teamleader->users()->search('Sales');
-```
-
-### Complex Queries
-
-```php
-// Get active users sorted by name with external rates
-$users = $teamleader->users()
-    ->withExternalRate()
-    ->list(['status' => ['active']], [
-        'sort' => [['field' => 'first_name', 'order' => 'asc']],
-        'page_size' => 25
-    ]);
-
-// Get user schedule and days off
-$userId = 'user-uuid-here';
-$user = $teamleader->users()->info($userId);
-$schedule = $teamleader->users()->getWeekSchedule($userId);
-$daysOff = $teamleader->users()->listDaysOff($userId, [
-    'starts_after' => date('Y-m-01'), // This month
-    'ends_before' => date('Y-m-t')    // End of this month
+// Or with list()
+$activeUsers = Teamleader::users()->list([
+    'status' => ['active']
 ]);
 ```
 
-### Pagination Handling
+### Build a User Dropdown
 
 ```php
-$page = 1;
+$users = Teamleader::users()->active();
+
+$dropdown = [];
+foreach ($users['data'] as $user) {
+    $dropdown[$user['id']] = $user['first_name'] . ' ' . $user['last_name'];
+}
+```
+
+### Find Users by Department
+
+```php
+// Note: Direct department filtering isn't available
+// You'll need to filter in PHP after fetching users
+$allUsers = Teamleader::users()->active();
+
+$departmentUsers = array_filter($allUsers['data'], function($user) use ($departmentId) {
+    return isset($user['department']['id']) && 
+           $user['department']['id'] === $departmentId;
+});
+```
+
+### Get User Details with Rate Information
+
+```php
+$user = Teamleader::users()
+    ->withExternalRate()
+    ->info('user-uuid');
+
+if (isset($user['data']['external_rate'])) {
+    $rate = $user['data']['external_rate']['amount'];
+    $currency = $user['data']['external_rate']['currency'];
+    echo "Hourly rate: {$rate} {$currency}";
+}
+```
+
+### Check User Availability
+
+```php
+$userId = 'user-uuid';
+
+// Get their schedule
+$schedule = Teamleader::users()->getWeekSchedule($userId);
+
+// Get their days off for the next month
+$daysOff = Teamleader::users()->listDaysOff($userId, [
+    'starts_after' => now()->toIso8601String(),
+    'ends_before' => now()->addMonth()->toIso8601String()
+]);
+
+// Process availability
+$workingDays = $schedule['data'];
+$offDays = $daysOff['data'];
+```
+
+### Search for Team Members
+
+```php
+// Search by name
+$results = Teamleader::users()->search('John');
+
+// Search by email
+$results = Teamleader::users()->search('john@example.com');
+
+// Search by function
+$results = Teamleader::users()->search('Manager');
+```
+
+### Get Specific Users for Assignment
+
+```php
+// Get specific users who can be assigned to a task
+$assignableUsers = Teamleader::users()->byIds([
+    'user-uuid-1',
+    'user-uuid-2',
+    'user-uuid-3'
+]);
+```
+
+### Get Current User Information
+
+```php
+// Get authenticated user
+$currentUser = Teamleader::users()->me();
+
+// Use for personalization
+$greeting = "Welcome back, " . $currentUser['data']['first_name'];
+
+// Check permissions or role
+$userFunction = $currentUser['data']['function'];
+```
+
+### Paginate Through All Users
+
+```php
 $allUsers = [];
+$page = 1;
+$pageSize = 100;
 
 do {
-    $response = $teamleader->users()->list([], [
-        'page_size' => 50,
+    $response = Teamleader::users()->list([], [
+        'page_size' => $pageSize,
         'page_number' => $page
     ]);
     
-    if (isset($response['data'])) {
-        $allUsers = array_merge($allUsers, $response['data']);
-        $hasMore = count($response['data']) === 50;
-        $page++;
-    } else {
-        $hasMore = false;
-    }
+    $allUsers = array_merge($allUsers, $response['data']);
+    $hasMore = count($response['data']) === $pageSize;
+    $page++;
+    
 } while ($hasMore);
+```
+
+## Common Use Cases
+
+### User Selection in Forms
+
+```php
+class TaskController extends Controller
+{
+    public function create()
+    {
+        $users = Teamleader::users()
+            ->active()
+            ->list([], [
+                'sort' => [['field' => 'first_name', 'order' => 'asc']]
+            ]);
+        
+        return view('tasks.create', [
+            'users' => $users['data']
+        ]);
+    }
+}
+```
+
+### Caching User List
+
+```php
+use Illuminate\Support\Facades\Cache;
+
+class UserService
+{
+    public function getActiveUsers()
+    {
+        return Cache::remember('active_users', 3600, function() {
+            return Teamleader::users()->active();
+        });
+    }
+    
+    public function getUserById($userId)
+    {
+        $cacheKey = "user.{$userId}";
+        
+        return Cache::remember($cacheKey, 3600, function() use ($userId) {
+            return Teamleader::users()->info($userId);
+        });
+    }
+}
+```
+
+### Sync Users to Local Database
+
+```php
+use App\Models\TeamleaderUser;
+use Illuminate\Console\Command;
+
+class SyncUsersCommand extends Command
+{
+    protected $signature = 'teamleader:sync-users';
+    
+    public function handle()
+    {
+        $page = 1;
+        
+        do {
+            $response = Teamleader::users()->list([], [
+                'page_size' => 100,
+                'page_number' => $page
+            ]);
+            
+            foreach ($response['data'] as $userData) {
+                TeamleaderUser::updateOrCreate(
+                    ['teamleader_id' => $userData['id']],
+                    [
+                        'first_name' => $userData['first_name'],
+                        'last_name' => $userData['last_name'],
+                        'email' => $userData['email'],
+                        'function' => $userData['function'],
+                        'status' => $userData['status'],
+                    ]
+                );
+            }
+            
+            $hasMore = count($response['data']) === 100;
+            $page++;
+            
+        } while ($hasMore);
+        
+        $this->info('Users synced successfully!');
+    }
+}
+```
+
+### User Availability Dashboard
+
+```php
+class AvailabilityController extends Controller
+{
+    public function show($userId)
+    {
+        // Get user info
+        $user = Teamleader::users()->info($userId);
+        
+        // Get schedule
+        $schedule = Teamleader::users()->getWeekSchedule($userId);
+        
+        // Get upcoming days off
+        $daysOff = Teamleader::users()->listDaysOff($userId, [
+            'starts_after' => now()->toIso8601String()
+        ]);
+        
+        return view('availability.show', [
+            'user' => $user['data'],
+            'schedule' => $schedule['data'] ?? null,
+            'daysOff' => $daysOff['data']
+        ]);
+    }
+}
+```
+
+## Best Practices
+
+### 1. Cache User Data
+
+User information doesn't change frequently, so cache it:
+
+```php
+// Good: Cache for 1 hour
+$users = Cache::remember('active_users', 3600, function() {
+    return Teamleader::users()->active();
+});
+
+// Bad: Fetching on every request
+$users = Teamleader::users()->active();
+```
+
+### 2. Filter at the API Level
+
+```php
+// Good: Filter on the API
+$activeUsers = Teamleader::users()->active();
+
+// Bad: Fetch all and filter in PHP
+$allUsers = Teamleader::users()->list();
+$activeUsers = array_filter($allUsers['data'], function($user) {
+    return $user['status'] === 'active';
+});
+```
+
+### 3. Use Helper Methods
+
+```php
+// Good: Clear and readable
+$results = Teamleader::users()->search('John');
+
+// Less ideal: Using list with filters
+$results = Teamleader::users()->list(['term' => 'John']);
+```
+
+### 4. Handle Missing Data Gracefully
+
+```php
+$user = Teamleader::users()->info($userId);
+
+// Good: Check before accessing
+$email = $user['data']['email'] ?? 'No email';
+$function = $user['data']['function'] ?? 'No function specified';
+
+// Bad: Assuming data exists
+$email = $user['data']['email']; // May throw undefined index error
+```
+
+### 5. Use Current User for Context
+
+```php
+// Get current user for audit logs or default assignments
+$currentUser = Teamleader::users()->me();
+
+$task = Task::create([
+    'title' => 'New Task',
+    'assigned_to' => $currentUser['data']['id'],
+    'created_by' => $currentUser['data']['id']
+]);
 ```
 
 ## Error Handling
 
 ```php
-$result = $teamleader->users()->list();
+use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
 
-if (isset($result['error']) && $result['error']) {
-    $errorMessage = $result['message'] ?? 'Unknown error';
-    $statusCode = $result['status_code'] ?? 0;
+try {
+    $user = Teamleader::users()->info($userId);
+} catch (TeamleaderException $e) {
+    if ($e->getCode() === 404) {
+        // User not found
+        return response()->json(['error' => 'User not found'], 404);
+    }
     
-    Log::error("Users API error: {$errorMessage}", [
-        'status_code' => $statusCode
+    // Other error
+    Log::error('Error fetching user', [
+        'user_id' => $userId,
+        'error' => $e->getMessage()
     ]);
-}
-
-// Handle schedule feature availability
-$schedule = $teamleader->users()->getWeekSchedule($userId);
-if (isset($schedule['error'])) {
-    // Weekly working schedule feature might not be enabled
-    Log::info('Week schedule not available for user', ['user_id' => $userId]);
+    
+    throw $e;
 }
 ```
 
-## Rate Limiting
+## Checking Available Features
 
-Users API calls count towards your overall Teamleader API rate limit:
-
-- **List operations**: 1 request per call
-- **Info operations**: 1 request per call
-- **Me operation**: 1 request per call
-- **Schedule operations**: 1 request per call
-- **Days off operations**: 1 request per call
-
-Rate limit cost: **1 request per method call**
-
-## Notes
-
-- Users are **read-only** in the Teamleader API
-- No create, update, or delete operations are supported
-- The `getWeekSchedule()` method requires the "Weekly working schedule" feature to be enabled
-- External rates are only included when explicitly requested via includes
-- Time zones in responses are user-specific
-- Phone numbers can have different types: phone, mobile, fax
-- Language codes follow standard locale formats (e.g., "nl-BE")
-- Days off status can be: approved, not_approved, pending
-- Week schedule includes both working hours and lunch breaks
-
-## Laravel Integration
-
-When using this resource in Laravel applications:
+Not all Teamleader accounts have the same features enabled. Check before using:
 
 ```php
-use McoreServices\TeamleaderSDK\TeamleaderSDK;
-
-class UserController extends Controller
-{
-    public function index(TeamleaderSDK $teamleader)
-    {
-        $users = $teamleader->users()->active();
-        return view('users.index', compact('users'));
-    }
-    
-    public function show(TeamleaderSDK $teamleader, string $id)
-    {
-        $user = $teamleader->users()->withExternalRate()->info($id);
-        $schedule = $teamleader->users()->getWeekSchedule($id);
-        $daysOff = $teamleader->users()->listDaysOff($id, [
-            'starts_after' => now()->startOfMonth()->format('Y-m-d'),
-            'ends_before' => now()->endOfMonth()->format('Y-m-d')
-        ]);
-        
-        return view('users.show', compact('user', 'schedule', 'daysOff'));
-    }
-    
-    public function me(TeamleaderSDK $teamleader)
-    {
-        $currentUser = $teamleader->users()->me();
-        return response()->json($currentUser);
+try {
+    $schedule = Teamleader::users()->getWeekSchedule($userId);
+} catch (TeamleaderException $e) {
+    if ($e->getCode() === 403 || $e->getCode() === 404) {
+        // Weekly schedule feature not available
+        Log::info('Weekly schedule feature not available for this account');
+        $schedule = null;
     }
 }
 ```
 
-For more information, refer to the [Teamleader API Documentation](https://developer.focus.teamleader.eu/).
+## Related Resources
+
+- [Departments](departments.md) - Get department information for users
+- [Teams](teams.md) - Get team information
+- [Days Off](../general/days_off.md) - Manage user days off
+- [Time Tracking](../timetracking/time_tracking.md) - Track user time
+
+## See Also
+
+- [Usage Guide](../usage.md) - General SDK usage
+- [Filtering](../filtering.md) - Advanced filtering techniques
+- [Sideloading](../sideloading.md) - Efficiently load related data

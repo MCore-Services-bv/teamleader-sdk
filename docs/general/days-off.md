@@ -1,6 +1,27 @@
 # Days Off
 
-Manage days off for users in Teamleader Focus. This resource provides bulk import and delete operations for user days off records.
+Manage user days off in Teamleader Focus.
+
+## Overview
+
+The Days Off resource allows you to bulk import and delete days off (vacation, sick leave, etc.) for users in your Teamleader account. This resource uses a specialized bulk operation approach rather than standard CRUD methods.
+
+**Important:** This resource only supports bulk import and bulk delete operations. Standard `list()`, `info()`, `create()`, and `update()` methods are not available. To view user days off, use the `Users` resource `listDaysOff()` method.
+
+## Navigation
+
+- [Endpoint](#endpoint)
+- [Capabilities](#capabilities)
+- [Available Methods](#available-methods)
+    - [bulkImport()](#bulkimport)
+    - [bulkDelete()](#bulkdelete)
+- [Helper Methods](#helper-methods)
+- [Date Format Requirements](#date-format-requirements)
+- [Usage Examples](#usage-examples)
+- [Common Use Cases](#common-use-cases)
+- [Best Practices](#best-practices)
+- [Error Handling](#error-handling)
+- [Related Resources](#related-resources)
 
 ## Endpoint
 
@@ -8,29 +29,43 @@ Manage days off for users in Teamleader Focus. This resource provides bulk impor
 
 ## Capabilities
 
-- **Supports Pagination**: ❌ Not Supported
-- **Supports Filtering**: ❌ Not Supported
-- **Supports Sorting**: ❌ Not Supported
-- **Supports Sideloading**: ❌ Not Supported
-- **Supports Creation**: ❌ Not Supported (use bulk import)
-- **Supports Update**: ❌ Not Supported
-- **Supports Deletion**: ❌ Not Supported (use bulk delete)
-- **Supports Batch**: ✅ Supported
+- **Bulk Import**: ✅ Supported
+- **Bulk Delete**: ✅ Supported
+- **List**: ❌ Not Supported (use Users resource)
+- **Info**: ❌ Not Supported
+- **Create**: ❌ Not Supported (use bulk import)
+- **Update**: ❌ Not Supported
+- **Delete**: ❌ Not Supported (use bulk delete)
 
 ## Available Methods
 
 ### `bulkImport()`
 
-Import multiple days off for a user.
+Import (create) multiple days off for a user.
 
 **Parameters:**
-- `userId` (string): The user UUID that the days off belong to
-- `leaveTypeId` (string): The leave type UUID (from dayOffTypes resource)
-- `days` (array): Array of day objects with starts_at and ends_at
+- `userId` (string): User UUID
+- `leaveTypeId` (string): Day off type UUID (from dayOffTypes resource)
+- `days` (array): Array of day objects with `starts_at` and `ends_at` in ISO 8601 format
 
 **Example:**
 ```php
-$result = $teamleader->daysOff()->bulkImport($userId, $leaveTypeId, $days);
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
+$result = Teamleader::daysOff()->bulkImport(
+    'user-uuid',
+    'leave-type-uuid',
+    [
+        [
+            'starts_at' => '2024-12-23T08:00:00+00:00',
+            'ends_at' => '2024-12-23T18:00:00+00:00'
+        ],
+        [
+            'starts_at' => '2024-12-24T08:00:00+00:00',
+            'ends_at' => '2024-12-24T18:00:00+00:00'
+        ]
+    ]
+);
 ```
 
 ### `bulkDelete()`
@@ -38,450 +73,525 @@ $result = $teamleader->daysOff()->bulkImport($userId, $leaveTypeId, $days);
 Delete multiple days off for a user.
 
 **Parameters:**
-- `userId` (string): The user UUID that owns the days off
+- `userId` (string): User UUID
 - `dayOffIds` (array): Array of day off UUIDs to delete
 
 **Example:**
 ```php
-$result = $teamleader->daysOff()->bulkDelete($userId, $dayOffIds);
+$result = Teamleader::daysOff()->bulkDelete(
+    'user-uuid',
+    [
+        'day-off-uuid-1',
+        'day-off-uuid-2',
+        'day-off-uuid-3'
+    ]
+);
 ```
+
+## Helper Methods
 
 ### `importSingleDay()`
 
-Import a single day off - convenience method.
+Import a single day off (convenience wrapper for bulkImport).
 
-**Parameters:**
-- `userId` (string): The user UUID
-- `leaveTypeId` (string): The leave type UUID
-- `startsAt` (string): Start datetime (ISO 8601 format)
-- `endsAt` (string): End datetime (ISO 8601 format)
-
-**Example:**
 ```php
-$result = $teamleader->daysOff()->importSingleDay($userId, $leaveTypeId, $startsAt, $endsAt);
+$result = Teamleader::daysOff()->importSingleDay(
+    'user-uuid',
+    'leave-type-uuid',
+    '2024-12-25T08:00:00+00:00',
+    '2024-12-25T18:00:00+00:00'
+);
 ```
 
 ### `importMultipleDays()`
 
-Import multiple days off with the same duration pattern.
+Import multiple days with the same daily schedule.
 
-**Parameters:**
-- `userId` (string): The user UUID
-- `leaveTypeId` (string): The leave type UUID
-- `dates` (array): Array of date strings (Y-m-d format)
-- `startTime` (string): Start time (H:i:s format, default: '08:00:00')
-- `endTime` (string): End time (H:i:s format, default: '18:00:00')
-- `timezone` (string): Timezone (default: '+00:00')
-
-**Example:**
 ```php
-$result = $teamleader->daysOff()->importMultipleDays(
-    $userId, 
-    $leaveTypeId, 
-    ['2024-02-01', '2024-02-02', '2024-02-05']
+$dates = ['2024-12-23', '2024-12-24', '2024-12-27'];
+
+$result = Teamleader::daysOff()->importMultipleDays(
+    'user-uuid',
+    'leave-type-uuid',
+    $dates,
+    '08:00:00',  // Start time
+    '18:00:00',  // End time
+    '+00:00'     // Timezone
 );
 ```
 
 ### `importDateRange()`
 
-Import a date range of days off.
+Import consecutive days within a date range.
 
-**Parameters:**
-- `userId` (string): The user UUID
-- `leaveTypeId` (string): The leave type UUID
-- `startDate` (string): Start date (Y-m-d format)
-- `endDate` (string): End date (Y-m-d format)
-- `startTime` (string): Start time (H:i:s format, default: '08:00:00')
-- `endTime` (string): End time (H:i:s format, default: '18:00:00')
-- `timezone` (string): Timezone (default: '+00:00')
-- `excludeWeekends` (bool): Whether to exclude weekends (default: true)
-
-**Example:**
 ```php
-$result = $teamleader->daysOff()->importDateRange(
-    $userId,
-    $leaveTypeId,
-    '2024-02-01',
-    '2024-02-07',
-    '08:00:00',
-    '18:00:00',
-    '+00:00',
-    true  // exclude weekends
+$result = Teamleader::daysOff()->importDateRange(
+    'user-uuid',
+    'leave-type-uuid',
+    '2024-12-23',        // Start date
+    '2024-12-27',        // End date
+    '08:00:00',          // Daily start time
+    '18:00:00',          // Daily end time
+    '+00:00',            // Timezone
+    true                 // Exclude weekends
 );
 ```
 
-## Data Structures
+## Date Format Requirements
 
-### Day Object Format
+All datetime values must be in **ISO 8601 format** with timezone:
 
-Each day in the `days` array must have the following structure:
-
-```php
-[
-    'starts_at' => '2024-02-01T08:00:00+00:00',  // ISO 8601 format
-    'ends_at' => '2024-02-01T18:00:00+00:00'     // ISO 8601 format
-]
+```
+YYYY-MM-DDTHH:MM:SS±HH:MM
 ```
 
-### Required UUID Formats
-
-- **User ID**: Must be a valid UUID (e.g., `f29abf48-337d-44b4-aad4-585f5277a456`)
-- **Leave Type ID**: Must be a valid UUID (e.g., `0f517e20-2e76-4684-8d6c-3334f6d7148c`)
-- **Day Off IDs**: Must be valid UUIDs for deletion operations
+**Examples:**
+```php
+'2024-12-25T08:00:00+00:00'  // UTC
+'2024-12-25T08:00:00+01:00'  // CET (UTC+1)
+'2024-12-25T08:00:00-05:00'  // EST (UTC-5)
+```
 
 ## Usage Examples
 
-### Basic Bulk Import
-
-Import multiple days off for a user:
+### Import a Single Day Off
 
 ```php
-$userId = 'f29abf48-337d-44b4-aad4-585f5277a456';
-$leaveTypeId = '0f517e20-2e76-4684-8d6c-3334f6d7148c';
+// Full day off on Christmas
+$result = Teamleader::daysOff()->importSingleDay(
+    'user-uuid',
+    'vacation-leave-type-uuid',
+    '2024-12-25T00:00:00+00:00',
+    '2024-12-25T23:59:59+00:00'
+);
+```
 
-$days = [
+### Import Vacation Week
+
+```php
+// One week vacation
+$result = Teamleader::daysOff()->importDateRange(
+    'user-uuid',
+    'vacation-leave-type-uuid',
+    '2024-07-01',  // Monday
+    '2024-07-05',  // Friday
+    '00:00:00',
+    '23:59:59',
+    '+02:00',      // Summer time
+    true           // Exclude weekends
+);
+```
+
+### Import Half Days
+
+```php
+// Morning off
+$morningOff = [
     [
-        'starts_at' => '2024-02-01T08:00:00+00:00',
-        'ends_at' => '2024-02-01T18:00:00+00:00'
-    ],
-    [
-        'starts_at' => '2024-02-02T08:00:00+00:00',
-        'ends_at' => '2024-02-02T18:00:00+00:00'
+        'starts_at' => '2024-12-20T08:00:00+00:00',
+        'ends_at' => '2024-12-20T12:00:00+00:00'
     ]
 ];
 
-$result = $teamleader->daysOff()->bulkImport($userId, $leaveTypeId, $days);
+Teamleader::daysOff()->bulkImport(
+    'user-uuid',
+    'leave-type-uuid',
+    $morningOff
+);
 
-if (isset($result['error'])) {
-    // Handle error
-    echo "Error: " . $result['message'];
-} else {
-    // Success - check HTTP status 201
-    echo "Days off imported successfully";
-}
-```
-
-### Basic Bulk Delete
-
-Delete multiple days off:
-
-```php
-$userId = 'f29abf48-337d-44b4-aad4-585f5277a456';
-$dayOffIds = [
-    '0a481ce9-0d2a-0913-9439-0fd8b469b566',
-    '5050789e-4385-02f6-bd3c-d051cc12f5cf'
+// Afternoon off
+$afternoonOff = [
+    [
+        'starts_at' => '2024-12-20T13:00:00+00:00',
+        'ends_at' => '2024-12-20T18:00:00+00:00'
+    ]
 ];
 
-$result = $teamleader->daysOff()->bulkDelete($userId, $dayOffIds);
+Teamleader::daysOff()->bulkImport(
+    'user-uuid',
+    'leave-type-uuid',
+    $afternoonOff
+);
+```
 
-if (isset($result['error'])) {
-    // Handle error
-    echo "Error: " . $result['message'];
-} else {
-    // Success - check HTTP status 204
-    echo "Days off deleted successfully";
+### Delete Cancelled Days Off
+
+```php
+// Get user's days off first
+$daysOff = Teamleader::users()->listDaysOff('user-uuid', [
+    'starts_after' => '2024-12-01'
+]);
+
+// Extract IDs to cancel
+$dayOffIds = array_column($daysOff['data'], 'id');
+
+// Delete them
+if (!empty($dayOffIds)) {
+    Teamleader::daysOff()->bulkDelete('user-uuid', $dayOffIds);
 }
 ```
 
-### Single Day Import
+## Common Use Cases
 
-Import a single day off:
+### Vacation Request Handler
 
 ```php
-$result = $teamleader->daysOff()->importSingleDay(
-    'f29abf48-337d-44b4-aad4-585f5277a456',
-    '0f517e20-2e76-4684-8d6c-3334f6d7148c',
-    '2024-02-01T08:00:00+00:00',
-    '2024-02-01T18:00:00+00:00'
-);
+class VacationRequestHandler
+{
+    public function approveVacation($userId, $leaveTypeId, $startDate, $endDate)
+    {
+        try {
+            $result = Teamleader::daysOff()->importDateRange(
+                $userId,
+                $leaveTypeId,
+                $startDate,
+                $endDate,
+                '00:00:00',
+                '23:59:59',
+                '+00:00',
+                true  // Exclude weekends
+            );
+            
+            return [
+                'success' => true,
+                'message' => 'Vacation approved and imported',
+                'data' => $result
+            ];
+        } catch (\Exception $e) {
+            return [
+                'success' => false,
+                'message' => 'Failed to import vacation: ' . $e->getMessage()
+            ];
+        }
+    }
+}
 ```
 
-### Multiple Days with Same Pattern
-
-Import multiple days with the same work hours:
+### Bulk Holiday Import
 
 ```php
-$dates = ['2024-02-01', '2024-02-02', '2024-02-05'];
-
-$result = $teamleader->daysOff()->importMultipleDays(
-    $userId,
-    $leaveTypeId,
-    $dates,
-    '08:00:00',  // start time
-    '18:00:00',  // end time
-    '+01:00'     // timezone (CET)
-);
+class HolidayImporter
+{
+    public function importPublicHolidays($year, $holidays)
+    {
+        $users = Teamleader::users()->active();
+        $holidayLeaveType = $this->getHolidayLeaveType();
+        
+        $results = [];
+        
+        foreach ($users['data'] as $user) {
+            $days = [];
+            
+            foreach ($holidays as $holiday) {
+                $date = "{$year}-{$holiday}";
+                $days[] = [
+                    'starts_at' => "{$date}T00:00:00+00:00",
+                    'ends_at' => "{$date}T23:59:59+00:00"
+                ];
+            }
+            
+            try {
+                $result = Teamleader::daysOff()->bulkImport(
+                    $user['id'],
+                    $holidayLeaveType,
+                    $days
+                );
+                
+                $results[$user['id']] = [
+                    'success' => true,
+                    'imported' => count($days)
+                ];
+            } catch (\Exception $e) {
+                $results[$user['id']] = [
+                    'success' => false,
+                    'error' => $e->getMessage()
+                ];
+            }
+        }
+        
+        return $results;
+    }
+    
+    private function getHolidayLeaveType()
+    {
+        // Get the public holiday leave type
+        $types = Teamleader::dayOffTypes()->list();
+        
+        foreach ($types['data'] as $type) {
+            if ($type['name'] === 'Public Holiday') {
+                return $type['id'];
+            }
+        }
+        
+        throw new \Exception('Public Holiday leave type not found');
+    }
+}
 ```
 
-### Date Range Import
-
-Import a full week of vacation (excluding weekends):
+### Sick Leave Management
 
 ```php
-$result = $teamleader->daysOff()->importDateRange(
+class SickLeaveManager
+{
+    public function reportSickDay($userId, $date, $isFullDay = true)
+    {
+        $sickLeaveType = $this->getSickLeaveType();
+        
+        if ($isFullDay) {
+            return Teamleader::daysOff()->importSingleDay(
+                $userId,
+                $sickLeaveType,
+                "{$date}T00:00:00+00:00",
+                "{$date}T23:59:59+00:00"
+            );
+        }
+        
+        // Half day sick leave (morning)
+        return Teamleader::daysOff()->importSingleDay(
+            $userId,
+            $sickLeaveType,
+            "{$date}T08:00:00+00:00",
+            "{$date}T12:00:00+00:00"
+        );
+    }
+    
+    public function reportSickPeriod($userId, $startDate, $endDate)
+    {
+        $sickLeaveType = $this->getSickLeaveType();
+        
+        return Teamleader::daysOff()->importDateRange(
+            $userId,
+            $sickLeaveType,
+            $startDate,
+            $endDate,
+            '00:00:00',
+            '23:59:59',
+            '+00:00',
+            true  // Exclude weekends
+        );
+    }
+    
+    private function getSickLeaveType()
+    {
+        $types = Teamleader::dayOffTypes()->list();
+        
+        foreach ($types['data'] as $type) {
+            if (stripos($type['name'], 'sick') !== false) {
+                return $type['id'];
+            }
+        }
+        
+        throw new \Exception('Sick leave type not found');
+    }
+}
+```
+
+### Days Off Correction
+
+```php
+class DaysOffCorrection
+{
+    public function correctDaysOff($userId, $incorrectDayOffIds, $correctDays, $leaveTypeId)
+    {
+        // First, delete the incorrect entries
+        Teamleader::daysOff()->bulkDelete($userId, $incorrectDayOffIds);
+        
+        // Then, import the correct ones
+        return Teamleader::daysOff()->bulkImport(
+            $userId,
+            $leaveTypeId,
+            $correctDays
+        );
+    }
+}
+```
+
+### Sync from External System
+
+```php
+class DaysOffSync
+{
+    public function syncFromHRSystem($userId)
+    {
+        // Get days off from external HR system
+        $externalDaysOff = $this->getFromHRSystem($userId);
+        
+        // Get current days off from Teamleader
+        $currentDaysOff = Teamleader::users()->listDaysOff($userId, [
+            'starts_after' => now()->toIso8601String()
+        ]);
+        
+        // Determine which to keep and which to remove
+        $toDelete = $this->getDaysToDelete($currentDaysOff['data'], $externalDaysOff);
+        $toImport = $this->getDaysToImport($currentDaysOff['data'], $externalDaysOff);
+        
+        // Delete removed days
+        if (!empty($toDelete)) {
+            Teamleader::daysOff()->bulkDelete($userId, $toDelete);
+        }
+        
+        // Import new days
+        if (!empty($toImport)) {
+            foreach ($toImport as $leaveType => $days) {
+                Teamleader::daysOff()->bulkImport($userId, $leaveType, $days);
+            }
+        }
+    }
+}
+```
+
+## Best Practices
+
+### 1. Always Exclude Weekends
+
+```php
+// Good: Exclude weekends from date ranges
+$result = Teamleader::daysOff()->importDateRange(
     $userId,
     $leaveTypeId,
-    '2024-02-05',  // Monday
-    '2024-02-09',  // Friday
+    $startDate,
+    $endDate,
     '08:00:00',
     '18:00:00',
-    '+01:00',
-    true  // exclude weekends
+    '+00:00',
+    true  // Exclude weekends
+);
+
+// Bad: Include weekends (wastes quota)
+$result = Teamleader::daysOff()->importDateRange(
+    $userId,
+    $leaveTypeId,
+    $startDate,
+    $endDate,
+    '08:00:00',
+    '18:00:00',
+    '+00:00',
+    false
 );
 ```
 
-### Half Day Import
-
-Import half days (morning only):
+### 2. Validate User and Leave Type IDs
 
 ```php
-$days = [
-    [
-        'starts_at' => '2024-02-01T08:00:00+01:00',
-        'ends_at' => '2024-02-01T12:00:00+01:00'  // Half day - morning
-    ],
-    [
-        'starts_at' => '2024-02-02T13:00:00+01:00', // Half day - afternoon
-        'ends_at' => '2024-02-02T18:00:00+01:00'
-    ]
-];
-
-$result = $teamleader->daysOff()->bulkImport($userId, $leaveTypeId, $days);
-```
-
-## Response Format
-
-### Successful Import Response
-
-HTTP Status: `201 Created`
-
-```json
-{
-    "success": true,
-    "status_code": 201,
-    "message": "Days off imported successfully"
+// Good: Validate before importing
+if (!$this->isValidUserId($userId) || !$this->isValidLeaveTypeId($leaveTypeId)) {
+    throw new \InvalidArgumentException('Invalid user or leave type ID');
 }
+
+$result = Teamleader::daysOff()->bulkImport($userId, $leaveTypeId, $days);
 ```
 
-### Successful Delete Response
-
-HTTP Status: `204 No Content`
-
-```json
-{
-    "success": true,
-    "status_code": 204,
-    "message": "Days off deleted successfully"
-}
-```
-
-### Error Response
-
-```json
-{
-    "error": true,
-    "status_code": 400,
-    "message": "Validation failed",
-    "errors": [
-        "Day at index 0 has invalid starts_at format"
-    ]
-}
-```
-
-## DateTime Format Requirements
-
-All datetime values must be in **ISO 8601 format** with timezone information:
-
-- **Format**: `YYYY-MM-DDTHH:MM:SS±HH:MM`
-- **Example**: `2024-02-01T08:00:00+01:00`
-
-### Common Timezones
-
-- **UTC**: `+00:00`
-- **CET (Central European Time)**: `+01:00`
-- **CEST (Central European Summer Time)**: `+02:00`
-- **EST (Eastern Standard Time)**: `-05:00`
-- **PST (Pacific Standard Time)**: `-08:00`
-
-### Common Work Hour Patterns
-
-- **Full Day**: `08:00:00` to `18:00:00`
-- **Half Day (Morning)**: `08:00:00` to `12:00:00`
-- **Half Day (Afternoon)**: `13:00:00` to `18:00:00`
-- **Short Day**: `08:00:00` to `12:30:00`
-
-## Helper Methods
-
-### Formatting Helpers
-
-The resource provides several helper methods for working with dates and times:
+### 3. Handle Large Imports in Chunks
 
 ```php
-// Get formatting information
-$helpers = $teamleader->daysOff()->getFormattingHelpers();
+// Good: Process in chunks
+$allDays = $this->generateYearOfDaysOff();
+$chunks = array_chunk($allDays, 50);  // Max 50 days per request
 
-// Format a DateTime object for the API
-$datetime = new DateTime('2024-02-01 08:00:00', new DateTimeZone('Europe/Brussels'));
-$formatted = $teamleader->daysOff()->formatDatetime($datetime);
+foreach ($chunks as $chunk) {
+    Teamleader::daysOff()->bulkImport($userId, $leaveTypeId, $chunk);
+    sleep(1);  // Rate limiting
+}
 
-// Create datetime string from components
-$datetime = $teamleader->daysOff()->createDatetime('2024-02-01', '08:00:00', '+01:00');
+// Bad: Try to import too many at once
+Teamleader::daysOff()->bulkImport($userId, $leaveTypeId, $allDays);
 ```
 
-## Validation
+### 4. Use Correct Timezone
 
-The resource includes comprehensive validation:
+```php
+// Good: Use company timezone
+$timezone = config('app.timezone_offset'); // e.g., '+01:00'
 
-### User ID Validation
-- Must be a valid UUID format
-- Cannot be empty
+$result = Teamleader::daysOff()->importDateRange(
+    $userId,
+    $leaveTypeId,
+    $startDate,
+    $endDate,
+    '08:00:00',
+    '18:00:00',
+    $timezone  // Correct timezone
+);
 
-### Leave Type ID Validation
-- Must be a valid UUID format
-- Cannot be empty
-- Should exist in the dayOffTypes resource
+// Bad: Always use UTC (may be incorrect for local times)
+$result = Teamleader::daysOff()->importDateRange(
+    $userId,
+    $leaveTypeId,
+    $startDate,
+    $endDate,
+    '08:00:00',
+    '18:00:00',
+    '+00:00'
+);
+```
 
-### Days Array Validation
-- At least one day must be provided
-- Each day must have `starts_at` and `ends_at`
-- Datetime values must be in ISO 8601 format
-- `starts_at` must be before `ends_at`
+### 5. Verify After Import
 
-### Day Off IDs Validation (for deletion)
-- At least one ID must be provided
-- All IDs must be valid UUID format
-- IDs must belong to the specified user
+```php
+// Good: Verify the import was successful
+$result = Teamleader::daysOff()->bulkImport($userId, $leaveTypeId, $days);
+
+// Check the imported days
+$imported = Teamleader::users()->listDaysOff($userId, [
+    'starts_after' => $startDate
+]);
+
+if (count($imported['data']) !== count($days)) {
+    Log::warning('Not all days were imported', [
+        'expected' => count($days),
+        'actual' => count($imported['data'])
+    ]);
+}
+```
 
 ## Error Handling
 
-### Common Errors
-
 ```php
+use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
+
 try {
-    $result = $teamleader->daysOff()->bulkImport($userId, $leaveTypeId, $days);
-    
-    if (isset($result['error']) && $result['error']) {
-        throw new Exception($result['message']);
+    $result = Teamleader::daysOff()->bulkImport(
+        $userId,
+        $leaveTypeId,
+        $days
+    );
+} catch (TeamleaderException $e) {
+    if ($e->getCode() === 422) {
+        // Validation error
+        Log::error('Invalid days off data', [
+            'user_id' => $userId,
+            'error' => $e->getMessage(),
+            'details' => $e->getDetails()
+        ]);
+    } else {
+        Log::error('Failed to import days off', [
+            'error' => $e->getMessage()
+        ]);
     }
     
-} catch (InvalidArgumentException $e) {
-    // Validation error (client-side)
-    Log::error('Days off validation error: ' . $e->getMessage());
-    
-} catch (Exception $e) {
-    // API error (server-side)
-    Log::error('Days off API error: ' . $e->getMessage());
+    throw $e;
 }
 ```
 
-### Typical Validation Errors
+## Method Restrictions
 
-- `"User ID is required"`
-- `"Leave type ID must be a valid UUID format"`
-- `"At least one day must be provided"`
-- `"Day at index 0 has invalid starts_at format"`
-- `"Day at index 1 has starts_at after or equal to ends_at"`
-
-## Relationship with Other Resources
-
-### Day Off Types (`dayOffTypes`)
-
-The `leave_type_id` parameter references records from the Day Off Types resource:
+The following standard methods are **not available**:
 
 ```php
-// First, get available leave types
-$leaveTypes = $teamleader->dayOffTypes()->list();
-
-// Use a leave type ID for importing days off
-$leaveTypeId = $leaveTypes['data'][0]['id'];
-$result = $teamleader->daysOff()->bulkImport($userId, $leaveTypeId, $days);
+// These will throw BadMethodCallException
+Teamleader::daysOff()->list();        // ❌ Use Users->listDaysOff()
+Teamleader::daysOff()->info($id);     // ❌ Not available
+Teamleader::daysOff()->create([]);    // ❌ Use bulkImport()
+Teamleader::daysOff()->update();      // ❌ Not available
+Teamleader::daysOff()->delete($id);   // ❌ Use bulkDelete()
 ```
 
-### Users (`users`)
+## Related Resources
 
-The `user_id` parameter references user records:
+- [Users](users.md) - Use `listDaysOff()` to view user days off
+- [Day Off Types](day_off_types.md) - Manage day off type definitions
+- [Closing Days](closing_days.md) - Company-wide closing days
 
-```php
-// Get users first
-$users = $teamleader->users()->list(['status' => ['active']]);
+## See Also
 
-// Import days off for a specific user
-$userId = $users['data'][0]['id'];
-$result = $teamleader->daysOff()->bulkImport($userId, $leaveTypeId, $days);
-```
-
-## Rate Limiting
-
-Days off operations count towards your Teamleader API rate limit:
-
-- **Bulk Import**: 1 request per operation (regardless of number of days)
-- **Bulk Delete**: 1 request per operation (regardless of number of days)
-
-**Rate limit cost**: 1 request per method call
-
-## Laravel Integration
-
-When using this resource in Laravel applications:
-
-```php
-use McoreServices\TeamleaderSDK\TeamleaderSDK;
-
-class DaysOffController extends Controller
-{
-    public function import(Request $request, TeamleaderSDK $teamleader)
-    {
-        $validated = $request->validate([
-            'user_id' => 'required|uuid',
-            'leave_type_id' => 'required|uuid',
-            'days' => 'required|array|min:1',
-            'days.*.starts_at' => 'required|date_format:Y-m-d\TH:i:sP',
-            'days.*.ends_at' => 'required|date_format:Y-m-d\TH:i:sP'
-        ]);
-
-        try {
-            $result = $teamleader->daysOff()->bulkImport(
-                $validated['user_id'],
-                $validated['leave_type_id'],
-                $validated['days']
-            );
-
-            return redirect()->back()->with('success', 'Days off imported successfully');
-            
-        } catch (Exception $e) {
-            return redirect()->back()->with('error', 'Failed to import days off: ' . $e->getMessage());
-        }
-    }
-
-    public function delete(Request $request, TeamleaderSDK $teamleader)
-    {
-        $validated = $request->validate([
-            'user_id' => 'required|uuid',
-            'day_off_ids' => 'required|array|min:1',
-            'day_off_ids.*' => 'uuid'
-        ]);
-
-        try {
-            $result = $teamleader->daysOff()->bulkDelete(
-                $validated['user_id'],
-                $validated['day_off_ids']
-            );
-
-            return redirect()->back()->with('success', 'Days off deleted successfully');
-            
-        } catch (Exception $e) {
-            return redirect()->back()->with('error', 'Failed to delete days off: ' . $e->getMessage());
-        }
-    }
-}
-```
-
-## Notes
-
-- This resource only supports **bulk operations** - no individual create/read/update/delete
-- All datetime values must include timezone information
-- The resource validates UUID formats for all ID parameters
-- Use the `dayOffTypes` resource to get valid leave type IDs
-- Weekend exclusion in `importDateRange()` uses Monday=1, Sunday=7 format
-- Maximum recommended days per bulk operation: 100 (not enforced by API but good for performance)
-
-For more information, refer to the [Teamleader API Documentation](https://developer.focus.teamleader.eu/).
+- [Usage Guide](../usage.md) - General SDK usage

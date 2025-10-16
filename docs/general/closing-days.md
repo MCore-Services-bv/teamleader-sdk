@@ -1,6 +1,27 @@
 # Closing Days
 
-Manage closing days in Teamleader Focus. Closing days are typically used to mark holidays, company closure dates, or other non-working days in your organization.
+Manage closing days in Teamleader Focus.
+
+## Overview
+
+The Closing Days resource allows you to manage company-wide closing days (holidays, closures) in your Teamleader account. These are days when your company is closed for business and can affect scheduling, availability, and time tracking.
+
+## Navigation
+
+- [Endpoint](#endpoint)
+- [Capabilities](#capabilities)
+- [Available Methods](#available-methods)
+    - [list()](#list)
+    - [create() / add()](#create--add)
+    - [delete()](#delete)
+- [Helper Methods](#helper-methods)
+- [Filters](#filters)
+- [Response Structure](#response-structure)
+- [Usage Examples](#usage-examples)
+- [Common Use Cases](#common-use-cases)
+- [Best Practices](#best-practices)
+- [Error Handling](#error-handling)
+- [Related Resources](#related-resources)
 
 ## Endpoint
 
@@ -8,429 +29,533 @@ Manage closing days in Teamleader Focus. Closing days are typically used to mark
 
 ## Capabilities
 
-- **Supports Pagination**: ✅ Supported
-- **Supports Filtering**: ✅ Supported
-- **Supports Sorting**: ❌ Not Supported
-- **Supports Sideloading**: ❌ Not Supported
-- **Supports Creation**: ✅ Supported
-- **Supports Update**: ❌ Not Supported
-- **Supports Deletion**: ✅ Supported
-- **Supports Batch**: ❌ Not Supported
+- **Pagination**: ✅ Supported
+- **Filtering**: ✅ Supported
+- **Sorting**: ❌ Not Supported
+- **Sideloading**: ❌ Not Supported
+- **Creation**: ✅ Supported
+- **Update**: ❌ Not Supported
+- **Deletion**: ✅ Supported
 
 ## Available Methods
 
 ### `list()`
 
-Get a paginated list of closing days with filtering options.
+Get closing days with optional date range filtering.
 
 **Parameters:**
-- `filters` (array): Array of filters to apply
+- `filters` (array): Date range filters
 - `options` (array): Pagination options
 
 **Example:**
 ```php
-$closingDays = $teamleader->closingDays()->list([
-    'date_after' => '2023-12-01',
-    'date_before' => '2023-12-31'
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
+// Get all closing days
+$closingDays = Teamleader::closingDays()->list();
+
+// Get closing days in a date range
+$closingDays = Teamleader::closingDays()->list([
+    'date_after' => '2024-01-01',
+    'date_before' => '2024-12-31'
 ]);
 ```
 
 ### `create()` / `add()`
 
-Add a new closing day to the account.
+Add a new closing day.
 
 **Parameters:**
-- `data` (array): Array containing 'day' field, or
-- `day` (string): Date in YYYY-MM-DD format (for `add()` method)
+- `data` (array): Must contain `day` field in YYYY-MM-DD format
 
 **Example:**
 ```php
-// Using create method
-$result = $teamleader->closingDays()->create(['day' => '2024-02-01']);
+// Using create()
+$result = Teamleader::closingDays()->create([
+    'day' => '2024-12-25'
+]);
 
-// Using add method (convenience)
-$result = $teamleader->closingDays()->add('2024-02-01');
+// Using add() alias
+$result = Teamleader::closingDays()->add('2024-12-25');
 ```
 
 ### `delete()`
 
-Remove a closing day from the account.
+Remove a closing day.
 
 **Parameters:**
 - `id` (string): Closing day UUID
 
 **Example:**
 ```php
-$result = $teamleader->closingDays()->delete('eb264fd0-0e5c-0dbf-ae1e-49e7d6a8e6b8');
+Teamleader::closingDays()->delete('closing-day-uuid');
 ```
 
-### Convenience Methods
+## Helper Methods
 
-#### `forMonth()`
+The Closing Days resource provides convenient helper methods:
 
-Get closing days for a specific month.
+### `forMonth()`
 
-**Parameters:**
-- `yearMonth` (string): Month in YYYY-MM format
+Get all closing days in a specific month.
 
-**Example:**
 ```php
-$closingDays = $teamleader->closingDays()->forMonth('2024-02');
+// Get closing days for January 2024
+$closingDays = Teamleader::closingDays()->forMonth('2024-01');
+
+// Get closing days for current month
+$closingDays = Teamleader::closingDays()->forMonth(date('Y-m'));
 ```
 
-#### `forYear()`
+### `forYear()`
 
-Get closing days for a specific year.
+Get all closing days in a specific year.
 
-**Parameters:**
-- `year` (int|string): 4-digit year
-
-**Example:**
 ```php
-$closingDays = $teamleader->closingDays()->forYear(2024);
+// Get all closing days in 2024
+$closingDays = Teamleader::closingDays()->forYear(2024);
+
+// Get all closing days in current year
+$closingDays = Teamleader::closingDays()->forYear(date('Y'));
 ```
 
-#### `forDateRange()`
+### `forDateRange()`
 
 Get closing days within a specific date range.
 
-**Parameters:**
-- `startDate` (string): Start date in YYYY-MM-DD format
-- `endDate` (string): End date in YYYY-MM-DD format
-
-**Example:**
 ```php
-$closingDays = $teamleader->closingDays()->forDateRange('2024-01-01', '2024-01-31');
+$closingDays = Teamleader::closingDays()->forDateRange(
+    '2024-12-01',
+    '2024-12-31'
+);
 ```
 
-#### `upcoming()`
+### `upcoming()`
 
-Get upcoming closing days from today forward.
+Get upcoming closing days from today.
 
-**Parameters:**
-- `daysAhead` (int): Number of days to look ahead (default: 30)
-
-**Example:**
 ```php
-$upcomingClosingDays = $teamleader->closingDays()->upcoming(60); // Next 60 days
+// Get closing days in next 30 days
+$closingDays = Teamleader::closingDays()->upcoming();
+
+// Get closing days in next 90 days
+$closingDays = Teamleader::closingDays()->upcoming(90);
 ```
 
-#### `isClosingDay()`
+### `isClosingDay()`
 
 Check if a specific date is a closing day.
 
-**Parameters:**
-- `date` (string): Date in YYYY-MM-DD format
-
-**Example:**
 ```php
-$isClosed = $teamleader->closingDays()->isClosingDay('2024-12-25'); // Returns bool
+if (Teamleader::closingDays()->isClosingDay('2024-12-25')) {
+    echo "Christmas Day is a closing day";
+}
 ```
 
-#### `bulkAdd()`
+### `bulkAdd()`
 
 Add multiple closing days at once.
 
-**Parameters:**
-- `dates` (array): Array of dates in YYYY-MM-DD format
-
-**Example:**
 ```php
-$results = $teamleader->closingDays()->bulkAdd([
+$dates = [
     '2024-12-25',
     '2024-12-26',
     '2024-01-01'
-]);
+];
+
+$results = Teamleader::closingDays()->bulkAdd($dates);
 ```
 
-## Filtering
+## Filters
 
 ### Available Filters
 
-- **`date_before`**: End of the period for which to return closing days (inclusive)
-- **`date_after`**: Start of the period for which to return closing days (inclusive)
-
-### Filter Examples
+#### `date_after`
+Start of the period (inclusive). Must be in YYYY-MM-DD format.
 
 ```php
-// Get closing days in December 2023
-$decemberClosingDays = $teamleader->closingDays()->list([
-    'date_after' => '2023-12-01',
-    'date_before' => '2023-12-31'
-]);
-
-// Get closing days from today onwards
-$futureClosingDays = $teamleader->closingDays()->list([
-    'date_after' => date('Y-m-d')
-]);
-
-// Get closing days before a specific date
-$pastClosingDays = $teamleader->closingDays()->list([
-    'date_before' => '2023-12-31'
+$closingDays = Teamleader::closingDays()->list([
+    'date_after' => '2024-01-01'
 ]);
 ```
 
-## Pagination
-
-Closing days support pagination for large datasets:
+#### `date_before`
+End of the period (inclusive). Must be in YYYY-MM-DD format.
 
 ```php
-// Get first page with 10 items
-$closingDays = $teamleader->closingDays()->list([], [
-    'page_size' => 10,
-    'page_number' => 1,
-    'include_pagination' => true
+$closingDays = Teamleader::closingDays()->list([
+    'date_before' => '2024-12-31'
 ]);
-
-// Access pagination metadata
-$pagination = $closingDays['meta']['page'] ?? null;
-if ($pagination) {
-    echo "Page {$pagination['number']} of " . ceil($closingDays['meta']['matches'] / $pagination['size']);
-}
 ```
 
-## Response Format
+#### Combined Date Range
 
-### List Response
-
-```json
-{
-    "data": [
-        {
-            "id": "05676ac4-c61d-42bf-a3ea-a420fc1ec017",
-            "date": "2023-12-21"
-        },
-        {
-            "id": "eb264fd0-0e5c-0dbf-ae1e-49e7d6a8e6b8",
-            "date": "2023-12-25"
-        }
-    ],
-    "meta": {
-        "page": {
-            "size": 20,
-            "number": 1
-        },
-        "matches": 2
-    }
-}
+```php
+$closingDays = Teamleader::closingDays()->list([
+    'date_after' => '2024-06-01',
+    'date_before' => '2024-08-31'
+]);
 ```
 
-### Create Response
+## Response Structure
 
-```json
-{
-    "data": {
-        "type": "closingDay",
-        "id": "eb264fd0-0e5c-0dbf-ae1e-49e7d6a8e6b8"
-    }
-}
+### Closing Day Object
+
+```php
+[
+    'id' => 'closing-day-uuid',
+    'day' => '2024-12-25'
+]
 ```
-
-### Delete Response
-
-Returns HTTP 204 (No Content) on successful deletion.
-
-## Data Fields
-
-- **`id`**: Closing day UUID (read-only)
-- **`date`**: The closing day date in YYYY-MM-DD format
-- **`type`**: Resource type, always "closingDay" (in create responses)
 
 ## Usage Examples
 
-### Basic Operations
+### Add a Single Closing Day
 
 ```php
-// List all closing days
-$allClosingDays = $teamleader->closingDays()->list();
+// Add Christmas Day
+$result = Teamleader::closingDays()->add('2024-12-25');
 
-// Add a closing day
-$newClosingDay = $teamleader->closingDays()->add('2024-07-21');
-
-// Delete a closing day
-$teamleader->closingDays()->delete($newClosingDay['data']['id']);
+// Or using create
+$result = Teamleader::closingDays()->create([
+    'day' => '2024-12-25'
+]);
 ```
 
-### Date Range Queries
+### Add Multiple Closing Days
 
 ```php
-// Get closing days for current month
-$currentMonth = date('Y-m');
-$thisMonthClosingDays = $teamleader->closingDays()->forMonth($currentMonth);
-
-// Get closing days for next year
-$nextYear = date('Y') + 1;
-$nextYearClosingDays = $teamleader->closingDays()->forYear($nextYear);
-
-// Get closing days for Q1 2024
-$q1ClosingDays = $teamleader->closingDays()->forDateRange('2024-01-01', '2024-03-31');
-```
-
-### Practical Applications
-
-```php
-// Check if today is a closing day
-$isToday ClosingDay = $teamleader->closingDays()->isClosingDay(date('Y-m-d'));
-if ($isTodayClosingDay) {
-    echo "Office is closed today!";
-}
-
-// Get upcoming closing days for planning
-$upcomingClosingDays = $teamleader->closingDays()->upcoming(90); // Next 3 months
-
-// Add common holidays for the year
 $holidays = [
     '2024-01-01', // New Year's Day
     '2024-04-01', // Easter Monday
-    '2024-12-25', // Christmas Day
+    '2024-05-01', // Labour Day
+    '2024-12-25', // Christmas
     '2024-12-26'  // Boxing Day
 ];
 
-$results = $teamleader->closingDays()->bulkAdd($holidays);
+$results = Teamleader::closingDays()->bulkAdd($holidays);
+```
 
-// Check results
-foreach ($results as $result) {
-    if (isset($result['error'])) {
-        echo "Failed to add {$result['date']}: {$result['message']}\n";
-    } else {
-        echo "Added closing day: {$result['data']['id']}\n";
+### Get Closing Days for Next Quarter
+
+```php
+$startDate = date('Y-m-d');
+$endDate = date('Y-m-d', strtotime('+3 months'));
+
+$closingDays = Teamleader::closingDays()->forDateRange($startDate, $endDate);
+```
+
+### Check if Today is a Closing Day
+
+```php
+$today = date('Y-m-d');
+
+if (Teamleader::closingDays()->isClosingDay($today)) {
+    echo "The office is closed today";
+} else {
+    echo "The office is open today";
+}
+```
+
+### Delete a Closing Day
+
+```php
+// First, find the closing day
+$closingDays = Teamleader::closingDays()->forDateRange('2024-12-25', '2024-12-25');
+
+if (!empty($closingDays['data'])) {
+    $closingDayId = $closingDays['data'][0]['id'];
+    Teamleader::closingDays()->delete($closingDayId);
+}
+```
+
+## Common Use Cases
+
+### Annual Holiday Setup
+
+```php
+class HolidaySetup
+{
+    public function setupAnnualHolidays($year)
+    {
+        $holidays = [
+            "{$year}-01-01", // New Year
+            "{$year}-04-01", // Easter Monday (example date)
+            "{$year}-05-01", // Labour Day
+            "{$year}-12-25", // Christmas
+            "{$year}-12-26"  // Boxing Day
+        ];
+        
+        return Teamleader::closingDays()->bulkAdd($holidays);
     }
 }
 ```
 
-### Integration with Business Logic
+### Check Business Days
 
 ```php
-class WorkingDayCalculator
+class BusinessDayCalculator
 {
-    private $teamleader;
-    private $closingDaysCache = [];
-
-    public function __construct(TeamleaderSDK $teamleader)
+    public function isBusinessDay($date)
     {
-        $this->teamleader = $teamleader;
+        // Check if weekend
+        $dayOfWeek = date('N', strtotime($date));
+        if ($dayOfWeek >= 6) {
+            return false;
+        }
+        
+        // Check if closing day
+        return !Teamleader::closingDays()->isClosingDay($date);
     }
-
-    public function getNextWorkingDay(string $date): string
+    
+    public function getNextBusinessDay($date)
     {
         $nextDay = date('Y-m-d', strtotime($date . ' +1 day'));
         
-        // Skip weekends
-        while (in_array(date('w', strtotime($nextDay)), [0, 6])) {
+        while (!$this->isBusinessDay($nextDay)) {
             $nextDay = date('Y-m-d', strtotime($nextDay . ' +1 day'));
-        }
-        
-        // Skip closing days
-        while ($this->isClosingDay($nextDay)) {
-            $nextDay = date('Y-m-d', strtotime($nextDay . ' +1 day'));
-            
-            // Skip weekends again
-            while (in_array(date('w', strtotime($nextDay)), [0, 6])) {
-                $nextDay = date('Y-m-d', strtotime($nextDay . ' +1 day'));
-            }
         }
         
         return $nextDay;
     }
+}
+```
 
-    private function isClosingDay(string $date): bool
+### Sync Holidays to Local Database
+
+```php
+use App\Models\ClosingDay;
+use Illuminate\Console\Command;
+
+class SyncClosingDaysCommand extends Command
+{
+    protected $signature = 'teamleader:sync-closing-days {year?}';
+    
+    public function handle()
     {
-        $month = date('Y-m', strtotime($date));
+        $year = $this->argument('year') ?? date('Y');
         
-        if (!isset($this->closingDaysCache[$month])) {
-            $closingDays = $this->teamleader->closingDays()->forMonth($month);
-            $this->closingDaysCache[$month] = array_column($closingDays['data'] ?? [], 'date');
+        $this->info("Syncing closing days for {$year}...");
+        
+        $closingDays = Teamleader::closingDays()->forYear($year);
+        
+        foreach ($closingDays['data'] as $day) {
+            ClosingDay::updateOrCreate(
+                ['teamleader_id' => $day['id']],
+                ['date' => $day['day']]
+            );
         }
         
-        return in_array($date, $this->closingDaysCache[$month]);
+        $this->info('Closing days synced successfully!');
+    }
+}
+```
+
+### Calendar Integration
+
+```php
+class CalendarService
+{
+    public function getAvailableDates($startDate, $endDate)
+    {
+        $closingDays = Teamleader::closingDays()
+            ->forDateRange($startDate, $endDate);
+        
+        $closedDates = array_column($closingDays['data'], 'day');
+        
+        // Generate all dates in range
+        $period = new DatePeriod(
+            new DateTime($startDate),
+            new DateInterval('P1D'),
+            new DateTime($endDate . ' +1 day')
+        );
+        
+        $availableDates = [];
+        foreach ($period as $date) {
+            $dateString = $date->format('Y-m-d');
+            $dayOfWeek = $date->format('N');
+            
+            // Skip weekends and closing days
+            if ($dayOfWeek < 6 && !in_array($dateString, $closedDates)) {
+                $availableDates[] = $dateString;
+            }
+        }
+        
+        return $availableDates;
+    }
+}
+```
+
+### Upcoming Closures Dashboard
+
+```php
+class ClosuresDashboard
+{
+    public function getUpcomingClosures($days = 30)
+    {
+        $closingDays = Teamleader::closingDays()->upcoming($days);
+        
+        $formatted = [];
+        foreach ($closingDays['data'] as $day) {
+            $date = new DateTime($day['day']);
+            $daysUntil = (int)$date->diff(new DateTime())->format('%a');
+            
+            $formatted[] = [
+                'id' => $day['id'],
+                'date' => $day['day'],
+                'formatted_date' => $date->format('l, F j, Y'),
+                'days_until' => $daysUntil,
+                'is_this_week' => $daysUntil <= 7
+            ];
+        }
+        
+        return $formatted;
+    }
+}
+```
+
+### Remove Past Closing Days
+
+```php
+class ClosingDayMaintenance
+{
+    public function removePastDays()
+    {
+        $today = date('Y-m-d');
+        $lastYear = date('Y-m-d', strtotime('-1 year'));
+        
+        $pastDays = Teamleader::closingDays()->forDateRange($lastYear, $today);
+        
+        foreach ($pastDays['data'] as $day) {
+            if ($day['day'] < $today) {
+                Teamleader::closingDays()->delete($day['id']);
+            }
+        }
+    }
+}
+```
+
+## Best Practices
+
+### 1. Use Helper Methods
+
+```php
+// Good: Clear and readable
+$nextMonthClosures = Teamleader::closingDays()->forMonth('2024-12');
+
+// Less ideal: Manual filtering
+$nextMonthClosures = Teamleader::closingDays()->list([
+    'date_after' => '2024-12-01',
+    'date_before' => '2024-12-31'
+]);
+```
+
+### 2. Validate Dates Before Adding
+
+```php
+// Good: Validate date format
+$date = '2024-12-25';
+
+if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) && strtotime($date)) {
+    Teamleader::closingDays()->add($date);
+} else {
+    throw new \InvalidArgumentException('Invalid date format');
+}
+
+// Bad: No validation
+Teamleader::closingDays()->add($date); // Could fail
+```
+
+### 3. Handle Duplicates
+
+```php
+// Good: Check before adding
+if (!Teamleader::closingDays()->isClosingDay('2024-12-25')) {
+    Teamleader::closingDays()->add('2024-12-25');
+}
+
+// Bad: Add without checking (may cause errors)
+Teamleader::closingDays()->add('2024-12-25');
+```
+
+### 4. Cache Closing Days
+
+```php
+use Illuminate\Support\Facades\Cache;
+
+// Good: Cache for the day
+$today = date('Y-m-d');
+$cacheKey = "closing_days.check.{$today}";
+
+$isClosingDay = Cache::remember($cacheKey, 86400, function() use ($today) {
+    return Teamleader::closingDays()->isClosingDay($today);
+});
+
+// Bad: Check every time
+$isClosingDay = Teamleader::closingDays()->isClosingDay($today);
+```
+
+### 5. Plan Ahead
+
+```php
+// Good: Setup holidays at the beginning of the year
+class YearlySetup
+{
+    public function setupNewYear()
+    {
+        $year = date('Y') + 1;
+        
+        // Add next year's holidays
+        $this->addPublicHolidays($year);
+        $this->addCompanySpecificDays($year);
     }
 }
 ```
 
 ## Error Handling
 
-The closing days resource follows the standard SDK error handling patterns:
-
 ```php
+use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
+
 try {
-    $result = $teamleader->closingDays()->add('2024-02-30'); // Invalid date
-} catch (\InvalidArgumentException $e) {
-    echo "Validation error: " . $e->getMessage();
-}
-
-// Check for API errors
-$result = $teamleader->closingDays()->list();
-if (isset($result['error']) && $result['error']) {
-    $errorMessage = $result['message'] ?? 'Unknown error';
-    Log::error("Closing Days API error: {$errorMessage}");
+    $result = Teamleader::closingDays()->add('2024-12-25');
+} catch (TeamleaderException $e) {
+    if ($e->getCode() === 422) {
+        // Validation error (maybe duplicate or invalid date)
+        Log::warning('Could not add closing day', [
+            'date' => '2024-12-25',
+            'error' => $e->getMessage()
+        ]);
+    } else {
+        Log::error('Error adding closing day', [
+            'error' => $e->getMessage()
+        ]);
+    }
 }
 ```
 
-## Rate Limiting
+## Date Format Requirements
 
-Closing days API calls count towards your overall Teamleader API rate limit:
-
-- **List operations**: 1 request per call
-- **Create operations**: 1 request per call
-- **Delete operations**: 1 request per call
-- **Bulk operations**: 1 request per item
-
-Rate limit cost: **1 request per method call**
-
-## Notes
-
-- Closing days are account-wide and affect all departments
-- Dates must be in **YYYY-MM-DD** format
-- The `date_before` and `date_after` filters are **inclusive**
-- Closing days don't support updates - delete and recreate if needed
-- Use convenience methods like `forMonth()` and `upcoming()` for common use cases
-- Consider caching closing days data for frequently accessed date ranges
-- The resource includes validation for date formats and logical date ranges
-
-## Laravel Integration
-
-When using this resource in Laravel applications:
+All dates must be in **YYYY-MM-DD** format:
 
 ```php
-use McoreServices\TeamleaderSDK\TeamleaderSDK;
+// Correct formats
+'2024-12-25'
+'2024-01-01'
 
-class ClosingDaysController extends Controller
-{
-    public function index(TeamleaderSDK $teamleader)
-    {
-        $closingDays = $teamleader->closingDays()->upcoming();
-        
-        return view('closing-days.index', compact('closingDays'));
-    }
-    
-    public function store(Request $request, TeamleaderSDK $teamleader)
-    {
-        $request->validate([
-            'day' => 'required|date|date_format:Y-m-d'
-        ]);
-        
-        $result = $teamleader->closingDays()->add($request->day);
-        
-        if (isset($result['error'])) {
-            return back()->withErrors(['day' => $result['message']]);
-        }
-        
-        return redirect()->route('closing-days.index')
-            ->with('success', 'Closing day added successfully');
-    }
-    
-    public function destroy(TeamleaderSDK $teamleader, string $id)
-    {
-        $result = $teamleader->closingDays()->delete($id);
-        
-        if (isset($result['error'])) {
-            return back()->withErrors(['error' => $result['message']]);
-        }
-        
-        return redirect()->route('closing-days.index')
-            ->with('success', 'Closing day deleted successfully');
-    }
-}
+// Incorrect formats (will fail)
+'25-12-2024'
+'12/25/2024'
+'25 December 2024'
 ```
 
-For more information, refer to the [Teamleader API Documentation](https://developer.focus.teamleader.eu/).
+## Related Resources
+
+- [Users](users.md) - User availability affected by closing days
+- [Days Off](days_off.md) - Individual user days off
+- [Day Off Types](day_off_types.md) - Types of days off
+
+## See Also
+
+- [Usage Guide](../usage.md) - General SDK usage
+- [Filtering](../filtering.md) - Advanced filtering techniques
