@@ -1,6 +1,30 @@
-# Addresses (Level Two Areas)
+# Addresses
 
-Get geographical level two area information for addresses. Level two areas correspond to provinces, states, departments, or similar administrative divisions in different countries.
+Get geographical area information for addresses (level two areas).
+
+## Overview
+
+The Addresses resource provides read-only access to level two geographical areas (provinces, states, departments, etc.) for different countries. This resource helps you get the correct province or state names for address forms and validation.
+
+**Important:** This resource is about geographical area definitions, NOT about physical addresses of companies or contacts. Physical addresses are stored directly on company and contact entities. This resource provides the list of valid provinces/states for use in address forms.
+
+**Also Important:** The Addresses resource is read-only. Geographical areas are pre-defined by Teamleader for each country and cannot be created, updated, or deleted through the API.
+
+## Navigation
+
+- [Endpoint](#endpoint)
+- [Capabilities](#capabilities)
+- [Available Methods](#available-methods)
+    - [list()](#list)
+    - [levelTwoAreas()](#leveltwoareas)
+- [Filters](#filters)
+- [Response Structure](#response-structure)
+- [Supported Countries](#supported-countries)
+- [Usage Examples](#usage-examples)
+- [Common Use Cases](#common-use-cases)
+- [Best Practices](#best-practices)
+- [Error Handling](#error-handling)
+- [Related Resources](#related-resources)
 
 ## Endpoint
 
@@ -8,20 +32,25 @@ Get geographical level two area information for addresses. Level two areas corre
 
 ## Capabilities
 
-- **Supports Pagination**: ❌ Not Supported
-- **Supports Filtering**: ✅ Supported (country and language)
-- **Supports Sorting**: ❌ Not Supported (results are sorted alphabetically)
-- **Supports Sideloading**: ❌ Not Supported
-- **Supports Creation**: ❌ Not Supported (read-only)
-- **Supports Update**: ❌ Not Supported (read-only)
-- **Supports Deletion**: ❌ Not Supported (read-only)
-- **Supports Batch**: ❌ Not Supported
+- **Pagination**: ❌ Not Supported (all results returned at once)
+- **Filtering**: ✅ Supported (country and language only)
+- **Sorting**: ❌ Not Supported
+- **Sideloading**: ❌ Not Supported
+- **Creation**: ❌ Not Supported
+- **Update**: ❌ Not Supported
+- **Deletion**: ❌ Not Supported
 
 ## Available Methods
 
+### `list()`
+
+Get level two areas for a specific country. This method is not typically used directly - use `levelTwoAreas()` instead.
+
+**Note:** The `list()` method on this resource is an alias for `levelTwoAreas()` and maintains consistency with other resources.
+
 ### `levelTwoAreas()`
 
-Get level two areas for a specific country.
+Get level two areas (provinces, states, departments) for a specific country, optionally in a specific language.
 
 **Parameters:**
 - `countryCode` (string): ISO country code (e.g., "BE", "NL", "FR")
@@ -29,727 +58,551 @@ Get level two areas for a specific country.
 
 **Example:**
 ```php
-$areas = $teamleader->addresses()->levelTwoAreas('BE', 'nl');
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
+// Get provinces for Belgium in Dutch
+$areas = Teamleader::addresses()->levelTwoAreas('BE', 'nl');
+
+// Get states for Germany
+$areas = Teamleader::addresses()->levelTwoAreas('DE');
+
+// Get departments for France in French
+$areas = Teamleader::addresses()->levelTwoAreas('FR', 'fr');
+
+// Get provinces for Belgium in French
+$areas = Teamleader::addresses()->levelTwoAreas('BE', 'fr');
 ```
 
-### `list()`
+## Filters
 
-Get level two areas with filters (alternative to `levelTwoAreas()`).
+### Available Filters
 
-**Parameters:**
-- `filters` (array): Must contain 'country' key, optionally 'language'
-- `options` (array): Not used for level two areas
+#### `country` (Required)
+ISO country code to get level two areas for.
 
-**Example:**
+**Values:** ISO 3166-1 alpha-2 country codes (e.g., BE, NL, FR, DE, US, GB)
+
 ```php
-$areas = $teamleader->addresses()->list([
-    'country' => 'BE',
-    'language' => 'nl'
-]);
+$areas = Teamleader::addresses()->levelTwoAreas('BE');
 ```
 
-### Country-Specific Convenience Methods
+#### `language` (Optional)
+Language code for area names. Useful for countries with multiple official languages.
 
-Quick access methods for common countries:
+**Values:** ISO 639-1 language codes (e.g., nl, fr, en, de)
 
 ```php
 // Belgian provinces in Dutch
-$belgianProvinces = $teamleader->addresses()->belgianProvinces('nl');
+$areasNL = Teamleader::addresses()->levelTwoAreas('BE', 'nl');
 
-// Dutch provinces
-$dutchProvinces = $teamleader->addresses()->dutchProvinces();
-
-// French departments
-$frenchDepartments = $teamleader->addresses()->frenchDepartments('fr');
-
-// German states (Bundesländer)
-$germanStates = $teamleader->addresses()->germanStates('de');
-
-// UK regions
-$ukRegions = $teamleader->addresses()->ukRegions('en');
-
-// US states
-$usStates = $teamleader->addresses()->usStates();
-
-// Canadian provinces
-$canadianProvinces = $teamleader->addresses()->canadianProvinces();
+// Belgian provinces in French
+$areasFR = Teamleader::addresses()->levelTwoAreas('BE', 'fr');
 ```
 
-### `forCountries()`
+## Response Structure
 
-Get level two areas for multiple countries.
-
-**Parameters:**
-- `countries` (array): Array of country codes or country/language pairs
-- `defaultLanguage` (string, optional): Default language if not specified per country
-
-**Examples:**
-```php
-// Simple array with default language
-$areas = $teamleader->addresses()->forCountries(['BE', 'NL', 'FR'], 'en');
-
-// Associative array with specific languages per country
-$areas = $teamleader->addresses()->forCountries([
-    'BE' => 'nl',
-    'FR' => 'fr',
-    'DE' => 'de'
-]);
-```
-
-### `search()`
-
-Search level two areas by name within a country (client-side search).
-
-**Parameters:**
-- `countryCode` (string): Country to search in
-- `query` (string): Search query
-- `language` (string, optional): Language for results
-- `exactMatch` (bool): Whether to match exactly (default: false)
-
-**Example:**
-```php
-// Search Belgian provinces for "Antwerp"
-$result = $teamleader->addresses()->search('BE', 'Antwerp', 'en');
-
-// Exact match search
-$exact = $teamleader->addresses()->search('BE', 'Antwerpen', 'nl', true);
-```
-
-### `findById()`
-
-Find a specific area by ID within a country.
-
-**Parameters:**
-- `countryCode` (string): Country code
-- `areaId` (string): Area ID to find
-- `language` (string, optional): Language for result
-
-**Example:**
-```php
-$area = $teamleader->addresses()->findById('BE', 'fd48d4a3-b9dc-4eac-8071-5889c9f21e5d');
-```
-
-## Filtering
-
-### Required Filter
-
-- **`country`**: ISO country code (required for all requests)
-
-### Optional Filter
-
-- **`language`**: Language code for area names (if not provided, uses country's primary language)
-
-### Filter Examples
+### Level Two Area Object
 
 ```php
-// Get Belgian provinces in Dutch
-$areas = $teamleader->addresses()->levelTwoAreas('BE', 'nl');
-
-// Get French departments in French
-$areas = $teamleader->addresses()->levelTwoAreas('FR', 'fr');
-
-// Get German states in English (if available)
-$areas = $teamleader->addresses()->levelTwoAreas('DE', 'en');
-
-// Using list method with filters
-$areas = $teamleader->addresses()->list([
-    'country' => 'BE',
-    'language' => 'fr'  // Belgian provinces in French
-]);
+[
+    'name' => 'Oost-Vlaanderen'
+]
 ```
 
-## Response Format
+**Note:** Areas are returned as simple objects with just the name. There is no UUID or other metadata.
 
-### Single Country Response
+### List Response Examples
 
-```json
-{
-    "data": [
-        {
-            "id": "fd48d4a3-b9dc-4eac-8071-5889c9f21e5d",
-            "name": "Antwerpen",
-            "country": "BE"
-        },
-        {
-            "id": "abc123def456-789-012-345",
-            "name": "Vlaams-Brabant",
-            "country": "BE"
-        },
-        {
-            "id": "xyz789abc123-456-789-012",
-            "name": "Oost-Vlaanderen",
-            "country": "BE"
-        }
+#### Belgium (Dutch)
+```php
+[
+    'data' => [
+        ['name' => 'Antwerpen'],
+        ['name' => 'Limburg'],
+        ['name' => 'Oost-Vlaanderen'],
+        ['name' => 'Vlaams-Brabant'],
+        ['name' => 'West-Vlaanderen'],
+        ['name' => 'Brabant Wallon'],
+        ['name' => 'Hainaut'],
+        ['name' => 'Liège'],
+        ['name' => 'Luxembourg'],
+        ['name' => 'Namur'],
+        ['name' => 'Bruxelles-Capitale']
     ]
-}
+]
 ```
 
-### Multiple Countries Response
-
-```json
-{
-    "BE": {
-        "data": [
-            {
-                "id": "fd48d4a3-b9dc-4eac-8071-5889c9f21e5d",
-                "name": "Antwerpen",
-                "country": "BE"
-            }
-        ]
-    },
-    "NL": {
-        "data": [
-            {
-                "id": "def456ghi789-012-345-678",
-                "name": "Noord-Holland",
-                "country": "NL"
-            }
-        ]
-    }
-}
+#### Netherlands
+```php
+[
+    'data' => [
+        ['name' => 'Drenthe'],
+        ['name' => 'Flevoland'],
+        ['name' => 'Friesland'],
+        ['name' => 'Gelderland'],
+        ['name' => 'Groningen'],
+        ['name' => 'Limburg'],
+        ['name' => 'Noord-Brabant'],
+        ['name' => 'Noord-Holland'],
+        ['name' => 'Overijssel'],
+        ['name' => 'Utrecht'],
+        ['name' => 'Zeeland'],
+        ['name' => 'Zuid-Holland']
+    ]
+]
 ```
 
-### Search Response
-
-```json
-{
-    "data": [
-        {
-            "id": "fd48d4a3-b9dc-4eac-8071-5889c9f21e5d",
-            "name": "Antwerpen",
-            "country": "BE"
-        }
-    ],
-    "country": "BE",
-    "query": "Antwerp",
-    "exact_match": false,
-    "language": "nl",
-    "total_found": 1,
-    "total_available": 10
-}
+#### United States
+```php
+[
+    'data' => [
+        ['name' => 'Alabama'],
+        ['name' => 'Alaska'],
+        ['name' => 'Arizona'],
+        ['name' => 'Arkansas'],
+        ['name' => 'California'],
+        // ... all 50 states
+    ]
+]
 ```
 
-## Data Fields
+## Supported Countries
 
-- **`id`**: Area UUID (e.g., "fd48d4a3-b9dc-4eac-8071-5889c9f21e5d")
-- **`name`**: Area name in requested language (e.g., "Antwerpen", "Noord-Holland")
-- **`country`**: ISO country code (e.g., "BE", "NL")
+Level two areas are available for many countries. Common examples include:
+
+### Belgium (BE)
+- Language support: Dutch (nl), French (fr)
+- 11 provinces + Brussels Capital Region
+
+### Netherlands (NL)
+- 12 provinces
+
+### France (FR)
+- Language support: French (fr)
+- 101 departments
+
+### Germany (DE)
+- Language support: German (de)
+- 16 federal states (Bundesländer)
+
+### United States (US)
+- 50 states + territories
+
+### United Kingdom (GB)
+- Counties and regions
+
+**Note:** The exact list of areas for each country is maintained by Teamleader and may vary.
 
 ## Usage Examples
 
-### Basic Area Retrieval
+### Get Areas for a Country
 
 ```php
-use McoreServices\TeamleaderSDK\TeamleaderSDK;
+// Get Belgian provinces
+$beProvinces = Teamleader::addresses()->levelTwoAreas('BE');
 
-class AddressController extends Controller
+foreach ($beProvinces['data'] as $province) {
+    echo $province['name'] . "\n";
+}
+```
+
+### Get Areas in Multiple Languages
+
+```php
+// Get Belgian provinces in both Dutch and French
+$dutchProvinces = Teamleader::addresses()->levelTwoAreas('BE', 'nl');
+$frenchProvinces = Teamleader::addresses()->levelTwoAreas('BE', 'fr');
+
+echo "Dutch: " . $dutchProvinces['data'][0]['name'] . "\n";
+echo "French: " . $frenchProvinces['data'][0]['name'] . "\n";
+```
+
+### Create Province Dropdown
+
+```php
+function getProvinceDropdown($countryCode, $language = null)
 {
-    public function getAreas(Request $request, TeamleaderSDK $teamleader)
+    $areas = Teamleader::addresses()->levelTwoAreas($countryCode, $language);
+    $dropdown = [];
+    
+    foreach ($areas['data'] as $area) {
+        $dropdown[$area['name']] = $area['name'];
+    }
+    
+    return $dropdown;
+}
+
+// Usage
+$belgianProvinces = getProvinceDropdown('BE', 'nl');
+// Returns: ['Antwerpen' => 'Antwerpen', 'Limburg' => 'Limburg', ...]
+```
+
+### Validate Province Name
+
+```php
+function validateProvince($province, $country, $language = null)
+{
+    $areas = Teamleader::addresses()->levelTwoAreas($country, $language);
+    $validProvinces = array_column($areas['data'], 'name');
+    
+    return in_array($province, $validProvinces);
+}
+
+// Usage
+if (!validateProvince('Antwerpen', 'BE', 'nl')) {
+    throw new \InvalidArgumentException('Invalid province for Belgium');
+}
+```
+
+## Common Use Cases
+
+### 1. Dynamic Address Form
+
+```php
+class AddressFormController
+{
+    public function getAreasForCountry(Request $request)
     {
-        $country = $request->get('country', 'BE');
-        $language = $request->get('language', 'nl');
+        $country = $request->input('country');
+        $language = $request->input('language', 'nl');
         
-        $areas = $teamleader->addresses()->levelTwoAreas($country, $language);
+        if (!$country) {
+            return response()->json(['error' => 'Country is required'], 400);
+        }
         
-        return response()->json($areas);
+        try {
+            $areas = Teamleader::addresses()->levelTwoAreas($country, $language);
+            return response()->json($areas);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Invalid country code'], 400);
+        }
     }
 }
+
+// JavaScript usage
+// When country dropdown changes, fetch provinces:
+// fetch('/api/areas?country=BE&language=nl')
+//     .then(response => response.json())
+//     .then(data => {
+//         // Populate province dropdown with data.data
+//     });
 ```
 
-### Form Population
-
-Use in address forms:
-
-```php
-// Controller
-public function create(TeamleaderSDK $teamleader)
-{
-    $provinces = $teamleader->addresses()->belgianProvinces('nl');
-    
-    return view('addresses.create', compact('provinces'));
-}
-```
-
-```blade
-{{-- Blade template --}}
-<select name="province_id" class="form-control">
-    <option value="">Select Province</option>
-    @foreach($provinces['data'] as $province)
-        <option value="{{ $province['id'] }}">{{ $province['name'] }}</option>
-    @endforeach
-</select>
-```
-
-### Multi-Country Address System
-
-```php
-public function getAreasForCountry(Request $request, TeamleaderSDK $teamleader)
-{
-    $country = $request->get('country');
-    $language = $request->get('language', 'en');
-    
-    if (!$teamleader->addresses()->isValidCountryCode($country)) {
-        return response()->json(['error' => 'Invalid country code'], 400);
-    }
-    
-    $areas = $teamleader->addresses()->levelTwoAreas($country, $language);
-    
-    return response()->json([
-        'country' => $country,
-        'language' => $language,
-        'areas' => $areas['data']
-    ]);
-}
-```
-
-### Address Validation Service
-
-Create a service to validate addresses:
+### 2. Cache Geographical Areas
 
 ```php
 use Illuminate\Support\Facades\Cache;
 
-class AddressValidationService
+class GeographicalAreaService
 {
-    public function __construct(private TeamleaderSDK $teamleader) {}
-    
-    public function validateArea(string $country, string $areaId): bool
+    public function getAreas($countryCode, $language = null)
     {
-        $cacheKey = "areas_{$country}";
+        $cacheKey = $language 
+            ? "areas_{$countryCode}_{$language}"
+            : "areas_{$countryCode}";
         
-        $areas = Cache::remember($cacheKey, 3600, function() use ($country) {
-            return $this->teamleader->addresses()->levelTwoAreas($country);
-        });
-        
-        $validIds = collect($areas['data'])->pluck('id')->toArray();
-        
-        return in_array($areaId, $validIds);
-    }
-    
-    public function getAreaName(string $country, string $areaId, string $language = 'en'): ?string
-    {
-        $area = $this->teamleader->addresses()->findById($country, $areaId, $language);
-        
-        return $area['name'] ?? null;
-    }
-}
-```
-
-### Dynamic Country/Area Selection
-
-JavaScript-enhanced form with dynamic loading:
-
-```php
-// API endpoint for AJAX calls
-public function getAreasApi(Request $request, TeamleaderSDK $teamleader)
-{
-    $country = $request->get('country');
-    
-    if (!$country) {
-        return response()->json(['error' => 'Country is required'], 400);
-    }
-    
-    $areas = $teamleader->addresses()->levelTwoAreas($country);
-    
-    return response()->json($areas['data']);
-}
-```
-
-```blade
-{{-- Blade template with JavaScript --}}
-<select name="country" id="country" class="form-control" onchange="loadAreas()">
-    <option value="">Select Country</option>
-    <option value="BE">Belgium</option>
-    <option value="NL">Netherlands</option>
-    <option value="FR">France</option>
-    <option value="DE">Germany</option>
-</select>
-
-<select name="area_id" id="area" class="form-control">
-    <option value="">Select Province/State</option>
-</select>
-
-<script>
-function loadAreas() {
-    const country = document.getElementById('country').value;
-    const areaSelect = document.getElementById('area');
-    
-    // Clear current options
-    areaSelect.innerHTML = '<option value="">Select Province/State</option>';
-    
-    if (!country) return;
-    
-    fetch(`/api/areas?country=${country}`)
-        .then(response => response.json())
-        .then(areas => {
-            areas.forEach(area => {
-                const option = document.createElement('option');
-                option.value = area.id;
-                option.textContent = area.name;
-                areaSelect.appendChild(option);
-            });
-        })
-        .catch(error => console.error('Error loading areas:', error));
-}
-</script>
-```
-
-### Search and Autocomplete
-
-```php
-public function searchAreas(Request $request, TeamleaderSDK $teamleader)
-{
-    $country = $request->get('country');
-    $query = $request->get('q');
-    
-    if (!$country || !$query) {
-        return response()->json([]);
-    }
-    
-    $results = $teamleader->addresses()->search($country, $query);
-    
-    $suggestions = collect($results['data'])->map(function($area) {
-        return [
-            'id' => $area['id'],
-            'value' => $area['name'],
-            'label' => $area['name'],
-            'country' => $area['country']
-        ];
-    })->take(10);
-    
-    return response()->json($suggestions);
-}
-```
-
-### Cached Service with Multiple Languages
-
-```php
-class MultiLanguageAddressService
-{
-    public function __construct(private TeamleaderSDK $teamleader) {}
-    
-    public function getAreas(string $country, string $language = 'en'): array
-    {
-        $cacheKey = "areas_{$country}_{$language}";
-        
-        return Cache::remember($cacheKey, 3600, function() use ($country, $language) {
-            return $this->teamleader->addresses()->levelTwoAreas($country, $language);
+        return Cache::remember($cacheKey, 86400 * 7, function() use ($countryCode, $language) {
+            return Teamleader::addresses()->levelTwoAreas($countryCode, $language);
         });
     }
     
-    public function getAreasForAllLanguages(string $country): array
+    public function getAreasForMultipleCountries(array $countries)
     {
-        $supportedLanguages = $this->teamleader->addresses()->getSupportedLanguages();
-        $results = [];
+        $result = [];
         
-        foreach (array_keys($supportedLanguages) as $langCode) {
-            $results[$langCode] = $this->getAreas($country, $langCode);
+        foreach ($countries as $country) {
+            $result[$country] = $this->getAreas($country);
         }
         
-        return $results;
+        return $result;
     }
 }
 ```
 
-## Common Areas by Country
-
-### Belgium (BE)
-- **Antwerpen**: Antwerp Province
-- **Vlaams-Brabant**: Flemish Brabant
-- **West-Vlaanderen**: West Flanders
-- **Oost-Vlaanderen**: East Flanders
-- **Limburg**: Limburg Province
-- **Waals-Brabant**: Walloon Brabant
-- **Henegouwen**: Hainaut
-- **Luik**: Liège
-- **Namen**: Namur
-- **Luxemburg**: Luxembourg Province
-
-### Netherlands (NL)
-- **Noord-Holland**: North Holland
-- **Zuid-Holland**: South Holland
-- **Utrecht**: Utrecht
-- **Noord-Brabant**: North Brabant
-- **Gelderland**: Gelderland
-- **Overijssel**: Overijssel
-
-### France (FR)
-- **Ain**: Ain Department
-- **Aisne**: Aisne Department
-- **Allier**: Allier Department
-- **Paris**: Paris Department
-- **Nord**: North Department
-
-## Supported Countries and Languages
-
-### Countries
-
-The SDK provides helper methods for common countries:
-
-| Country | Code | Helper Method | Common Languages |
-|---------|------|---------------|------------------|
-| Belgium | BE | `belgianProvinces()` | nl, fr, de |
-| Netherlands | NL | `dutchProvinces()` | nl, en |
-| France | FR | `frenchDepartments()` | fr, en |
-| Germany | DE | `germanStates()` | de, en |
-| United Kingdom | GB | `ukRegions()` | en |
-| United States | US | `usStates()` | en |
-| Canada | CA | `canadianProvinces()` | en, fr |
-
-Get all supported countries:
+### 3. Address Validation Helper
 
 ```php
-$supportedCountries = $teamleader->addresses()->getSupportedCountries();
-```
-
-### Languages
-
-Common language codes supported:
-
-| Language | Code |
-|----------|------|
-| Dutch | nl |
-| French | fr |
-| German | de |
-| English | en |
-| Spanish | es |
-| Italian | it |
-| Portuguese | pt |
-
-Get all supported languages:
-
-```php
-$supportedLanguages = $teamleader->addresses()->getSupportedLanguages();
-```
-
-## Validation Helpers
-
-### Validate Input
-
-```php
-$countryCode = 'BE';
-$languageCode = 'nl';
-
-// Validate country code
-if (!$teamleader->addresses()->isValidCountryCode($countryCode)) {
-    throw new InvalidArgumentException('Invalid country code');
-}
-
-// Validate language code
-if (!$teamleader->addresses()->isValidLanguageCode($languageCode)) {
-    throw new InvalidArgumentException('Invalid language code');
-}
-
-$areas = $teamleader->addresses()->levelTwoAreas($countryCode, $languageCode);
-```
-
-### Form Validation Rules
-
-Laravel form request validation:
-
-```php
-class AddressRequest extends FormRequest
+class AddressValidator
 {
-    public function rules()
+    protected $areasCache = [];
+    
+    public function validateAddress($address)
     {
+        $errors = [];
+        
+        // Validate required fields
+        if (empty($address['country'])) {
+            $errors[] = 'Country is required';
+            return $errors;
+        }
+        
+        // Validate province/state if provided
+        if (!empty($address['province'])) {
+            if (!$this->isValidProvince($address['province'], $address['country'])) {
+                $errors[] = 'Invalid province for the selected country';
+            }
+        }
+        
+        return $errors;
+    }
+    
+    protected function isValidProvince($province, $country)
+    {
+        if (!isset($this->areasCache[$country])) {
+            $areas = Teamleader::addresses()->levelTwoAreas($country);
+            $this->areasCache[$country] = array_column($areas['data'], 'name');
+        }
+        
+        return in_array($province, $this->areasCache[$country]);
+    }
+}
+```
+
+### 4. Sync Areas to Local Database
+
+```php
+class SyncGeographicalAreasCommand extends Command
+{
+    protected $signature = 'teamleader:sync-areas {countries?*}';
+    protected $description = 'Sync geographical areas from Teamleader';
+    
+    public function handle()
+    {
+        $countries = $this->argument('countries') ?: ['BE', 'NL', 'FR', 'DE'];
+        
+        foreach ($countries as $country) {
+            $this->info("Syncing areas for {$country}...");
+            
+            try {
+                $areas = Teamleader::addresses()->levelTwoAreas($country);
+                
+                foreach ($areas['data'] as $area) {
+                    DB::table('geographical_areas')->updateOrInsert(
+                        [
+                            'country' => $country,
+                            'name' => $area['name']
+                        ],
+                        [
+                            'updated_at' => now()
+                        ]
+                    );
+                }
+                
+                $this->info("Synced " . count($areas['data']) . " areas");
+            } catch (\Exception $e) {
+                $this->error("Failed to sync {$country}: {$e->getMessage()}");
+            }
+        }
+        
+        $this->info('Sync complete!');
+    }
+}
+```
+
+### 5. Multi-Language Address Form
+
+```php
+class MultiLanguageAddressForm
+{
+    public function getFormData($countryCode, $locale)
+    {
+        // Map locale to language code
+        $languageMap = [
+            'nl_BE' => 'nl',
+            'fr_BE' => 'fr',
+            'en_GB' => 'en'
+        ];
+        
+        $language = $languageMap[$locale] ?? null;
+        
+        // Get areas in the appropriate language
+        $areas = Teamleader::addresses()->levelTwoAreas($countryCode, $language);
+        
         return [
-            'country' => 'required|string|size:2',
-            'area_id' => 'required|string',
-            'language' => 'nullable|string|size:2'
+            'country' => $countryCode,
+            'language' => $language,
+            'areas' => $areas['data'],
+            'labels' => $this->getLabels($locale)
         ];
     }
     
-    public function withValidator($validator)
+    protected function getLabels($locale)
     {
-        $validator->after(function ($validator) {
-            $teamleader = app(TeamleaderSDK::class);
-            
-            // Validate area exists for country
-            $country = $this->input('country');
-            $areaId = $this->input('area_id');
-            
-            if ($country && $areaId) {
-                $area = $teamleader->addresses()->findById($country, $areaId);
-                
-                if (!$area) {
-                    $validator->errors()->add('area_id', 'Invalid area for selected country');
-                }
-            }
-        });
+        return [
+            'nl_BE' => [
+                'province' => 'Provincie',
+                'select' => 'Selecteer provincie'
+            ],
+            'fr_BE' => [
+                'province' => 'Province',
+                'select' => 'Sélectionner province'
+            ]
+        ][$locale] ?? [];
     }
+}
+```
+
+## Best Practices
+
+### 1. Cache Geographical Areas
+
+Areas rarely change, so caching them improves performance:
+
+```php
+// Good: Cache for 7 days
+$areas = Cache::remember("areas_BE_nl", 86400 * 7, function() {
+    return Teamleader::addresses()->levelTwoAreas('BE', 'nl');
+});
+
+// Bad: Fetch on every request
+$areas = Teamleader::addresses()->levelTwoAreas('BE', 'nl');
+```
+
+### 2. Specify Language for Multi-Language Countries
+
+```php
+// Good: Specify language for clarity
+$dutchProvinces = Teamleader::addresses()->levelTwoAreas('BE', 'nl');
+$frenchProvinces = Teamleader::addresses()->levelTwoAreas('BE', 'fr');
+
+// Less clear: No language specified
+$provinces = Teamleader::addresses()->levelTwoAreas('BE');
+```
+
+### 3. Normalize Country Codes
+
+```php
+// Good: Normalize to uppercase
+$country = strtoupper($request->input('country'));
+$areas = Teamleader::addresses()->levelTwoAreas($country);
+
+// Risky: Use input directly
+$areas = Teamleader::addresses()->levelTwoAreas($request->input('country'));
+```
+
+### 4. Validate User Input
+
+```php
+// Good: Validate province against available areas
+function createCompany($data)
+{
+    if (!empty($data['province'])) {
+        $areas = Teamleader::addresses()->levelTwoAreas($data['country']);
+        $validProvinces = array_column($areas['data'], 'name');
+        
+        if (!in_array($data['province'], $validProvinces)) {
+            throw new \InvalidArgumentException('Invalid province for this country');
+        }
+    }
+    
+    return Teamleader::companies()->create($data);
+}
+```
+
+### 5. Handle Missing Data Gracefully
+
+```php
+// Good: Provide fallback
+try {
+    $areas = Teamleader::addresses()->levelTwoAreas('BE');
+} catch (\Exception $e) {
+    Log::error('Failed to fetch areas', ['error' => $e->getMessage()]);
+    
+    // Use cached version or empty array
+    $areas = Cache::get('areas_BE_backup', ['data' => []]);
 }
 ```
 
 ## Error Handling
 
-Handle missing country parameter:
-
 ```php
+use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
+
 try {
-    $areas = $teamleader->addresses()->list([]);
-} catch (\InvalidArgumentException $e) {
-    return response()->json([
-        'error' => 'Country parameter is required',
-        'message' => $e->getMessage()
-    ], 400);
-}
-```
-
-Handle API errors:
-
-```php
-$result = $teamleader->addresses()->levelTwoAreas('BE');
-
-if (isset($result['error']) && $result['error']) {
-    Log::error("Address Areas API error: {$result['message']}", [
+    $areas = Teamleader::addresses()->levelTwoAreas('BE', 'nl');
+} catch (TeamleaderException $e) {
+    Log::error('Error fetching geographical areas', [
+        'error' => $e->getMessage(),
+        'code' => $e->getCode(),
         'country' => 'BE',
-        'status_code' => $result['status_code'] ?? null
+        'language' => 'nl'
     ]);
     
-    return response()->json([
-        'error' => 'Failed to fetch areas',
-        'message' => 'Please try again later'
-    ], 500);
+    // Provide fallback
+    return ['data' => []];
 }
 ```
 
-Handle search with no results:
+## What This Resource Is NOT
+
+This resource is commonly misunderstood. Here's what it's NOT for:
+
+### ❌ NOT for Company/Contact Addresses
+
+This resource does NOT manage physical addresses of companies or contacts. Those are stored directly on the entities:
 
 ```php
-$searchResult = $teamleader->addresses()->search('BE', 'NonExistent');
+// This is NOT how you get a company's address
+$areas = Teamleader::addresses()->levelTwoAreas('BE'); // ❌ Wrong
 
-if (empty($searchResult['data'])) {
-    return response()->json([
-        'message' => 'No areas found matching your search',
-        'country' => 'BE',
-        'query' => 'NonExistent',
-        'suggestions' => $teamleader->addresses()->levelTwoAreas('BE')['data']
-    ]);
-}
+// This is how you get a company's address
+$company = Teamleader::companies()
+    ->with('addresses')
+    ->info('company-uuid'); // ✅ Correct
+
+$companyAddress = $company['data']['addresses'][0];
 ```
 
-## Rate Limiting
+### ❌ NOT for Creating Addresses
 
-Address areas API calls count towards your overall Teamleader API rate limit:
-
-- **Single country request**: 1 request per call
-- **Multiple countries**: 1 request per country (not batched)
-- **Search operations**: 1 request (uses client-side filtering)
-
-Rate limit cost: **1 request per country**
-
-## Best Practices
-
-1. **Cache Results**: Level two areas rarely change, cache them for better performance
-2. **Validate Inputs**: Always validate country and language codes before API calls
-3. **Use Convenience Methods**: Use country-specific methods for better readability
-4. **Handle Missing Languages**: Fallback to default language if requested language not available
-5. **Batch Countries**: Use `forCountries()` when you need multiple countries
-6. **Client-Side Search**: Use the search functionality to provide better user experience
-
-## Performance Optimization
-
-### Caching Strategy
+You cannot create addresses through this resource:
 
 ```php
-// Cache areas for 1 hour (they rarely change)
-$cacheKey = "level_two_areas_{$country}_{$language}";
+// This does NOT work
+Teamleader::addresses()->create([...]); // ❌ Not supported
 
-$areas = Cache::remember($cacheKey, 3600, function() use ($teamleader, $country, $language) {
-    return $teamleader->addresses()->levelTwoAreas($country, $language);
-});
+// Create addresses through companies/contacts
+Teamleader::companies()->create([
+    'name' => 'Company',
+    'addresses' => [
+        [
+            'type' => 'primary',
+            'address' => [
+                'line_1' => '123 Street',
+                'city' => 'Brussels',
+                'country' => 'BE'
+            ]
+        ]
+    ]
+]); // ✅ Correct
 ```
 
-### Preload Common Areas
+## Limitations
+
+1. **Country Required**: You must always provide a country code
+2. **Read-Only**: Cannot create, update, or delete geographical areas
+3. **No Pagination**: All areas for a country are returned at once
+4. **Limited Filtering**: Can only filter by country and language
+5. **No Search**: Cannot search for specific area names
 
 ```php
-// Artisan command to preload common areas
-class PreloadAreasCommand extends Command
-{
-    protected $signature = 'addresses:preload';
-    
-    public function handle(TeamleaderSDK $teamleader)
-    {
-        $commonCountries = ['BE', 'NL', 'FR', 'DE', 'GB'];
-        
-        foreach ($commonCountries as $country) {
-            $areas = $teamleader->addresses()->levelTwoAreas($country);
-            
-            Cache::put("areas_{$country}", $areas, 3600);
-            
-            $this->info("Preloaded areas for {$country}");
-        }
-    }
-}
+// Cannot do this:
+// Teamleader::addresses()->create([...]); // ❌ Not supported
+// Teamleader::addresses()->search('Antwerp'); // ❌ Not supported
+// Teamleader::addresses()->info('uuid'); // ❌ Not supported
+
+// Can only do this:
+Teamleader::addresses()->levelTwoAreas('BE'); // ✅ Supported
+Teamleader::addresses()->levelTwoAreas('BE', 'nl'); // ✅ Supported
 ```
 
-## Notes
+## Related Resources
 
-- Level two areas are **read-only** in the Teamleader API
-- Area names depend on the requested language (falls back to country default if not available)
-- Individual area `info()` method is not supported - use `findById()` instead
-- Country and language codes are case-insensitive in SDK but normalized internally
-- Results are automatically sorted alphabetically by area name
-- The same area ID may have different names in different languages
+- [Companies](companies.md) - Companies have physical addresses
+- [Contacts](contacts.md) - Contacts have physical addresses
+- [Business Types](business_types.md) - Another country-specific resource
 
-## Laravel Integration Example
+## See Also
 
-Complete Laravel integration for address management:
-
-```php
-// Service class
-class AddressService
-{
-    public function __construct(
-        private TeamleaderSDK $teamleader,
-        private CacheManager $cache
-    ) {}
-    
-    public function getAreasForSelect(string $country, string $language = 'en'): array
-    {
-        $areas = $this->getAreas($country, $language);
-        $options = [];
-        
-        foreach ($areas['data'] as $area) {
-            $options[$area['id']] = $area['name'];
-        }
-        
-        return $options;
-    }
-    
-    public function getAreas(string $country, string $language = 'en'): array
-    {
-        $cacheKey = "areas_{$country}_{$language}";
-        
-        return $this->cache->remember($cacheKey, 3600, function() use ($country, $language) {
-            return $this->teamleader->addresses()->levelTwoAreas($country, $language);
-        });
-    }
-    
-    public function validateArea(string $country, string $areaId): bool
-    {
-        $areas = $this->getAreas($country);
-        
-        return collect($areas['data'])->contains('id', $areaId);
-    }
-}
-
-// Controller
-class AddressController extends Controller
-{
-    public function areas(Request $request, AddressService $service)
-    {
-        $country = $request->get('country');
-        $language = $request->get('language', 'en');
-        
-        $areas = $service->getAreas($country, $language);
-        
-        return response()->json($areas);
-    }
-}
-
-// Routes
-Route::get('/api/addresses/areas', [AddressController::class, 'areas']);
-```
-
-For more information, refer to the [Teamleader API Documentation](https://developer.focus.teamleader.eu/).
+- [Usage Guide](../usage.md) - General SDK usage
+- [Resources](../general/resources.md) - Understanding resource architecture

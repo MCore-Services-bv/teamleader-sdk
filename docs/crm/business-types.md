@@ -1,6 +1,28 @@
 # Business Types
 
-Get business types (legal structures) that companies can have within specific countries. Business types are country-specific and sorted alphabetically by default.
+Get business types (legal structures) for companies in specific countries.
+
+## Overview
+
+The Business Types resource provides read-only access to the available business types (legal structures) for companies in different countries. Business types represent the legal form of a company, such as "NV" (Naamloze Vennootschap) in Belgium, "BV" (Besloten Vennootschap) in the Netherlands, or "Ltd" (Limited Company) in the UK.
+
+**Important:** The Business Types resource is read-only. Business types are pre-defined by Teamleader for each country and cannot be created, updated, or deleted through the API.
+
+## Navigation
+
+- [Endpoint](#endpoint)
+- [Capabilities](#capabilities)
+- [Available Methods](#available-methods)
+    - [list()](#list)
+    - [forCountry()](#forcountry)
+- [Filters](#filters)
+- [Response Structure](#response-structure)
+- [Supported Countries](#supported-countries)
+- [Usage Examples](#usage-examples)
+- [Common Use Cases](#common-use-cases)
+- [Best Practices](#best-practices)
+- [Error Handling](#error-handling)
+- [Related Resources](#related-resources)
 
 ## Endpoint
 
@@ -8,387 +30,496 @@ Get business types (legal structures) that companies can have within specific co
 
 ## Capabilities
 
-- **Supports Pagination**: ❌ Not Supported
-- **Supports Filtering**: ✅ Supported (country only)
-- **Supports Sorting**: ❌ Not Supported (always alphabetical)
-- **Supports Sideloading**: ❌ Not Supported
-- **Supports Creation**: ❌ Not Supported (read-only)
-- **Supports Update**: ❌ Not Supported (read-only)
-- **Supports Deletion**: ❌ Not Supported (read-only)
-- **Supports Batch**: ❌ Not Supported
+- **Pagination**: ❌ Not Supported (all results returned at once)
+- **Filtering**: ✅ Supported (country only)
+- **Sorting**: ❌ Not Supported
+- **Sideloading**: ❌ Not Supported
+- **Creation**: ❌ Not Supported
+- **Update**: ❌ Not Supported
+- **Deletion**: ❌ Not Supported
 
 ## Available Methods
 
+### `list()`
+
+Get business types for a specific country. Requires a country parameter.
+
+**Parameters:**
+- `filters` (array): Must contain 'country' key with ISO country code
+
+**Example:**
+```php
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
+// Get business types for Belgium
+$businessTypes = Teamleader::businessTypes()->list([
+    'country' => 'BE'
+]);
+
+// Get business types for Netherlands
+$businessTypes = Teamleader::businessTypes()->list([
+    'country' => 'NL'
+]);
+```
+
+**Note:** The `list()` method will throw an `InvalidArgumentException` if the country parameter is not provided.
+
 ### `forCountry()`
 
-Get business types for a specific country.
+Helper method to get business types for a specific country. This is the recommended way to use this resource.
 
 **Parameters:**
 - `countryCode` (string): ISO country code (e.g., "BE", "NL", "FR")
 
 **Example:**
 ```php
-$businessTypes = $teamleader->businessTypes()->forCountry('BE');
-```
-
-### `list()`
-
-Get business types with country filter (alternative to `forCountry()`).
-
-**Parameters:**
-- `filters` (array): Must contain 'country' key
-- `options` (array): Not used for business types
-
-**Example:**
-```php
-$businessTypes = $teamleader->businessTypes()->list(['country' => 'BE']);
-```
-
-### Country-Specific Convenience Methods
-
-Quick access methods for common countries:
-
-```php
 // Get business types for Belgium
-$beTypes = $teamleader->businessTypes()->belgium();
-
-// Get business types for Netherlands
-$nlTypes = $teamleader->businessTypes()->netherlands();
-
-// Get business types for France
-$frTypes = $teamleader->businessTypes()->france();
+$businessTypes = Teamleader::businessTypes()->forCountry('BE');
 
 // Get business types for Germany
-$deTypes = $teamleader->businessTypes()->germany();
+$businessTypes = Teamleader::businessTypes()->forCountry('DE');
 
-// Get business types for United Kingdom
-$gbTypes = $teamleader->businessTypes()->unitedKingdom();
+// Get business types for France
+$businessTypes = Teamleader::businessTypes()->forCountry('FR');
 ```
 
-### `forCountries()`
+## Filters
 
-Get business types for multiple countries at once.
+### Available Filters
 
-**Parameters:**
-- `countryCodes` (array): Array of ISO country codes
+#### `country` (Required)
+ISO country code to get business types for.
 
-**Example:**
-```php
-$multipleTypes = $teamleader->businessTypes()->forCountries(['BE', 'NL', 'FR']);
-```
-
-## Filtering
-
-### Required Filter
-
-- **`country`**: ISO country code (required for all requests)
-
-### Filter Examples
+**Values:** ISO 3166-1 alpha-2 country codes (e.g., BE, NL, FR, DE, UK, US)
 
 ```php
-// Get business types for Belgium
-$beTypes = $teamleader->businessTypes()->forCountry('BE');
+// Using list() method
+$businessTypes = Teamleader::businessTypes()->list([
+    'country' => 'BE'
+]);
 
-// Get business types using list method
-$beTypes = $teamleader->businessTypes()->list(['country' => 'BE']);
-
-// Get business types for multiple countries
-$types = $teamleader->businessTypes()->forCountries(['BE', 'NL', 'DE']);
+// Using helper method (recommended)
+$businessTypes = Teamleader::businessTypes()->forCountry('BE');
 ```
 
-## Response Format
+## Response Structure
 
-### Single Country Response
+### Business Type Object
 
-```json
-{
-    "data": [
-        {
-            "id": "fd48d4a3-b9dc-4eac-8071-5889c9f21e5d",
-            "name": "VZW/ASBL",
-            "country": "BE"
-        },
-        {
-            "id": "abc123def456-789-012-345",
-            "name": "BV/SRL",
-            "country": "BE"
-        },
-        {
-            "id": "xyz789abc123-456-789-012",
-            "name": "NV/SA",
-            "country": "BE"
-        }
+```php
+[
+    'id' => 'business-type-uuid',
+    'name' => 'NV'
+]
+```
+
+### List Response
+
+```php
+[
+    'data' => [
+        [
+            'id' => 'business-type-uuid-1',
+            'name' => 'BVBA'
+        ],
+        [
+            'id' => 'business-type-uuid-2',
+            'name' => 'NV'
+        ],
+        [
+            'id' => 'business-type-uuid-3',
+            'name' => 'Eenmanszaak'
+        ],
+        [
+            'id' => 'business-type-uuid-4',
+            'name' => 'VZW'
+        ]
     ]
-}
+]
 ```
 
-### Multiple Countries Response
+## Supported Countries
 
-```json
-{
-    "BE": {
-        "data": [
-            {
-                "id": "fd48d4a3-b9dc-4eac-8071-5889c9f21e5d",
-                "name": "VZW/ASBL",
-                "country": "BE"
-            }
-        ]
-    },
-    "NL": {
-        "data": [
-            {
-                "id": "def456ghi789-012-345-678",
-                "name": "BV",
-                "country": "NL"
-            }
-        ]
-    }
-}
-```
+Business types are available for many countries. Common examples include:
 
-## Data Fields
+### Belgium (BE)
+- NV (Naamloze Vennootschap)
+- BVBA (Besloten Vennootschap met Beperkte Aansprakelijkheid)
+- Eenmanszaak
+- VZW (Vereniging Zonder Winstoogmerk)
 
-- **`id`**: Business type UUID
-- **`name`**: Business type name/legal structure (e.g., "VZW/ASBL", "BV/SRL", "NV/SA")
-- **`country`**: ISO country code (e.g., "BE", "NL")
+### Netherlands (NL)
+- BV (Besloten Vennootschap)
+- NV (Naamloze Vennootschap)
+- Eenmanszaak
+- VOF (Vennootschap Onder Firma)
+
+### France (FR)
+- SARL (Société à Responsabilité Limitée)
+- SAS (Société par Actions Simplifiée)
+- SA (Société Anonyme)
+- EURL (Entreprise Unipersonnelle à Responsabilité Limitée)
+
+### Germany (DE)
+- GmbH (Gesellschaft mit beschränkter Haftung)
+- AG (Aktiengesellschaft)
+- UG (Unternehmergesellschaft)
+- GbR (Gesellschaft bürgerlichen Rechts)
+
+### United Kingdom (GB/UK)
+- Ltd (Limited Company)
+- PLC (Public Limited Company)
+- LLP (Limited Liability Partnership)
+- Sole Trader
+
+**Note:** The exact list of business types for each country is maintained by Teamleader and may vary.
 
 ## Usage Examples
 
-### Basic Usage
-
-Get business types for a specific country:
+### Get Business Types for a Country
 
 ```php
-use McoreServices\TeamleaderSDK\TeamleaderSDK;
+// Get Belgian business types
+$beTypes = Teamleader::businessTypes()->forCountry('BE');
 
-class CompanyController extends Controller
-{
-    public function getBusinessTypes(TeamleaderSDK $teamleader, string $country)
-    {
-        $businessTypes = $teamleader->businessTypes()->forCountry($country);
-        
-        return response()->json($businessTypes);
-    }
+foreach ($beTypes['data'] as $type) {
+    echo "{$type['name']} (ID: {$type['id']})\n";
 }
 ```
 
-### Multiple Countries
-
-Get business types for multiple countries:
+### Get Business Types for Multiple Countries
 
 ```php
 $countries = ['BE', 'NL', 'FR', 'DE'];
-$allBusinessTypes = $teamleader->businessTypes()->forCountries($countries);
+$allBusinessTypes = [];
 
-foreach ($allBusinessTypes as $country => $types) {
-    echo "Business types for {$country}:\n";
-    foreach ($types['data'] as $type) {
-        echo "- {$type['name']}\n";
+foreach ($countries as $country) {
+    $types = Teamleader::businessTypes()->forCountry($country);
+    $allBusinessTypes[$country] = $types['data'];
+}
+
+// Now you have business types organized by country
+```
+
+### Create a Dropdown for Company Creation
+
+```php
+function getBusinessTypeDropdown($countryCode)
+{
+    $businessTypes = Teamleader::businessTypes()->forCountry($countryCode);
+    $dropdown = [];
+    
+    foreach ($businessTypes['data'] as $type) {
+        $dropdown[$type['id']] = $type['name'];
+    }
+    
+    return $dropdown;
+}
+
+// Usage in a form
+$beBusinessTypes = getBusinessTypeDropdown('BE');
+// Returns: ['uuid-1' => 'BVBA', 'uuid-2' => 'NV', ...]
+```
+
+### Find Business Type by Name
+
+```php
+function findBusinessTypeByName($countryCode, $name)
+{
+    $businessTypes = Teamleader::businessTypes()->forCountry($countryCode);
+    
+    foreach ($businessTypes['data'] as $type) {
+        if (strcasecmp($type['name'], $name) === 0) {
+            return $type;
+        }
+    }
+    
+    return null;
+}
+
+// Usage
+$bvba = findBusinessTypeByName('BE', 'BVBA');
+if ($bvba) {
+    echo "Found BVBA with ID: {$bvba['id']}\n";
+}
+```
+
+## Common Use Cases
+
+### 1. Dynamic Company Form
+
+```php
+class CompanyFormController
+{
+    public function create()
+    {
+        $countries = ['BE', 'NL', 'FR', 'DE'];
+        $businessTypesByCountry = [];
+        
+        foreach ($countries as $country) {
+            $types = Teamleader::businessTypes()->forCountry($country);
+            $businessTypesByCountry[$country] = $types['data'];
+        }
+        
+        return view('companies.create', [
+            'businessTypes' => $businessTypesByCountry
+        ]);
+    }
+    
+    public function getBusinessTypesForCountry(Request $request)
+    {
+        $country = $request->input('country');
+        
+        if (!$country) {
+            return response()->json(['error' => 'Country is required'], 400);
+        }
+        
+        try {
+            $businessTypes = Teamleader::businessTypes()->forCountry($country);
+            return response()->json($businessTypes);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Invalid country code'], 400);
+        }
     }
 }
 ```
 
-### Form Population
-
-Use in Laravel forms for company registration:
-
-```php
-// Controller
-public function create(TeamleaderSDK $teamleader)
-{
-    $businessTypes = $teamleader->businessTypes()->forCountry('BE');
-    
-    return view('companies.create', compact('businessTypes'));
-}
-```
-
-```blade
-{{-- Blade template --}}
-<select name="business_type_id" class="form-control">
-    <option value="">Select Business Type</option>
-    @foreach($businessTypes['data'] as $type)
-        <option value="{{ $type['id'] }}">{{ $type['name'] }}</option>
-    @endforeach
-</select>
-```
-
-### Validation Helper
-
-Validate if business type exists for a country:
-
-```php
-public function validateBusinessType(TeamleaderSDK $teamleader, string $country, string $businessTypeId): bool
-{
-    $businessTypes = $teamleader->businessTypes()->forCountry($country);
-    
-    $validIds = collect($businessTypes['data'])->pluck('id')->toArray();
-    
-    return in_array($businessTypeId, $validIds);
-}
-```
-
-### Caching for Performance
-
-Cache business types to reduce API calls:
+### 2. Cache Business Types
 
 ```php
 use Illuminate\Support\Facades\Cache;
 
-public function getCachedBusinessTypes(TeamleaderSDK $teamleader, string $country): array
+class BusinessTypeService
 {
-    $cacheKey = "business_types_{$country}";
+    public function getForCountry($countryCode)
+    {
+        $cacheKey = "business_types_{$countryCode}";
+        
+        return Cache::remember($cacheKey, 86400, function() use ($countryCode) {
+            return Teamleader::businessTypes()->forCountry($countryCode);
+        });
+    }
     
-    return Cache::remember($cacheKey, 3600, function() use ($teamleader, $country) {
-        return $teamleader->businessTypes()->forCountry($country);
-    });
+    public function getAllForCountries(array $countryCodes)
+    {
+        $result = [];
+        
+        foreach ($countryCodes as $code) {
+            $result[$code] = $this->getForCountry($code);
+        }
+        
+        return $result;
+    }
 }
 ```
 
-## Common Business Types by Country
-
-### Belgium (BE)
-- **VZW/ASBL**: Non-profit organization
-- **BV/SRL**: Private limited liability company
-- **NV/SA**: Public limited liability company
-- **VOF/SNC**: General partnership
-- **BVBA/SPRL**: (Legacy) Private limited liability company
-- **CV/SCS**: Limited partnership
-
-### Netherlands (NL)
-- **BV**: Private limited liability company
-- **NV**: Public limited liability company
-- **VOF**: General partnership
-- **CV**: Limited partnership
-- **Eenmanszaak**: Sole proprietorship
-- **Stichting**: Foundation
-
-### France (FR)
-- **SARL**: Limited liability company
-- **SA**: Public limited company
-- **SAS**: Simplified joint stock company
-- **SNC**: General partnership
-- **EURL**: Single-member limited liability company
-
-## Supported Countries
-
-The SDK provides helper methods for common countries:
-
-| Country | Code | Helper Method |
-|---------|------|---------------|
-| Belgium | BE | `belgium()` |
-| Netherlands | NL | `netherlands()` |
-| France | FR | `france()` |
-| Germany | DE | `germany()` |
-| United Kingdom | GB | `unitedKingdom()` |
-
-Additional countries may be supported by the API. Use `getSupportedCountries()` to get the full list:
+### 3. Validate Business Type
 
 ```php
-$supportedCountries = $teamleader->businessTypes()->getSupportedCountries();
+function validateBusinessType($businessTypeId, $countryCode)
+{
+    $businessTypes = Teamleader::businessTypes()->forCountry($countryCode);
+    $validIds = array_column($businessTypes['data'], 'id');
+    
+    if (!in_array($businessTypeId, $validIds)) {
+        throw new \InvalidArgumentException(
+            "Invalid business type ID for country {$countryCode}"
+        );
+    }
+    
+    return true;
+}
+
+// Usage
+try {
+    validateBusinessType('some-uuid', 'BE');
+    // Proceed with company creation
+} catch (\InvalidArgumentException $e) {
+    // Handle invalid business type
+}
+```
+
+### 4. Sync Business Types to Local Database
+
+```php
+class SyncBusinessTypesCommand extends Command
+{
+    protected $signature = 'teamleader:sync-business-types {countries?*}';
+    protected $description = 'Sync business types from Teamleader';
+    
+    public function handle()
+    {
+        $countries = $this->argument('countries') ?: ['BE', 'NL', 'FR', 'DE'];
+        
+        foreach ($countries as $country) {
+            $this->info("Syncing business types for {$country}...");
+            
+            try {
+                $businessTypes = Teamleader::businessTypes()->forCountry($country);
+                
+                foreach ($businessTypes['data'] as $type) {
+                    DB::table('business_types')->updateOrInsert(
+                        [
+                            'teamleader_id' => $type['id'],
+                            'country' => $country
+                        ],
+                        [
+                            'name' => $type['name'],
+                            'updated_at' => now()
+                        ]
+                    );
+                }
+                
+                $this->info("Synced " . count($businessTypes['data']) . " business types");
+            } catch (\Exception $e) {
+                $this->error("Failed to sync {$country}: {$e->getMessage()}");
+            }
+        }
+        
+        $this->info('Sync complete!');
+    }
+}
+```
+
+### 5. API Endpoint for AJAX Requests
+
+```php
+// routes/api.php
+Route::get('/business-types/{country}', function($country) {
+    try {
+        $businessTypes = Teamleader::businessTypes()->forCountry(strtoupper($country));
+        return response()->json($businessTypes);
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => 'Invalid country code or unable to fetch business types'
+        ], 400);
+    }
+});
+
+// JavaScript usage
+// fetch('/api/business-types/BE')
+//     .then(response => response.json())
+//     .then(data => {
+//         // Populate dropdown with data.data
+//     });
+```
+
+## Best Practices
+
+### 1. Cache Business Types
+
+Business types rarely change, so caching them improves performance:
+
+```php
+// Good: Cache for 24 hours
+$businessTypes = Cache::remember("business_types_BE", 86400, function() {
+    return Teamleader::businessTypes()->forCountry('BE');
+});
+
+// Bad: Fetch on every request
+$businessTypes = Teamleader::businessTypes()->forCountry('BE');
+```
+
+### 2. Use the Helper Method
+
+```php
+// Good: Use forCountry() helper
+$types = Teamleader::businessTypes()->forCountry('BE');
+
+// Less readable: Use list() with filters
+$types = Teamleader::businessTypes()->list(['country' => 'BE']);
+```
+
+### 3. Handle Country Code Case
+
+```php
+// Good: Normalize country code
+$country = strtoupper($request->input('country'));
+$types = Teamleader::businessTypes()->forCountry($country);
+
+// Risky: Use input directly
+$types = Teamleader::businessTypes()->forCountry($request->input('country'));
+```
+
+### 4. Validate Before Using
+
+```php
+// Good: Validate the business type exists
+function validateAndCreateCompany($data)
+{
+    $businessTypes = Teamleader::businessTypes()->forCountry($data['country']);
+    $validIds = array_column($businessTypes['data'], 'id');
+    
+    if (!in_array($data['business_type_id'], $validIds)) {
+        throw new \InvalidArgumentException('Invalid business type for this country');
+    }
+    
+    return Teamleader::companies()->create($data);
+}
+```
+
+### 5. Provide Fallback
+
+```php
+// Good: Provide fallback if API fails
+try {
+    $businessTypes = Teamleader::businessTypes()->forCountry('BE');
+} catch (\Exception $e) {
+    Log::error('Failed to fetch business types', ['error' => $e->getMessage()]);
+    
+    // Use cached version or default list
+    $businessTypes = Cache::get('business_types_BE_backup', ['data' => []]);
+}
 ```
 
 ## Error Handling
 
-Handle missing country parameter:
-
 ```php
+use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
+
 try {
-    $businessTypes = $teamleader->businessTypes()->list([]);
+    $businessTypes = Teamleader::businessTypes()->forCountry('BE');
 } catch (\InvalidArgumentException $e) {
-    // Handle missing country parameter
-    return response()->json([
-        'error' => 'Country parameter is required',
-        'message' => $e->getMessage()
-    ], 400);
-}
-```
-
-Handle API errors:
-
-```php
-$result = $teamleader->businessTypes()->forCountry('BE');
-
-if (isset($result['error']) && $result['error']) {
-    Log::error("Business Types API error: {$result['message']}", [
-        'status_code' => $result['status_code'] ?? null
+    // Country parameter missing or invalid
+    Log::error('Invalid country code', [
+        'error' => $e->getMessage()
+    ]);
+} catch (TeamleaderException $e) {
+    // API error
+    Log::error('Error fetching business types', [
+        'error' => $e->getMessage(),
+        'code' => $e->getCode()
     ]);
     
-    return response()->json([
-        'error' => 'Failed to fetch business types',
-        'details' => $result['message']
-    ], 500);
+    // Provide fallback
+    return ['data' => []];
 }
 ```
 
-## Rate Limiting
+## Limitations
 
-Business types API calls count towards your overall Teamleader API rate limit:
-
-- **Single country request**: 1 request per call
-- **Multiple countries**: 1 request per country (not batched)
-
-Rate limit cost: **1 request per country**
-
-## Best Practices
-
-1. **Cache Results**: Business types rarely change, cache them for better performance
-2. **Validate Country Codes**: Use `isValidCountryCode()` to validate input
-3. **Handle Missing Countries**: Some countries may not have business types available
-4. **Use Convenience Methods**: Use country-specific methods for better code readability
-5. **Batch Countries**: Use `forCountries()` when you need multiple countries
-
-## Notes
-
-- Business types are **read-only** in the Teamleader API
-- Results are automatically sorted alphabetically by name
-- No individual `info()` method is available - use country listing instead
-- Country codes are case-insensitive in the SDK but returned as uppercase
-- Business type names may include multiple languages separated by "/"
-
-## Laravel Integration Example
-
-Complete Laravel integration example:
+1. **Country Required**: You must always provide a country code
+2. **No Filtering**: Cannot filter by business type name or other criteria
+3. **No Pagination**: All business types for a country are returned at once
+4. **Read-Only**: Cannot create, update, or delete business types
+5. **No Individual Info**: Cannot fetch a single business type by ID
 
 ```php
-// Service class
-class BusinessTypeService
-{
-    public function __construct(private TeamleaderSDK $teamleader) {}
-    
-    public function getForCountry(string $country): array
-    {
-        $cacheKey = "business_types_" . strtolower($country);
-        
-        return Cache::remember($cacheKey, 3600, function() use ($country) {
-            return $this->teamleader->businessTypes()->forCountry($country);
-        });
-    }
-    
-    public function getSelectOptions(string $country): array
-    {
-        $businessTypes = $this->getForCountry($country);
-        $options = [];
-        
-        foreach ($businessTypes['data'] as $type) {
-            $options[$type['id']] = $type['name'];
-        }
-        
-        return $options;
-    }
-}
+// Cannot do this:
+// Teamleader::businessTypes()->list(); // ❌ Missing country
+// Teamleader::businessTypes()->info('uuid'); // ❌ No info method
+// Teamleader::businessTypes()->search('NV'); // ❌ No search method
 
-// Controller
-class BusinessTypeController extends Controller
-{
-    public function index(Request $request, BusinessTypeService $service)
-    {
-        $country = $request->get('country', 'BE');
-        $businessTypes = $service->getForCountry($country);
-        
-        return response()->json($businessTypes);
-    }
-}
+// Must do this:
+Teamleader::businessTypes()->forCountry('BE'); // ✅ Requires country
 ```
 
-For more information, refer to the [Teamleader API Documentation](https://developer.focus.teamleader.eu/).
+## Related Resources
+
+- [Companies](companies.md) - Use business types when creating companies
+- [Addresses](addresses.md) - Get geographical areas for addresses
+
+## See Also
+
+- [Usage Guide](../usage.md) - General SDK usage
+- [Resources](../general/resources.md) - Understanding resource architecture

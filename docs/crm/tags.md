@@ -1,6 +1,27 @@
 # Tags
 
-Manage tags in Teamleader Focus. Tags are used to categorize and organize various resources like contacts, companies, and deals.
+Manage tags in Teamleader Focus.
+
+## Overview
+
+The Tags resource provides read-only access to the tags in your Teamleader account. Tags are labels that can be applied to various entities (companies, contacts, deals, etc.) for organization and categorization. While you can retrieve tag information through this resource, tags are actually created when you apply them to entities using their respective resources.
+
+**Important:** The Tags resource is read-only. You cannot create, update, or delete tags directly through this resource. Tags are automatically created when you tag an entity (company, contact, etc.) and are removed when they're no longer used.
+
+## Navigation
+
+- [Endpoint](#endpoint)
+- [Capabilities](#capabilities)
+- [Available Methods](#available-methods)
+    - [list()](#list)
+- [Helper Methods](#helper-methods)
+- [Sorting](#sorting)
+- [Response Structure](#response-structure)
+- [Usage Examples](#usage-examples)
+- [Common Use Cases](#common-use-cases)
+- [Best Practices](#best-practices)
+- [Error Handling](#error-handling)
+- [Related Resources](#related-resources)
 
 ## Endpoint
 
@@ -8,553 +29,513 @@ Manage tags in Teamleader Focus. Tags are used to categorize and organize variou
 
 ## Capabilities
 
-- **Supports Pagination**: ✅ Supported
-- **Supports Filtering**: ❌ Not Supported (client-side search available)
-- **Supports Sorting**: ✅ Supported (tag name only)
-- **Supports Sideloading**: ❌ Not Supported
-- **Supports Creation**: ❌ Not Supported (read-only)
-- **Supports Update**: ❌ Not Supported (read-only)
-- **Supports Deletion**: ❌ Not Supported (read-only)
-- **Supports Batch**: ❌ Not Supported
+- **Pagination**: ✅ Supported
+- **Filtering**: ❌ Not Supported
+- **Sorting**: ✅ Supported
+- **Sideloading**: ❌ Not Supported
+- **Creation**: ❌ Not Supported (tags are created when applying to entities)
+- **Update**: ❌ Not Supported
+- **Deletion**: ❌ Not Supported (tags are removed when no longer in use)
 
 ## Available Methods
 
 ### `list()`
 
-Get a paginated list of tags with sorting options.
+Get all tags with optional sorting and pagination.
 
 **Parameters:**
-- `filters` (array): No server-side filters supported
-- `options` (array): Pagination and sorting options
+- `filters` (array): Filters (not supported for tags)
+- `options` (array): Additional options (page_size, page_number, sort, sort_order)
 
 **Example:**
 ```php
-$tags = $teamleader->tags()->list([], [
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
+// Get all tags
+$tags = Teamleader::tags()->list();
+
+// With pagination
+$tags = Teamleader::tags()->list([], [
     'page_size' => 50,
+    'page_number' => 1
+]);
+
+// Sorted alphabetically
+$tags = Teamleader::tags()->list([], [
+    'sort' => 'tag',
+    'sort_order' => 'asc'
+]);
+```
+
+## Helper Methods
+
+The Tags resource provides convenient helper methods:
+
+### Search Tags
+
+```php
+// Search for tags containing a term
+$tags = Teamleader::tags()->search('VIP');
+
+// This searches through all tags and returns matches
+```
+
+## Sorting
+
+Tags can be sorted alphabetically:
+
+```php
+// Sort ascending (A-Z)
+$tags = Teamleader::tags()->list([], [
+    'sort' => 'tag',
+    'sort_order' => 'asc'
+]);
+
+// Sort descending (Z-A)
+$tags = Teamleader::tags()->list([], [
+    'sort' => 'tag',
+    'sort_order' => 'desc'
+]);
+```
+
+## Response Structure
+
+### Tag Object
+
+```php
+[
+    'tag' => 'VIP'
+]
+```
+
+**Note:** Tags are returned as simple objects with just the tag name. There is no UUID or other metadata.
+
+### List Response
+
+```php
+[
+    'data' => [
+        ['tag' => 'Customer'],
+        ['tag' => 'Decision Maker'],
+        ['tag' => 'Enterprise'],
+        ['tag' => 'Lead'],
+        ['tag' => 'Partner'],
+        ['tag' => 'Premium'],
+        ['tag' => 'Prospect'],
+        ['tag' => 'VIP']
+    ]
+]
+```
+
+## Usage Examples
+
+### Get All Tags
+
+```php
+$allTags = Teamleader::tags()->list();
+
+foreach ($allTags['data'] as $tag) {
+    echo $tag['tag'] . "\n";
+}
+```
+
+### Get Paginated Tags
+
+```php
+$page1 = Teamleader::tags()->list([], [
+    'page_size' => 20,
+    'page_number' => 1,
+    'sort' => 'tag',
+    'sort_order' => 'asc'
+]);
+
+$page2 = Teamleader::tags()->list([], [
+    'page_size' => 20,
     'page_number' => 2,
     'sort' => 'tag',
     'sort_order' => 'asc'
 ]);
 ```
 
-### `all()`
+### Search for Specific Tags
 
-Get all tags without pagination (automatically handles pagination).
-
-**Example:**
 ```php
-$allTags = $teamleader->tags()->all();
+// Find tags containing "Customer"
+$customerTags = Teamleader::tags()->search('Customer');
+
+// Results might include: "Customer", "VIP Customer", "New Customer", etc.
 ```
 
-### `search()`
+### Get All Tags for a Dropdown
 
-Search tags by name (client-side filtering).
-
-**Parameters:**
-- `query` (string): Search query
-- `exactMatch` (bool): Whether to match exactly or use partial matching (default: false)
-
-**Example:**
 ```php
-// Search for tags containing "campaign"
-$campaignTags = $teamleader->tags()->search('campaign');
-
-// Exact match search
-$exactTag = $teamleader->tags()->search('priority', true);
+function getTagsForDropdown()
+{
+    $allTags = [];
+    $page = 1;
+    
+    do {
+        $response = Teamleader::tags()->list([], [
+            'page_size' => 100,
+            'page_number' => $page,
+            'sort' => 'tag',
+            'sort_order' => 'asc'
+        ]);
+        
+        $allTags = array_merge($allTags, $response['data']);
+        $page++;
+    } while (!empty($response['data']) && count($response['data']) === 100);
+    
+    // Format for dropdown
+    return array_column($allTags, 'tag', 'tag');
+}
 ```
 
-### `containing()`
+## Common Use Cases
 
-Get tags containing specific text.
+### 1. Build a Tag Autocomplete
 
-**Parameters:**
-- `text` (string): Text to search for
-
-**Example:**
 ```php
-$clientTags = $teamleader->tags()->containing('client');
+class TagAutocompleteService
+{
+    protected $tags = null;
+    
+    public function search($query)
+    {
+        if ($this->tags === null) {
+            $this->loadTags();
+        }
+        
+        $query = strtolower($query);
+        
+        return array_filter($this->tags, function($tag) use ($query) {
+            return str_contains(strtolower($tag['tag']), $query);
+        });
+    }
+    
+    protected function loadTags()
+    {
+        $allTags = [];
+        $page = 1;
+        
+        do {
+            $response = Teamleader::tags()->list([], [
+                'page_size' => 100,
+                'page_number' => $page
+            ]);
+            
+            $allTags = array_merge($allTags, $response['data']);
+            $page++;
+        } while (!empty($response['data']) && count($response['data']) === 100);
+        
+        $this->tags = $allTags;
+    }
+}
 ```
 
-### `startingWith()`
+### 2. Cache Tags for Performance
 
-Get tags starting with specific text.
-
-**Parameters:**
-- `prefix` (string): Prefix to search for
-
-**Example:**
 ```php
-$urgentTags = $teamleader->tags()->startingWith('urgent');
+use Illuminate\Support\Facades\Cache;
+
+function getCachedTags()
+{
+    return Cache::remember('teamleader_tags', 3600, function() {
+        $allTags = [];
+        $page = 1;
+        
+        do {
+            $response = Teamleader::tags()->list([], [
+                'page_size' => 100,
+                'page_number' => $page,
+                'sort' => 'tag',
+                'sort_order' => 'asc'
+            ]);
+            
+            $allTags = array_merge($allTags, $response['data']);
+            $page++;
+        } while (!empty($response['data']) && count($response['data']) === 100);
+        
+        return $allTags;
+    });
+}
 ```
 
-### `paginate()`
+### 3. Validate Tags Before Applying
 
-Get paginated results with enhanced metadata.
-
-**Parameters:**
-- `pageSize` (int): Items per page (default: 20)
-- `pageNumber` (int): Page number (default: 1)
-
-**Example:**
 ```php
-$paginatedTags = $teamleader->tags()->paginate(25, 3);
+function validateTags(array $tags)
+{
+    $existingTags = Teamleader::tags()->list();
+    $existingTagNames = array_column($existingTags['data'], 'tag');
+    
+    $invalidTags = [];
+    
+    foreach ($tags as $tag) {
+        if (!in_array($tag, $existingTagNames)) {
+            $invalidTags[] = $tag;
+        }
+    }
+    
+    if (!empty($invalidTags)) {
+        // These are new tags that will be created when applied
+        Log::info('New tags will be created', ['tags' => $invalidTags]);
+    }
+    
+    return empty($invalidTags);
+}
 ```
 
-### `getStatistics()`
+### 4. Generate Tag Usage Report
 
-Get comprehensive statistics about your tags.
-
-**Example:**
 ```php
-$stats = $teamleader->tags()->getStatistics();
+function generateTagUsageReport()
+{
+    $tags = Teamleader::tags()->list();
+    $report = [];
+    
+    foreach ($tags['data'] as $tag) {
+        $tagName = $tag['tag'];
+        
+        // Count usage across different entities
+        $companies = Teamleader::companies()->withTags([$tagName]);
+        $contacts = Teamleader::contacts()->withTags([$tagName]);
+        $deals = Teamleader::deals()->withTags([$tagName]);
+        
+        $report[] = [
+            'tag' => $tagName,
+            'companies' => count($companies['data']),
+            'contacts' => count($contacts['data']),
+            'deals' => count($deals['data']),
+            'total' => count($companies['data']) + 
+                      count($contacts['data']) + 
+                      count($deals['data'])
+        ];
+    }
+    
+    // Sort by total usage
+    usort($report, function($a, $b) {
+        return $b['total'] - $a['total'];
+    });
+    
+    return $report;
+}
 ```
 
-## Pagination
-
-### Basic Pagination
+### 5. Sync Tags with External System
 
 ```php
-// Get first 20 tags (default)
-$tags = $teamleader->tags()->list();
-
-// Get specific page with custom size
-$tags = $teamleader->tags()->list([], [
-    'page_size' => 50,
-    'page_number' => 2
-]);
+class TagSyncService
+{
+    public function syncTags()
+    {
+        // Get all Teamleader tags
+        $teamleaderTags = $this->getAllTeamleaderTags();
+        
+        // Get tags from external system
+        $externalTags = $this->getExternalTags();
+        
+        // Find differences
+        $onlyInTeamleader = array_diff($teamleaderTags, $externalTags);
+        $onlyInExternal = array_diff($externalTags, $teamleaderTags);
+        
+        return [
+            'teamleader_only' => $onlyInTeamleader,
+            'external_only' => $onlyInExternal,
+            'common' => array_intersect($teamleaderTags, $externalTags)
+        ];
+    }
+    
+    protected function getAllTeamleaderTags()
+    {
+        $allTags = [];
+        $page = 1;
+        
+        do {
+            $response = Teamleader::tags()->list([], [
+                'page_size' => 100,
+                'page_number' => $page
+            ]);
+            
+            foreach ($response['data'] as $tag) {
+                $allTags[] = $tag['tag'];
+            }
+            
+            $page++;
+        } while (!empty($response['data']) && count($response['data']) === 100);
+        
+        return $allTags;
+    }
+    
+    protected function getExternalTags()
+    {
+        // Implementation depends on external system
+        return [];
+    }
+}
 ```
 
-### Enhanced Pagination
+## Best Practices
+
+### 1. Cache Tags for Performance
+
+Since tags don't change frequently, caching them can significantly improve performance:
 
 ```php
-$result = $teamleader->tags()->paginate(30, 1);
+// Good: Cache tags for 1 hour
+$tags = Cache::remember('tags', 3600, function() {
+    return Teamleader::tags()->list();
+});
 
-// Access pagination metadata
-$currentPage = $result['pagination']['current_page'];
-$hasMore = $result['pagination']['has_more_pages'];
-$totalOnPage = $result['pagination']['total_on_page'];
+// Bad: Fetch tags on every request
+$tags = Teamleader::tags()->list();
 ```
 
-## Sorting
-
-Tags only support sorting by the `tag` field in ascending order.
-
-### Sorting Examples
+### 2. Use Pagination for Large Tag Lists
 
 ```php
-// Sort by tag name (default behavior)
-$sortedTags = $teamleader->tags()->list([], [
+// Good: Paginate for large lists
+function getAllTags()
+{
+    $allTags = [];
+    $page = 1;
+    
+    do {
+        $response = Teamleader::tags()->list([], [
+            'page_size' => 100,
+            'page_number' => $page
+        ]);
+        
+        $allTags = array_merge($allTags, $response['data']);
+        $page++;
+    } while (!empty($response['data']) && count($response['data']) === 100);
+    
+    return $allTags;
+}
+```
+
+### 3. Sort Tags Alphabetically
+
+Always sort tags alphabetically for better user experience:
+
+```php
+$tags = Teamleader::tags()->list([], [
     'sort' => 'tag',
     'sort_order' => 'asc'
 ]);
 ```
 
-**Available Sort Fields:**
-- `tag`: Sort by tag name (only option available)
-
-**Available Sort Orders:**
-- `asc`: Ascending order (only option available)
-
-## Client-Side Search
-
-Since the API doesn't support server-side filtering, the SDK provides client-side search functionality:
-
-### Search Examples
+### 4. Use Search for Tag Filtering
 
 ```php
-// Search for tags containing "campaign"
-$campaignTags = $teamleader->tags()->search('campaign');
+// Good: Use search method for filtering
+$vipTags = Teamleader::tags()->search('VIP');
 
-// Exact match search
-$exactMatch = $teamleader->tags()->search('VIP', true);
-
-// Find tags starting with "client"
-$clientTags = $teamleader->tags()->startingWith('client');
-
-// Find tags containing "urgent"
-$urgentTags = $teamleader->tags()->containing('urgent');
-```
-
-## Response Format
-
-### List Response
-
-```json
-{
-    "data": [
-        {
-            "tag": "campaign"
-        },
-        {
-            "tag": "priority"
-        },
-        {
-            "tag": "client-vip"
-        }
-    ],
-    "pagination": {
-        "current_page": 1,
-        "per_page": 20,
-        "total_on_page": 3,
-        "has_more_pages": false
-    }
-}
-```
-
-### Search Response
-
-```json
-{
-    "data": [
-        {
-            "tag": "campaign-2024"
-        },
-        {
-            "tag": "campaign-summer"
-        }
-    ],
-    "total_count": 2,
-    "query": "campaign",
-    "exact_match": false
-}
-```
-
-### Statistics Response
-
-```json
-{
-    "total_count": 45,
-    "average_length": 8.7,
-    "shortest_tag": "vip",
-    "longest_tag": "high-priority-client",
-    "most_common_prefixes": {
-        "cli": 8,
-        "cam": 5,
-        "pri": 3
-    }
-}
-```
-
-## Data Fields
-
-- **`tag`**: Tag name/label (e.g., "campaign", "priority", "client-vip")
-
-## Usage Examples
-
-### Basic Tag Retrieval
-
-```php
-use McoreServices\TeamleaderSDK\TeamleaderSDK;
-
-class TagController extends Controller
-{
-    public function index(TeamleaderSDK $teamleader)
-    {
-        $tags = $teamleader->tags()->list([], [
-            'page_size' => 25,
-            'page_number' => 1
-        ]);
-        
-        return view('tags.index', compact('tags'));
-    }
-}
-```
-
-### Search Functionality
-
-```php
-public function search(Request $request, TeamleaderSDK $teamleader)
-{
-    $query = $request->get('q');
-    
-    if (empty($query)) {
-        $tags = $teamleader->tags()->list();
-    } else {
-        $tags = $teamleader->tags()->search($query);
-    }
-    
-    return response()->json($tags);
-}
-```
-
-### Tag Autocomplete
-
-Create an autocomplete endpoint for forms:
-
-```php
-public function autocomplete(Request $request, TeamleaderSDK $teamleader)
-{
-    $query = $request->get('term', '');
-    
-    if (strlen($query) < 2) {
-        return response()->json([]);
-    }
-    
-    $tags = $teamleader->tags()->search($query);
-    
-    $suggestions = collect($tags['data'])->map(function($tag) {
-        return [
-            'value' => $tag['tag'],
-            'label' => $tag['tag']
-        ];
-    })->take(10);
-    
-    return response()->json($suggestions);
-}
-```
-
-### Tag Analytics
-
-Get insights about your tag usage:
-
-```php
-public function analytics(TeamleaderSDK $teamleader)
-{
-    $stats = $teamleader->tags()->getStatistics();
-    
-    return view('tags.analytics', [
-        'totalTags' => $stats['total_count'],
-        'averageLength' => $stats['average_length'],
-        'shortestTag' => $stats['shortest_tag'],
-        'longestTag' => $stats['longest_tag'],
-        'commonPrefixes' => $stats['most_common_prefixes']
-    ]);
-}
-```
-
-### Cached Tag Service
-
-Create a service with caching for better performance:
-
-```php
-use Illuminate\Support\Facades\Cache;
-
-class TagService
-{
-    public function __construct(private TeamleaderSDK $teamleader) {}
-    
-    public function getAllTags(): array
-    {
-        return Cache::remember('all_tags', 1800, function() {
-            return $this->teamleader->tags()->all();
-        });
-    }
-    
-    public function searchTags(string $query): array
-    {
-        $allTags = $this->getAllTags();
-        
-        $filteredTags = array_filter($allTags['data'], function($tag) use ($query) {
-            return stripos($tag['tag'], $query) !== false;
-        });
-        
-        return [
-            'data' => array_values($filteredTags),
-            'total_count' => count($filteredTags),
-            'query' => $query
-        ];
-    }
-    
-    public function getTagsByPrefix(string $prefix): array
-    {
-        $allTags = $this->getAllTags();
-        
-        $filteredTags = array_filter($allTags['data'], function($tag) use ($prefix) {
-            return stripos($tag['tag'], $prefix) === 0;
-        });
-        
-        return array_values($filteredTags);
-    }
-}
-```
-
-### Form Integration
-
-Use tags in Laravel forms:
-
-```php
-// Controller
-public function create(TagService $tagService)
-{
-    $availableTags = $tagService->getAllTags();
-    
-    return view('contacts.create', compact('availableTags'));
-}
-```
-
-```blade
-{{-- Blade template --}}
-<div class="form-group">
-    <label for="tags">Tags</label>
-    <select name="tags[]" id="tags" class="form-control" multiple>
-        @foreach($availableTags['data'] as $tag)
-            <option value="{{ $tag['tag'] }}">{{ $tag['tag'] }}</option>
-        @endforeach
-    </select>
-</div>
-```
-
-### Tag Validation
-
-Validate tags before using them:
-
-```php
-public function validateTags(array $inputTags, TeamleaderSDK $teamleader): array
-{
-    $allTags = $teamleader->tags()->all();
-    $validTags = collect($allTags['data'])->pluck('tag')->toArray();
-    
-    $validInputTags = [];
-    $invalidTags = [];
-    
-    foreach ($inputTags as $tag) {
-        if (in_array($tag, $validTags)) {
-            $validInputTags[] = $tag;
-        } else {
-            $invalidTags[] = $tag;
-        }
-    }
-    
-    return [
-        'valid' => $validInputTags,
-        'invalid' => $invalidTags
-    ];
-}
-```
-
-## Performance Considerations
-
-### Caching Strategy
-
-```php
-// Cache all tags for 30 minutes
-$allTags = Cache::remember('teamleader_tags', 1800, function() use ($teamleader) {
-    return $teamleader->tags()->all();
-});
-
-// Cache search results for 15 minutes
-$searchKey = 'tag_search_' . md5($query);
-$searchResults = Cache::remember($searchKey, 900, function() use ($teamleader, $query) {
-    return $teamleader->tags()->search($query);
+// Less efficient: Get all and filter manually
+$allTags = Teamleader::tags()->list();
+$vipTags = array_filter($allTags['data'], function($tag) {
+    return str_contains($tag['tag'], 'VIP');
 });
 ```
 
-### Efficient Pagination
+### 5. Remember Tags Are Auto-Created
 
 ```php
-// For large tag lists, use smaller page sizes
-$tags = $teamleader->tags()->list([], [
-    'page_size' => 50,  // Reasonable size
-    'page_number' => $page
-]);
+// Tags are created automatically when you tag an entity
+// You don't need to check if a tag exists before applying it
 
-// Or use all() method which handles pagination automatically
-$allTags = $teamleader->tags()->all(); // Automatically paginates through all results
+// This will create the "New Tag" tag if it doesn't exist
+Teamleader::companies()->tag('company-uuid', ['New Tag']);
+
+// The tag will now appear in the tags list
+$tags = Teamleader::tags()->list();
+// Will include: ['tag' => 'New Tag']
 ```
 
 ## Error Handling
 
-Handle API errors gracefully:
-
 ```php
-$result = $teamleader->tags()->list();
+use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
 
-if (isset($result['error']) && $result['error']) {
-    Log::error("Tags API error: {$result['message']}", [
-        'status_code' => $result['status_code'] ?? null
+try {
+    $tags = Teamleader::tags()->list();
+} catch (TeamleaderException $e) {
+    Log::error('Error fetching tags', [
+        'error' => $e->getMessage(),
+        'code' => $e->getCode()
     ]);
     
-    return response()->json([
-        'error' => 'Failed to fetch tags',
-        'message' => 'Please try again later'
-    ], 500);
+    // Provide fallback
+    return ['data' => []];
 }
 ```
 
-Handle search errors:
+## How Tags Work
+
+### Creating Tags
+
+Tags are NOT created through the Tags resource. Instead, they are automatically created when you apply them to an entity:
 
 ```php
-try {
-    $tags = $teamleader->tags()->search($query);
-    
-    if (empty($tags['data'])) {
-        return response()->json([
-            'message' => 'No tags found matching your search',
-            'query' => $query
-        ]);
-    }
-    
-    return response()->json($tags);
-} catch (\Exception $e) {
-    return response()->json([
-        'error' => 'Search failed',
-        'message' => $e->getMessage()
-    ], 500);
-}
+// This creates the tag "VIP Customer" if it doesn't exist
+Teamleader::companies()->tag('company-uuid', ['VIP Customer']);
+
+// Now the tag appears in the tags list
+$tags = Teamleader::tags()->list();
+// Will include: ['tag' => 'VIP Customer']
 ```
 
-## Rate Limiting
+### Applying Tags to Entities
 
-Tags API calls count towards your overall Teamleader API rate limit:
-
-- **List operations**: 1 request per call
-- **Search operations**: 1 request (uses client-side filtering)
-- **All tags**: Multiple requests (automatically paginated)
-
-Rate limit cost: **1 request per list operation**
-
-## Best Practices
-
-1. **Use Caching**: Tags don't change frequently, cache them for better performance
-2. **Client-Side Search**: Leverage the SDK's client-side search to reduce API calls
-3. **Batch Loading**: Use `all()` method to load all tags once, then filter locally
-4. **Reasonable Page Sizes**: Use page sizes between 20-100 for optimal performance
-5. **Tag Validation**: Always validate user-provided tags against available tags
-
-## Notes
-
-- Tags are **read-only** in the Teamleader API
-- Only sorting by tag name in ascending order is supported
-- No server-side filtering is available - use client-side search methods
-- Individual tag `info()` method is not supported
-- Tag names are case-sensitive
-- The SDK provides comprehensive client-side search and filtering capabilities
-
-## Laravel Integration Example
-
-Complete Laravel integration with caching and search:
+Tags can be applied to:
+- Companies
+- Contacts
+- Deals
+- Projects
+- And other entities that support tagging
 
 ```php
-// Service Provider
-class AppServiceProvider extends ServiceProvider
-{
-    public function register()
-    {
-        $this->app->singleton(TagService::class, function ($app) {
-            return new TagService($app->make(TeamleaderSDK::class));
-        });
-    }
-}
+// Tag a company
+Teamleader::companies()->tag('company-uuid', ['Enterprise', 'Partner']);
 
-// Route
-Route::get('/api/tags/search', [TagController::class, 'search']);
+// Tag a contact
+Teamleader::contacts()->tag('contact-uuid', ['Decision Maker', 'VIP']);
 
-// Controller
-class TagController extends Controller
-{
-    public function search(Request $request, TagService $tagService)
-    {
-        $query = $request->get('q', '');
-        
-        if (strlen($query) < 2) {
-            return response()->json(['data' => []]);
-        }
-        
-        $tags = $tagService->searchTags($query);
-        
-        return response()->json($tags);
-    }
-}
+// Tag a deal
+Teamleader::deals()->tag('deal-uuid', ['High Priority', 'Q1 2024']);
 ```
 
-For more information, refer to the [Teamleader API Documentation](https://developer.focus.teamleader.eu/).
+### Tag Lifecycle
+
+1. **Creation**: Tags are created automatically when first applied to an entity
+2. **Usage**: Tags can be viewed through the Tags resource
+3. **Removal**: Tags are automatically removed from the system when they're no longer applied to any entity
+
+## Limitations
+
+1. **Read-Only**: You cannot create, update, or delete tags directly through this resource
+2. **No Filters**: The tags endpoint doesn't support filtering (except through the search helper method)
+3. **No Individual Info**: You cannot fetch information about a single tag
+4. **No Metadata**: Tags only contain the tag name, no additional metadata like usage count or creation date
+
+```php
+// Cannot do this:
+// Teamleader::tags()->create(['name' => 'New Tag']); // ❌ Not supported
+// Teamleader::tags()->delete('tag-name'); // ❌ Not supported
+// Teamleader::tags()->info('tag-name'); // ❌ Not supported
+
+// Instead, tags are created when applied to entities:
+Teamleader::companies()->tag('company-uuid', ['New Tag']); // ✅ Creates tag
+```
+
+## Related Resources
+
+- [Companies](companies.md) - Tag companies
+- [Contacts](contacts.md) - Tag contacts
+- [Deals](../deals/deals.md) - Tag deals
+- [Projects](../projects/projects.md) - Tag projects
+
+## See Also
+
+- [Usage Guide](../usage.md) - General SDK usage
+- [Filtering](../filtering.md) - Advanced filtering techniques
