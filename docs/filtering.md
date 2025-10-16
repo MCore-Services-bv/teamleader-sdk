@@ -1,441 +1,591 @@
-# Filtering and Search
+# Filtering Guide
 
-The Teamleader SDK provides powerful filtering capabilities through the `FilterTrait`, allowing you to search, filter, sort, and paginate results efficiently.
+Comprehensive guide to filtering resources in the Teamleader SDK.
 
-## Table of Contents
+## Overview
 
-- [Basic Filtering](#basic-filtering)
-- [Common Filter Types](#common-filter-types)
-- [Sorting](#sorting)
-- [Pagination](#pagination)
-- [Combined Queries](#combined-queries)
-- [Advanced Filtering](#advanced-filtering)
-- [Filter Validation](#filter-validation)
+The Teamleader SDK provides powerful filtering capabilities to help you retrieve exactly the data you need. Most resources support filtering through the `list()` method.
 
 ## Basic Filtering
 
-All list endpoints support filtering through an array of filter criteria:
+### Simple Filters
+
+Pass filters as the first parameter to the `list()` method:
 
 ```php
-// Filter contacts by company
-$contacts = $teamleader->contacts()->list([
-    'company_id' => 'company-uuid-here'
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
+// Filter by status
+$companies = Teamleader::companies()->list([
+    'status' => 'active'
 ]);
 
-// Filter deals by phase
-$deals = $teamleader->deals()->list([
-    'phase_id' => 'active-phase-uuid'
-]);
-
-// Multiple filters
-$invoices = $teamleader->invoices()->list([
-    'customer_id' => 'customer-uuid',
-    'status' => 'draft'
+// Filter by multiple criteria
+$contacts = Teamleader::contacts()->list([
+    'status' => 'active',
+    'company_id' => 'company-uuid'
 ]);
 ```
 
 ## Common Filter Types
 
-### Date Filters
-
-Most resources support date-based filtering:
-
-```php
-// Items updated since a specific date
-$recentDeals = $teamleader->deals()->list([
-    'updated_since' => '2024-01-01T00:00:00+00:00'
-]);
-
-// Items created within a date range
-$invoices = $teamleader->invoices()->list([
-    'invoice_date_after' => '2024-01-01T00:00:00+00:00',
-    'invoice_date_before' => '2024-03-31T23:59:59+00:00'
-]);
-```
-
 ### Status Filters
 
-Filter by various status fields:
+Most resources support filtering by status:
 
 ```php
-// Draft invoices
-$draftInvoices = $teamleader->invoices()->list([
-    'status' => 'draft'
-]);
-
-// Active deals
-$activeDeals = $teamleader->deals()->list([
+// Active resources only
+$companies = Teamleader::companies()->list([
     'status' => 'active'
 ]);
 
-// Completed projects
-$completedProjects = $teamleader->projects()->list([
-    'status' => 'completed'
+// Deactivated resources
+$contacts = Teamleader::contacts()->list([
+    'status' => 'deactivated'
 ]);
 ```
 
-### Relationship Filters
+### ID Filters
 
-Filter by related entities:
-
-```php
-// Contacts belonging to a specific company
-$contacts = $teamleader->contacts()->list([
-    'company_id' => 'company-uuid'
-]);
-
-// Deals assigned to a specific user
-$userDeals = $teamleader->deals()->list([
-    'responsible_user_id' => 'user-uuid'
-]);
-
-// Projects in a specific department
-$departmentProjects = $teamleader->projects()->list([
-    'department_id' => 'department-uuid'
-]);
-```
-
-### Search Filters
-
-Some endpoints support text search:
+Filter by one or multiple IDs:
 
 ```php
-// Search companies by name
-$companies = $teamleader->companies()->list([
-    'name' => 'ACME'
+// Single ID
+$companies = Teamleader::companies()->list([
+    'ids' => ['company-uuid-1']
 ]);
 
-// Search contacts by email domain
-$contacts = $teamleader->contacts()->list([
-    'email' => '@example.com'
-]);
-```
-
-## Sorting
-
-Sort results by any supported field:
-
-```php
-// Sort by single field (ascending by default)
-$deals = $teamleader->deals()->list([], [
-    'sort' => 'created_at'
-]);
-
-// Sort descending
-$recentDeals = $teamleader->deals()->list([], [
-    'sort' => 'updated_at',
-    'sort_order' => 'desc'
-]);
-
-// Multiple sort fields
-$contacts = $teamleader->contacts()->list([], [
-    'sort' => ['last_name', 'first_name'],
-    'sort_order' => 'asc'
-]);
-```
-
-### Advanced Sorting Configuration
-
-For complex sorting requirements:
-
-```php
-// Custom sort configuration
-$deals = $teamleader->deals()->list([], [
-    'sort' => [
-        ['field' => 'phase_id', 'order' => 'asc'],
-        ['field' => 'value', 'order' => 'desc'],
-        ['field' => 'updated_at', 'order' => 'desc']
+// Multiple IDs
+$companies = Teamleader::companies()->list([
+    'ids' => [
+        'company-uuid-1',
+        'company-uuid-2',
+        'company-uuid-3'
     ]
 ]);
 ```
 
-## Pagination
+### Date Filters
 
-Control result pagination:
-
-```php
-// Basic pagination
-$companies = $teamleader->companies()->list([], [
-    'page_size' => 50,
-    'page_number' => 2
-]);
-
-// Large result sets
-$allContacts = $teamleader->contacts()->list([], [
-    'page_size' => 100,  // Maximum allowed by Teamleader
-    'page_number' => 1
-]);
-```
-
-### Pagination Helper
+Filter resources by date ranges:
 
 ```php
-public function getAllContacts()
-{
-    $allContacts = [];
-    $page = 1;
-    
-    do {
-        $result = $this->teamleader->contacts()->list([], [
-            'page_size' => 100,
-            'page_number' => $page
-        ]);
-        
-        $contacts = $result['data'] ?? [];
-        $allContacts = array_merge($allContacts, $contacts);
-        
-        $meta = $result['meta'] ?? [];
-        $hasMore = count($contacts) === 100;
-        
-        $page++;
-    } while ($hasMore);
-    
-    return $allContacts;
-}
-```
-
-## Combined Queries
-
-Combine filters, sorting, and pagination:
-
-```php
-$filteredDeals = $teamleader->deals()->list(
-    // Filters
-    [
-        'phase_id' => 'active-phase-uuid',
-        'updated_since' => '2024-01-01T00:00:00+00:00',
-        'responsible_user_id' => 'user-uuid'
-    ],
-    // Options
-    [
-        'page_size' => 25,
-        'page_number' => 1,
-        'sort' => 'value',
-        'sort_order' => 'desc'
-    ]
-);
-```
-
-## Advanced Filtering
-
-### Array Filters
-
-Some endpoints support filtering by multiple values:
-
-```php
-// Filter by multiple deal phases
-$deals = $teamleader->deals()->list([
-    'phase_id' => ['phase-1-uuid', 'phase-2-uuid', 'phase-3-uuid']
+// Updated since a specific date
+$contacts = Teamleader::contacts()->list([
+    'updated_since' => '2024-01-01'
 ]);
 
-// Filter by multiple statuses
-$invoices = $teamleader->invoices()->list([
-    'status' => ['draft', 'sent']
-]);
-```
-
-### Numeric Range Filters
-
-Filter by numeric ranges where supported:
-
-```php
-// Deals with value above threshold
-$highValueDeals = $teamleader->deals()->list([
-    'minimum_value' => 10000
-]);
-
-// Projects within budget range
-$projects = $teamleader->projects()->list([
-    'minimum_budget' => 5000,
-    'maximum_budget' => 50000
-]);
-```
-
-### Custom Field Filters
-
-Filter by custom fields (where supported):
-
-```php
-$contacts = $teamleader->contacts()->list([
-    'custom_fields' => [
-        'custom-field-uuid' => 'desired-value'
-    ]
+// Created within a date range
+$deals = Teamleader::deals()->list([
+    'created_after' => '2024-01-01',
+    'created_before' => '2024-12-31'
 ]);
 ```
 
 ### Tag Filters
 
-Filter by tags:
+Filter resources by tags:
 
 ```php
-// Contacts with specific tags
-$taggedContacts = $teamleader->contacts()->list([
-    'tags' => ['vip-client', 'priority']
+// Single tag
+$companies = Teamleader::companies()->list([
+    'tags' => ['vip']
 ]);
+
+// Multiple tags
+$companies = Teamleader::companies()->list([
+    'tags' => ['vip', 'enterprise', 'partner']
+]);
+```
+
+## Advanced Filtering
+
+### Email Filters
+
+Email filters require a specific structure:
+
+```php
+// Filter by primary email
+$companies = Teamleader::companies()->list([
+    'email' => [
+        'type' => 'primary',
+        'email' => 'info@example.com'
+    ]
+]);
+
+// Using the helper method (recommended)
+$companies = Teamleader::companies()->byEmail('info@example.com');
+```
+
+### Search Filters
+
+Use the `term` filter for full-text search:
+
+```php
+// Search across multiple fields
+$contacts = Teamleader::contacts()->list([
+    'term' => 'john@example.com'
+]);
+
+// Using the helper method (recommended)
+$contacts = Teamleader::contacts()->search('john@example.com');
+```
+
+### Relationship Filters
+
+Filter by related resources:
+
+```php
+// Contacts for a specific company
+$contacts = Teamleader::contacts()->list([
+    'company_id' => 'company-uuid'
+]);
+
+// Using the helper method (recommended)
+$contacts = Teamleader::contacts()->forCompany('company-uuid');
+
+// Deals for a customer
+$deals = Teamleader::deals()->list([
+    'customer' => [
+        'type' => 'company',
+        'id' => 'company-uuid'
+    ]
+]);
+```
+
+### Custom Field Filters
+
+Filter by custom field values:
+
+```php
+$companies = Teamleader::companies()->list([
+    'custom_fields' => [
+        [
+            'id' => 'custom-field-uuid',
+            'value' => 'specific-value'
+        ]
+    ]
+]);
+```
+
+## Resource-Specific Filters
+
+Different resources support different filters. Here are some common examples:
+
+### Companies
+
+```php
+// By VAT number
+$companies = Teamleader::companies()->byVatNumber('BE0123456789');
+
+// By name (fuzzy search)
+$companies = Teamleader::companies()->byName('Acme');
+
+// By business type
+$companies = Teamleader::companies()->list([
+    'business_type_id' => 'business-type-uuid'
+]);
+
+// By responsible user
+$companies = Teamleader::companies()->list([
+    'responsible_user_id' => 'user-uuid'
+]);
+```
+
+### Contacts
+
+```php
+// By email
+$contacts = Teamleader::contacts()->byEmail('john@example.com');
+
+// For a specific company
+$contacts = Teamleader::contacts()->forCompany('company-uuid');
+
+// With specific tags
+$contacts = Teamleader::contacts()->withTags(['vip', 'active']);
+
+// By decision maker status
+$contacts = Teamleader::contacts()->list([
+    'decision_maker' => true
+]);
+```
+
+### Deals
+
+```php
+// By phase
+$deals = Teamleader::deals()->list([
+    'phase_id' => 'phase-uuid'
+]);
+
+// By pipeline
+$deals = Teamleader::deals()->list([
+    'pipeline_id' => 'pipeline-uuid'
+]);
+
+// By value range
+$deals = Teamleader::deals()->list([
+    'estimated_value_min' => 1000,
+    'estimated_value_max' => 10000,
+    'currency' => 'EUR'
+]);
+
+// By responsible user
+$deals = Teamleader::deals()->list([
+    'responsible_user_id' => 'user-uuid'
+]);
+```
+
+### Invoices
+
+```php
+// By status
+$invoices = Teamleader::invoices()->list([
+    'status' => 'booked'
+]);
+
+// By payment status
+$invoices = Teamleader::invoices()->list([
+    'payment_status' => 'paid'
+]);
+
+// By customer
+$invoices = Teamleader::invoices()->list([
+    'customer' => [
+        'type' => 'company',
+        'id' => 'company-uuid'
+    ]
+]);
+
+// By date range
+$invoices = Teamleader::invoices()->list([
+    'invoice_date_from' => '2024-01-01',
+    'invoice_date_to' => '2024-12-31'
+]);
+```
+
+### Projects
+
+```php
+// By status
+$projects = Teamleader::projects()->list([
+    'status' => 'active'
+]);
+
+// By customer
+$projects = Teamleader::projects()->list([
+    'customer' => [
+        'type' => 'company',
+        'id' => 'company-uuid'
+    ]
+]);
+
+// By start date
+$projects = Teamleader::projects()->list([
+    'starts_after' => '2024-01-01'
+]);
+```
+
+## Combining Filters with Options
+
+Filters can be combined with pagination, sorting, and sideloading:
+
+```php
+// Complex query with multiple options
+$companies = Teamleader::companies()->list(
+    // Filters
+    [
+        'status' => 'active',
+        'tags' => ['vip'],
+        'updated_since' => '2024-01-01'
+    ],
+    // Options
+    [
+        'page_size' => 50,
+        'page_number' => 1,
+        'sort' => 'name',
+        'sort_order' => 'asc',
+        'include' => 'responsible_user,addresses'
+    ]
+);
+```
+
+## Helper Methods
+
+The SDK provides convenient helper methods for common filtering patterns:
+
+### Active/Deactivated Status
+
+```php
+// Get only active resources
+$companies = Teamleader::companies()->active();
+
+// Get only deactivated resources
+$companies = Teamleader::companies()->deactivated();
+```
+
+### Updated Since
+
+```php
+// Get resources updated since a date
+$contacts = Teamleader::contacts()->updatedSince('2024-01-01');
+```
+
+### Search Methods
+
+```php
+// Search contacts by term
+$contacts = Teamleader::contacts()->search('john');
+
+// Search companies by email
+$companies = Teamleader::companies()->byEmail('info@acme.com');
+
+// Search companies by VAT
+$companies = Teamleader::companies()->byVatNumber('BE0123456789');
+
+// Search companies by name
+$companies = Teamleader::companies()->byName('Acme');
 ```
 
 ## Filter Validation
 
-The SDK automatically validates and cleans filters:
+The SDK automatically validates filters to prevent invalid API calls:
 
 ```php
-// Empty values are automatically removed
-$deals = $teamleader->deals()->list([
-    'phase_id' => 'active-phase-uuid',
-    'user_id' => '',           // This will be removed
-    'status' => null,          // This will be removed
-    'tags' => []               // This will be removed
+// Invalid filters are automatically removed
+$companies = Teamleader::companies()->list([
+    'status' => 'active',
+    'invalid_filter' => null,      // Removed (null value)
+    'empty_array' => [],           // Removed (empty array)
+    'empty_string' => '',          // Removed (empty string)
+    'valid_filter' => 'value'      // Kept
 ]);
 ```
 
-### Manual Filter Building
+## Checking Resource Capabilities
 
-For complex scenarios, you can build filters manually:
+Not all resources support all filtering options. Check capabilities before filtering:
 
 ```php
-use McoreServices\TeamleaderSDK\Traits\FilterTrait;
+// Get resource capabilities
+$capabilities = Teamleader::companies()->getCapabilities();
 
-class CustomFilterService
-{
-    use FilterTrait;
-    
-    public function buildComplexQuery(array $criteria)
-    {
-        $params = [];
-        
-        // Apply filters
-        $params = $this->applyFilters($params, $criteria['filters'] ?? []);
-        
-        // Apply sorting
-        $params = $this->applySorting(
-            $params, 
-            $criteria['sort'] ?? null, 
-            $criteria['sort_order'] ?? 'asc'
-        );
-        
-        // Apply pagination
-        $params = $this->applyPagination(
-            $params, 
-            $criteria['page_size'] ?? 20, 
-            $criteria['page_number'] ?? 1
-        );
-        
-        return $params;
-    }
+if ($capabilities['supports_filtering']) {
+    // Resource supports filtering
+}
+
+if ($capabilities['supports_sorting']) {
+    // Resource supports sorting
 }
 ```
 
-## Performance Tips
+## Pagination with Filters
 
-### Efficient Filtering
-
-1. **Use specific filters** - More specific filters reduce result sets and improve performance
-2. **Limit page size** - Use appropriate page sizes (20-100 items)
-3. **Use date filters** - Filter by `updated_since` for incremental syncing
-4. **Combine filters** - Multiple filters are AND-ed together for precision
+When working with filtered results, remember to handle pagination:
 
 ```php
-// Efficient: Get only what you need
-$recentActiveDeals = $teamleader->deals()->list([
-    'phase_id' => 'active-phase-uuid',
-    'updated_since' => now()->subDays(7)->toISOString()
-], [
-    'page_size' => 50
-]);
-
-// Less efficient: Large result set without filters
-$allDeals = $teamleader->deals()->list([], [
-    'page_size' => 100
-]);
-```
-
-### Rate Limit Considerations
-
-When performing multiple filtered queries:
-
-```php
-public function getBatchedResults(array $filters)
+public function getAllFilteredCompanies($filters)
 {
-    $results = [];
+    $allCompanies = [];
+    $page = 1;
     
-    foreach ($filters as $filter) {
-        // Check rate limits before each request
-        $stats = $this->teamleader->getRateLimitStats();
+    do {
+        $response = Teamleader::companies()->list($filters, [
+            'page_size' => 100,
+            'page_number' => $page
+        ]);
         
-        if ($stats['remaining'] < 10) {
-            // Wait for rate limit reset
-            sleep($stats['seconds_until_reset'] + 1);
-        }
+        $allCompanies = array_merge($allCompanies, $response['data']);
+        $hasMore = count($response['data']) === 100;
+        $page++;
         
-        $results[] = $this->teamleader->deals()->list($filter);
-    }
+    } while ($hasMore);
     
-    return $results;
+    return $allCompanies;
 }
 ```
 
-## Common Filter Patterns
+## Dynamic Filtering
 
-### Recently Updated Items
+Build filters dynamically based on user input:
 
 ```php
-$recentlyUpdated = $teamleader->contacts()->list([
-    'updated_since' => now()->subHours(1)->toISOString()
+public function searchCompanies(Request $request)
+{
+    $filters = [];
+    
+    // Add filters based on request parameters
+    if ($request->has('status')) {
+        $filters['status'] = $request->status;
+    }
+    
+    if ($request->has('tags')) {
+        $filters['tags'] = explode(',', $request->tags);
+    }
+    
+    if ($request->has('updated_since')) {
+        $filters['updated_since'] = $request->updated_since;
+    }
+    
+    if ($request->has('search')) {
+        $filters['term'] = $request->search;
+    }
+    
+    // Add pagination options
+    $options = [
+        'page_size' => $request->get('per_page', 20),
+        'page_number' => $request->get('page', 1)
+    ];
+    
+    return Teamleader::companies()->list($filters, $options);
+}
+```
+
+## Best Practices
+
+### 1. Use Helper Methods When Available
+
+```php
+// Instead of this:
+$companies = Teamleader::companies()->list([
+    'email' => [
+        'type' => 'primary',
+        'email' => 'info@acme.com'
+    ]
+]);
+
+// Do this:
+$companies = Teamleader::companies()->byEmail('info@acme.com');
+```
+
+### 2. Filter at the API Level
+
+Filter data at the API level instead of in your application to reduce data transfer:
+
+```php
+// Good: Filter at API level
+$activeCompanies = Teamleader::companies()->list([
+    'status' => 'active'
+]);
+
+// Bad: Fetch all and filter in PHP
+$allCompanies = Teamleader::companies()->list();
+$activeCompanies = array_filter($allCompanies['data'], function($company) {
+    return $company['status'] === 'active';
+});
+```
+
+### 3. Combine Filters for Specific Results
+
+Use multiple filters to get exactly what you need:
+
+```php
+$deals = Teamleader::deals()->list([
+    'phase_id' => 'active-phase-uuid',
+    'responsible_user_id' => auth()->user()->teamleader_id,
+    'estimated_value_min' => 5000,
+    'updated_since' => now()->subDays(30)->toIso8601String()
 ]);
 ```
 
-### Items by Date Range
+### 4. Cache Filtered Results
+
+Cache frequently-used filtered results:
 
 ```php
-$monthlyInvoices = $teamleader->invoices()->list([
-    'created_after' => now()->startOfMonth()->toISOString(),
-    'created_before' => now()->endOfMonth()->toISOString()
-]);
+use Illuminate\Support\Facades\Cache;
+
+public function getActiveVIPCompanies()
+{
+    return Cache::remember('active_vip_companies', 3600, function () {
+        return Teamleader::companies()->list([
+            'status' => 'active',
+            'tags' => ['vip']
+        ]);
+    });
+}
 ```
 
-### User-Specific Items
+### 5. Document Available Filters
+
+When building services, document which filters are available:
 
 ```php
-$myDeals = $teamleader->deals()->list([
-    'responsible_user_id' => auth()->user()->teamleader_user_id
-]);
-```
-
-### Department Items
-
-```php
-$departmentProjects = $teamleader->projects()->list([
-    'department_id' => $user->department->teamleader_id
-]);
+/**
+ * Get companies matching the given criteria
+ * 
+ * Available filters:
+ * - status: 'active' | 'deactivated'
+ * - tags: array of tag names
+ * - business_type_id: UUID
+ * - responsible_user_id: UUID
+ * - updated_since: ISO 8601 date string
+ * - term: search term
+ */
+public function searchCompanies(array $filters): array
+{
+    return Teamleader::companies()->list($filters);
+}
 ```
 
 ## Error Handling
 
-Handle filtering errors gracefully:
+Handle cases where filters might produce no results:
 
 ```php
-try {
-    $result = $teamleader->deals()->list($filters, $options);
-    
-    if (isset($result['error'])) {
-        Log::warning('Filter query failed', [
-            'filters' => $filters,
-            'error' => $result['message']
+$companies = Teamleader::companies()->list([
+    'vat_number' => $vatNumber
+]);
+
+if (empty($companies['data'])) {
+    // No companies found with this VAT number
+    return response()->json([
+        'message' => 'No companies found matching the criteria'
+    ], 404);
+}
+
+return $companies['data'][0];
+```
+
+## Testing Filters
+
+When testing, verify filters are applied correctly:
+
+```php
+use Tests\TestCase;
+
+class CompanyFilterTest extends TestCase
+{
+    public function test_can_filter_by_status()
+    {
+        $companies = Teamleader::companies()->list([
+            'status' => 'active'
         ]);
         
-        // Fall back to unfiltered results
-        return $teamleader->deals()->list();
+        // Verify all returned companies are active
+        foreach ($companies['data'] as $company) {
+            $this->assertEquals('active', $company['status']);
+        }
     }
     
-    return $result;
-} catch (Exception $e) {
-    Log::error('Filtering exception', [
-        'filters' => $filters,
-        'exception' => $e->getMessage()
-    ]);
-    
-    throw $e;
+    public function test_can_filter_by_tags()
+    {
+        $companies = Teamleader::companies()->list([
+            'tags' => ['vip']
+        ]);
+        
+        // Verify all returned companies have the VIP tag
+        foreach ($companies['data'] as $company) {
+            $this->assertContains('vip', 
+                array_column($company['tags'] ?? [], 'name')
+            );
+        }
+    }
 }
 ```
 
-This comprehensive filtering system allows you to efficiently query Teamleader's API while respecting rate limits and following best practices for performance and reliability.
+## Next Steps
+
+- Learn about [Sideloading](sideloading.md) to efficiently load related data
+- Check individual resource documentation for available filters
+- See [Usage Guide](usage.md) for general SDK usage

@@ -1,1631 +1,531 @@
-# Usage Examples
+# Usage Guide
 
-This guide provides comprehensive examples of using the Teamleader SDK in real-world scenarios, from basic operations to advanced integration patterns.
+Complete guide to using the Teamleader SDK for Laravel.
 
-## Table of Contents
+## Installation
 
-- [Setup and Authentication](#setup-and-authentication)
-- [Basic CRUD Operations](#basic-crud-operations)
-- [Working with Deals](#working-with-deals)
-- [Contact and Company Management](#contact-and-company-management)
-- [Project Management](#project-management)
-- [Invoice Handling](#invoice-handling)
-- [Time Tracking](#time-tracking)
-- [Bulk Operations](#bulk-operations)
-- [Advanced Integration Patterns](#advanced-integration-patterns)
-- [Error Handling](#error-handling)
+Install the package via Composer:
 
-## Setup and Authentication
+```bash
+composer require mcore-services/teamleader-sdk
+```
 
-### Laravel Controller Setup
+Publish the configuration file:
+
+```bash
+php artisan vendor:publish --tag=teamleader-config
+```
+
+## Configuration
+
+Add your Teamleader credentials to your `.env` file:
+
+```env
+TEAMLEADER_CLIENT_ID=your_client_id
+TEAMLEADER_CLIENT_SECRET=your_client_secret
+TEAMLEADER_REDIRECT_URI=${APP_URL}/teamleader/callback
+```
+
+### Configuration Options
+
+The SDK provides several configuration options in `config/teamleader.php`:
+
+- **API Version**: Set the Teamleader API version to use
+- **Timeouts**: Configure connection, read, and total request timeouts
+- **Retry Behavior**: Set the number of retry attempts and delay between retries
+- **Rate Limiting**: Configure API rate limit behavior
+
+## Authentication
+
+The SDK uses OAuth 2.0 for authentication. Here's how to set it up:
+
+### 1. Redirect to Authorization
 
 ```php
-<?php
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
 
-namespace App\Http\Controllers;
+// In your controller
+public function redirectToTeamleader()
+{
+    return Teamleader::authorize();
+}
+```
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Str;
+### 2. Handle Callback
+
+```php
+public function handleTeamleaderCallback(Request $request)
+{
+    $code = $request->get('code');
+    $state = $request->get('state');
+    
+    if (Teamleader::handleCallback($code, $state)) {
+        return redirect('/dashboard')->with('success', 'Connected to Teamleader!');
+    }
+    
+    return redirect('/settings')->with('error', 'Failed to connect to Teamleader');
+}
+```
+
+### 3. Check Authentication Status
+
+```php
+if (Teamleader::isAuthenticated()) {
+    // User is authenticated
+}
+```
+
+### 4. Logout
+
+```php
+Teamleader::logout();
+```
+
+## Basic Usage
+
+### Using the Facade
+
+The simplest way to use the SDK is via the Facade:
+
+```php
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
+// Get all companies
+$companies = Teamleader::companies()->list();
+
+// Get a specific contact
+$contact = Teamleader::contacts()->info('contact-uuid');
+
+// Create a new deal
+$deal = Teamleader::deals()->create([
+    'title' => 'New Sales Opportunity',
+    'lead' => [
+        'customer' => [
+            'type' => 'company',
+            'id' => 'company-uuid'
+        ]
+    ],
+    'estimated_value' => [
+        'amount' => 5000,
+        'currency' => 'EUR'
+    ]
+]);
+```
+
+### Using Dependency Injection
+
+You can also inject the SDK into your classes:
+
+```php
 use McoreServices\TeamleaderSDK\TeamleaderSDK;
 
-class TeamleaderController extends Controller
+class CompanyService
 {
-    public function __construct(
-        private TeamleaderSDK $teamleader
-    ) {}
-
-    /**
-     * Redirect to Teamleader for authorization
-     */
-    public function authorize()
+    protected TeamleaderSDK $teamleader;
+    
+    public function __construct(TeamleaderSDK $teamleader)
     {
-        $state = Str::random(32);
-        session(['teamleader_state' => $state]);
-        
-        return $this->teamleader->authorize($state);
+        $this->teamleader = $teamleader;
     }
-
-    /**
-     * Handle OAuth callback
-     */
-    public function callback(Request $request)
+    
+    public function getAllCompanies()
     {
-        $code = $request->get('code');
-        $state = $request->get('state');
-        
-        // Validate state parameter (CSRF protection)
-        if ($state !== session('teamleader_state')) {
-            return redirect('/auth/error')->with('error', 'Invalid state parameter');
-        }
-
-        if ($this->teamleader->handleCallback($code, $state)) {
-            session()->forget('teamleader_state');
-            return redirect('/dashboard')->with('success', 'Connected to Teamleader!');
-        }
-
-        return redirect('/auth/error')->with('error', 'Authentication failed');
-    }
-
-    /**
-     * Check connection status
-     */
-    public function status()
-    {
-        return response()->json([
-            'connected' => $this->teamleader->isAuthenticated(),
-            'api_version' => $this->teamleader->getApiVersion(),
-            'rate_limit' => $this->teamleader->getRateLimitStats(),
-            'token_info' => $this->teamleader->getTokenService()->getTokenInfo()
-        ]);
+        return $this->teamleader->companies()->list();
     }
 }
 ```
 
-### Service Class Pattern
+## Available Resources
+
+The SDK provides access to all Teamleader resources:
+
+### CRM
+- `companies()` - Company management
+- `contacts()` - Contact management
+- `businessTypes()` - Business type information
+- `tags()` - Tag management
+- `addresses()` - Address management
+
+### Deals
+- `deals()` - Deal management
+- `quotations()` - Quotation management
+- `orders()` - Order management
+- `dealPhases()` - Deal phase information
+- `dealPipelines()` - Deal pipeline management
+- `dealSources()` - Deal source information
+- `lostReasons()` - Lost reason management
+
+### Invoicing
+- `invoices()` - Invoice management
+- `creditnotes()` - Credit note management
+- `paymentMethods()` - Payment method information
+- `paymentTerms()` - Payment term information
+- `subscriptions()` - Subscription management
+- `taxRates()` - Tax rate information
+- `withholdingTaxRates()` - Withholding tax rate information
+- `commercialDiscounts()` - Commercial discount management
+
+### Calendar
+- `meetings()` - Meeting management
+- `calls()` - Call management
+- `callOutcomes()` - Call outcome information
+- `calendarEvents()` - Calendar event management
+- `activityTypes()` - Activity type information
+
+### Products
+- `products()` - Product management
+- `productCategories()` - Product category management
+- `priceLists()` - Price list management
+- `unitsOfMeasure()` - Unit of measure information
+
+### Projects
+- `projects()` - Project management
+- `projectLines()` - Project line management
+- `tasks()` - Task management
+- `materials()` - Material management
+- `groups()` - Group management
+
+### Time Tracking
+- `timeTracking()` - Time tracking entries
+- `timers()` - Timer management
+
+### General
+- `departments()` - Department information
+- `customFields()` - Custom field definitions
+- `users()` - User management
+- `teams()` - Team information
+- `workTypes()` - Work type information
+- `notes()` - Note management
+- `currencies()` - Currency information
+- `closingDays()` - Closing day management
+- `daysOff()` - Days off management
+- `dayOffTypes()` - Day off type information
+- `documentTemplates()` - Document template management
+- `emailTracking()` - Email tracking
+
+### Files
+- `files()` - File management
+
+### Templates
+- `mailTemplates()` - Mail template management
+
+### Tickets
+- `tickets()` - Ticket management
+- `ticketStatus()` - Ticket status information
+
+### Other
+- `webhooks()` - Webhook management
+- `accounts()` - Account information
+- `cloudPlatforms()` - Cloud platform information
+- `migrate()` - Migration utilities
+
+## Common Operations
+
+### Listing Resources
 
 ```php
-<?php
+// Get all resources with default pagination (20 per page)
+$companies = Teamleader::companies()->list();
 
-namespace App\Services;
+// With custom page size
+$companies = Teamleader::companies()->list([], [
+    'page_size' => 50,
+    'page_number' => 1
+]);
 
-use McoreServices\TeamleaderSDK\TeamleaderSDK;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Cache;
-
-class TeamleaderService
-{
-    public function __construct(
-        private TeamleaderSDK $sdk
-    ) {}
-
-    /**
-     * Ensure we're connected before making requests
-     */
-    protected function ensureConnected(): void
-    {
-        if (!$this->sdk->isAuthenticated()) {
-            throw new \Exception('Not connected to Teamleader. Please authenticate first.');
-        }
-    }
-
-    /**
-     * Get current user information with caching
-     */
-    public function getCurrentUser(): array
-    {
-        $this->ensureConnected();
-        
-        return Cache::remember('teamleader_current_user', 300, function () {
-            $result = $this->sdk->users()->me();
-            
-            if (isset($result['error'])) {
-                Log::error('Failed to get current user', $result);
-                throw new \Exception('Failed to get user information: ' . $result['message']);
-            }
-            
-            return $result['data'];
-        });
-    }
-}
+// With filters
+$companies = Teamleader::companies()->list([
+    'status' => 'active'
+]);
 ```
 
-## Basic CRUD Operations
-
-### Companies
+### Getting Resource Information
 
 ```php
-class CompanyService extends TeamleaderService
-{
-    /**
-     * Create a new company
-     */
-    public function createCompany(array $data): array
-    {
-        $this->ensureConnected();
-        
-        $result = $this->sdk->companies()->create([
-            'name' => $data['name'],
-            'business_type_id' => $data['business_type_id'] ?? null,
-            'vat_number' => $data['vat_number'] ?? null,
-            'national_identification_number' => $data['national_id'] ?? null,
-            'emails' => $data['emails'] ?? [],
-            'telephones' => $data['phones'] ?? [],
-            'website' => $data['website'] ?? null,
-            'addresses' => $data['addresses'] ?? [],
-            'responsible_user_id' => $data['responsible_user_id'] ?? null,
-            'tags' => $data['tags'] ?? [],
-            'custom_fields' => $data['custom_fields'] ?? []
-        ]);
+// Get a single resource
+$company = Teamleader::companies()->info('company-uuid');
 
-        if (isset($result['error'])) {
-            throw new \Exception('Failed to create company: ' . $result['message']);
-        }
-
-        return $result['data'];
-    }
-
-    /**
-     * Get company with related data
-     */
-    public function getCompany(string $id, bool $includeRelated = true): array
-    {
-        $this->ensureConnected();
-        
-        $query = $this->sdk->companies();
-        
-        if ($includeRelated) {
-            $query->withResponsibleUser()
-                  ->with(['addresses', 'business_type', 'tags']);
-        }
-        
-        $result = $query->info($id);
-        
-        if (isset($result['error'])) {
-            throw new \Exception('Company not found: ' . $result['message']);
-        }
-        
-        return $result;
-    }
-
-    /**
-     * Update company
-     */
-    public function updateCompany(string $id, array $data): array
-    {
-        $this->ensureConnected();
-        
-        $updateData = array_filter([
-            'name' => $data['name'] ?? null,
-            'business_type_id' => $data['business_type_id'] ?? null,
-            'vat_number' => $data['vat_number'] ?? null,
-            'website' => $data['website'] ?? null,
-            'emails' => $data['emails'] ?? null,
-            'telephones' => $data['phones'] ?? null,
-            'addresses' => $data['addresses'] ?? null,
-            'responsible_user_id' => $data['responsible_user_id'] ?? null,
-            'tags' => $data['tags'] ?? null,
-            'custom_fields' => $data['custom_fields'] ?? null
-        ], function ($value) {
-            return $value !== null;
-        });
-
-        $result = $this->sdk->companies()->update($id, $updateData);
-        
-        if (isset($result['error'])) {
-            throw new \Exception('Failed to update company: ' . $result['message']);
-        }
-        
-        return $result;
-    }
-
-    /**
-     * Search companies with pagination
-     */
-    public function searchCompanies(
-        array $filters = [], 
-        int $pageSize = 20, 
-        int $page = 1
-    ): array {
-        $this->ensureConnected();
-        
-        return $this->sdk->companies()
-            ->withResponsibleUser()
-            ->list($filters, [
-                'page_size' => $pageSize,
-                'page_number' => $page,
-                'sort' => 'name',
-                'sort_order' => 'asc'
-            ]);
-    }
-}
+// Get with related data (sideloading)
+$company = Teamleader::companies()
+    ->with('addresses,responsible_user')
+    ->info('company-uuid');
 ```
 
-### Contacts
+### Creating Resources
 
 ```php
-class ContactService extends TeamleaderService
-{
-    /**
-     * Create contact with company relationship
-     */
-    public function createContact(array $data): array
-    {
-        $this->ensureConnected();
-        
-        $contactData = [
-            'first_name' => $data['first_name'],
-            'last_name' => $data['last_name'],
-            'salutation' => $data['salutation'] ?? null,
-            'emails' => $data['emails'] ?? [],
-            'telephones' => $data['phones'] ?? [],
-            'addresses' => $data['addresses'] ?? [],
-            'language' => $data['language'] ?? 'en',
-            'gender' => $data['gender'] ?? null,
-            'birthdate' => $data['birthdate'] ?? null,
-            'responsible_user_id' => $data['responsible_user_id'] ?? null,
-            'tags' => $data['tags'] ?? [],
-            'custom_fields' => $data['custom_fields'] ?? []
-        ];
-
-        // Add company relationship if provided
-        if (!empty($data['company_id'])) {
-            $contactData['company_id'] = $data['company_id'];
-        }
-
-        $result = $this->sdk->contacts()->create($contactData);
-        
-        if (isset($result['error'])) {
-            throw new \Exception('Failed to create contact: ' . $result['message']);
-        }
-        
-        return $result['data'];
-    }
-
-    /**
-     * Get contacts by company
-     */
-    public function getContactsByCompany(string $companyId): array
-    {
-        $this->ensureConnected();
-        
-        return $this->sdk->contacts()
-            ->withCompany()
-            ->withResponsibleUser()
-            ->list([
-                'company_id' => $companyId
-            ]);
-    }
-
-    /**
-     * Import contacts from CSV data
-     */
-    public function importContacts(array $contactsData): array
-    {
-        $this->ensureConnected();
-        
-        $imported = [];
-        $failed = [];
-        
-        foreach ($contactsData as $index => $data) {
-            try {
-                // Check rate limits
-                $stats = $this->sdk->getRateLimitStats();
-                if ($stats['remaining'] <= 10) {
-                    Log::info('Rate limit approaching, waiting...');
-                    sleep($stats['seconds_until_reset'] + 1);
-                }
-                
-                $contact = $this->createContact($data);
-                $imported[] = $contact;
-                
-                Log::info("Imported contact: {$contact['first_name']} {$contact['last_name']}");
-                
-            } catch (\Exception $e) {
-                $failed[] = [
-                    'index' => $index,
-                    'data' => $data,
-                    'error' => $e->getMessage()
-                ];
-                
-                Log::error("Failed to import contact at index {$index}", [
-                    'error' => $e->getMessage(),
-                    'data' => $data
-                ]);
-            }
-        }
-        
-        return [
-            'imported' => $imported,
-            'failed' => $failed,
-            'stats' => [
-                'total' => count($contactsData),
-                'imported' => count($imported),
-                'failed' => count($failed)
-            ]
-        ];
-    }
-}
+$company = Teamleader::companies()->create([
+    'name' => 'Acme Corporation',
+    'business_type_id' => 'business-type-uuid',
+    'vat_number' => 'BE0123456789',
+    'emails' => [
+        [
+            'type' => 'primary',
+            'email' => 'info@acme.com'
+        ]
+    ]
+]);
 ```
 
-## Working with Deals
-
-### Deal Management Service
+### Updating Resources
 
 ```php
-class DealService extends TeamleaderService
-{
-    /**
-     * Create a deal with full relationship setup
-     */
-    public function createDeal(array $data): array
-    {
-        $this->ensureConnected();
-        
-        $dealData = [
-            'title' => $data['title'],
-            'summary' => $data['summary'] ?? null,
-            'reference' => $data['reference'] ?? null,
-            'status' => 'active',
-            'lead' => [
-                'customer' => [
-                    'type' => $data['customer_type'], // 'contact' or 'company'
-                    'id' => $data['customer_id']
-                ]
-            ],
-            'estimated_value' => $data['estimated_value'] ?? null,
-            'estimated_probability' => $data['estimated_probability'] ?? null,
-            'estimated_closing_date' => $data['estimated_closing_date'] ?? null,
-            'responsible_user_id' => $data['responsible_user_id'] ?? null,
-            'deal_phase_id' => $data['deal_phase_id'] ?? null,
-            'deal_source_id' => $data['deal_source_id'] ?? null,
-            'custom_fields' => $data['custom_fields'] ?? []
-        ];
-
-        $result = $this->sdk->deals()->create($dealData);
-        
-        if (isset($result['error'])) {
-            throw new \Exception('Failed to create deal: ' . $result['message']);
-        }
-        
-        return $result['data'];
-    }
-
-    /**
-     * Get deals for dashboard with complete information
-     */
-    public function getDashboardDeals(int $limit = 10): array
-    {
-        $this->ensureConnected();
-        
-        return $this->sdk->deals()
-            ->withCustomer()
-            ->withResponsibleUser()
-            ->withDepartment()
-            ->with(['deal_phase', 'deal_source'])
-            ->list([
-                'status' => 'active'
-            ], [
-                'page_size' => $limit,
-                'sort' => 'updated_at',
-                'sort_order' => 'desc'
-            ]);
-    }
-
-    /**
-     * Move deal through pipeline
-     */
-    public function moveDealToPhase(string $dealId, string $phaseId): array
-    {
-        $this->ensureConnected();
-        
-        $result = $this->sdk->deals()->update($dealId, [
-            'deal_phase_id' => $phaseId
-        ]);
-        
-        if (isset($result['error'])) {
-            throw new \Exception('Failed to move deal: ' . $result['message']);
-        }
-        
-        // Log the phase change
-        Log::info("Deal {$dealId} moved to phase {$phaseId}");
-        
-        return $result;
-    }
-
-    /**
-     * Win a deal
-     */
-    public function winDeal(string $dealId, array $data = []): array
-    {
-        $this->ensureConnected();
-        
-        $updateData = [
-            'status' => 'won',
-            'closed_at' => now()->toISOString()
-        ];
-        
-        if (isset($data['final_value'])) {
-            $updateData['estimated_value'] = $data['final_value'];
-        }
-        
-        if (isset($data['closing_date'])) {
-            $updateData['estimated_closing_date'] = $data['closing_date'];
-        }
-        
-        $result = $this->sdk->deals()->update($dealId, $updateData);
-        
-        if (isset($result['error'])) {
-            throw new \Exception('Failed to win deal: ' . $result['message']);
-        }
-        
-        Log::info("Deal {$dealId} marked as won", $updateData);
-        
-        return $result;
-    }
-
-    /**
-     * Get deal pipeline statistics
-     */
-    public function getPipelineStats(): array
-    {
-        $this->ensureConnected();
-        
-        // Get all active deals with phases
-        $deals = $this->sdk->deals()
-            ->with('deal_phase')
-            ->list(['status' => 'active'], ['page_size' => 1000]);
-        
-        $stats = [
-            'total_deals' => 0,
-            'total_value' => 0,
-            'phases' => []
-        ];
-        
-        foreach ($deals['data'] ?? [] as $deal) {
-            $stats['total_deals']++;
-            $stats['total_value'] += $deal['estimated_value'] ?? 0;
-            
-            $phaseId = $deal['deal_phase_id'] ?? 'unknown';
-            
-            if (!isset($stats['phases'][$phaseId])) {
-                $stats['phases'][$phaseId] = [
-                    'count' => 0,
-                    'value' => 0,
-                    'name' => 'Unknown Phase'
-                ];
-            }
-            
-            $stats['phases'][$phaseId]['count']++;
-            $stats['phases'][$phaseId]['value'] += $deal['estimated_value'] ?? 0;
-            
-            // Get phase name from included data if available
-            if (isset($deals['included']['deal_phase'])) {
-                foreach ($deals['included']['deal_phase'] as $phase) {
-                    if ($phase['id'] === $phaseId) {
-                        $stats['phases'][$phaseId]['name'] = $phase['name'];
-                        break;
-                    }
-                }
-            }
-        }
-        
-        return $stats;
-    }
-}
+$company = Teamleader::companies()->update('company-uuid', [
+    'name' => 'Acme Corporation Ltd',
+    'website' => 'https://acme.com'
+]);
 ```
 
-## Contact and Company Management
-
-### CRM Integration Service
+### Deleting Resources
 
 ```php
-class CrmIntegrationService extends TeamleaderService
-{
-    /**
-     * Sync customer data from external CRM
-     */
-    public function syncCustomerFromExternal(array $externalData): array
-    {
-        $this->ensureConnected();
-        
-        // Check if customer already exists
-        $existingCustomer = $this->findExistingCustomer($externalData);
-        
-        if ($existingCustomer) {
-            return $this->updateExistingCustomer($existingCustomer['id'], $externalData);
-        } else {
-            return $this->createNewCustomer($externalData);
-        }
-    }
-
-    /**
-     * Find existing customer by email or external ID
-     */
-    private function findExistingCustomer(array $externalData): ?array
-    {
-        // Search by custom field (external ID)
-        if (!empty($externalData['external_id'])) {
-            $companies = $this->sdk->companies()->list([
-                'custom_fields' => [
-                    config('teamleader.custom_fields.company.external_id') => $externalData['external_id']
-                ]
-            ]);
-            
-            if (!empty($companies['data'])) {
-                return $companies['data'][0];
-            }
-        }
-        
-        // Search by email
-        if (!empty($externalData['email'])) {
-            $companies = $this->sdk->companies()->list([
-                'email' => $externalData['email']
-            ]);
-            
-            if (!empty($companies['data'])) {
-                return $companies['data'][0];
-            }
-        }
-        
-        return null;
-    }
-
-    /**
-     * Create customer with complete address and contact info
-     */
-    private function createNewCustomer(array $externalData): array
-    {
-        $customerData = [
-            'name' => $externalData['name'],
-            'emails' => $externalData['emails'] ?? [],
-            'telephones' => $externalData['phones'] ?? [],
-            'website' => $externalData['website'] ?? null,
-            'vat_number' => $externalData['vat_number'] ?? null,
-            'addresses' => $this->formatAddresses($externalData['addresses'] ?? []),
-            'custom_fields' => [
-                config('teamleader.custom_fields.company.external_id') => $externalData['external_id'] ?? null
-            ]
-        ];
-
-        $result = $this->sdk->companies()->create($customerData);
-        
-        if (isset($result['error'])) {
-            throw new \Exception('Failed to create customer: ' . $result['message']);
-        }
-        
-        // Create primary contact if provided
-        if (!empty($externalData['primary_contact'])) {
-            $this->createPrimaryContact($result['data']['id'], $externalData['primary_contact']);
-        }
-        
-        return $result['data'];
-    }
-
-    /**
-     * Format addresses for Teamleader API
-     */
-    private function formatAddresses(array $addresses): array
-    {
-        return array_map(function ($address) {
-            return [
-                'type' => $address['type'] ?? 'invoicing',
-                'address_line_1' => $address['street'] ?? '',
-                'address_line_2' => $address['street_2'] ?? null,
-                'postal_code' => $address['postal_code'] ?? '',
-                'city' => $address['city'] ?? '',
-                'country' => $address['country'] ?? 'BE'
-            ];
-        }, $addresses);
-    }
-
-    /**
-     * Create primary contact for company
-     */
-    private function createPrimaryContact(string $companyId, array $contactData): array
-    {
-        $result = $this->sdk->contacts()->create([
-            'company_id' => $companyId,
-            'first_name' => $contactData['first_name'],
-            'last_name' => $contactData['last_name'],
-            'emails' => $contactData['emails'] ?? [],
-            'telephones' => $contactData['phones'] ?? []
-        ]);
-        
-        if (isset($result['error'])) {
-            Log::warning('Failed to create primary contact', $result);
-        }
-        
-        return $result['data'] ?? [];
-    }
-
-    /**
-     * Get complete customer view with all relationships
-     */
-    public function getCustomerOverview(string $customerId): array
-    {
-        $this->ensureConnected();
-        
-        // Get company with all related data
-        $company = $this->sdk->companies()
-            ->withResponsibleUser()
-            ->with(['addresses', 'business_type', 'tags'])
-            ->info($customerId);
-        
-        // Get all contacts for this company
-        $contacts = $this->sdk->contacts()
-            ->withResponsibleUser()
-            ->list(['company_id' => $customerId]);
-        
-        // Get all deals for this customer
-        $deals = $this->sdk->deals()
-            ->withResponsibleUser()
-            ->with('deal_phase')
-            ->list([
-                'customer_id' => $customerId
-            ]);
-        
-        // Get recent invoices
-        $invoices = $this->sdk->invoices()
-            ->list([
-                'customer_id' => $customerId
-            ], [
-                'page_size' => 10,
-                'sort' => 'invoice_date',
-                'sort_order' => 'desc'
-            ]);
-        
-        // Get active projects
-        $projects = $this->sdk->projects()
-            ->withResponsibleUser()
-            ->list([
-                'customer_id' => $customerId,
-                'status' => 'active'
-            ]);
-        
-        return [
-            'company' => $company,
-            'contacts' => $contacts['data'] ?? [],
-            'deals' => $deals['data'] ?? [],
-            'invoices' => $invoices['data'] ?? [],
-            'projects' => $projects['data'] ?? [],
-            'summary' => [
-                'total_contacts' => count($contacts['data'] ?? []),
-                'active_deals' => count($deals['data'] ?? []),
-                'total_deal_value' => array_sum(array_column($deals['data'] ?? [], 'estimated_value')),
-                'recent_invoices' => count($invoices['data'] ?? []),
-                'active_projects' => count($projects['data'] ?? [])
-            ]
-        ];
-    }
-}
+Teamleader::companies()->delete('company-uuid');
 ```
 
-## Project Management
+## Advanced Features
 
-### Project Service
+### Searching
+
+Many resources support search functionality:
 
 ```php
-class ProjectService extends TeamleaderService
-{
-    /**
-     * Create project with complete setup
-     */
-    public function createProject(array $data): array
-    {
-        $this->ensureConnected();
-        
-        $projectData = [
-            'title' => $data['title'],
-            'description' => $data['description'] ?? null,
-            'status' => 'active',
-            'customer' => [
-                'type' => $data['customer_type'],
-                'id' => $data['customer_id']
-            ],
-            'starts_at' => $data['start_date'] ?? null,
-            'ends_at' => $data['end_date'] ?? null,
-            'budget' => $data['budget'] ?? null,
-            'purchase_order_number' => $data['po_number'] ?? null,
-            'responsible_user_id' => $data['responsible_user_id'] ?? null,
-            'department_id' => $data['department_id'] ?? null,
-            'custom_fields' => $data['custom_fields'] ?? []
-        ];
+// Search contacts by term (searches name, email, phone)
+$contacts = Teamleader::contacts()->search('john@example.com');
 
-        $result = $this->sdk->projects()->create($projectData);
-        
-        if (isset($result['error'])) {
-            throw new \Exception('Failed to create project: ' . $result['message']);
-        }
-        
-        $project = $result['data'];
-        
-        // Create initial milestones if provided
-        if (!empty($data['milestones'])) {
-            $this->createProjectMilestones($project['id'], $data['milestones']);
-        }
-        
-        return $project;
-    }
+// Search companies by email
+$companies = Teamleader::companies()->byEmail('info@acme.com');
 
-    /**
-     * Get project dashboard with time tracking summary
-     */
-    public function getProjectDashboard(string $projectId): array
-    {
-        $this->ensureConnected();
-        
-        // Get project with full details
-        $project = $this->sdk->projects()
-            ->withCustomer()
-            ->withResponsibleUser()
-            ->withDepartment()
-            ->info($projectId);
-        
-        // Get project tasks
-        $tasks = $this->sdk->projectTasks()
-            ->with('assignee')
-            ->list(['project_id' => $projectId]);
-        
-        // Get time tracking entries
-        $timeEntries = $this->sdk->timeTracking()
-            ->with(['user', 'work_type'])
-            ->list([
-                'project_id' => $projectId,
-                'started_after' => now()->subDays(30)->toISOString()
-            ]);
-        
-        // Calculate time summary
-        $totalHours = 0;
-        $userHours = [];
-        
-        foreach ($timeEntries['data'] ?? [] as $entry) {
-            $duration = $entry['duration'] ?? 0; // In seconds
-            $hours = $duration / 3600;
-            $totalHours += $hours;
-            
-            $userId = $entry['user_id'] ?? 'unknown';
-            $userHours[$userId] = ($userHours[$userId] ?? 0) + $hours;
-        }
-        
-        // Task summary
-        $taskSummary = [
-            'total' => count($tasks['data'] ?? []),
-            'completed' => 0,
-            'in_progress' => 0,
-            'pending' => 0
-        ];
-        
-        foreach ($tasks['data'] ?? [] as $task) {
-            $status = $task['status'] ?? 'pending';
-            if (isset($taskSummary[$status])) {
-                $taskSummary[$status]++;
-            }
-        }
-        
-        return [
-            'project' => $project,
-            'tasks' => $tasks['data'] ?? [],
-            'time_entries' => $timeEntries['data'] ?? [],
-            'summary' => [
-                'total_hours' => round($totalHours, 2),
-                'user_hours' => $userHours,
-                'tasks' => $taskSummary,
-                'budget_used' => $project['data']['budget'] ? 
-                    ($totalHours * 75) / $project['data']['budget'] * 100 : 0 // Assuming €75/hour
-            ]
-        ];
-    }
-
-    /**
-     * Track time on project
-     */
-    public function trackTime(string $projectId, array $timeData): array
-    {
-        $this->ensureConnected();
-        
-        $result = $this->sdk->timeTracking()->create([
-            'started_at' => $timeData['started_at'],
-            'ended_at' => $timeData['ended_at'],
-            'duration' => $timeData['duration'],
-            'description' => $timeData['description'] ?? null,
-            'project_id' => $projectId,
-            'user_id' => $timeData['user_id'] ?? null,
-            'work_type_id' => $timeData['work_type_id'] ?? null
-        ]);
-        
-        if (isset($result['error'])) {
-            throw new \Exception('Failed to track time: ' . $result['message']);
-        }
-        
-        return $result['data'];
-    }
-}
+// Search companies by VAT number
+$companies = Teamleader::companies()->byVatNumber('BE0123456789');
 ```
 
-## Invoice Handling
-
-### Invoice Service
+### Filtering by Date
 
 ```php
-class InvoiceService extends TeamleaderService
-{
-    /**
-     * Create invoice from deal
-     */
-    public function createInvoiceFromDeal(string $dealId, array $options = []): array
-    {
-        $this->ensureConnected();
-        
-        // Get deal information
-        $deal = $this->sdk->deals()
-            ->withCustomer()
-            ->info($dealId);
-        
-        if (isset($deal['error'])) {
-            throw new \Exception('Deal not found: ' . $deal['message']);
-        }
-        
-        $customer = $deal['data']['lead']['customer'];
-        
-        $invoiceData = [
-            'customer' => [
-                'type' => $customer['type'],
-                'id' => $customer['id']
-            ],
-            'invoice_date' => $options['invoice_date'] ?? now()->toDateString(),
-            'due_date' => $options['due_date'] ?? now()->addDays(30)->toDateString(),
-            'reference' => $options['reference'] ?? "Deal: {$deal['data']['title']}",
-            'department_id' => $deal['data']['department_id'] ?? null,
-            'payment_term_id' => $options['payment_term_id'] ?? null,
-            'grouped_lines' => [
-                [
-                    'section' => [
-                        'title' => $deal['data']['title']
-                    ],
-                    'line_items' => [
-                        [
-                            'quantity' => 1,
-                            'description' => $deal['data']['summary'] ?? $deal['data']['title'],
-                            'unit_price' => [
-                                'amount' => $deal['data']['estimated_value'] ?? 0,
-                                'currency' => 'EUR'
-                            ]
-                        ]
-                    ]
-                ]
-            ]
-        ];
+// Get resources updated since a date
+$contacts = Teamleader::contacts()->updatedSince('2024-01-01');
 
-        $result = $this->sdk->invoices()->create($invoiceData);
-        
-        if (isset($result['error'])) {
-            throw new \Exception('Failed to create invoice: ' . $result['message']);
-        }
-        
-        return $result['data'];
-    }
-
-    /**
-     * Generate monthly recurring invoices
-     */
-    public function generateRecurringInvoices(): array
-    {
-        $this->ensureConnected();
-        
-        // Get active subscriptions
-        $subscriptions = $this->sdk->subscriptions()
-            ->withCustomer()
-            ->list(['status' => 'active']);
-        
-        $generatedInvoices = [];
-        $errors = [];
-        
-        foreach ($subscriptions['data'] ?? [] as $subscription) {
-            try {
-                // Check if invoice already exists for current month
-                $existingInvoices = $this->sdk->invoices()->list([
-                    'customer_id' => $subscription['customer']['id'],
-                    'subscription_id' => $subscription['id'],
-                    'invoice_date_after' => now()->startOfMonth()->toDateString()
-                ]);
-                
-                if (!empty($existingInvoices['data'])) {
-                    continue; // Skip if already invoiced this month
-                }
-                
-                // Create recurring invoice
-                $invoice = $this->createRecurringInvoice($subscription);
-                $generatedInvoices[] = $invoice;
-                
-            } catch (\Exception $e) {
-                $errors[] = [
-                    'subscription_id' => $subscription['id'],
-                    'error' => $e->getMessage()
-                ];
-            }
-        }
-        
-        return [
-            'generated' => $generatedInvoices,
-            'errors' => $errors,
-            'summary' => [
-                'total_subscriptions' => count($subscriptions['data'] ?? []),
-                'invoices_generated' => count($generatedInvoices),
-                'errors' => count($errors)
-            ]
-        ];
-    }
-
-    /**
-     * Create invoice from subscription
-     */
-    private function createRecurringInvoice(array $subscription): array
-    {
-        $invoiceData = [
-            'customer' => $subscription['customer'],
-            'invoice_date' => now()->toDateString(),
-            'due_date' => now()->addDays(30)->toDateString(),
-            'reference' => "Subscription: {$subscription['title']}",
-            'subscription_id' => $subscription['id'],
-            'grouped_lines' => [
-                [
-                    'section' => [
-                        'title' => $subscription['title']
-                    ],
-                    'line_items' => $subscription['line_items'] ?? []
-                ]
-            ]
-        ];
-
-        $result = $this->sdk->invoices()->create($invoiceData);
-        
-        if (isset($result['error'])) {
-            throw new \Exception('Failed to create recurring invoice: ' . $result['message']);
-        }
-        
-        return $result['data'];
-    }
-
-    /**
-     * Get overdue invoices with customer information
-     */
-    public function getOverdueInvoices(): array
-    {
-        $this->ensureConnected();
-        
-        $overdueInvoices = $this->sdk->invoices()
-            ->with('customer')
-            ->list([
-                'due_date_before' => now()->toDateString(),
-                'status' => 'sent'
-            ], [
-                'sort' => 'due_date',
-                'sort_order' => 'asc'
-            ]);
-        
-        // Calculate days overdue and organize by urgency
-        $organized = [
-            'critical' => [], // 30+ days overdue
-            'urgent' => [],   // 15-29 days overdue
-            'warning' => []   // 1-14 days overdue
-        ];
-        
-        foreach ($overdueInvoices['data'] ?? [] as $invoice) {
-            $dueDate = \Carbon\Carbon::parse($invoice['due_date']);
-            $daysOverdue = now()->diffInDays($dueDate);
-            
-            $invoice['days_overdue'] = $daysOverdue;
-            
-            if ($daysOverdue >= 30) {
-                $organized['critical'][] = $invoice;
-            } elseif ($daysOverdue >= 15) {
-                $organized['urgent'][] = $invoice;
-            } else {
-                $organized['warning'][] = $invoice;
-            }
-        }
-        
-        return [
-            'invoices' => $organized,
-            'summary' => [
-                'total_overdue' => count($overdueInvoices['data'] ?? []),
-                'critical' => count($organized['critical']),
-                'urgent' => count($organized['urgent']),
-                'warning' => count($organized['warning']),
-                'total_amount' => array_sum(array_column($overdueInvoices['data'] ?? [], 'total'))
-            ]
-        ];
-    }
-}
+// With additional filters
+$contacts = Teamleader::contacts()->list([
+    'updated_since' => '2024-01-01',
+    'status' => 'active'
+]);
 ```
 
-## Time Tracking
-
-### Time Tracking Service
+### Sorting
 
 ```php
-class TimeTrackingService extends TeamleaderService
-{
-    /**
-     * Start timer for project
-     */
-    public function startTimer(string $projectId, array $data = []): array
-    {
-        $this->ensureConnected();
-        
-        // Stop any existing timers for this user
-        $this->stopActiveTimers($data['user_id'] ?? null);
-        
-        $result = $this->sdk->timers()->start([
-            'started_at' => now()->toISOString(),
-            'description' => $data['description'] ?? null,
-            'project_id' => $projectId,
-            'user_id' => $data['user_id'] ?? null,
-            'work_type_id' => $data['work_type_id'] ?? null
-        ]);
-        
-        if (isset($result['error'])) {
-            throw new \Exception('Failed to start timer: ' . $result['message']);
-        }
-        
-        return $result['data'];
-    }
+// Sort by a field
+$companies = Teamleader::companies()->list([], [
+    'sort' => 'name',
+    'sort_order' => 'asc'
+]);
 
-    /**
-     * Stop timer and create time entry
-     */
-    public function stopTimer(string $timerId, array $data = []): array
-    {
-        $this->ensureConnected();
-        
-        $result = $this->sdk->timers()->stop($timerId, [
-            'ended_at' => now()->toISOString(),
-            'description' => $data['description'] ?? null
-        ]);
-        
-        if (isset($result['error'])) {
-            throw new \Exception('Failed to stop timer: ' . $result['message']);
-        }
-        
-        return $result['data'];
-    }
-
-    /**
-     * Get time tracking report for period
-     */
-    public function getTimeReport(
-        string $startDate, 
-        string $endDate, 
-        array $filters = []
-    ): array {
-        $this->ensureConnected();
-        
-        $queryFilters = array_merge([
-            'started_after' => $startDate,
-            'started_before' => $endDate
-        ], $filters);
-        
-        $timeEntries = $this->sdk->timeTracking()
-            ->with(['user', 'project', 'work_type'])
-            ->list($queryFilters, ['page_size' => 1000]);
-        
-        // Organize by user and project
-        $report = [
-            'period' => ['start' => $startDate, 'end' => $endDate],
-            'by_user' => [],
-            'by_project' => [],
-            'by_work_type' => [],
-            'summary' => [
-                'total_hours' => 0,
-                'total_entries' => 0,
-                'billable_hours' => 0
-            ]
-        ];
-        
-        foreach ($timeEntries['data'] ?? [] as $entry) {
-            $hours = ($entry['duration'] ?? 0) / 3600;
-            $userId = $entry['user_id'] ?? 'unknown';
-            $projectId = $entry['project_id'] ?? 'unknown';
-            $workTypeId = $entry['work_type_id'] ?? 'unknown';
-            
-            // By user
-            if (!isset($report['by_user'][$userId])) {
-                $report['by_user'][$userId] = [
-                    'hours' => 0,
-                    'entries' => 0,
-                    'user_name' => 'Unknown'
-                ];
-            }
-            $report['by_user'][$userId]['hours'] += $hours;
-            $report['by_user'][$userId]['entries']++;
-            
-            // By project
-            if (!isset($report['by_project'][$projectId])) {
-                $report['by_project'][$projectId] = [
-                    'hours' => 0,
-                    'entries' => 0,
-                    'project_name' => 'Unknown'
-                ];
-            }
-            $report['by_project'][$projectId]['hours'] += $hours;
-            $report['by_project'][$projectId]['entries']++;
-            
-            // By work type
-            if (!isset($report['by_work_type'][$workTypeId])) {
-                $report['by_work_type'][$workTypeId] = [
-                    'hours' => 0,
-                    'entries' => 0,
-                    'work_type_name' => 'Unknown'
-                ];
-            }
-            $report['by_work_type'][$workTypeId]['hours'] += $hours;
-            $report['by_work_type'][$workTypeId]['entries']++;
-            
-            // Totals
-            $report['summary']['total_hours'] += $hours;
-            $report['summary']['total_entries']++;
-            
-            if ($entry['billable'] ?? false) {
-                $report['summary']['billable_hours'] += $hours;
-            }
-        }
-        
-        // Add names from included data
-        $this->enrichReportWithNames($report, $timeEntries['included'] ?? []);
-        
-        return $report;
-    }
-
-    /**
-     * Stop all active timers for user
-     */
-    private function stopActiveTimers(?string $userId = null): void
-    {
-        $filters = $userId ? ['user_id' => $userId] : [];
-        
-        $activeTimers = $this->sdk->timers()->list($filters);
-        
-        foreach ($activeTimers['data'] ?? [] as $timer) {
-            if ($timer['status'] === 'active') {
-                $this->stopTimer($timer['id']);
-            }
-        }
-    }
-
-    /**
-     * Enrich report with names from included data
-     */
-    private function enrichReportWithNames(array &$report, array $included): void
-    {
-        // Add user names
-        foreach ($included['user'] ?? [] as $user) {
-            $userId = $user['id'];
-            if (isset($report['by_user'][$userId])) {
-                $report['by_user'][$userId]['user_name'] = 
-                    ($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? '');
-            }
-        }
-        
-        // Add project names
-        foreach ($included['project'] ?? [] as $project) {
-            $projectId = $project['id'];
-            if (isset($report['by_project'][$projectId])) {
-                $report['by_project'][$projectId]['project_name'] = $project['title'] ?? 'Unknown';
-            }
-        }
-        
-        // Add work type names
-        foreach ($included['work_type'] ?? [] as $workType) {
-            $workTypeId = $workType['id'];
-            if (isset($report['by_work_type'][$workTypeId])) {
-                $report['by_work_type'][$workTypeId]['work_type_name'] = $workType['name'] ?? 'Unknown';
-            }
-        }
-    }
-}
+// Multiple sort fields
+$companies = Teamleader::companies()->list([], [
+    'sort' => ['name', 'updated_at'],
+    'sort_order' => 'desc'
+]);
 ```
 
-## Bulk Operations
-
-### Bulk Import Service
+### Tagging
 
 ```php
-class BulkImportService extends TeamleaderService
-{
-    /**
-     * Import data with rate limit awareness and error handling
-     */
-    public function bulkImport(string $resourceType, array $data, array $options = []): array
-    {
-        $this->ensureConnected();
-        
-        $batchSize = $options['batch_size'] ?? 10;
-        $delayBetweenBatches = $options['delay'] ?? 1; // seconds
-        
-        $results = [
-            'successful' => [],
-            'failed' => [],
-            'statistics' => [
-                'total' => count($data),
-                'processed' => 0,
-                'successful' => 0,
-                'failed' => 0,
-                'start_time' => now(),
-                'batches_processed' => 0
-            ]
-        ];
-        
-        $batches = array_chunk($data, $batchSize);
-        
-        foreach ($batches as $batchIndex => $batch) {
-            Log::info("Processing batch " . ($batchIndex + 1) . " of " . count($batches));
-            
-            // Check rate limits before processing batch
-            $this->checkRateLimits();
-            
-            foreach ($batch as $index => $item) {
-                try {
-                    $result = $this->importSingleItem($resourceType, $item);
-                    
-                    $results['successful'][] = [
-                        'index' => $index,
-                        'data' => $result,
-                        'original' => $item
-                    ];
-                    
-                    $results['statistics']['successful']++;
-                    
-                } catch (\Exception $e) {
-                    $results['failed'][] = [
-                        'index' => $index,
-                        'error' => $e->getMessage(),
-                        'original' => $item
-                    ];
-                    
-                    $results['statistics']['failed']++;
-                    
-                    Log::error("Bulk import error at index {$index}", [
-                        'error' => $e->getMessage(),
-                        'data' => $item
-                    ]);
-                }
-                
-                $results['statistics']['processed']++;
-            }
-            
-            $results['statistics']['batches_processed']++;
-            
-            // Delay between batches to avoid rate limits
-            if ($batchIndex < count($batches) - 1) {
-                sleep($delayBetweenBatches);
-            }
-        }
-        
-        $results['statistics']['end_time'] = now();
-        $results['statistics']['duration'] = $results['statistics']['start_time']
-            ->diffInSeconds($results['statistics']['end_time']);
-        
-        return $results;
-    }
+// Add tags to a resource
+Teamleader::companies()->tag('company-uuid', ['vip', 'enterprise']);
 
-    /**
-     * Import single item based on resource type
-     */
-    private function importSingleItem(string $resourceType, array $data): array
-    {
-        switch ($resourceType) {
-            case 'companies':
-                return $this->sdk->companies()->create($data);
-            
-            case 'contacts':
-                return $this->sdk->contacts()->create($data);
-            
-            case 'deals':
-                return $this->sdk->deals()->create($data);
-            
-            default:
-                throw new \Exception("Unsupported resource type: {$resourceType}");
-        }
-    }
+// Remove tags
+Teamleader::companies()->untag('company-uuid', ['vip']);
 
-    /**
-     * Check and handle rate limits
-     */
-    private function checkRateLimits(): void
-    {
-        $stats = $this->sdk->getRateLimitStats();
-        
-        if ($stats['remaining'] <= 10) {
-            $waitTime = $stats['seconds_until_reset'] + 1;
-            Log::info("Rate limit approaching, waiting {$waitTime} seconds", $stats);
-            sleep($waitTime);
-        }
-    }
-
-    /**
-     * Export data with relationships
-     */
-    public function exportData(string $resourceType, array $filters = []): array
-    {
-        $this->ensureConnected();
-        
-        $allData = [];
-        $page = 1;
-        $pageSize = 100;
-        
-        do {
-            $result = $this->getResourceData($resourceType, $filters, $page, $pageSize);
-            
-            $data = $result['data'] ?? [];
-            $allData = array_merge($allData, $data);
-            
-            Log::info("Exported page {$page}, got " . count($data) . " items");
-            
-            $hasMore = count($data) === $pageSize;
-            $page++;
-            
-            // Respect rate limits during export
-            $this->checkRateLimits();
-            
-        } while ($hasMore && $page <= 50); // Safety limit
-        
-        return [
-            'data' => $allData,
-            'meta' => [
-                'total_exported' => count($allData),
-                'resource_type' => $resourceType,
-                'filters_applied' => $filters,
-                'exported_at' => now()->toISOString()
-            ]
-        ];
-    }
-
-    /**
-     * Get resource data with appropriate includes
-     */
-    private function getResourceData(string $resourceType, array $filters, int $page, int $pageSize): array
-    {
-        $options = [
-            'page_number' => $page,
-            'page_size' => $pageSize
-        ];
-        
-        switch ($resourceType) {
-            case 'companies':
-                return $this->sdk->companies()
-                    ->withResponsibleUser()
-                    ->with(['addresses', 'business_type'])
-                    ->list($filters, $options);
-            
-            case 'contacts':
-                return $this->sdk->contacts()
-                    ->withCompany()
-                    ->withResponsibleUser()
-                    ->list($filters, $options);
-            
-            case 'deals':
-                return $this->sdk->deals()
-                    ->withCustomer()
-                    ->withResponsibleUser()
-                    ->with(['deal_phase', 'deal_source'])
-                    ->list($filters, $options);
-            
-            default:
-                throw new \Exception("Unsupported export resource: {$resourceType}");
-        }
-    }
-}
-```
-
-## Advanced Integration Patterns
-
-### Webhook Handler Service
-
-```php
-class WebhookHandlerService extends TeamleaderService
-{
-    /**
-     * Process webhook payload
-     */
-    public function processWebhook(array $payload): void
-    {
-        $eventType = $payload['type'] ?? null;
-        $eventData = $payload['data'] ?? [];
-        
-        Log::info("Processing Teamleader webhook", [
-            'event_type' => $eventType,
-            'resource_id' => $eventData['id'] ?? null
-        ]);
-        
-        switch ($eventType) {
-            case 'deal.won':
-                $this->handleDealWon($eventData);
-                break;
-            
-            case 'invoice.paid':
-                $this->handleInvoicePaid($eventData);
-                break;
-            
-            case 'contact.created':
-                $this->handleContactCreated($eventData);
-                break;
-            
-            case 'project.completed':
-                $this->handleProjectCompleted($eventData);
-                break;
-            
-            default:
-                Log::info("Unhandled webhook event type: {$eventType}");
-        }
-    }
-
-    /**
-     * Handle deal won webhook
-     */
-    private function handleDealWon(array $dealData): void
-    {
-        // Sync deal data to local database
-        $this->syncDealToLocal($dealData['id']);
-        
-        // Trigger celebration email
-        $this->sendDealWonNotification($dealData);
-        
-        // Create follow-up tasks
-        $this->createPostSaleTasks($dealData);
-    }
-
-    /**
-     * Handle invoice paid webhook
-     */
-    private function handleInvoicePaid(array $invoiceData): void
-    {
-        // Update local records
-        $this->updateInvoiceStatus($invoiceData['id'], 'paid');
-        
-        // Send thank you email
-        $this->sendPaymentConfirmation($invoiceData);
-        
-        // Update customer credit limit if applicable
-        $this->updateCustomerCredit($invoiceData['customer_id']);
-    }
-
-    /**
-     * Sync deal to local database
-     */
-    private function syncDealToLocal(string $dealId): void
-    {
-        $deal = $this->sdk->deals()
-            ->withCustomer()
-            ->withResponsibleUser()
-            ->info($dealId);
-        
-        if (isset($deal['error'])) {
-            Log::error("Failed to sync deal {$dealId}: " . $deal['message']);
-            return;
-        }
-        
-        // Update local database
-        \DB::table('local_deals')->updateOrInsert(
-            ['teamleader_id' => $dealId],
-            [
-                'title' => $deal['data']['title'],
-                'value' => $deal['data']['estimated_value'],
-                'status' => $deal['data']['status'],
-                'customer_name' => $this->getCustomerName($deal),
-                'updated_at' => now()
-            ]
-        );
-    }
-}
+// Manage tags (add and remove in one call)
+Teamleader::companies()->manageTags('company-uuid', 
+    ['new-tag'],  // tags to add
+    ['old-tag']   // tags to remove
+);
 ```
 
 ## Error Handling
 
-### Built-in Error Handler
-
-The SDK includes a comprehensive error handling system that automatically handles all API errors, retry logic, and exception management. You can configure how errors are handled through the configuration file:
+The SDK automatically handles retries and provides detailed error information:
 
 ```php
-// In config/teamleader.php
-'error_handling' => [
-    'throw_exceptions' => false,  // Set to true to throw exceptions instead of returning error arrays
-    'log_errors' => true,        // Log all errors
-    'include_stack_trace' => false,
-    'parse_teamleader_errors' => true,
-],
-```
-
-### Exception Mode vs Array Mode
-
-#### Array Mode (Default)
-```php
-$result = $teamleader->contacts()->create($data);
-
-if (isset($result['error'])) {
-    // Handle error
-    $errors = $result['errors'] ?? [$result['message']];
-    $userMessage = $result['user_message'] ?? $result['message'];
-    $isRetryable = $result['retryable'] ?? false;
-    
-    foreach ($errors as $error) {
-        Log::error("Contact creation failed: " . $error);
-    }
-}
-```
-
-#### Exception Mode
-```php
-use McoreServices\TeamleaderSDK\Exceptions\{
-    ValidationException,
-    RateLimitExceededException,
-    AuthenticationException
-};
-
-// Enable exceptions for this instance
-$teamleader->throwExceptions(true);
+use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
 
 try {
-    $contact = $teamleader->contacts()->create($data);
-} catch (ValidationException $e) {
-    // Handle validation errors
-    $errors = $e->getAllErrors();
-    $userMessage = $teamleader->getErrorHandler()->getUserFriendlyMessage($e);
-} catch (RateLimitExceededException $e) {
-    // Handle rate limit
-    $retryAfter = $e->getRetryAfter();
-    $resetTime = $e->getResetTime();
-} catch (AuthenticationException $e) {
-    // Handle auth failure - redirect to login
-    return redirect('/auth/teamleader');
+    $company = Teamleader::companies()->create([
+        'name' => 'Test Company'
+    ]);
+} catch (TeamleaderException $e) {
+    // Get error details
+    $statusCode = $e->getCode();
+    $message = $e->getMessage();
+    $details = $e->getDetails();
+    
+    // Log or handle the error
+    Log::error('Teamleader API error', [
+        'status' => $statusCode,
+        'message' => $message,
+        'details' => $details
+    ]);
 }
 ```
 
-### Available Exception Types
+## Rate Limiting
 
-- `AuthenticationException` - 401 errors, token issues
-- `AuthorizationException` - 403 errors, permission denied
-- `NotFoundException` - 404 errors, resource not found
-- `ValidationException` - 422 errors, invalid data
-- `RateLimitExceededException` - 429 errors, rate limit exceeded
-- `ServerException` - 5xx errors, server issues
-- `ConnectionException` - Network/connection problems
-- `ConfigurationException` - SDK configuration issues
-
-### Automatic Retry Logic
-
-The SDK automatically retries transient errors (server errors, rate limits, connection issues) with exponential backoff:
+The SDK includes automatic rate limiting to prevent hitting API limits:
 
 ```php
-// This will automatically retry on transient errors
-$deals = $teamleader->deals()->list();
+// Get rate limit statistics
+$stats = Teamleader::getRateLimitStats();
 
-// You can also use the retry logic directly
-$result = $teamleader->getErrorHandler()->withRetry(function () use ($teamleader) {
-    return $teamleader->deals()->info('some-deal-id');
-}, 3); // 3 attempts
+// Check if you're approaching the limit
+if ($stats['usage_percentage'] > 80) {
+    Log::warning('Approaching Teamleader API rate limit');
+}
 ```
 
-### Custom Error Handling
+## API Call Statistics
+
+Track your API usage:
 
 ```php
-class CustomTeamleaderService extends TeamleaderService
+// Get total API calls in current session
+$totalCalls = Teamleader::getApiCallCount();
+
+// Get detailed call history
+$calls = Teamleader::getApiCalls();
+
+// Reset statistics
+Teamleader::resetApiCallStats();
+```
+
+## Debugging
+
+### Enable Debug Logging
+
+Set your log level in `.env`:
+
+```env
+LOG_LEVEL=debug
+```
+
+### Check SDK Status
+
+Use the built-in commands:
+
+```bash
+# Check connection status
+php artisan teamleader:status
+
+# Run health check
+php artisan teamleader:health
+
+# Validate configuration
+php artisan teamleader:config:validate
+```
+
+## Best Practices
+
+### 1. Use Dependency Injection
+
+Prefer dependency injection over the Facade for better testability:
+
+```php
+class InvoiceService
 {
-    protected function handleTeamleaderError(\Exception $e): void
+    public function __construct(
+        private TeamleaderSDK $teamleader
+    ) {}
+    
+    public function createInvoice(array $data)
     {
-        $errorHandler = $this->sdk->getErrorHandler();
-        
-        if ($errorHandler->isRetryableError($e)) {
-            // Queue for retry later
-            dispatch(new RetryTeamleaderRequestJob($e->getContext()));
-        } else {
-            // Log and notify admin
-            Log::error('Non-retryable Teamleader error', [
-                'error' => $e->getMessage(),
-                'user_message' => $errorHandler->getUserFriendlyMessage($e)
-            ]);
-        }
+        return $this->teamleader->invoices()->create($data);
     }
 }
 ```
 
-This comprehensive usage documentation covers real-world scenarios and best practices for using the enhanced Teamleader SDK. The examples demonstrate proper error handling, rate limit awareness, and efficient use of sideloading to minimize API calls while maximizing functionality.
+### 2. Handle Pagination Properly
+
+Always consider pagination when listing resources:
+
+```php
+public function getAllContacts()
+{
+    $allContacts = [];
+    $page = 1;
+    
+    do {
+        $response = Teamleader::contacts()->list([], [
+            'page_size' => 100,
+            'page_number' => $page
+        ]);
+        
+        $allContacts = array_merge($allContacts, $response['data']);
+        $page++;
+    } while (!empty($response['data']) && count($response['data']) === 100);
+    
+    return $allContacts;
+}
+```
+
+### 3. Use Sideloading to Reduce API Calls
+
+Load related data in a single request:
+
+```php
+// Instead of this (2 API calls):
+$company = Teamleader::companies()->info('company-uuid');
+$user = Teamleader::users()->info($company['responsible_user']['id']);
+
+// Do this (1 API call):
+$company = Teamleader::companies()
+    ->with('responsible_user')
+    ->info('company-uuid');
+```
+
+### 4. Cache Frequently Accessed Data
+
+```php
+use Illuminate\Support\Facades\Cache;
+
+public function getBusinessTypes()
+{
+    return Cache::remember('teamleader.business_types', 3600, function () {
+        return Teamleader::businessTypes()->list();
+    });
+}
+```
+
+### 5. Use Queued Jobs for Bulk Operations
+
+```php
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+
+class SyncCompaniesJob implements ShouldQueue
+{
+    use Queueable;
+    
+    public function handle(TeamleaderSDK $teamleader)
+    {
+        $page = 1;
+        
+        do {
+            $companies = $teamleader->companies()->list([], [
+                'page_size' => 100,
+                'page_number' => $page
+            ]);
+            
+            // Process companies...
+            
+            $page++;
+        } while (!empty($companies['data']));
+    }
+}
+```
+
+## Next Steps
+
+- Learn about [Filtering](filtering.md) to narrow down your results
+- Discover [Sideloading](sideloading.md) to efficiently load related data
+- Check individual resource documentation for endpoint-specific features

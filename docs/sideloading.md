@@ -1,471 +1,627 @@
-# Sideloading (Including Related Resources)
+# Sideloading Guide
 
-Sideloading allows you to fetch related resources in a single API request, reducing the number of HTTP calls needed and improving performance. The Teamleader SDK provides a fluent interface for sideloading relationships.
+Complete guide to efficiently loading related data using sideloading (includes) in the Teamleader SDK.
 
-## Table of Contents
+## Overview
 
-- [What is Sideloading?](#what-is-sideloading)
-- [Basic Sideloading](#basic-sideloading)
-- [Fluent Interface](#fluent-interface)
-- [Common Relationships](#common-relationships)
-- [Advanced Sideloading](#advanced-sideloading)
-- [Response Structure](#response-structure)
-- [Performance Benefits](#performance-benefits)
-- [Best Practices](#best-practices)
+Sideloading allows you to load related resources in a single API request instead of making multiple requests. This significantly improves performance and reduces API call usage.
 
-## What is Sideloading?
+## The Problem Sideloading Solves
 
-Sideloading (also called "compound documents") allows you to retrieve related resources as part of a single request. For example, when fetching a deal, you can also include the customer and responsible user information without making separate API calls.
+Without sideloading, you'd need multiple API calls:
 
-### Without Sideloading (3 API calls)
 ```php
-// Get the deal
-$deal = $teamleader->deals()->info('deal-uuid');
-
-// Get the customer (separate call)
-$customer = $teamleader->companies()->info($deal['data']['lead']['customer']['id']);
-
-// Get the responsible user (separate call)
-$user = $teamleader->users()->info($deal['data']['responsible_user']['id']);
+// ❌ Bad: 3 API calls
+$company = Teamleader::companies()->info('company-uuid');
+$user = Teamleader::users()->info($company['responsible_user']['id']);
+$businessType = Teamleader::businessTypes()->info($company['business_type']['id']);
 ```
 
-### With Sideloading (1 API call)
-```php
-// Get everything in one request
-$deal = $teamleader->deals()
-    ->withCustomer()
-    ->withResponsibleUser()
-    ->info('deal-uuid');
+With sideloading, you get everything in one call:
 
-// All related data is included in the response
-$customer = $deal['included']['company'][0];
-$user = $deal['included']['user'][0];
+```php
+// ✅ Good: 1 API call
+$company = Teamleader::companies()
+    ->with('responsible_user,business_type')
+    ->info('company-uuid');
 ```
 
 ## Basic Sideloading
 
 ### Using the `with()` Method
 
+The fluent `with()` method is the recommended way to sideload relationships:
+
 ```php
-// Include a single relationship
-$deals = $teamleader->deals()
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
+// Single relationship
+$company = Teamleader::companies()
     ->with('responsible_user')
-    ->list();
+    ->info('company-uuid');
 
-// Include multiple relationships
-$deals = $teamleader->deals()
-    ->with(['lead.customer', 'responsible_user', 'department'])
-    ->list();
+// Multiple relationships (comma-separated string)
+$company = Teamleader::companies()
+    ->with('responsible_user,addresses,business_type')
+    ->info('company-uuid');
 
-// Include nested relationships using dot notation
-$deals = $teamleader->deals()
-    ->with('lead.customer')
-    ->list();
+// Multiple relationships (array)
+$company = Teamleader::companies()
+    ->with(['responsible_user', 'addresses', 'business_type'])
+    ->info('company-uuid');
+
+// Chaining
+$company = Teamleader::companies()
+    ->with('responsible_user')
+    ->with('addresses')
+    ->with('business_type')
+    ->info('company-uuid');
 ```
 
-### Using Raw Include Parameter
+### Using the Options Parameter
+
+You can also specify includes in the options:
 
 ```php
-// Pass includes directly to list method
-$deals = $teamleader->deals()->list([], [
-    'include' => 'lead.customer,responsible_user'
+// In list() calls
+$companies = Teamleader::companies()->list([], [
+    'include' => 'responsible_user,addresses'
 ]);
 
-// Or for single resource
-$deal = $teamleader->deals()->info('deal-uuid', [
-    'include' => 'lead.customer,responsible_user,department'
-]);
-```
-
-## Fluent Interface
-
-The SDK provides a fluent interface for common relationships:
-
-### Helper Methods
-
-```php
-// Include customer information
-$deals = $teamleader->deals()->withCustomer()->list();
-
-// Include responsible user
-$contacts = $teamleader->contacts()->withResponsibleUser()->list();
-
-// Include department
-$projects = $teamleader->projects()->withDepartment()->list();
-
-// Include company (for contacts)
-$contacts = $teamleader->contacts()->withCompany()->list();
-
-// Include all common relationships at once
-$deals = $teamleader->deals()->withCommonRelationships()->list();
-```
-
-### Chaining Multiple Includes
-
-```php
-$deals = $teamleader->deals()
-    ->withCustomer()
-    ->withResponsibleUser()
-    ->withDepartment()
-    ->with('deal_source')
-    ->list();
-```
-
-### Conditional Includes
-
-```php
-$query = $teamleader->deals();
-
-if ($includeCustomer) {
-    $query->withCustomer();
-}
-
-if ($includeUser) {
-    $query->withResponsibleUser();
-}
-
-$deals = $query->list();
+// In info() calls
+$company = Teamleader::companies()->info('company-uuid', 'responsible_user,addresses');
 ```
 
 ## Common Relationships
 
-### Deals
+### CRM Resources
+
+#### Companies
+
+Available includes:
+- `responsible_user` - The user responsible for the company
+- `addresses` - Company addresses
+- `business_type` - Business type information
+- `tags` - Company tags
+- `added_by` - User who added the company
+- `language` - Language information
+- `custom_fields` - Custom field values
 
 ```php
-$deals = $teamleader->deals()
-    ->withCustomer()           // lead.customer
-    ->withResponsibleUser()    // responsible_user
-    ->withDepartment()         // department
-    ->with('deal_source')      // deal_source
-    ->with('deal_phase')       // deal_phase
-    ->list();
+// Load company with all common relationships
+$company = Teamleader::companies()
+    ->with('responsible_user,addresses,business_type,tags')
+    ->info('company-uuid');
 ```
 
-### Contacts
+#### Contacts
+
+Available includes:
+- `responsible_user` - The user responsible for the contact
+- `company` - The contact's company
+- `language` - Language information
+- `tags` - Contact tags
+- `added_by` - User who added the contact
+- `custom_fields` - Custom field values
 
 ```php
-$contacts = $teamleader->contacts()
-    ->withCompany()            // company
-    ->withResponsibleUser()    // responsible_user
-    ->with('addresses')        // addresses
-    ->with('tags')             // tags
-    ->list();
+// Load contact with company and responsible user
+$contact = Teamleader::contacts()
+    ->with('company,responsible_user')
+    ->info('contact-uuid');
 ```
 
-### Companies
+### Deal Resources
+
+#### Deals
+
+Available includes:
+- `lead.customer` - Customer information (company or contact)
+- `responsible_user` - The user responsible for the deal
+- `department` - Department information
+- `phase` - Current deal phase
+- `source` - Deal source
+- `custom_fields` - Custom field values
 
 ```php
-$companies = $teamleader->companies()
-    ->withResponsibleUser()    // responsible_user
-    ->with('addresses')        // addresses
-    ->with('tags')             // tags
-    ->with('business_type')    // business_type
-    ->list();
+// Load deal with customer and user information
+$deal = Teamleader::deals()
+    ->with('lead.customer,responsible_user,phase')
+    ->info('deal-uuid');
 ```
 
-### Projects
+#### Quotations
+
+Available includes:
+- `lead.customer` - Customer information
+- `responsible_user` - Responsible user
+- `department` - Department information
+- `deal` - Related deal (if any)
+- `grouped_lines` - Grouped quotation lines
+- `custom_fields` - Custom field values
 
 ```php
-$projects = $teamleader->projects()
-    ->withCustomer()           // customer
-    ->withResponsibleUser()    // responsible_user
-    ->withDepartment()         // department
-    ->with('project_status')   // project_status
-    ->list();
+$quotation = Teamleader::quotations()
+    ->with('lead.customer,responsible_user,grouped_lines')
+    ->info('quotation-uuid');
 ```
 
-### Invoices
+### Invoicing Resources
+
+#### Invoices
+
+Available includes:
+- `customer` - Customer information
+- `department` - Department information
+- `invoicee` - Invoicee information
+- `grouped_lines` - Grouped invoice lines
+- `credit_notes` - Related credit notes
+- `custom_fields` - Custom field values
 
 ```php
-$invoices = $teamleader->invoices()
-    ->with('customer')         // customer
-    ->withResponsibleUser()    // responsible_user
-    ->withDepartment()         // department
-    ->with('payment_term')     // payment_term
-    ->list();
+$invoice = Teamleader::invoices()
+    ->with('customer,grouped_lines')
+    ->info('invoice-uuid');
 ```
 
-## Advanced Sideloading
+### Project Resources
 
-### Nested Relationships
+#### Projects
 
-Use dot notation for nested relationships:
+Available includes:
+- `customer` - Customer information
+- `responsible_user` - Responsible user
+- `department` - Department information
+- `custom_fields` - Custom field values
 
 ```php
-// Include customer and their addresses
-$deals = $teamleader->deals()
-    ->with('lead.customer.addresses')
-    ->list();
-
-// Multiple nested includes
-$quotations = $teamleader->quotations()
-    ->with([
-        'lead.customer.addresses',
-        'lead.customer.business_type',
-        'responsible_user.department'
-    ])
-    ->list();
+$project = Teamleader::projects()
+    ->with('customer,responsible_user')
+    ->info('project-uuid');
 ```
 
-### Conditional Nested Includes
+## Helper Methods
+
+The SDK provides convenient helper methods for common relationships:
+
+### Universal Helper Methods
+
+These methods work across most resources:
 
 ```php
-$deals = $teamleader->deals()
-    ->withCustomer()
-    ->with('lead.customer.addresses')  // Only if customer exists
-    ->list();
-```
-
-### Resource-Specific Includes
-
-Different resources support different relationships:
-
-```php
-// Time tracking with project and user
-$timeEntries = $teamleader->timeTracking()
-    ->with(['project', 'user', 'work_type'])
-    ->list();
-
-// Tasks with project and assignee
-$tasks = $teamleader->tasks()
-    ->with(['project', 'assignee', 'milestone'])
-    ->list();
-
-// Meetings with participants
-$meetings = $teamleader->meetings()
-    ->with(['attendees', 'organizer'])
-    ->list();
-```
-
-## Response Structure
-
-When you include related resources, they appear in the `included` section of the response:
-
-```php
-$response = $teamleader->deals()
-    ->withCustomer()
+// Load responsible user
+$company = Teamleader::companies()
     ->withResponsibleUser()
+    ->info('company-uuid');
+
+// Load department
+$deal = Teamleader::deals()
+    ->withDepartment()
     ->info('deal-uuid');
 
-// Main resource
-$deal = $response['data'];
-
-// Related resources are indexed by type
-$included = $response['included'];
-
-// Find the customer
-$customerId = $deal['lead']['customer']['id'];
-$customer = collect($included['company'])->firstWhere('id', $customerId);
-
-// Find the responsible user
-$userId = $deal['responsible_user']['id'];
-$user = collect($included['user'])->firstWhere('id', $userId);
+// Load custom fields
+$contact = Teamleader::contacts()
+    ->withCustomFields()
+    ->info('contact-uuid');
 ```
 
-### Helper for Extracting Included Resources
+### Resource-Specific Helper Methods
+
+#### Companies
 
 ```php
-class IncludedResourceHelper
-{
-    public static function find(array $included, string $type, string $id)
-    {
-        if (!isset($included[$type])) {
-            return null;
-        }
-        
-        return collect($included[$type])->firstWhere('id', $id);
-    }
-    
-    public static function findAll(array $included, string $type): array
-    {
-        return $included[$type] ?? [];
-    }
-}
-
-// Usage
-$customer = IncludedResourceHelper::find($response['included'], 'company', $customerId);
-$user = IncludedResourceHelper::find($response['included'], 'user', $userId);
-```
-
-## Performance Benefits
-
-### Reduced API Calls
-
-```php
-// Without sideloading: 1 + N queries (where N = number of deals)
-$deals = $teamleader->deals()->list();
-foreach ($deals['data'] as $deal) {
-    // Each iteration makes 2 additional API calls
-    $customer = $teamleader->companies()->info($deal['lead']['customer']['id']);
-    $user = $teamleader->users()->info($deal['responsible_user']['id']);
-}
-
-// With sideloading: 1 query total
-$deals = $teamleader->deals()
-    ->withCustomer()
+$company = Teamleader::companies()
+    ->withAddresses()
+    ->withBusinessType()
     ->withResponsibleUser()
-    ->list();
-// All related data is already included
+    ->withAddedBy()
+    ->info('company-uuid');
+
+// Or load all common relationships
+$company = Teamleader::companies()
+    ->withCommonRelationships()
+    ->info('company-uuid');
 ```
 
-### Rate Limit Efficiency
+#### Contacts
 
 ```php
-// This uses only 1 API call instead of potentially 50+
-$dealsWithRelated = $teamleader->deals()
-    ->withCommonRelationships()
-    ->list(['page_size' => 50]);
+$contact = Teamleader::contacts()
+    ->withCompany()
+    ->withResponsibleUser()
+    ->info('contact-uuid');
+```
 
-// Check rate limit usage
-$stats = $teamleader->getRateLimitStats();
-echo "Used only 1 request instead of 100+";
+#### Deals
+
+```php
+$deal = Teamleader::deals()
+    ->withCustomer()  // Loads lead.customer
+    ->withResponsibleUser()
+    ->withDepartment()
+    ->info('deal-uuid');
+```
+
+## Nested Relationships
+
+Some relationships can be nested using dot notation:
+
+```php
+// Load deal with customer information
+$deal = Teamleader::deals()
+    ->with('lead.customer')
+    ->info('deal-uuid');
+
+// Access the nested data
+$customerName = $deal['data']['lead']['customer']['name'];
+```
+
+## Sideloading in List Calls
+
+Sideloading works with both `info()` and `list()` calls:
+
+```php
+// Load all companies with related data
+$companies = Teamleader::companies()
+    ->with('responsible_user,business_type')
+    ->list();
+
+// With filters
+$companies = Teamleader::companies()
+    ->with('responsible_user,addresses')
+    ->list([
+        'status' => 'active'
+    ]);
+
+// With pagination and sorting
+$companies = Teamleader::companies()
+    ->with('responsible_user,business_type')
+    ->list(
+        ['status' => 'active'],
+        [
+            'page_size' => 50,
+            'sort' => 'name'
+        ]
+    );
+```
+
+## Performance Optimization
+
+### Load Only What You Need
+
+```php
+// ❌ Bad: Loading unnecessary data
+$company = Teamleader::companies()
+    ->with('responsible_user,addresses,business_type,tags,language,added_by,custom_fields')
+    ->info('company-uuid');
+
+// ✅ Good: Load only required relationships
+$company = Teamleader::companies()
+    ->with('responsible_user')
+    ->info('company-uuid');
+```
+
+### Batch Processing with Sideloading
+
+When processing multiple resources, sideload in the list call:
+
+```php
+// ✅ Efficient: One API call with sideloaded data
+$companies = Teamleader::companies()
+    ->with('responsible_user,business_type')
+    ->list([], ['page_size' => 100]);
+
+foreach ($companies['data'] as $company) {
+    $userName = $company['responsible_user']['first_name'];
+    $businessType = $company['business_type']['name'];
+    // Process with included data
+}
+
+// ❌ Inefficient: Multiple API calls
+$companies = Teamleader::companies()->list([], ['page_size' => 100]);
+
+foreach ($companies['data'] as $company) {
+    // Each iteration makes 2 additional API calls!
+    $user = Teamleader::users()->info($company['responsible_user']['id']);
+    $businessType = Teamleader::businessTypes()->info($company['business_type']['id']);
+}
+```
+
+## Clearing Pending Includes
+
+If you need to reset includes in a chain:
+
+```php
+$resource = Teamleader::companies()
+    ->with('responsible_user')
+    ->withoutIncludes()  // Clears all pending includes
+    ->with('addresses')  // Start fresh
+    ->info('company-uuid');
+```
+
+## Checking Available Includes
+
+Check which relationships a resource supports:
+
+```php
+// Get resource capabilities
+$capabilities = Teamleader::companies()->getCapabilities();
+
+if ($capabilities['supports_sideloading']) {
+    // This resource supports sideloading
+    $defaultIncludes = $capabilities['default_includes'];
+}
+```
+
+## Working with Included Data
+
+### Accessing Sideloaded Data
+
+```php
+$company = Teamleader::companies()
+    ->with('responsible_user,addresses')
+    ->info('company-uuid');
+
+// Access the main resource
+$companyName = $company['data']['name'];
+
+// Access sideloaded relationships
+$userName = $company['data']['responsible_user']['first_name'];
+$userEmail = $company['data']['responsible_user']['email'];
+
+// Access array relationships
+foreach ($company['data']['addresses'] as $address) {
+    echo $address['line_1'];
+}
+```
+
+### Checking if Relationships are Loaded
+
+```php
+$company = Teamleader::companies()
+    ->with('responsible_user')
+    ->info('company-uuid');
+
+if (isset($company['data']['responsible_user'])) {
+    // Responsible user was loaded
+    $user = $company['data']['responsible_user'];
+} else {
+    // Responsible user was not loaded
+}
 ```
 
 ## Best Practices
 
-### 1. Include Only What You Need
+### 1. Always Use Sideloading for Related Data
 
 ```php
-// Good: Include only required relationships
-$deals = $teamleader->deals()
-    ->withCustomer()
-    ->list();
+// ✅ Good: One API call
+$deal = Teamleader::deals()
+    ->with('lead.customer,responsible_user')
+    ->info('deal-uuid');
 
-// Avoid: Including everything unnecessarily
-$deals = $teamleader->deals()
-    ->withCommonRelationships()
-    ->with(['deal_source', 'deal_phase', 'tags'])
-    ->list(); // Only if you actually need all of this
+// ❌ Bad: Three API calls
+$deal = Teamleader::deals()->info('deal-uuid');
+$customer = Teamleader::companies()->info($deal['lead']['customer']['id']);
+$user = Teamleader::users()->info($deal['responsible_user']['id']);
 ```
 
-### 2. Use Common Patterns
+### 2. Use Helper Methods for Readability
 
 ```php
-// For displaying deal cards
-$dealsForCards = $teamleader->deals()
-    ->withCustomer()
+// ✅ Good: Clear and readable
+$company = Teamleader::companies()
     ->withResponsibleUser()
-    ->list();
+    ->withAddresses()
+    ->withBusinessType()
+    ->info('company-uuid');
 
-// For detailed deal view
-$dealDetails = $teamleader->deals()
-    ->withCommonRelationships()
-    ->with(['deal_source', 'deal_phase'])
-    ->info($dealId);
+// ❌ Less readable: Magic strings
+$company = Teamleader::companies()
+    ->with('responsible_user,addresses,business_type')
+    ->info('company-uuid');
 ```
 
-### 3. Clear Includes When Not Needed
+### 3. Group Related Sideloads
 
 ```php
-$query = $teamleader->deals()->withCustomer();
-
-if ($lightweightQuery) {
-    $query->withoutIncludes(); // Clear previously set includes
-}
-
-$deals = $query->list();
+// ✅ Good: Organized by concern
+$deal = Teamleader::deals()
+    ->with([
+        // Customer information
+        'lead.customer',
+        
+        // Deal metadata
+        'phase',
+        'source',
+        'responsible_user',
+        
+        // Department info
+        'department'
+    ])
+    ->info('deal-uuid');
 ```
 
-### 4. Validate Include Paths
-
-The SDK automatically validates include paths:
+### 4. Cache Sideloaded Results
 
 ```php
-// This will be filtered out (invalid relationship)
-$deals = $teamleader->deals()
-    ->with('invalid_relationship')  // Ignored
-    ->withCustomer()                // Valid, will be included
-    ->list();
-```
+use Illuminate\Support\Facades\Cache;
 
-### 5. Handle Missing Relationships
-
-```php
-$response = $teamleader->deals()->withCustomer()->info($dealId);
-
-$deal = $response['data'];
-$customer = null;
-
-// Check if customer reference exists
-if (isset($deal['lead']['customer']['id'])) {
-    $customerId = $deal['lead']['customer']['id'];
+public function getCompanyWithRelations($companyId)
+{
+    $cacheKey = "company.{$companyId}.with_relations";
     
-    // Find in included resources
-    if (isset($response['included']['company'])) {
-        $customer = collect($response['included']['company'])
-            ->firstWhere('id', $customerId);
+    return Cache::remember($cacheKey, 3600, function () use ($companyId) {
+        return Teamleader::companies()
+            ->with('responsible_user,business_type,addresses')
+            ->info($companyId);
+    });
+}
+```
+
+### 5. Document Required Includes
+
+When building services, document which relationships are needed:
+
+```php
+/**
+ * Get company summary with all required relationships
+ * 
+ * Includes:
+ * - responsible_user: For display name and contact info
+ * - business_type: For categorization
+ * - addresses: For location data
+ */
+public function getCompanySummary(string $companyId): array
+{
+    return Teamleader::companies()
+        ->with('responsible_user,business_type,addresses')
+        ->info($companyId);
+}
+```
+
+## Common Patterns
+
+### Building a Detail View
+
+```php
+public function show($id)
+{
+    $company = Teamleader::companies()
+        ->with([
+            'responsible_user',
+            'addresses',
+            'business_type',
+            'tags'
+        ])
+        ->info($id);
+    
+    return view('companies.show', [
+        'company' => $company['data']
+    ]);
+}
+```
+
+### Building a List View
+
+```php
+public function index(Request $request)
+{
+    $companies = Teamleader::companies()
+        ->with('responsible_user,business_type')
+        ->list(
+            ['status' => 'active'],
+            [
+                'page_size' => 20,
+                'page_number' => $request->get('page', 1)
+            ]
+        );
+    
+    return view('companies.index', [
+        'companies' => $companies['data']
+    ]);
+}
+```
+
+### Building an API Response
+
+```php
+public function apiShow($id)
+{
+    $deal = Teamleader::deals()
+        ->with([
+            'lead.customer',
+            'responsible_user',
+            'phase',
+            'department'
+        ])
+        ->info($id);
+    
+    return response()->json([
+        'data' => $deal['data'],
+        'included' => [
+            'customer' => $deal['data']['lead']['customer'],
+            'user' => $deal['data']['responsible_user'],
+            'phase' => $deal['data']['phase']
+        ]
+    ]);
+}
+```
+
+### Conditional Sideloading
+
+```php
+public function getCompany($id, $includeRelations = false)
+{
+    $query = Teamleader::companies();
+    
+    if ($includeRelations) {
+        $query->withCommonRelationships();
+    }
+    
+    return $query->info($id);
+}
+```
+
+## Error Handling
+
+Handle cases where includes might not be available:
+
+```php
+$company = Teamleader::companies()
+    ->with('responsible_user,addresses')
+    ->info('company-uuid');
+
+// Always check if relationship exists
+$responsibleUserName = $company['data']['responsible_user']['first_name'] 
+    ?? 'No user assigned';
+
+// Or use null coalescing
+$addresses = $company['data']['addresses'] ?? [];
+```
+
+## Testing with Sideloading
+
+```php
+use Tests\TestCase;
+
+class CompanySideloadingTest extends TestCase
+{
+    public function test_can_load_company_with_relationships()
+    {
+        $company = Teamleader::companies()
+            ->with('responsible_user,addresses')
+            ->info('test-company-uuid');
+        
+        // Verify relationships are loaded
+        $this->assertArrayHasKey('responsible_user', $company['data']);
+        $this->assertArrayHasKey('addresses', $company['data']);
+        
+        // Verify relationship data structure
+        $this->assertArrayHasKey('first_name', $company['data']['responsible_user']);
+        $this->assertIsArray($company['data']['addresses']);
     }
 }
-
-// Handle case where customer might not be included
-if ($customer) {
-    echo "Customer: " . $customer['name'];
-} else {
-    echo "Customer information not available";
-}
 ```
 
-### 6. Caching Strategies
+## Configuration
+
+You can configure default includes in `config/teamleader.php`:
 
 ```php
-// Cache the response with includes to avoid repeated API calls
-$cacheKey = "deals_with_customers_" . md5(serialize($filters));
-
-$deals = Cache::remember($cacheKey, 300, function() use ($filters) {
-    return $teamleader->deals()
-        ->withCustomer()
-        ->withResponsibleUser()
-        ->list($filters);
-});
+'sideloading' => [
+    'defaults' => [
+        'companies' => ['responsible_user', 'business_type'],
+        'contacts' => ['company', 'responsible_user'],
+        'deals' => ['lead.customer', 'responsible_user', 'phase'],
+    ],
+    
+    'max_includes' => 10,  // Maximum number of includes per request
+],
 ```
 
-## Common Sideloading Patterns
+## Next Steps
 
-### Dashboard Widgets
-
-```php
-// Recent deals for dashboard
-$recentDeals = $teamleader->deals()
-    ->withCustomer()
-    ->withResponsibleUser()
-    ->list([
-        'updated_since' => now()->subDays(7)->toISOString()
-    ], [
-        'page_size' => 10,
-        'sort' => 'updated_at',
-        'sort_order' => 'desc'
-    ]);
-```
-
-### Export/Reporting
-
-```php
-// Full data export with all relationships
-$fullData = $teamleader->deals()
-    ->withCommonRelationships()
-    ->with(['deal_source', 'deal_phase', 'tags'])
-    ->list([], ['page_size' => 100]);
-```
-
-### Mobile API Optimization
-
-```php
-// Optimized for mobile - minimal includes
-$mobileDeals = $teamleader->deals()
-    ->withCustomer() // Only customer name needed
-    ->list();
-```
-
-### Search Results
-
-```php
-// Search with relevant context
-$searchResults = $teamleader->contacts()
-    ->withCompany()
-    ->withResponsibleUser()
-    ->list([
-        'email' => $searchTerm
-    ]);
-```
-
-This comprehensive sideloading system ensures you can efficiently fetch related data while maintaining optimal API performance and respecting rate limits.
+- Learn about [Filtering](filtering.md) to narrow down your results
+- See [Usage Guide](usage.md) for general SDK usage
+- Check individual resource documentation for available relationships
