@@ -10,8 +10,7 @@ use McoreServices\TeamleaderSDK\Services\ConfigurationValidator;
 class TeamleaderStatusCommand extends Command
 {
     protected $signature = 'teamleader:status
-                           {--json : Output as JSON}
-                           {--verbose : Show detailed information}';
+                           {--json : Output as JSON}';
 
     protected $description = 'Check Teamleader SDK connection status and statistics';
 
