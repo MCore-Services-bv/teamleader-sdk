@@ -1,6 +1,28 @@
 # Lost Reasons
 
-Manage lost reasons for deals in Teamleader Focus. This resource provides read-only access to deal lost reason information from your Teamleader account.
+Manage lost reasons for deals in Teamleader Focus.
+
+## Overview
+
+The Lost Reasons resource provides read-only access to the reasons why deals are marked as lost in your Teamleader account. Tracking why deals are lost helps identify common objections, improve your sales process, and understand competitive weaknesses.
+
+**Important:** The Lost Reasons resource is read-only. You cannot create, update, or delete lost reasons through the API. Lost reasons must be managed through the Teamleader interface.
+
+## Navigation
+
+- [Endpoint](#endpoint)
+- [Capabilities](#capabilities)
+- [Available Methods](#available-methods)
+    - [list()](#list)
+- [Helper Methods](#helper-methods)
+- [Filters](#filters)
+- [Sorting](#sorting)
+- [Response Structure](#response-structure)
+- [Usage Examples](#usage-examples)
+- [Common Use Cases](#common-use-cases)
+- [Best Practices](#best-practices)
+- [Error Handling](#error-handling)
+- [Related Resources](#related-resources)
 
 ## Endpoint
 
@@ -8,438 +30,583 @@ Manage lost reasons for deals in Teamleader Focus. This resource provides read-o
 
 ## Capabilities
 
-- **Supports Pagination**: ✅ Supported
-- **Supports Filtering**: ✅ Supported (by IDs only)
-- **Supports Sorting**: ✅ Supported (by name only)
-- **Supports Sideloading**: ❌ Not Supported
-- **Supports Creation**: ❌ Not Supported
-- **Supports Update**: ❌ Not Supported
-- **Supports Deletion**: ❌ Not Supported
-- **Supports Batch**: ❌ Not Supported
+- **Pagination**: ✅ Supported
+- **Filtering**: ✅ Supported (ids only)
+- **Sorting**: ✅ Supported (by name only)
+- **Sideloading**: ❌ Not Supported
+- **Creation**: ❌ Not Supported
+- **Update**: ❌ Not Supported
+- **Deletion**: ❌ Not Supported
 
 ## Available Methods
 
 ### `list()`
 
-Get a paginated list of lost reasons with filtering and sorting options.
+Get all lost reasons with optional filtering, sorting, and pagination.
 
 **Parameters:**
-- `filters` (array): Array of filters to apply
-- `options` (array): Pagination, sorting options
+- `filters` (array): Filters to apply
+- `options` (array): Sorting and pagination options
 
 **Example:**
 ```php
-$lostReasons = $teamleader->lostReasons()->list();
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
+// Get all lost reasons
+$lostReasons = Teamleader::lostReasons()->list();
+
+// Get specific lost reasons by ID
+$lostReasons = Teamleader::lostReasons()->list([
+    'ids' => ['reason-uuid-1', 'reason-uuid-2']
+]);
+
+// With pagination
+$lostReasons = Teamleader::lostReasons()->list([], [
+    'page_size' => 50,
+    'page_number' => 1
+]);
+
+// Sorted alphabetically
+$lostReasons = Teamleader::lostReasons()->list([], [
+    'sort' => [['field' => 'name', 'order' => 'asc']]
+]);
 ```
 
-### `info()`
+## Helper Methods
 
-Get detailed information about a specific lost reason (emulated through list filtering).
-
-**Parameters:**
-- `id` (string): Lost reason UUID
-
-**Example:**
-```php
-$lostReason = $teamleader->lostReasons()->info('lost-reason-uuid-here');
-```
+The Lost Reasons resource provides convenient helper methods:
 
 ### `all()`
 
-Get all lost reasons with optional sorting.
+Get all lost reasons sorted alphabetically.
 
-**Parameters:**
-- `sortOrder` (string): Sort order ('asc' or 'desc')
-
-**Example:**
 ```php
-$allLostReasons = $teamleader->lostReasons()->all('asc');
+$lostReasons = Teamleader::lostReasons()->all();
 ```
 
 ### `byIds()`
 
 Get specific lost reasons by their UUIDs.
 
-**Parameters:**
-- `ids` (array): Array of lost reason UUIDs
-
-**Example:**
 ```php
-$lostReasons = $teamleader->lostReasons()->byIds(['uuid1', 'uuid2']);
+$lostReasons = Teamleader::lostReasons()->byIds([
+    'reason-uuid-1',
+    'reason-uuid-2'
+]);
 ```
 
 ### `exists()`
 
-Check if a lost reason exists.
+Check if a lost reason exists by ID.
 
-**Parameters:**
-- `id` (string): Lost reason UUID
-
-**Example:**
 ```php
-$exists = $teamleader->lostReasons()->exists('lost-reason-uuid');
+$exists = Teamleader::lostReasons()->exists('reason-uuid');
+// Returns: true or false
+```
+
+### `getName()`
+
+Get the name of a lost reason by ID.
+
+```php
+$name = Teamleader::lostReasons()->getName('reason-uuid');
+// Returns: 'Price too high' or null if not found
 ```
 
 ### `getSelectOptions()`
 
 Get lost reasons formatted for form dropdowns.
 
-**Example:**
 ```php
-$options = $teamleader->lostReasons()->getSelectOptions();
+$options = Teamleader::lostReasons()->getSelectOptions();
+// Returns: [
+//     ['value' => 'uuid1', 'label' => 'Price too high'],
+//     ['value' => 'uuid2', 'label' => 'Competitor chosen'],
+//     ...
+// ]
 ```
 
 ### `getStats()`
 
 Get statistics about available lost reasons.
 
-**Example:**
 ```php
-$stats = $teamleader->lostReasons()->getStats();
+$stats = Teamleader::lostReasons()->getStats();
+// Returns: [
+//     'total_count' => 5,
+//     'names' => ['Price too high', 'Competitor chosen', ...],
+//     'ids' => ['uuid1', 'uuid2', ...]
+// ]
 ```
 
-## Filtering
+## Filters
 
 ### Available Filters
 
-- **`ids`**: Array of lost reason UUIDs to filter by
-
-### Filter Examples
+#### `ids`
+Filter by specific lost reason UUIDs.
 
 ```php
-// Filter by specific IDs
-$specificLostReasons = $teamleader->lostReasons()->list([
-    'ids' => [
-        '811a5825-96f4-4318-83c3-2840935c6003',
-        '922b6936-a7g5-5429-94d4-3951046d7114'
-    ]
+$lostReasons = Teamleader::lostReasons()->list([
+    'ids' => ['reason-uuid-1', 'reason-uuid-2']
 ]);
-
-// Get all lost reasons (no filters)
-$allLostReasons = $teamleader->lostReasons()->list();
 ```
 
 ## Sorting
 
-### Available Sort Fields
-
-- **`name`**: Sort by lost reason name (only available sort field)
-
-### Sorting Examples
+Lost reasons can only be sorted by name:
 
 ```php
-// Sort by name (ascending) - default
-$lostReasons = $teamleader->lostReasons()->list([], [
-    'sort' => [
-        [
-            'field' => 'name',
-            'order' => 'asc'
-        ]
-    ]
+// Sort ascending (A-Z)
+$lostReasons = Teamleader::lostReasons()->list([], [
+    'sort' => [['field' => 'name', 'order' => 'asc']]
 ]);
 
-// Sort by name (descending) - note: API only supports 'asc' order
-$lostReasons = $teamleader->lostReasons()->list([], [
-    'sort' => [
-        [
-            'field' => 'name',
-            'order' => 'asc'  // Only 'asc' is supported by the API
-        ]
-    ]
+// Sort descending (Z-A)
+$lostReasons = Teamleader::lostReasons()->list([], [
+    'sort' => [['field' => 'name', 'order' => 'desc']]
 ]);
-
-// Using convenience method
-$sortedLostReasons = $teamleader->lostReasons()->all('asc');
 ```
 
-## Pagination
+## Response Structure
 
-### Pagination Examples
+### Lost Reason Object
 
 ```php
-// Custom page size
-$lostReasons = $teamleader->lostReasons()->list([], [
-    'page_size' => 50,
-    'page_number' => 1
-]);
-
-// Navigate through pages
-$page2 = $teamleader->lostReasons()->list([], [
-    'page_size' => 20,
-    'page_number' => 2
-]);
-
-// Get all results (large page size)
-$allResults = $teamleader->lostReasons()->list([], [
-    'page_size' => 100
-]);
+[
+    'id' => 'reason-uuid',
+    'name' => 'Price too high'
+]
 ```
 
-## Response Format
+**Note:** Lost reasons only contain ID and name. There is no additional metadata.
 
-### List Response
+### Common Lost Reasons
 
-```json
-{
-    "data": [
-        {
-            "id": "811a5825-96f4-4318-83c3-2840935c6003",
-            "name": "Budget constraints"
-        },
-        {
-            "id": "922b6936-a7g5-5429-94d4-3951046d7114",
-            "name": "Competitor chosen"
-        },
-        {
-            "id": "a33c7a47-b8h6-6530-a5e5-4a62157e8225",
-            "name": "Not a priority"
-        }
-    ]
-}
-```
+Typical lost reasons in Teamleader might include:
 
-### Single Lost Reason Response (via info method)
-
-```json
-{
-    "data": {
-        "id": "811a5825-96f4-4318-83c3-2840935c6003",
-        "name": "Budget constraints"
-    }
-}
-```
-
-## Data Fields
-
-### Common Fields
-
-- **`id`**: Lost reason UUID
-- **`name`**: Lost reason name/description
+- Price too high
+- Competitor chosen
+- Budget not available
+- Timeline too long
+- Feature requirements not met
+- No response from prospect
+- Project cancelled
+- Internal solution chosen
 
 ## Usage Examples
 
-### Basic List
-
-Get all lost reasons with default settings:
+### Get All Lost Reasons
 
 ```php
-$lostReasons = $teamleader->lostReasons()->list();
-```
+$allReasons = Teamleader::lostReasons()->all();
 
-### Filtered List
-
-Get specific lost reasons by ID:
-
-```php
-$specificLostReasons = $teamleader->lostReasons()->list([
-    'ids' => [
-        '811a5825-96f4-4318-83c3-2840935c6003',
-        '922b6936-a7g5-5429-94d4-3951046d7114'
-    ]
-]);
-```
-
-### Sorted List
-
-Get lost reasons sorted by name:
-
-```php
-$sortedLostReasons = $teamleader->lostReasons()->list([], [
-    'sort' => [
-        [
-            'field' => 'name',
-            'order' => 'asc'
-        ]
-    ]
-]);
-```
-
-### Paginated List
-
-Get lost reasons with custom pagination:
-
-```php
-$paginatedLostReasons = $teamleader->lostReasons()->list([], [
-    'page_size' => 25,
-    'page_number' => 1
-]);
-```
-
-### Get Single Lost Reason
-
-Retrieve information for a specific lost reason:
-
-```php
-$lostReason = $teamleader->lostReasons()->info('811a5825-96f4-4318-83c3-2840935c6003');
-
-// Access the data
-$name = $lostReason['data']['name'];
-$id = $lostReason['data']['id'];
-```
-
-### Convenience Methods
-
-Use the built-in convenience methods for common operations:
-
-```php
-// Get all lost reasons
-$allLostReasons = $teamleader->lostReasons()->all();
-
-// Get specific lost reasons by ID
-$specificLostReasons = $teamleader->lostReasons()->byIds([
-    '811a5825-96f4-4318-83c3-2840935c6003',
-    '922b6936-a7g5-5429-94d4-3951046d7114'
-]);
-
-// Check if a lost reason exists
-$exists = $teamleader->lostReasons()->exists('811a5825-96f4-4318-83c3-2840935c6003');
-
-// Get select options for forms
-$selectOptions = $teamleader->lostReasons()->getSelectOptions();
-// Returns: [['value' => 'uuid', 'label' => 'Budget constraints'], ...]
-
-// Get statistics
-$stats = $teamleader->lostReasons()->getStats();
-// Returns: ['total_count' => 5, 'names' => [...], 'ids' => [...]]
-```
-
-### Form Integration
-
-Use lost reasons in forms and dropdowns:
-
-```php
-// Get options for a select dropdown
-$lostReasonOptions = $teamleader->lostReasons()->getSelectOptions();
-
-// In a Laravel view
-foreach ($lostReasonOptions as $option) {
-    echo "<option value='{$option['value']}'>{$option['label']}</option>";
+foreach ($allReasons['data'] as $reason) {
+    echo "{$reason['name']} ({$reason['id']})\n";
 }
 ```
 
-### Validation and Checking
+### Create Dropdown for Lost Deal Form
 
 ```php
-// Check if specific lost reasons exist
-$lostReasonIds = ['811a5825-96f4-4318-83c3-2840935c6003', 'invalid-uuid'];
-
-foreach ($lostReasonIds as $id) {
-    if ($teamleader->lostReasons()->exists($id)) {
-        echo "Lost reason {$id} exists\n";
-    } else {
-        echo "Lost reason {$id} does not exist\n";
-    }
-}
-
-// Get statistics about available lost reasons
-$stats = $teamleader->lostReasons()->getStats();
-echo "Total lost reasons: {$stats['total_count']}\n";
-echo "Available options: " . implode(', ', $stats['names']) . "\n";
-```
-
-## Error Handling
-
-The lost reasons resource follows the standard SDK error handling patterns:
-
-```php
-$result = $teamleader->lostReasons()->list();
-
-if (isset($result['error']) && $result['error']) {
-    // Handle error
-    $errorMessage = $result['message'] ?? 'Unknown error';
-    $statusCode = $result['status_code'] ?? 0;
+function getLostReasonDropdown()
+{
+    $reasons = Teamleader::lostReasons()->getSelectOptions();
     
-    Log::error("Lost Reasons API error: {$errorMessage}", [
-        'status_code' => $statusCode
+    return view('deals.mark-lost', [
+        'lost_reasons' => $reasons
     ]);
 }
+
+// In Blade template:
+// <select name="reason_id">
+//     @foreach($lost_reasons as $reason)
+//         <option value="{{ $reason['value'] }}">{{ $reason['label'] }}</option>
+//     @endforeach
+// </select>
 ```
 
-## Rate Limiting
-
-Lost reasons API calls count towards your overall Teamleader API rate limit:
-
-- **List operations**: 1 request per call
-- **Convenience methods**: 1 request per call
-
-Rate limit cost: **1 request per method call**
-
-## API Limitations
-
-Based on the Teamleader API documentation:
-
-1. **Sorting**: Only supports sorting by `name` field
-2. **Sort Order**: Only supports `asc` (ascending) order
-3. **Filtering**: Only supports filtering by `ids` (UUIDs)
-4. **No Text Search**: The API doesn't support searching by name text
-5. **Read-only**: No create, update, or delete operations available
-6. **No Sideloading**: No related resources can be included
-
-## Notes
-
-- Lost reasons are **read-only** in the Teamleader API
-- No create, update, or delete operations are supported
-- Lost reasons don't support sideloading/includes
-- The `info()` method is emulated by filtering the list by ID
-- Only the `name` field can be used for sorting
-- Only `asc` (ascending) sort order is supported by the API
-- Filtering is limited to UUID-based filtering only
-
-## Laravel Integration
-
-When using this resource in Laravel applications, you can inject the SDK:
+### Mark Deal as Lost with Reason
 
 ```php
-use McoreServices\TeamleaderSDK\TeamleaderSDK;
-
-class DealController extends Controller
+function markDealAsLost($dealId, $reasonId, $notes = null)
 {
-    public function getLostReasons(TeamleaderSDK $teamleader)
-    {
-        $lostReasons = $teamleader->lostReasons()->all();
-        
-        return response()->json($lostReasons);
+    // Validate reason exists
+    if (!Teamleader::lostReasons()->exists($reasonId)) {
+        throw new \InvalidArgumentException('Invalid lost reason');
     }
     
-    public function createDealForm(TeamleaderSDK $teamleader)
-    {
-        $lostReasonOptions = $teamleader->lostReasons()->getSelectOptions();
-        
-        return view('deals.create', compact('lostReasonOptions'));
-    }
+    // Mark deal as lost
+    $result = Teamleader::deals()->lose($dealId, $reasonId, $notes);
     
-    public function validateLostReason(TeamleaderSDK $teamleader, string $id)
-    {
-        $exists = $teamleader->lostReasons()->exists($id);
-        
-        return response()->json(['exists' => $exists]);
-    }
+    // Log for analytics
+    Log::info('Deal marked as lost', [
+        'deal_id' => $dealId,
+        'reason' => Teamleader::lostReasons()->getName($reasonId),
+        'notes' => $notes,
+        'user' => auth()->user()->id
+    ]);
+    
+    return $result;
 }
 ```
 
-### Caching Recommendations
+### Get Reason Name for Display
 
-Since lost reasons are relatively static data, consider caching them:
+```php
+$deal = Teamleader::deals()->info('deal-uuid');
+
+if ($deal['data']['status'] === 'lost' && isset($deal['data']['lost_reason'])) {
+    $reasonName = Teamleader::lostReasons()->getName($deal['data']['lost_reason']['id']);
+    echo "Lost because: {$reasonName}";
+}
+```
+
+## Common Use Cases
+
+### 1. Lost Reason Analysis
+
+```php
+function analyzeLostReasons($startDate, $endDate)
+{
+    $lostReasons = Teamleader::lostReasons()->all();
+    $analysis = [];
+    
+    foreach ($lostReasons['data'] as $reason) {
+        // Get lost deals for this reason
+        $lostDeals = Teamleader::deals()->lost([
+            'lost_reason_id' => $reason['id'],
+            'estimated_closing_date_from' => $startDate,
+            'estimated_closing_date_to' => $endDate
+        ]);
+        
+        $lostValue = array_reduce($lostDeals['data'], function($carry, $deal) {
+            return $carry + $deal['estimated_value']['amount'];
+        }, 0);
+        
+        $analysis[] = [
+            'reason' => $reason['name'],
+            'count' => count($lostDeals['data']),
+            'lost_value' => $lostValue,
+            'percentage' => 0 // Will calculate after getting total
+        ];
+    }
+    
+    // Calculate percentages
+    $totalLost = array_sum(array_column($analysis, 'count'));
+    foreach ($analysis as &$item) {
+        $item['percentage'] = $totalLost > 0 
+            ? ($item['count'] / $totalLost) * 100 
+            : 0;
+    }
+    
+    // Sort by count
+    usort($analysis, function($a, $b) {
+        return $b['count'] - $a['count'];
+    });
+    
+    return $analysis;
+}
+```
+
+### 2. Cache Lost Reasons
 
 ```php
 use Illuminate\Support\Facades\Cache;
 
 class LostReasonService
 {
-    public function getCachedLostReasons(TeamleaderSDK $teamleader)
+    public function getCachedReasons()
     {
-        return Cache::remember('teamleader_lost_reasons', 3600, function () use ($teamleader) {
-            return $teamleader->lostReasons()->all();
+        return Cache::remember('lost_reasons', 3600, function() {
+            return Teamleader::lostReasons()->all();
         });
     }
     
-    public function getCachedSelectOptions(TeamleaderSDK $teamleader)
+    public function getReasonName($reasonId)
     {
-        return Cache::remember('teamleader_lost_reasons_options', 3600, function () use ($teamleader) {
-            return $teamleader->lostReasons()->getSelectOptions();
-        });
+        $reasons = $this->getCachedReasons();
+        
+        foreach ($reasons['data'] as $reason) {
+            if ($reason['id'] === $reasonId) {
+                return $reason['name'];
+            }
+        }
+        
+        return 'Unknown';
     }
 }
 ```
 
-For more information, refer to the [Teamleader API Documentation](https://developer.focus.teamleader.eu/).
+### 3. Competitive Loss Analysis
+
+```php
+function analyzeCompetitiveLosses()
+{
+    $lostReasons = Teamleader::lostReasons()->all();
+    
+    // Find competitor-related reasons
+    $competitorReasons = array_filter($lostReasons['data'], function($reason) {
+        return stripos($reason['name'], 'competitor') !== false;
+    });
+    
+    $competitorLosses = [];
+    
+    foreach ($competitorReasons as $reason) {
+        $lostDeals = Teamleader::deals()->lost([
+            'lost_reason_id' => $reason['id']
+        ]);
+        
+        $competitorLosses[] = [
+            'reason' => $reason['name'],
+            'deals_lost' => count($lostDeals['data']),
+            'value_lost' => array_reduce($lostDeals['data'], function($carry, $deal) {
+                return $carry + $deal['estimated_value']['amount'];
+            }, 0)
+        ];
+    }
+    
+    return $competitorLosses;
+}
+```
+
+### 4. Lost Deal Recovery Opportunity
+
+```php
+function findRecoveryOpportunities()
+{
+    $lostReasons = Teamleader::lostReasons()->all();
+    $recoverable = [];
+    
+    // Reasons that might be recoverable
+    $recoverableReasons = ['Price too high', 'Timeline too long', 'Budget not available'];
+    
+    foreach ($lostReasons['data'] as $reason) {
+        if (in_array($reason['name'], $recoverableReasons)) {
+            $lostDeals = Teamleader::deals()->lost([
+                'lost_reason_id' => $reason['id'],
+                'estimated_closing_date_from' => date('Y-m-d', strtotime('-90 days'))
+            ]);
+            
+            $recoverable[] = [
+                'reason' => $reason['name'],
+                'recent_losses' => count($lostDeals['data']),
+                'deals' => $lostDeals['data']
+            ];
+        }
+    }
+    
+    return $recoverable;
+}
+```
+
+### 5. Monthly Lost Reason Trends
+
+```php
+function analyzeLostReasonTrends($months = 6)
+{
+    $lostReasons = Teamleader::lostReasons()->all();
+    $trends = [];
+    
+    foreach ($lostReasons['data'] as $reason) {
+        $monthlyData = [];
+        
+        for ($i = $months - 1; $i >= 0; $i--) {
+            $startDate = date('Y-m-01', strtotime("-{$i} months"));
+            $endDate = date('Y-m-t', strtotime("-{$i} months"));
+            
+            $lostDeals = Teamleader::deals()->lost([
+                'lost_reason_id' => $reason['id'],
+                'estimated_closing_date_from' => $startDate,
+                'estimated_closing_date_to' => $endDate
+            ]);
+            
+            $monthlyData[] = [
+                'month' => date('Y-m', strtotime($startDate)),
+                'losses' => count($lostDeals['data'])
+            ];
+        }
+        
+        // Only include reasons with losses
+        $totalLosses = array_sum(array_column($monthlyData, 'losses'));
+        if ($totalLosses > 0) {
+            $trends[] = [
+                'reason' => $reason['name'],
+                'monthly_data' => $monthlyData,
+                'total_losses' => $totalLosses,
+                'average_per_month' => $totalLosses / $months
+            ];
+        }
+    }
+    
+    // Sort by total losses
+    usort($trends, function($a, $b) {
+        return $b['total_losses'] - $a['total_losses'];
+    });
+    
+    return $trends;
+}
+```
+
+## Best Practices
+
+### 1. Cache Lost Reasons
+
+Since lost reasons don't change frequently, caching them improves performance:
+
+```php
+// Good: Cache for 1 hour
+$reasons = Cache::remember('lost_reasons', 3600, function() {
+    return Teamleader::lostReasons()->all();
+});
+
+// Bad: Fetch on every request
+$reasons = Teamleader::lostReasons()->all();
+```
+
+### 2. Always Validate Lost Reasons
+
+```php
+// Good: Validate before using
+function markDealLost($dealId, $reasonId, $notes)
+{
+    if (!Teamleader::lostReasons()->exists($reasonId)) {
+        throw new \InvalidArgumentException('Invalid lost reason ID');
+    }
+    
+    return Teamleader::deals()->lose($dealId, $reasonId, $notes);
+}
+
+// Bad: No validation
+Teamleader::deals()->lose($dealId, $reasonId, $notes);
+```
+
+### 3. Track Additional Context
+
+```php
+// Good: Log additional information
+function trackLostDeal($dealId, $reasonId, $extraInfo)
+{
+    $result = Teamleader::deals()->lose($dealId, $reasonId, $extraInfo);
+    
+    // Store additional analytics
+    DB::table('lost_deal_analytics')->insert([
+        'deal_id' => $dealId,
+        'reason_id' => $reasonId,
+        'reason_name' => Teamleader::lostReasons()->getName($reasonId),
+        'extra_info' => $extraInfo,
+        'sales_rep' => auth()->user()->id,
+        'lost_at' => now()
+    ]);
+    
+    return $result;
+}
+```
+
+### 4. Regular Lost Reason Analysis
+
+```php
+// Good: Schedule regular analysis
+function scheduleWeeklyLostAnalysis()
+{
+    $startDate = date('Y-m-d', strtotime('-7 days'));
+    $endDate = date('Y-m-d');
+    
+    $analysis = analyzeLostReasons($startDate, $endDate);
+    
+    // Send report to management
+    Mail::to('sales@company.com')->send(
+        new WeeklyLostReasonReport($analysis)
+    );
+    
+    // Store for historical tracking
+    DB::table('weekly_loss_reports')->insert([
+        'week' => date('Y-W'),
+        'report' => json_encode($analysis),
+        'created_at' => now()
+    ]);
+}
+```
+
+### 5. Create Actionable Insights
+
+```php
+// Good: Turn data into actions
+function generateLostReasonActionItems()
+{
+    $analysis = analyzeLostReasons(
+        date('Y-m-d', strtotime('-30 days')),
+        date('Y-m-d')
+    );
+    
+    $actions = [];
+    
+    foreach ($analysis as $item) {
+        if ($item['reason'] === 'Price too high' && $item['count'] > 5) {
+            $actions[] = [
+                'type' => 'pricing',
+                'priority' => 'high',
+                'action' => 'Review pricing strategy - lost ' . $item['count'] . ' deals',
+                'value_at_risk' => $item['lost_value']
+            ];
+        }
+        
+        if ($item['reason'] === 'Competitor chosen' && $item['percentage'] > 30) {
+            $actions[] = [
+                'type' => 'competitive',
+                'priority' => 'high',
+                'action' => 'Conduct competitive analysis - ' . round($item['percentage']) . '% of losses',
+                'value_at_risk' => $item['lost_value']
+            ];
+        }
+    }
+    
+    return $actions;
+}
+```
+
+## Error Handling
+
+```php
+use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
+
+try {
+    $lostReasons = Teamleader::lostReasons()->list();
+} catch (TeamleaderException $e) {
+    Log::error('Error fetching lost reasons', [
+        'error' => $e->getMessage(),
+        'code' => $e->getCode()
+    ]);
+    
+    // Provide fallback
+    return ['data' => []];
+}
+```
+
+## Limitations
+
+1. **Read-Only**: You cannot create, update, or delete lost reasons via the API
+2. **Limited Filtering**: Can only filter by IDs, not by name
+3. **No Usage Statistics**: The API doesn't return how many deals have each lost reason
+4. **Name Only**: Lost reasons only have name field, no description or categorization
+
+```php
+// Cannot do this:
+// Teamleader::lostReasons()->create(['name' => 'New Reason']); // ❌ Not supported
+// Teamleader::lostReasons()->update('uuid', ['name' => 'Updated']); // ❌ Not supported
+// Teamleader::lostReasons()->delete('uuid'); // ❌ Not supported
+
+// Can only do this:
+Teamleader::lostReasons()->list(); // ✅ Supported
+Teamleader::lostReasons()->list(['ids' => ['uuid']]); // ✅ Supported
+```
+
+## Related Resources
+
+- [Deals](deals.md) - Deals can be marked as lost with reasons
+- [Deal Sources](deal_sources.md) - Another tracking dimension for deals
+
+## See Also
+
+- [Usage Guide](../usage.md) - General SDK usage
+- [Filtering](../filtering.md) - Advanced filtering techniques

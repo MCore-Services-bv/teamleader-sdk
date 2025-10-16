@@ -1,124 +1,304 @@
-# Quotations Resource
+# Quotations
 
-The Quotations resource allows you to manage quotations in Teamleader Focus, including creating, updating, accepting, sending, and downloading quotations.
+Manage quotations in Teamleader Focus.
 
 ## Overview
 
-- **Base Path**: `quotations`
-- **Supports**: Create, Read, Update, Delete, List, Custom Actions
-- **Available Actions**: accept, send, download
-- **Pagination**: Yes (default: 20 items per page)
-- **Sorting**: Yes
-- **Filtering**: Yes (by IDs)
-- **Sideloading**: Yes (expiry)
+The Quotations resource provides full CRUD operations for managing quotations (also known as proposals or quotes) in Teamleader. Quotations are formal offers sent to customers detailing products, services, prices, and terms. They can be accepted to convert into orders or invoices.
+
+## Navigation
+
+- [Endpoint](#endpoint)
+- [Capabilities](#capabilities)
+- [Available Methods](#available-methods)
+    - [list()](#list)
+    - [info()](#info)
+    - [create()](#create)
+    - [update()](#update)
+    - [delete()](#delete)
+    - [accept()](#accept)
+    - [send()](#send)
+    - [download()](#download)
+- [Helper Methods](#helper-methods)
+- [Filters](#filters)
+- [Sideloading](#sideloading)
+- [Response Structure](#response-structure)
+- [Usage Examples](#usage-examples)
+- [Common Use Cases](#common-use-cases)
+- [Best Practices](#best-practices)
+- [Error Handling](#error-handling)
+- [Related Resources](#related-resources)
+
+## Endpoint
+
+`quotations`
+
+## Capabilities
+
+- **Pagination**: ✅ Supported
+- **Filtering**: ✅ Supported
+- **Sorting**: ❌ Not Supported
+- **Sideloading**: ✅ Supported
+- **Creation**: ✅ Supported
+- **Update**: ✅ Supported
+- **Deletion**: ✅ Supported
 
 ## Available Methods
 
-### List Quotations
+### `list()`
 
+Get all quotations with optional filtering and pagination.
+
+**Parameters:**
+- `filters` (array): Filters to apply
+- `options` (array): Additional options (page_size, page_number)
+
+**Example:**
 ```php
-list(array $filters = [], array $options = []): array
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
+// Get all quotations
+$quotations = Teamleader::quotations()->list();
+
+// Get specific quotations by ID
+$quotations = Teamleader::quotations()->list([
+    'ids' => ['quotation-uuid-1', 'quotation-uuid-2']
+]);
+
+// With pagination
+$quotations = Teamleader::quotations()->list([], [
+    'page_size' => 50,
+    'page_number' => 1
+]);
 ```
 
-Get a list of quotations with optional filtering and sorting.
-
-### Get Quotation Info
-
-```php
-info(string $id, mixed $includes = null): array
-```
+### `info()`
 
 Get detailed information about a specific quotation.
 
-### Create Quotation
+**Parameters:**
+- `id` (string): Quotation UUID
+- `includes` (string|array): Optional sideloaded relationships
 
+**Example:**
 ```php
-create(array $data): array
+// Get quotation information
+$quotation = Teamleader::quotations()->info('quotation-uuid');
+
+// With expiry information (if enabled)
+$quotation = Teamleader::quotations()->info('quotation-uuid', 'expiry');
+
+// Using fluent interface
+$quotation = Teamleader::quotations()
+    ->with('expiry')
+    ->info('quotation-uuid');
 ```
+
+### `create()`
 
 Create a new quotation.
 
-### Update Quotation
+**Parameters:**
+- `data` (array): Quotation data
 
+**Example:**
 ```php
-update(string $id, array $data): array
-```
-
-Update an existing quotation.
-
-### Delete Quotation
-
-```php
-delete(string $id): array
-```
-
-Delete a quotation.
-
-### Accept Quotation
-
-```php
-accept(string $id): array
-```
-
-Mark a quotation as accepted.
-
-### Send Quotation
-
-```php
-send(array $data): array
-```
-
-Send one or more quotations via email.
-
-### Download Quotation
-
-```php
-download(string $id, string $format = 'pdf'): array
-```
-
-Download a quotation in a specific format (currently only PDF supported).
-
-## Usage Examples
-
-### Basic Operations
-
-#### List All Quotations
-
-```php
-$quotations = $teamleader->quotations()->list();
-```
-
-#### List Specific Quotations
-
-```php
-$quotations = $teamleader->quotations()->list([
-    'ids' => [
-        '5b16f6ee-e302-0079-901b-50c26c4a55b1',
-        '2700006a-b351-070b-b311-fb45ed99abe2'
+$quotation = Teamleader::quotations()->create([
+    'deal_id' => 'deal-uuid',
+    'grouped_lines' => [
+        [
+            'section' => [
+                'title' => 'Products'
+            ],
+            'line_items' => [
+                [
+                    'quantity' => 2,
+                    'description' => 'Premium Package',
+                    'unit_price' => [
+                        'amount' => 500,
+                        'tax' => 'excluding'
+                    ]
+                ]
+            ]
+        ]
     ]
 ]);
 ```
 
-#### Get Quotation with Expiry Information
+### `update()`
 
+Update an existing quotation.
+
+**Parameters:**
+- `id` (string): Quotation UUID
+- `data` (array): Updated quotation data
+
+**Example:**
 ```php
-$quotation = $teamleader->quotations()
-    ->include('expiry')
-    ->info('e7a3fe2b-2c75-480f-87b9-121816b5257b');
-
-// Access expiry information
-$expiryDate = $quotation['data']['expiry']['expires_after'];
-$actionAfterExpiry = $quotation['data']['expiry']['action_after_expiry'];
+$quotation = Teamleader::quotations()->update('quotation-uuid', [
+    'grouped_lines' => [
+        [
+            'section' => [
+                'title' => 'Updated Products'
+            ],
+            'line_items' => [
+                [
+                    'quantity' => 3,
+                    'description' => 'Premium Package',
+                    'unit_price' => [
+                        'amount' => 450,
+                        'tax' => 'excluding'
+                    ]
+                ]
+            ]
+        ]
+    ]
+]);
 ```
 
-### Create a New Quotation
+### `delete()`
+
+Delete a quotation.
+
+**Parameters:**
+- `id` (string): Quotation UUID
+
+**Example:**
+```php
+Teamleader::quotations()->delete('quotation-uuid');
+```
+
+### `accept()`
+
+Mark a quotation as accepted.
+
+**Parameters:**
+- `id` (string): Quotation UUID
+
+**Example:**
+```php
+Teamleader::quotations()->accept('quotation-uuid');
+```
+
+**Note:** Accepting a quotation may trigger automated processes in Teamleader, such as creating an order or invoice.
+
+### `send()`
+
+Send one or more quotations via email.
+
+**Parameters:**
+- `data` (array): Send parameters including quotations, sender, recipients, subject, content, and language
+
+**Example:**
+```php
+Teamleader::quotations()->send([
+    'quotations' => ['quotation-uuid-1', 'quotation-uuid-2'],
+    'from' => [
+        'sender' => [
+            'type' => 'user',
+            'id' => 'user-uuid'
+        ]
+    ],
+    'recipients' => [
+        'to' => [
+            ['type' => 'contact', 'id' => 'contact-uuid']
+        ]
+    ],
+    'subject' => 'Your Quotation',
+    'content' => 'Please find attached your quotation.',
+    'language' => 'en'
+]);
+```
+
+### `download()`
+
+Download a quotation in a specific format (PDF).
+
+**Parameters:**
+- `id` (string): Quotation UUID
+- `format` (string): Download format (default: 'pdf')
+
+**Example:**
+```php
+$download = Teamleader::quotations()->download('quotation-uuid', 'pdf');
+
+// Returns temporary download URL
+$url = $download['data']['location'];
+$expires = $download['data']['expires'];
+
+// Download the file
+file_put_contents('quotation.pdf', file_get_contents($url));
+```
+
+## Helper Methods
+
+### `byIds()`
+
+Get specific quotations by their UUIDs.
 
 ```php
-$quotation = $teamleader->quotations()->create([
-    'deal_id' => 'cef01135-7e51-4f6f-a6eb-6e5e5a885ac8',
-    'currency' => [
-        'code' => 'EUR',
-        'exchange_rate' => 1.0
+$quotations = Teamleader::quotations()->byIds([
+    'quotation-uuid-1',
+    'quotation-uuid-2'
+]);
+```
+
+### `byStatus()`
+
+Get quotations by status.
+
+**Available statuses:** `open`, `accepted`, `expired`, `rejected`, `closed`
+
+```php
+// Get open quotations
+$quotations = Teamleader::quotations()->byStatus('open');
+
+// Get accepted quotations
+$quotations = Teamleader::quotations()->byStatus('accepted');
+
+// Multiple statuses
+$quotations = Teamleader::quotations()->byStatus(['open', 'accepted']);
+```
+
+## Filters
+
+### Available Filters
+
+#### `ids`
+Filter by specific quotation UUIDs.
+
+```php
+$quotations = Teamleader::quotations()->list([
+    'ids' => ['quotation-uuid-1', 'quotation-uuid-2']
+]);
+```
+
+## Sideloading
+
+Load related data in a single request:
+
+### Available Includes
+
+- `expiry` - Include expiry information (only if user has access to quotation expiry feature)
+
+### Usage
+
+```php
+// With expiry information
+$quotation = Teamleader::quotations()
+    ->with('expiry')
+    ->info('quotation-uuid');
+```
+
+## Response Structure
+
+### Quotation Object
+
+```php
+[
+    'id' => 'quotation-uuid',
+    'deal' => [
+        'id' => 'deal-uuid'
     ],
     'grouped_lines' => [
         [
@@ -127,254 +307,429 @@ $quotation = $teamleader->quotations()->create([
             ],
             'line_items' => [
                 [
-                    'quantity' => 3,
-                    'description' => 'An awesome product',
-                    'extended_description' => 'Some more information about this awesome product',
+                    'quantity' => 2,
+                    'description' => 'Premium Package',
                     'unit_price' => [
-                        'amount' => 123.3,
+                        'amount' => 500.00,
                         'tax' => 'excluding'
                     ],
-                    'tax_rate_id' => 'c0c03f1e-77e3-402c-a713-30ea1c585823',
-                    'discount' => [
-                        'value' => 10,
-                        'type' => 'percentage'
+                    'total' => [
+                        'tax_exclusive' => 1000.00,
+                        'tax_inclusive' => 1210.00,
+                        'taxes' => [
+                            [
+                                'rate' => 0.21,
+                                'amount' => 210.00
+                            ]
+                        ]
+                    ]
+                ]
+            ]
+        ]
+    ],
+    'currency' => [
+        'code' => 'EUR'
+    ],
+    'total' => [
+        'tax_exclusive' => 1000.00,
+        'tax_inclusive' => 1210.00,
+        'taxes' => [
+            [
+                'rate' => 0.21,
+                'amount' => 210.00
+            ]
+        ]
+    ],
+    'status' => 'open',
+    'name' => 'Quotation #Q2024-001',
+    'created_at' => '2024-01-15T10:30:00+00:00',
+    'updated_at' => '2024-01-20T14:45:00+00:00'
+]
+```
+
+## Usage Examples
+
+### Create a Complete Quotation
+
+```php
+$quotation = Teamleader::quotations()->create([
+    'deal_id' => 'deal-uuid',
+    'grouped_lines' => [
+        [
+            'section' => [
+                'title' => 'Software Licenses'
+            ],
+            'line_items' => [
+                [
+                    'quantity' => 10,
+                    'description' => 'Professional License',
+                    'unit_price' => [
+                        'amount' => 99,
+                        'tax' => 'excluding'
+                    ]
+                ],
+                [
+                    'quantity' => 5,
+                    'description' => 'Enterprise License',
+                    'unit_price' => [
+                        'amount' => 199,
+                        'tax' => 'excluding'
+                    ]
+                ]
+            ]
+        ],
+        [
+            'section' => [
+                'title' => 'Services'
+            ],
+            'line_items' => [
+                [
+                    'quantity' => 8,
+                    'description' => 'Implementation Hours',
+                    'unit_price' => [
+                        'amount' => 125,
+                        'tax' => 'excluding'
                     ]
                 ]
             ]
         ]
     ]
 ]);
-
-$quotationId = $quotation['data']['id'];
 ```
 
-### Update a Quotation
+### Send Quotation to Customer
 
 ```php
-$teamleader->quotations()->update('5b16f6ee-e302-0079-901b-50c26c4a55b1', [
-    'grouped_lines' => [
-        [
-            'section' => [
-                'title' => 'Updated Products'
-            ],
-            'line_items' => [
-                [
-                    'quantity' => 5,
-                    'description' => 'Updated product',
-                    'unit_price' => [
-                        'amount' => 150.0,
-                        'tax' => 'excluding'
-                    ],
-                    'tax_rate_id' => 'c0c03f1e-77e3-402c-a713-30ea1c585823'
-                ]
-            ]
-        ]
-    ]
-]);
-```
+// Create quotation
+$quotation = Teamleader::quotations()->create([...]);
 
-### Accept a Quotation
-
-```php
-$teamleader->quotations()->accept('e7a3fe2b-2c75-480f-87b9-121816b5257b');
-```
-
-### Send a Quotation
-
-```php
-$teamleader->quotations()->send([
-    'quotations' => [
-        '023a4609-eda4-006c-8d2c-314539ec5d85',
-        'b42635b7-ccd3-0bfc-9628-e90940694845'
-    ],
+// Send via email
+Teamleader::quotations()->send([
+    'quotations' => [$quotation['data']['id']],
     'from' => [
         'sender' => [
             'type' => 'user',
-            'id' => '2659dc4d-444b-4ced-b51c-b87591f604d7'
-        ],
-        'email_address' => 'info@teamleader.eu'
+            'id' => auth()->user()->teamleader_id
+        ]
     ],
     'recipients' => [
         'to' => [
-            [
-                'customer' => [
-                    'type' => 'company',
-                    'id' => '2659dc4d-444b-4ced-b51c-b87591f604d7'
-                ],
-                'email_address' => 'customer@example.com'
-            ]
+            ['type' => 'contact', 'id' => 'contact-uuid']
+        ],
+        'cc' => [
+            ['type' => 'user', 'id' => 'manager-uuid']
         ]
     ],
-    'subject' => 'Your Quotation',
-    'content' => 'Please review your quotation here: #LINK',
+    'subject' => 'Quotation for Your Project',
+    'content' => 'Dear Customer,\n\nPlease find attached our quotation for your project.',
     'language' => 'en'
 ]);
 ```
 
-### Download a Quotation
+### Download and Store Quotation
 
 ```php
-$downloadInfo = $teamleader->quotations()->download(
-    'd885e5d5-bacb-4607-bde9-abc4a04a901b',
-    'pdf'
-);
-
-$downloadUrl = $downloadInfo['data']['location'];
-$expiresAt = $downloadInfo['data']['expires'];
-
-// Download the file
-file_put_contents('quotation.pdf', file_get_contents($downloadUrl));
+function downloadAndStoreQuotation($quotationId)
+{
+    // Get download URL
+    $download = Teamleader::quotations()->download($quotationId, 'pdf');
+    
+    // Download file
+    $pdfContent = file_get_contents($download['data']['location']);
+    
+    // Store in your system
+    $filename = "quotation_{$quotationId}_" . date('Y-m-d') . ".pdf";
+    Storage::put("quotations/{$filename}", $pdfContent);
+    
+    return $filename;
+}
 ```
 
-### Delete a Quotation
+### Track Quotation Status
 
 ```php
-$teamleader->quotations()->delete('4e235f27-0af0-40e5-82f3-d32d0aa9edb3');
+function checkQuotationStatus($quotationId)
+{
+    $quotation = Teamleader::quotations()->info($quotationId);
+    
+    $statusMessages = [
+        'open' => 'Quotation is waiting for customer response',
+        'accepted' => 'Quotation has been accepted!',
+        'expired' => 'Quotation has expired',
+        'rejected' => 'Quotation was rejected',
+        'closed' => 'Quotation is closed'
+    ];
+    
+    return [
+        'status' => $quotation['data']['status'],
+        'message' => $statusMessages[$quotation['data']['status']] ?? 'Unknown status',
+        'quotation' => $quotation['data']
+    ];
+}
 ```
 
-### Convenience Methods
+## Common Use Cases
 
-#### Get Quotations by IDs
+### 1. Automated Quotation Generation
 
 ```php
-$quotations = $teamleader->quotations()->byIds([
-    '5b16f6ee-e302-0079-901b-50c26c4a55b1',
-    '2700006a-b351-070b-b311-fb45ed99abe2'
-]);
+function generateQuotationFromDeal($dealId)
+{
+    $deal = Teamleader::deals()->info($dealId);
+    
+    // Build line items from deal
+    $lineItems = [];
+    // ... populate line items based on deal details
+    
+    $quotation = Teamleader::quotations()->create([
+        'deal_id' => $dealId,
+        'grouped_lines' => [
+            [
+                'section' => [
+                    'title' => 'Proposed Solution'
+                ],
+                'line_items' => $lineItems
+            ]
+        ]
+    ]);
+    
+    // Send to customer
+    $customer = $deal['data']['lead']['customer'];
+    
+    Teamleader::quotations()->send([
+        'quotations' => [$quotation['data']['id']],
+        'from' => ['sender' => ['type' => 'user', 'id' => 'user-uuid']],
+        'recipients' => [
+            'to' => [
+                ['type' => $customer['type'], 'id' => $customer['id']]
+            ]
+        ],
+        'subject' => "Quotation for {$deal['data']['title']}",
+        'content' => 'Please review the attached quotation.',
+        'language' => 'en'
+    ]);
+    
+    return $quotation;
+}
 ```
 
-#### Get Quotations by Status
+### 2. Quotation Follow-up System
 
 ```php
-// Get open quotations
-$openQuotations = $teamleader->quotations()->byStatus('open');
-
-// Get accepted quotations
-$acceptedQuotations = $teamleader->quotations()->byStatus('accepted');
-
-// Get multiple statuses
-$quotations = $teamleader->quotations()->byStatus(['open', 'accepted']);
+function checkPendingQuotations($days = 7)
+{
+    $openQuotations = Teamleader::quotations()->byStatus('open');
+    $pending = [];
+    
+    $followUpDate = date('Y-m-d', strtotime("-{$days} days"));
+    
+    foreach ($openQuotations['data'] as $quotation) {
+        if ($quotation['created_at'] < $followUpDate) {
+            $pending[] = [
+                'quotation_id' => $quotation['id'],
+                'quotation_name' => $quotation['name'],
+                'days_pending' => round((time() - strtotime($quotation['created_at'])) / 86400),
+                'deal_id' => $quotation['deal']['id']
+            ];
+        }
+    }
+    
+    return $pending;
+}
 ```
 
-## Advanced Features
-
-### Pagination
+### 3. Quotation Conversion Rate
 
 ```php
-// First page (default: 20 items)
-$page1 = $teamleader->quotations()->list([], [
-    'page' => [
-        'size' => 20,
-        'number' => 1
-    ]
-]);
-
-// Second page
-$page2 = $teamleader->quotations()->list([], [
-    'page' => [
-        'size' => 20,
-        'number' => 2
-    ]
-]);
+function calculateQuotationConversionRate($startDate, $endDate)
+{
+    $allQuotations = Teamleader::quotations()->list();
+    
+    $sent = 0;
+    $accepted = 0;
+    
+    foreach ($allQuotations['data'] as $quotation) {
+        $createdDate = date('Y-m-d', strtotime($quotation['created_at']));
+        
+        if ($createdDate >= $startDate && $createdDate <= $endDate) {
+            $sent++;
+            
+            if ($quotation['status'] === 'accepted') {
+                $accepted++;
+            }
+        }
+    }
+    
+    return [
+        'sent' => $sent,
+        'accepted' => $accepted,
+        'conversion_rate' => $sent > 0 ? ($accepted / $sent) * 100 : 0
+    ];
+}
 ```
 
-### Working with Quotation Expiry
+### 4. Bulk Quotation Operations
 
 ```php
-// Create quotation with expiry settings
-$quotation = $teamleader->quotations()->create([
-    'deal_id' => 'cef01135-7e51-4f6f-a6eb-6e5e5a885ac8',
-    'currency' => [
-        'code' => 'EUR'
-    ],
-    'grouped_lines' => [/* ... */],
-    'expiry' => [
-        'expires_after' => '2023-12-31',
-        'action_after_expiry' => 'lock' // or 'none'
-    ]
-]);
-
-// Retrieve with expiry information
-$quotationWithExpiry = $teamleader->quotations()
-    ->include('expiry')
-    ->info($quotation['data']['id']);
+function sendBulkQuotations(array $quotationIds, $recipients, $subject, $content)
+{
+    // Validate all quotations exist and are open
+    $validQuotations = [];
+    
+    foreach ($quotationIds as $id) {
+        $quotation = Teamleader::quotations()->info($id);
+        
+        if ($quotation['data']['status'] === 'open') {
+            $validQuotations[] = $id;
+        }
+    }
+    
+    if (empty($validQuotations)) {
+        throw new \Exception('No valid open quotations found');
+    }
+    
+    // Send all at once
+    return Teamleader::quotations()->send([
+        'quotations' => $validQuotations,
+        'from' => ['sender' => ['type' => 'user', 'id' => 'user-uuid']],
+        'recipients' => $recipients,
+        'subject' => $subject,
+        'content' => $content,
+        'language' => 'en'
+    ]);
+}
 ```
 
-### Working with Discounts
+### 5. Quotation Version Control
 
 ```php
-$quotation = $teamleader->quotations()->create([
-    'deal_id' => 'cef01135-7e51-4f6f-a6eb-6e5e5a885ac8',
-    'currency' => ['code' => 'EUR'],
-    'grouped_lines' => [/* ... */],
-    'discounts' => [
+function createQuotationRevision($originalQuotationId, $changes)
+{
+    // Get original quotation
+    $original = Teamleader::quotations()->info($originalQuotationId);
+    
+    // Create new version with changes
+    $newData = array_merge($original['data'], $changes);
+    
+    $revision = Teamleader::quotations()->create($newData);
+    
+    // Log the revision
+    DB::table('quotation_revisions')->insert([
+        'original_quotation_id' => $originalQuotationId,
+        'new_quotation_id' => $revision['data']['id'],
+        'changes' => json_encode($changes),
+        'created_by' => auth()->user()->id,
+        'created_at' => now()
+    ]);
+    
+    return $revision;
+}
+```
+
+## Best Practices
+
+### 1. Always Validate Before Sending
+
+```php
+// Good: Validate quotation is in correct state
+function sendQuotation($quotationId, $recipientEmail)
+{
+    $quotation = Teamleader::quotations()->info($quotationId);
+    
+    if ($quotation['data']['status'] !== 'open') {
+        throw new \Exception("Cannot send quotation with status: {$quotation['data']['status']}");
+    }
+    
+    // Proceed with sending
+    return Teamleader::quotations()->send([...]);
+}
+```
+
+### 2. Track Quotation Lifecycle
+
+```php
+// Good: Log all quotation state changes
+function acceptQuotation($quotationId)
+{
+    $result = Teamleader::quotations()->accept($quotationId);
+    
+    // Log the acceptance
+    DB::table('quotation_events')->insert([
+        'quotation_id' => $quotationId,
+        'event_type' => 'accepted',
+        'user_id' => auth()->user()->id,
+        'created_at' => now()
+    ]);
+    
+    // Trigger follow-up actions
+    event(new QuotationAccepted($quotationId));
+    
+    return $result;
+}
+```
+
+### 3. Handle Download URLs Properly
+
+```php
+// Good: Use download URLs immediately or store securely
+function getQuotationForCustomer($quotationId)
+{
+    $download = Teamleader::quotations()->download($quotationId);
+    
+    // Check expiration
+    $expires = new \DateTime($download['data']['expires']);
+    $now = new \DateTime();
+    
+    if ($expires < $now) {
+        // Re-generate download link
+        $download = Teamleader::quotations()->download($quotationId);
+    }
+    
+    return $download['data']['location'];
+}
+```
+
+### 4. Organize Line Items Logically
+
+```php
+// Good: Group related items into sections
+Teamleader::quotations()->create([
+    'deal_id' => 'deal-uuid',
+    'grouped_lines' => [
         [
-            'type' => 'percentage',
-            'value' => 15.5,
-            'description' => 'Winter promotion'
+            'section' => ['title' => 'Hardware'],
+            'line_items' => [/* hardware items */]
+        ],
+        [
+            'section' => ['title' => 'Software'],
+            'line_items' => [/* software items */]
+        ],
+        [
+            'section' => ['title' => 'Services'],
+            'line_items' => [/* service items */]
         ]
     ]
 ]);
 ```
 
-### Using Document Templates
+### 5. Set Follow-up Reminders
 
 ```php
-$quotation = $teamleader->quotations()->create([
-    'deal_id' => 'cef01135-7e51-4f6f-a6eb-6e5e5a885ac8',
-    'currency' => ['code' => 'EUR'],
-    'grouped_lines' => [/* ... */],
-    'document_template_id' => '179e1564-493b-4305-8c54-a34fc80920fc'
-]);
-```
-
-## Data Structures
-
-### Quotation Status Values
-
-- `open` - Quotation is open
-- `accepted` - Quotation has been accepted
-- `expired` - Quotation has expired
-- `rejected` - Quotation was rejected
-- `closed` - Quotation is closed
-
-### Currency Exchange Rate
-
-```php
-[
-    'from' => 'USD',
-    'to' => 'EUR',
-    'rate' => 1.1234
-]
-```
-
-### Line Item Structure
-
-```php
-[
-    'quantity' => 3,
-    'description' => 'Product name',
-    'extended_description' => 'Additional details (Markdown supported)',
-    'unit_of_measure_id' => 'f79d3e04-b8dc-0637-8f18-ca7c8fc63b71',
-    'unit_price' => [
-        'amount' => 123.3,
-        'tax' => 'excluding'
-    ],
-    'tax_rate_id' => 'c0c03f1e-77e3-402c-a713-30ea1c585823',
-    'discount' => [
-        'value' => 10,
-        'type' => 'percentage'
-    ],
-    'product_id' => 'e2314517-3cab-4aa9-8471-450e73449041',
-    'purchase_price' => [
-        'amount' => 100.0,
-        'currency' => 'EUR'
-    ],
-    'periodicity' => [
-        'unit' => 'week',
-        'period' => 2
-    ]
-]
+// Good: Create automated follow-ups
+function createQuotationWithFollowUp($data, $followUpDays = 7)
+{
+    $quotation = Teamleader::quotations()->create($data);
+    
+    // Schedule follow-up
+    DB::table('quotation_follow_ups')->insert([
+        'quotation_id' => $quotation['data']['id'],
+        'follow_up_date' => date('Y-m-d', strtotime("+{$followUpDays} days")),
+        'assigned_to' => auth()->user()->id,
+        'created_at' => now()
+    ]);
+    
+    return $quotation;
+}
 ```
 
 ## Error Handling
@@ -383,81 +738,47 @@ $quotation = $teamleader->quotations()->create([
 use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
 
 try {
-    $quotation = $teamleader->quotations()->create([
-        'deal_id' => 'invalid-id',
-        'currency' => ['code' => 'EUR'],
-        'grouped_lines' => []
-    ]);
+    $quotation = Teamleader::quotations()->create([...]);
 } catch (TeamleaderException $e) {
-    Log::error('Failed to create quotation', [
-        'message' => $e->getMessage(),
-        'status' => $e->getCode()
+    Log::error('Error creating quotation', [
+        'error' => $e->getMessage(),
+        'code' => $e->getCode()
     ]);
+    
+    if ($e->getCode() === 422) {
+        // Validation error
+        return response()->json([
+            'error' => 'Invalid quotation data'
+        ], 422);
+    }
+}
+
+// Handle send errors
+try {
+    Teamleader::quotations()->send([...]);
+} catch (\InvalidArgumentException $e) {
+    // Missing required fields
+    return response()->json([
+        'error' => 'Missing required send parameters: ' . $e->getMessage()
+    ], 400);
 }
 ```
 
-## Rate Limiting
+## Quotation Statuses
 
-Each quotation operation counts towards your API rate limit:
+- **open** - Quotation is awaiting response
+- **accepted** - Customer has accepted the quotation
+- **expired** - Quotation has passed its expiry date (if set)
+- **rejected** - Customer has rejected the quotation
+- **closed** - Quotation is closed (manually or automatically)
 
-- **List operations**: 1 request
-- **Info operations**: 1 request
-- **Create operations**: 1 request
-- **Update operations**: 1 request
-- **Delete operations**: 1 request
-- **Accept operations**: 1 request
-- **Send operations**: 1 request
-- **Download operations**: 1 request
+## Related Resources
 
-## Notes
+- [Deals](deals.md) - Quotations are linked to deals
+- [Orders](orders.md) - Accepted quotations become orders
+- [Invoices](../invoicing/invoices.md) - Quotations can be converted to invoices
 
-- A quotation needs either `grouped_lines` or `text` to be valid
-- Extended descriptions support Markdown formatting
-- Line items can have discounts applied at the item level
-- Global discounts can be applied to the entire quotation
-- The `#LINK` shortcode in email content is replaced with the cloudsign URL
-- When sending quotations, all quotations must be from the same deal
-- Downloaded quotations expire after a certain time (check the `expires` field)
-- Quotation expiry settings control what happens when a quotation expires
-- Currency exchange rates are optional and default to 1:1
+## See Also
 
-## Laravel Integration
-
-```php
-use McoreServices\TeamleaderSDK\TeamleaderSDK;
-
-class QuotationController extends Controller
-{
-    public function index(TeamleaderSDK $teamleader)
-    {
-        $quotations = $teamleader->quotations()->list();
-        
-        return view('quotations.index', compact('quotations'));
-    }
-    
-    public function store(Request $request, TeamleaderSDK $teamleader)
-    {
-        $validated = $request->validate([
-            'deal_id' => 'required|uuid',
-            'grouped_lines' => 'required|array'
-        ]);
-        
-        $quotation = $teamleader->quotations()->create([
-            'deal_id' => $validated['deal_id'],
-            'currency' => ['code' => 'EUR'],
-            'grouped_lines' => $validated['grouped_lines']
-        ]);
-        
-        return redirect()->route('quotations.show', $quotation['data']['id']);
-    }
-    
-    public function accept(TeamleaderSDK $teamleader, string $id)
-    {
-        $teamleader->quotations()->accept($id);
-        
-        return back()->with('success', 'Quotation accepted');
-    }
-}
-```
-
-For more information, refer to the [Teamleader API Documentation](https://developer.focus.teamleader.eu/).
+- [Usage Guide](../usage.md) - General SDK usage
+- [Filtering](../filtering.md) - Advanced filtering techniques

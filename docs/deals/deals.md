@@ -1,6 +1,34 @@
 # Deals
 
-Manage sales deals in Teamleader Focus. This resource provides comprehensive functionality for creating, updating, and tracking deals through your sales pipeline.
+Manage deals (opportunities) in Teamleader Focus.
+
+## Overview
+
+The Deals resource provides full CRUD (Create, Read, Update, Delete) operations for managing deal records in your Teamleader CRM. Deals represent sales opportunities that move through your sales pipeline from initial contact to either won or lost status.
+
+## Navigation
+
+- [Endpoint](#endpoint)
+- [Capabilities](#capabilities)
+- [Available Methods](#available-methods)
+    - [list()](#list)
+    - [info()](#info)
+    - [create()](#create)
+    - [update()](#update)
+    - [delete()](#delete)
+    - [win()](#win)
+    - [lose()](#lose)
+    - [move()](#move)
+- [Helper Methods](#helper-methods)
+- [Filters](#filters)
+- [Sorting](#sorting)
+- [Sideloading](#sideloading)
+- [Response Structure](#response-structure)
+- [Usage Examples](#usage-examples)
+- [Common Use Cases](#common-use-cases)
+- [Best Practices](#best-practices)
+- [Error Handling](#error-handling)
+- [Related Resources](#related-resources)
 
 ## Endpoint
 
@@ -8,30 +36,42 @@ Manage sales deals in Teamleader Focus. This resource provides comprehensive fun
 
 ## Capabilities
 
-- **Supports Pagination**: ✅ Supported
-- **Supports Filtering**: ✅ Supported
-- **Supports Sorting**: ✅ Supported
-- **Supports Sideloading**: ✅ Supported
-- **Supports Creation**: ✅ Supported
-- **Supports Update**: ✅ Supported
-- **Supports Deletion**: ✅ Supported
-- **Supports Batch**: ❌ Not Supported
+- **Pagination**: ✅ Supported
+- **Filtering**: ✅ Supported
+- **Sorting**: ✅ Supported
+- **Sideloading**: ✅ Supported
+- **Creation**: ✅ Supported
+- **Update**: ✅ Supported
+- **Deletion**: ✅ Supported
 
 ## Available Methods
 
 ### `list()`
 
-Get a paginated list of deals with filtering and sorting options.
+Get all deals with optional filtering, sorting, and pagination.
 
 **Parameters:**
-- `filters` (array): Array of filters to apply
-- `options` (array): Pagination, sorting, and include options
+- `filters` (array): Filters to apply
+- `options` (array): Additional options (page_size, page_number, sort, include)
 
 **Example:**
 ```php
-$deals = $teamleader->deals()->list([
-    'status' => ['open'],
-    'responsible_user_id' => 'user-uuid'
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
+// Get all deals
+$deals = Teamleader::deals()->list();
+
+// Get open deals only
+$deals = Teamleader::deals()->list([
+    'status' => ['open']
+]);
+
+// With pagination and sorting
+$deals = Teamleader::deals()->list([], [
+    'page_size' => 50,
+    'page_number' => 2,
+    'sort' => 'created_at',
+    'sort_order' => 'desc'
 ]);
 ```
 
@@ -41,34 +81,48 @@ Get detailed information about a specific deal.
 
 **Parameters:**
 - `id` (string): Deal UUID
-- `includes` (array|string): Relations to include
+- `includes` (string|array): Optional sideloaded relationships
 
 **Example:**
 ```php
-$deal = $teamleader->deals()->info('deal-uuid-here');
+// Get deal information
+$deal = Teamleader::deals()->info('deal-uuid');
+
+// With sideloading
+$deal = Teamleader::deals()->info('deal-uuid', 'customer,responsible_user');
+
+// Using fluent interface
+$deal = Teamleader::deals()
+    ->with('customer,responsible_user,current_phase')
+    ->info('deal-uuid');
 ```
 
 ### `create()`
 
-Create a new deal for a customer.
+Create a new deal.
 
 **Parameters:**
-- `data` (array): Deal data including lead, title, estimated value, etc.
+- `data` (array): Deal data
 
 **Example:**
 ```php
-$deal = $teamleader->deals()->create([
+$deal = Teamleader::deals()->create([
+    'title' => 'New Sales Opportunity',
     'lead' => [
         'customer' => [
             'type' => 'company',
             'id' => 'company-uuid'
         ]
     ],
-    'title' => 'New Business Deal',
+    'phase_id' => 'phase-uuid',
     'estimated_value' => [
-        'amount' => 10000,
+        'amount' => 5000,
         'currency' => 'EUR'
-    ]
+    ],
+    'estimated_probability' => 0.75,
+    'estimated_closing_date' => '2024-12-31',
+    'responsible_user_id' => 'user-uuid',
+    'source_id' => 'source-uuid'
 ]);
 ```
 
@@ -78,13 +132,17 @@ Update an existing deal.
 
 **Parameters:**
 - `id` (string): Deal UUID
-- `data` (array): Data to update
+- `data` (array): Updated deal data
 
 **Example:**
 ```php
-$deal = $teamleader->deals()->update('deal-uuid', [
-    'title' => 'Updated Deal Title',
-    'estimated_probability' => 0.75
+$deal = Teamleader::deals()->update('deal-uuid', [
+    'title' => 'Updated Opportunity Title',
+    'estimated_probability' => 0.90,
+    'estimated_value' => [
+        'amount' => 7500,
+        'currency' => 'EUR'
+    ]
 ]);
 ```
 
@@ -97,7 +155,7 @@ Delete a deal.
 
 **Example:**
 ```php
-$result = $teamleader->deals()->delete('deal-uuid');
+Teamleader::deals()->delete('deal-uuid');
 ```
 
 ### `win()`
@@ -109,25 +167,28 @@ Mark a deal as won.
 
 **Example:**
 ```php
-$result = $teamleader->deals()->win('deal-uuid');
+Teamleader::deals()->win('deal-uuid');
 ```
 
 ### `lose()`
 
-Mark a deal as lost with optional reason and details.
+Mark a deal as lost, optionally with a reason.
 
 **Parameters:**
 - `id` (string): Deal UUID
-- `reasonId` (string|null): Lost reason UUID (optional)
-- `extraInfo` (string|null): Additional information (optional)
+- `reasonId` (string, optional): Lost reason UUID
+- `extraInfo` (string, optional): Additional information
 
 **Example:**
 ```php
-$result = $teamleader->deals()->lose(
-    'deal-uuid',
-    'reason-uuid',
-    'Customer chose competitor'
-);
+// Mark as lost without reason
+Teamleader::deals()->lose('deal-uuid');
+
+// Mark as lost with reason
+Teamleader::deals()->lose('deal-uuid', 'lost-reason-uuid');
+
+// Mark as lost with reason and additional info
+Teamleader::deals()->lose('deal-uuid', 'lost-reason-uuid', 'Price too high for client budget');
 ```
 
 ### `move()`
@@ -140,209 +201,318 @@ Move a deal to a different phase in the pipeline.
 
 **Example:**
 ```php
-$result = $teamleader->deals()->move('deal-uuid', 'phase-uuid');
+Teamleader::deals()->move('deal-uuid', 'new-phase-uuid');
 ```
 
-### `open()`
+## Helper Methods
 
-Get only open deals.
+The Deals resource provides convenient helper methods for common operations:
 
-**Example:**
+### Status Filter Methods
+
 ```php
-$openDeals = $teamleader->deals()->open();
+// Get only open deals
+$deals = Teamleader::deals()->open();
+
+// Get only won deals
+$deals = Teamleader::deals()->won();
+
+// Get only lost deals
+$deals = Teamleader::deals()->lost();
+
+// Add additional filters
+$deals = Teamleader::deals()->open([
+    'responsible_user_id' => 'user-uuid'
+]);
 ```
 
-### `won()`
+### Customer Filter Methods
 
-Get only won deals.
-
-**Example:**
 ```php
-$wonDeals = $teamleader->deals()->won();
+// Get deals for a specific company
+$deals = Teamleader::deals()->forCustomer('company', 'company-uuid');
+
+// Get deals for a specific contact
+$deals = Teamleader::deals()->forCustomer('contact', 'contact-uuid');
+
+// With additional filters
+$deals = Teamleader::deals()->forCustomer('company', 'company-uuid', [
+    'status' => ['open']
+]);
 ```
 
-### `lost()`
+### Filter Helper Methods
 
-Get only lost deals.
-
-**Example:**
 ```php
-$lostDeals = $teamleader->deals()->lost();
+// Get deals updated since a date
+$deals = Teamleader::deals()->updatedSince('2024-01-01');
+
+// Get deals for specific phase
+$deals = Teamleader::deals()->inPhase('phase-uuid');
+
+// Get deals for specific pipeline
+$deals = Teamleader::deals()->inPipeline('pipeline-uuid');
+
+// Get deals by IDs
+$deals = Teamleader::deals()->byIds(['deal-uuid-1', 'deal-uuid-2']);
+
+// Get deals with specific tags
+$deals = Teamleader::deals()->withTags(['High Priority', 'Q1 2024']);
 ```
 
-### `forCustomer()`
+### Sideloading Helper Methods
 
-Get all deals for a specific customer.
-
-**Parameters:**
-- `customerType` (string): Customer type ('contact' or 'company')
-- `customerId` (string): Customer UUID
-
-**Example:**
 ```php
-$customerDeals = $teamleader->deals()->forCustomer('company', 'company-uuid');
+// Include customer information
+$deals = Teamleader::deals()
+    ->withCustomer()
+    ->list();
+
+// Include responsible user
+$deals = Teamleader::deals()
+    ->withResponsibleUser()
+    ->list();
+
+// Include current phase
+$deals = Teamleader::deals()
+    ->withCurrentPhase()
+    ->list();
+
+// Include quotations
+$deals = Teamleader::deals()
+    ->withQuotations()
+    ->list();
+
+// Chain multiple includes
+$deals = Teamleader::deals()
+    ->withCustomer()
+    ->withResponsibleUser()
+    ->withCurrentPhase()
+    ->list();
 ```
 
-### `byPhase()`
-
-Get deals in a specific phase.
-
-**Parameters:**
-- `phaseId` (string): Phase UUID
-
-**Example:**
-```php
-$phaseDeals = $teamleader->deals()->byPhase('phase-uuid');
-```
-
-## Filtering
+## Filters
 
 ### Available Filters
 
-- **`ids`**: Array of deal UUIDs to filter by
-- **`term`**: Search term (filters on title, reference, and customer name)
-- **`customer`**: Filter by customer (requires type and id)
-- **`phase_id`**: Filter by specific phase UUID
-- **`estimated_closing_date`**: Filter by exact closing date
-- **`estimated_closing_date_from`**: Filter by closing date from (inclusive)
-- **`estimated_closing_date_until`**: Filter by closing date until (inclusive)
-- **`responsible_user_id`**: Filter by responsible user UUID
-- **`updated_since`**: Filter by last update date (inclusive)
-- **`created_before`**: Filter by creation date (inclusive)
-- **`status`**: Filter by deal status (open, won, lost)
-- **`pipeline_ids`**: Array of pipeline UUIDs
-
-### Filter Examples
+#### `ids`
+Filter by specific deal UUIDs.
 
 ```php
-// Filter by status
-$openDeals = $teamleader->deals()->list([
-    'status' => ['open']
+$deals = Teamleader::deals()->list([
+    'ids' => ['deal-uuid-1', 'deal-uuid-2']
 ]);
+```
 
-// Filter by customer
-$customerDeals = $teamleader->deals()->list([
+#### `phase_id`
+Filter by deal phase.
+
+```php
+$deals = Teamleader::deals()->list([
+    'phase_id' => 'phase-uuid'
+]);
+```
+
+#### `pipeline_id`
+Filter by deal pipeline.
+
+```php
+$deals = Teamleader::deals()->list([
+    'pipeline_id' => 'pipeline-uuid'
+]);
+```
+
+#### `status`
+Filter by deal status.
+
+**Values:** `open`, `won`, `lost`
+
+```php
+$deals = Teamleader::deals()->list([
+    'status' => ['open', 'won']
+]);
+```
+
+#### `customer`
+Filter by customer (company or contact).
+
+```php
+// Deals for a company
+$deals = Teamleader::deals()->list([
     'customer' => [
         'type' => 'company',
         'id' => 'company-uuid'
     ]
 ]);
 
-// Filter by date range
-$deals = $teamleader->deals()->list([
-    'estimated_closing_date_from' => '2024-01-01',
-    'estimated_closing_date_until' => '2024-12-31'
+// Deals for a contact
+$deals = Teamleader::deals()->list([
+    'customer' => [
+        'type' => 'contact',
+        'id' => 'contact-uuid'
+    ]
 ]);
+```
 
-// Search by term
-$searchResults = $teamleader->deals()->list([
-    'term' => 'Software Implementation'
+#### `term`
+Search term that searches across deal title.
+
+```php
+$deals = Teamleader::deals()->list([
+    'term' => 'New Office'
 ]);
+```
 
-// Filter by responsible user
-$myDeals = $teamleader->deals()->list([
+#### `responsible_user_id`
+Filter by responsible user.
+
+```php
+$deals = Teamleader::deals()->list([
     'responsible_user_id' => 'user-uuid'
 ]);
+```
 
-// Filter by updated since
-$recentDeals = $teamleader->deals()->list([
+#### `estimated_value_min` / `estimated_value_max`
+Filter by estimated value range.
+
+```php
+$deals = Teamleader::deals()->list([
+    'estimated_value_min' => 1000,
+    'estimated_value_max' => 10000,
+    'currency' => 'EUR'
+]);
+```
+
+#### `estimated_closing_date_from` / `estimated_closing_date_to`
+Filter by estimated closing date range.
+
+```php
+$deals = Teamleader::deals()->list([
+    'estimated_closing_date_from' => '2024-01-01',
+    'estimated_closing_date_to' => '2024-12-31'
+]);
+```
+
+#### `updated_since`
+Filter by last update date (ISO 8601 datetime).
+
+```php
+$deals = Teamleader::deals()->list([
     'updated_since' => '2024-01-01T00:00:00+00:00'
 ]);
+```
 
-// Combine multiple filters
-$filteredDeals = $teamleader->deals()->list([
-    'status' => ['open'],
-    'phase_id' => 'phase-uuid',
-    'responsible_user_id' => 'user-uuid'
+#### `tags`
+Filter by tag names.
+
+```php
+$deals = Teamleader::deals()->list([
+    'tags' => ['High Priority', 'Enterprise']
 ]);
 ```
 
 ## Sorting
 
-### Available Sort Fields
-
-- **`created_at`**: Sort by creation date (default)
-- **`weighted_value`**: Sort by weighted value (estimated value × probability)
-
-### Sorting Examples
+Deals can be sorted by various fields:
 
 ```php
-// Sort by creation date (ascending)
-$deals = $teamleader->deals()->list([], [
-    'sort' => [
-        [
-            'field' => 'created_at',
-            'order' => 'asc'
-        ]
-    ]
+// Sort by creation date
+$deals = Teamleader::deals()->list([], [
+    'sort' => 'created_at',
+    'sort_order' => 'desc'
 ]);
 
-// Sort by weighted value (descending)
-$deals = $teamleader->deals()->list([], [
-    'sort' => [
-        [
-            'field' => 'weighted_value',
-            'order' => 'desc'
-        ]
-    ]
+// Sort by estimated value
+$deals = Teamleader::deals()->list([], [
+    'sort' => 'estimated_value',
+    'sort_order' => 'desc'
+]);
+
+// Sort by estimated closing date
+$deals = Teamleader::deals()->list([], [
+    'sort' => 'estimated_closing_date',
+    'sort_order' => 'asc'
 ]);
 ```
 
-## Sideloading (Includes)
+## Sideloading
+
+Load related data in a single request:
 
 ### Available Includes
 
-- **`lead.customer`**: Include customer information
-- **`responsible_user`**: Include responsible user details
-- **`department`**: Include department information
-- **`current_phase`**: Include current phase details
-- **`source`**: Include deal source information
-- **`custom_fields`**: Include custom field values
+- `customer` - Customer information (company or contact)
+- `customer.primary_address` - Customer's primary address
+- `responsible_user` - User responsible for the deal
+- `current_phase` - Current deal phase information
+- `quotations` - Quotations associated with the deal
 
-### Sideloading Examples
+### Usage
 
 ```php
-// Using fluent interface
-$deal = $teamleader->deals()
-    ->withCustomer()
-    ->withResponsibleUser()
+// Single include
+$deal = Teamleader::deals()
+    ->with('customer')
     ->info('deal-uuid');
 
-// Using with() method
-$deals = $teamleader->deals()
-    ->with(['lead.customer', 'responsible_user', 'department'])
-    ->list();
+// Multiple includes
+$deal = Teamleader::deals()
+    ->with('customer,responsible_user,current_phase,quotations')
+    ->info('deal-uuid');
 
-// Include in list options
-$deals = $teamleader->deals()->list([], [
-    'include' => 'lead.customer,responsible_user,custom_fields'
+// In list() calls
+$deals = Teamleader::deals()->list([], [
+    'include' => 'customer,responsible_user'
 ]);
-
-// Include in info call
-$deal = $teamleader->deals()->info('deal-uuid', 'lead.customer,responsible_user');
 ```
 
-## Pagination
+## Response Structure
+
+### Deal Object
 
 ```php
-// Set page size and number
-$deals = $teamleader->deals()->list([], [
-    'page_size' => 50,
-    'page_number' => 2
-]);
-
-// Access pagination info
-$result = $teamleader->deals()->list();
-$currentPage = $result['meta']['page']['number'] ?? 1;
-$totalPages = $result['meta']['page']['count'] ?? 1;
+[
+    'id' => 'deal-uuid',
+    'title' => 'New Sales Opportunity',
+    'lead' => [
+        'customer' => [
+            'type' => 'company',
+            'id' => 'company-uuid'
+        ]
+    ],
+    'phase' => [
+        'id' => 'phase-uuid'
+    ],
+    'estimated_value' => [
+        'amount' => 5000.00,
+        'currency' => 'EUR'
+    ],
+    'estimated_probability' => 0.75,
+    'estimated_closing_date' => '2024-12-31',
+    'responsible_user' => [
+        'type' => 'user',
+        'id' => 'user-uuid'
+    ],
+    'source' => [
+        'id' => 'source-uuid'
+    ],
+    'department' => [
+        'id' => 'department-uuid'
+    ],
+    'created_at' => '2024-01-15T10:30:00+00:00',
+    'updated_at' => '2024-01-20T14:45:00+00:00',
+    'status' => 'open',
+    'web_url' => 'https://focus.teamleader.eu/deal_detail.php?id=123'
+]
 ```
 
 ## Usage Examples
 
-### Create a New Deal
+### Create a Complete Deal
 
 ```php
-$deal = $teamleader->deals()->create([
+$deal = Teamleader::deals()->create([
+    'title' => 'Enterprise Software License',
     'lead' => [
         'customer' => [
             'type' => 'company',
@@ -350,18 +520,16 @@ $deal = $teamleader->deals()->create([
         ],
         'contact_person_id' => 'contact-uuid'
     ],
-    'title' => 'Software License Renewal',
-    'summary' => 'Annual license renewal for enterprise plan',
-    'source_id' => 'source-uuid',
-    'department_id' => 'department-uuid',
-    'responsible_user_id' => 'user-uuid',
     'phase_id' => 'phase-uuid',
     'estimated_value' => [
         'amount' => 25000,
         'currency' => 'EUR'
     ],
-    'estimated_probability' => 0.80,
-    'estimated_closing_date' => '2024-12-31',
+    'estimated_probability' => 0.60,
+    'estimated_closing_date' => '2024-06-30',
+    'responsible_user_id' => 'user-uuid',
+    'source_id' => 'source-uuid',
+    'department_id' => 'department-uuid',
     'custom_fields' => [
         [
             'id' => 'custom-field-uuid',
@@ -371,224 +539,351 @@ $deal = $teamleader->deals()->create([
 ]);
 ```
 
-### Update Deal Information
-
-```php
-$deal = $teamleader->deals()->update('deal-uuid', [
-    'title' => 'Updated Deal Title',
-    'estimated_probability' => 0.90,
-    'estimated_value' => [
-        'amount' => 30000,
-        'currency' => 'EUR'
-    ],
-    'estimated_closing_date' => '2024-11-30'
-]);
-```
-
 ### Move Deal Through Pipeline
 
 ```php
+// Create deal in first phase
+$deal = Teamleader::deals()->create([
+    'title' => 'New Opportunity',
+    'lead' => [
+        'customer' => [
+            'type' => 'company',
+            'id' => 'company-uuid'
+        ]
+    ],
+    'phase_id' => 'first-phase-uuid',
+    'estimated_value' => [
+        'amount' => 10000,
+        'currency' => 'EUR'
+    ]
+]);
+
 // Move to next phase
-$result = $teamleader->deals()->move('deal-uuid', 'next-phase-uuid');
+Teamleader::deals()->move($deal['data']['id'], 'second-phase-uuid');
+
+// Update probability
+Teamleader::deals()->update($deal['data']['id'], [
+    'estimated_probability' => 0.75
+]);
+
+// Move to final phase
+Teamleader::deals()->move($deal['data']['id'], 'final-phase-uuid');
 
 // Mark as won
-$result = $teamleader->deals()->win('deal-uuid');
+Teamleader::deals()->win($deal['data']['id']);
+```
 
-// Mark as lost with reason
-$result = $teamleader->deals()->lose(
+### Handle Lost Deal
+
+```php
+// Get lost reasons
+$lostReasons = Teamleader::lostReasons()->list();
+
+// Mark deal as lost with reason
+Teamleader::deals()->lose(
     'deal-uuid',
-    'lost-reason-uuid',
-    'Price was too high for customer budget'
+    $lostReasons['data'][0]['id'],
+    'Client decided to go with a competitor due to pricing'
 );
 ```
 
 ### Get Deals with Full Information
 
 ```php
-$deal = $teamleader->deals()
+$deals = Teamleader::deals()
     ->withCustomer()
     ->withResponsibleUser()
-    ->withDepartment()
-    ->info('deal-uuid');
-
-// Access included data
-$customer = $deal['included']['company'][0] ?? null;
-$responsibleUser = $deal['included']['user'][0] ?? null;
-$department = $deal['included']['department'][0] ?? null;
-```
-
-### Filter and Sort Deals
-
-```php
-// Get open deals for a specific user, sorted by weighted value
-$myOpenDeals = $teamleader->deals()->list([
-    'status' => ['open'],
-    'responsible_user_id' => 'user-uuid'
-], [
-    'sort' => [
-        [
-            'field' => 'weighted_value',
-            'order' => 'desc'
-        ]
-    ],
-    'page_size' => 20
-]);
-```
-
-### Complex Query Example
-
-Get high-value open deals closing this quarter with full details:
-
-```php
-$deals = $teamleader->deals()
-    ->withCustomer()
-    ->withResponsibleUser()
+    ->withCurrentPhase()
+    ->withQuotations()
     ->list([
         'status' => ['open'],
-        'estimated_closing_date_from' => '2024-10-01',
-        'estimated_closing_date_until' => '2024-12-31'
-    ], [
-        'sort' => [
-            [
-                'field' => 'weighted_value',
-                'order' => 'desc'
-            ]
-        ],
-        'page_size' => 50
+        'responsible_user_id' => 'user-uuid'
     ]);
 
 foreach ($deals['data'] as $deal) {
-    $weightedValue = $deal['weighted_value']['amount'] ?? 0;
-    $probability = $deal['estimated_probability'] ?? 0;
-    $closingDate = $deal['estimated_closing_date'] ?? 'N/A';
-    
-    echo "Deal: {$deal['title']} - €{$weightedValue} ({$probability}% chance) - Closes: {$closingDate}\n";
+    echo "Deal: {$deal['title']}\n";
+    echo "Customer: {$deal['customer']['name']}\n";
+    echo "Phase: {$deal['current_phase']['name']}\n";
+    echo "Owner: {$deal['responsible_user']['first_name']} {$deal['responsible_user']['last_name']}\n";
+    echo "Quotations: " . count($deal['quotations']) . "\n\n";
 }
+```
+
+## Common Use Cases
+
+### 1. Sales Pipeline Report
+
+```php
+function generatePipelineReport($pipelineId)
+{
+    $phases = Teamleader::dealPhases()->forPipeline($pipelineId);
+    $report = [];
+    
+    foreach ($phases['data'] as $phase) {
+        $deals = Teamleader::deals()->inPhase($phase['id']);
+        
+        $totalValue = array_reduce($deals['data'], function($carry, $deal) {
+            return $carry + $deal['estimated_value']['amount'];
+        }, 0);
+        
+        $report[] = [
+            'phase' => $phase['name'],
+            'deal_count' => count($deals['data']),
+            'total_value' => $totalValue,
+            'average_value' => count($deals['data']) > 0 
+                ? $totalValue / count($deals['data']) 
+                : 0
+        ];
+    }
+    
+    return $report;
+}
+```
+
+### 2. Deal Aging Analysis
+
+```php
+function analyzeOldDeals($days = 30)
+{
+    $cutoffDate = date('Y-m-d', strtotime("-{$days} days"));
+    
+    $oldDeals = Teamleader::deals()
+        ->withCustomer()
+        ->withResponsibleUser()
+        ->open([
+            'updated_since' => '2020-01-01'
+        ]);
+    
+    $staleDeals = array_filter($oldDeals['data'], function($deal) use ($cutoffDate) {
+        return $deal['updated_at'] < $cutoffDate;
+    });
+    
+    return [
+        'total_open_deals' => count($oldDeals['data']),
+        'stale_deals' => count($staleDeals),
+        'deals' => $staleDeals
+    ];
+}
+```
+
+### 3. Win Rate Calculator
+
+```php
+function calculateWinRate($userId, $startDate, $endDate)
+{
+    $wonDeals = Teamleader::deals()->won([
+        'responsible_user_id' => $userId,
+        'estimated_closing_date_from' => $startDate,
+        'estimated_closing_date_to' => $endDate
+    ]);
+    
+    $lostDeals = Teamleader::deals()->lost([
+        'responsible_user_id' => $userId,
+        'estimated_closing_date_from' => $startDate,
+        'estimated_closing_date_to' => $endDate
+    ]);
+    
+    $totalClosed = count($wonDeals['data']) + count($lostDeals['data']);
+    
+    return [
+        'won' => count($wonDeals['data']),
+        'lost' => count($lostDeals['data']),
+        'win_rate' => $totalClosed > 0 
+            ? (count($wonDeals['data']) / $totalClosed) * 100 
+            : 0
+    ];
+}
+```
+
+### 4. Automated Deal Follow-up
+
+```php
+function getDealsNeedingAttention()
+{
+    $today = date('Y-m-d');
+    
+    // Get deals closing soon
+    $closingSoon = Teamleader::deals()->open([
+        'estimated_closing_date_from' => $today,
+        'estimated_closing_date_to' => date('Y-m-d', strtotime('+7 days'))
+    ]);
+    
+    // Get high-value deals
+    $highValue = Teamleader::deals()->open([
+        'estimated_value_min' => 10000,
+        'currency' => 'EUR'
+    ]);
+    
+    return [
+        'closing_soon' => $closingSoon['data'],
+        'high_value' => $highValue['data']
+    ];
+}
+```
+
+### 5. Deal Assignment Balancing
+
+```php
+function balanceDealLoad()
+{
+    $users = Teamleader::users()->active();
+    $dealCounts = [];
+    
+    foreach ($users['data'] as $user) {
+        $deals = Teamleader::deals()->open([
+            'responsible_user_id' => $user['id']
+        ]);
+        
+        $dealCounts[$user['id']] = [
+            'name' => $user['first_name'] . ' ' . $user['last_name'],
+            'count' => count($deals['data']),
+            'total_value' => array_reduce($deals['data'], function($carry, $deal) {
+                return $carry + $deal['estimated_value']['amount'];
+            }, 0)
+        ];
+    }
+    
+    // Sort by deal count
+    uasort($dealCounts, function($a, $b) {
+        return $b['count'] - $a['count'];
+    });
+    
+    return $dealCounts;
+}
+```
+
+## Best Practices
+
+### 1. Always Use Sideloading for Related Data
+
+```php
+// Good: One API call
+$deal = Teamleader::deals()
+    ->with('customer,responsible_user,current_phase')
+    ->info('deal-uuid');
+
+// Bad: Multiple API calls
+$deal = Teamleader::deals()->info('deal-uuid');
+$customer = Teamleader::companies()->info($deal['data']['lead']['customer']['id']);
+$user = Teamleader::users()->info($deal['data']['responsible_user']['id']);
+```
+
+### 2. Track Status Changes
+
+```php
+// Good: Track when and why deals are lost
+function markDealLost($dealId, $reasonId, $notes)
+{
+    // Log the change
+    Log::info('Deal marked as lost', [
+        'deal_id' => $dealId,
+        'reason_id' => $reasonId,
+        'notes' => $notes,
+        'user' => auth()->user()->id,
+        'timestamp' => now()
+    ]);
+    
+    return Teamleader::deals()->lose($dealId, $reasonId, $notes);
+}
+```
+
+### 3. Validate Phase Transitions
+
+```php
+// Good: Ensure phase belongs to deal's pipeline
+function moveDealToPhase($dealId, $phaseId)
+{
+    $deal = Teamleader::deals()->info($dealId);
+    $phase = Teamleader::dealPhases()->info($phaseId);
+    
+    // Get current phase's pipeline
+    $currentPhase = Teamleader::dealPhases()->info($deal['data']['phase']['id']);
+    
+    if ($phase['data']['deal_pipeline_id'] !== $currentPhase['data']['deal_pipeline_id']) {
+        throw new \Exception('Phase must be in the same pipeline');
+    }
+    
+    return Teamleader::deals()->move($dealId, $phaseId);
+}
+```
+
+### 4. Use Filters for Performance
+
+```php
+// Good: Filter at API level
+$deals = Teamleader::deals()->list([
+    'status' => ['open'],
+    'responsible_user_id' => 'user-uuid',
+    'phase_id' => 'phase-uuid'
+]);
+
+// Bad: Filter after fetching everything
+$allDeals = Teamleader::deals()->list();
+$filtered = array_filter($allDeals['data'], function($deal) {
+    return $deal['status'] === 'open' && 
+           $deal['responsible_user']['id'] === 'user-uuid';
+});
+```
+
+### 5. Handle Estimated Values Carefully
+
+```php
+// Good: Always specify currency
+Teamleader::deals()->create([
+    'title' => 'New Deal',
+    'estimated_value' => [
+        'amount' => 5000,
+        'currency' => 'EUR'
+    ]
+]);
+
+// Good: Validate currency when filtering
+Teamleader::deals()->list([
+    'estimated_value_min' => 1000,
+    'currency' => 'EUR' // Always specify currency with value filters
+]);
 ```
 
 ## Error Handling
 
 ```php
-$result = $teamleader->deals()->create($dealData);
+use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
 
-if (isset($result['error']) && $result['error']) {
-    $errorMessage = $result['message'] ?? 'Unknown error';
-    $statusCode = $result['status_code'] ?? 0;
-    
-    Log::error("Deals API error: {$errorMessage}", [
-        'status_code' => $statusCode,
-        'data' => $dealData
+try {
+    $deal = Teamleader::deals()->create([
+        'title' => 'New Opportunity',
+        'phase_id' => 'phase-uuid'
     ]);
-}
-```
-
-## Rate Limiting
-
-Deals API calls count towards your overall Teamleader API rate limit:
-
-- **List operations**: 1 request per call
-- **Info operations**: 1 request per call
-- **Create operations**: 1 request per call
-- **Update operations**: 1 request per call
-- **Delete operations**: 1 request per call
-- **Status change operations** (win/lose/move): 1 request per call
-
-Rate limit cost: **1 request per method call**
-
-## Data Fields
-
-### Common Fields (Available in list and info)
-
-- **`id`**: Deal UUID
-- **`title`**: Deal title
-- **`summary`**: Deal description
-- **`reference`**: Deal reference number (e.g., "2017/2")
-- **`status`**: Deal status (new, open, won, lost)
-- **`lead`**: Lead information including customer and contact person
-- **`estimated_value`**: Estimated value with amount and currency
-- **`estimated_closing_date`**: Expected closing date
-- **`estimated_probability`**: Win probability (0-1)
-- **`weighted_value`**: Calculated weighted value (value × probability)
-- **`purchase_order_number`**: Customer's purchase order number
-- **`current_phase`**: Current pipeline phase
-- **`responsible_user`**: Responsible user information
-- **`department`**: Department information
-- **`source`**: Deal source information
-- **`closed_at`**: Date when deal was closed (won/lost)
-- **`created_at`**: Deal creation timestamp
-- **`updated_at`**: Last update timestamp
-- **`web_url`**: Direct link to deal in Teamleader
-
-### Additional Fields (Available in info only)
-
-- **`phase_history`**: Complete history of phase changes
-- **`quotations`**: Related quotations
-- **`lost_reason`**: Information about why deal was lost (if applicable)
-- **`custom_fields`**: Custom field values
-- **`currency_exchange_rate`**: Exchange rate information if deal uses different currency
-
-## Notes
-
-- All monetary values require both `amount` and `currency` fields
-- Estimated probability must be between 0 and 1 (inclusive)
-- When marking a deal as lost, providing a reason improves reporting
-- Moving a deal to a different phase requires the phase to be in the same pipeline
-- Customer type must be either 'contact' or 'company'
-- Dates should be in ISO format (YYYY-MM-DD)
-- Timestamps should be in ISO 8601 format with timezone
-- Custom fields require the custom field definition ID
-
-## Laravel Integration
-
-When using this resource in Laravel applications:
-
-```php
-use McoreServices\TeamleaderSDK\TeamleaderSDK;
-
-class DealController extends Controller
-{
-    public function index(TeamleaderSDK $teamleader)
-    {
-        $deals = $teamleader->deals()
-            ->withCustomer()
-            ->withResponsibleUser()
-            ->open();
-        
-        return view('deals.index', compact('deals'));
-    }
+} catch (TeamleaderException $e) {
+    Log::error('Error creating deal', [
+        'error' => $e->getMessage(),
+        'code' => $e->getCode()
+    ]);
     
-    public function store(Request $request, TeamleaderSDK $teamleader)
-    {
-        $validated = $request->validate([
-            'customer_id' => 'required|uuid',
-            'title' => 'required|string',
-            'estimated_value' => 'required|numeric',
-        ]);
-        
-        $deal = $teamleader->deals()->create([
-            'lead' => [
-                'customer' => [
-                    'type' => 'company',
-                    'id' => $validated['customer_id']
-                ]
-            ],
-            'title' => $validated['title'],
-            'estimated_value' => [
-                'amount' => $validated['estimated_value'],
-                'currency' => 'EUR'
-            ]
-        ]);
-        
-        return redirect()->route('deals.show', $deal['data']['id']);
-    }
-    
-    public function markAsWon(TeamleaderSDK $teamleader, string $id)
-    {
-        $teamleader->deals()->win($id);
-        
-        return redirect()->back()->with('success', 'Deal marked as won!');
+    // Handle specific error cases
+    if ($e->getCode() === 422) {
+        // Validation error - likely missing required fields
+        return response()->json([
+            'error' => 'Deal must have a customer'
+        ], 422);
     }
 }
 ```
 
-For more information, refer to the [Teamleader API Documentation](https://developer.focus.teamleader.eu/).
+## Related Resources
+
+- [Deal Phases](deal_phases.md) - Manage deal phases
+- [Deal Pipelines](deal_pipelines.md) - Manage deal pipelines
+- [Deal Sources](deal_sources.md) - Track deal sources
+- [Lost Reasons](lost_reasons.md) - Manage lost reasons
+- [Quotations](quotations.md) - Create quotations for deals
+- [Orders](orders.md) - View orders from deals
+- [Companies](../crm/companies.md) - Deal customers
+- [Contacts](../crm/contacts.md) - Deal contacts
+- [Users](../general/users.md) - Responsible users
+
+## See Also
+
+- [Usage Guide](../usage.md) - General SDK usage
+- [Filtering](../filtering.md) - Advanced filtering techniques
+- [Sideloading](../sideloading.md) - Efficiently load related data

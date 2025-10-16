@@ -1,6 +1,31 @@
 # Deal Phases
 
-Manage deal phases in Teamleader Focus. Deal phases represent the individual stages within a deal pipeline that deals progress through during your sales process.
+Manage deal phases in Teamleader Focus.
+
+## Overview
+
+The Deal Phases resource allows you to manage the phases (stages) within deal pipelines. Each phase represents a step in your sales process, from initial contact through to closing. Phases help track where deals are in your sales cycle and can trigger follow-up actions.
+
+## Navigation
+
+- [Endpoint](#endpoint)
+- [Capabilities](#capabilities)
+- [Available Methods](#available-methods)
+    - [list()](#list)
+    - [info()](#info)
+    - [create()](#create)
+    - [update()](#update)
+    - [delete()](#delete)
+    - [duplicate()](#duplicate)
+    - [move()](#move)
+- [Helper Methods](#helper-methods)
+- [Filters](#filters)
+- [Response Structure](#response-structure)
+- [Usage Examples](#usage-examples)
+- [Common Use Cases](#common-use-cases)
+- [Best Practices](#best-practices)
+- [Error Handling](#error-handling)
+- [Related Resources](#related-resources)
 
 ## Endpoint
 
@@ -8,53 +33,72 @@ Manage deal phases in Teamleader Focus. Deal phases represent the individual sta
 
 ## Capabilities
 
-- **Supports Pagination**: ✅ Supported
-- **Supports Filtering**: ✅ Supported
-- **Supports Sorting**: ❌ Not Supported (phases are sorted by their order in the pipeline)
-- **Supports Sideloading**: ❌ Not Supported
-- **Supports Creation**: ✅ Supported
-- **Supports Update**: ✅ Supported
-- **Supports Deletion**: ✅ Supported
-- **Supports Batch**: ❌ Not Supported
+- **Pagination**: ✅ Supported
+- **Filtering**: ✅ Supported
+- **Sorting**: ❌ Not Supported
+- **Sideloading**: ❌ Not Supported
+- **Creation**: ✅ Supported
+- **Update**: ✅ Supported
+- **Deletion**: ✅ Supported (requires migration)
 
 ## Available Methods
 
 ### `list()`
 
-Get a paginated list of deal phases with filtering options. Phases are automatically sorted by their order in the flow.
+Get all deal phases with optional filtering and pagination.
 
 **Parameters:**
-- `filters` (array): Array of filters to apply
-- `options` (array): Pagination options
+- `filters` (array): Filters to apply
+- `options` (array): Additional options (page_size, page_number)
 
 **Example:**
 ```php
-$phases = $teamleader->dealPhases()->list(['deal_pipeline_id' => 'pipeline-uuid']);
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
+// Get all phases
+$phases = Teamleader::dealPhases()->list();
+
+// Get phases for specific pipeline
+$phases = Teamleader::dealPhases()->list([
+    'deal_pipeline_id' => 'pipeline-uuid'
+]);
+
+// With pagination
+$phases = Teamleader::dealPhases()->list([], [
+    'page_size' => 50,
+    'page_number' => 1
+]);
+```
+
+### `info()`
+
+Get detailed information about a specific phase.
+
+**Parameters:**
+- `id` (string): Phase UUID
+
+**Example:**
+```php
+$phase = Teamleader::dealPhases()->info('phase-uuid');
 ```
 
 ### `create()`
 
-Create a new deal phase within a pipeline.
+Create a new deal phase.
 
 **Parameters:**
-- `data` (array): Phase data with required fields
-
-**Required Fields:**
-- `name`: Phase name
-- `deal_pipeline_id`: Pipeline UUID
-- `requires_attention_after`: Object with `amount` and `unit` properties
+- `data` (array): Phase data
 
 **Example:**
 ```php
-$phase = $teamleader->dealPhases()->create([
-    'name' => 'Investigation',
-    'deal_pipeline_id' => 'f350e48a-fbc3-0a79-e62a-53aa1ae86d44',
+$phase = Teamleader::dealPhases()->create([
+    'name' => 'Qualification',
+    'deal_pipeline_id' => 'pipeline-uuid',
     'requires_attention_after' => [
         'amount' => 7,
         'unit' => 'days'
     ],
-    'estimated_probability' => 0.5,
-    'follow_up_actions' => ['create_event']
+    'follow_up_actions' => ['create_task']
 ]);
 ```
 
@@ -64,15 +108,14 @@ Update an existing deal phase.
 
 **Parameters:**
 - `id` (string): Phase UUID
-- `data` (array): Update data
+- `data` (array): Updated phase data
 
 **Example:**
 ```php
-$phase = $teamleader->dealPhases()->update('uuid-here', [
-    'name' => 'Preparation',
-    'estimated_probability' => 0.8,
+$phase = Teamleader::dealPhases()->update('phase-uuid', [
+    'name' => 'Advanced Qualification',
     'requires_attention_after' => [
-        'amount' => 7,
+        'amount' => 5,
         'unit' => 'days'
     ]
 ]);
@@ -80,32 +123,35 @@ $phase = $teamleader->dealPhases()->update('uuid-here', [
 
 ### `delete()`
 
-Delete a deal phase and migrate existing deals to another phase.
+Delete a deal phase. Requires migrating existing deals to another phase.
 
 **Parameters:**
 - `id` (string): Phase UUID to delete
-- `newPhaseId` (string): Phase UUID to migrate deals to
+- `newPhaseId` (string): Target phase UUID for deal migration
 
 **Example:**
 ```php
-$teamleader->dealPhases()->delete('phase-to-delete', 'target-phase-uuid');
+// Delete phase and move all deals to another phase
+Teamleader::dealPhases()->delete('phase-to-delete-uuid', 'target-phase-uuid');
 ```
+
+**Important:** You must specify a target phase to migrate existing deals. If you try to delete a phase without providing a migration target, an exception will be thrown.
 
 ### `duplicate()`
 
-Create a new deal phase by duplicating an existing one.
+Duplicate an existing phase.
 
 **Parameters:**
 - `id` (string): Source phase UUID
 
 **Example:**
 ```php
-$newPhase = $teamleader->dealPhases()->duplicate('source-phase-uuid');
+$newPhase = Teamleader::dealPhases()->duplicate('source-phase-uuid');
 ```
 
 ### `move()`
 
-Move a phase to a new position within its pipeline.
+Move a phase to a new position in the pipeline.
 
 **Parameters:**
 - `id` (string): Phase UUID to move
@@ -113,384 +159,458 @@ Move a phase to a new position within its pipeline.
 
 **Example:**
 ```php
-$teamleader->dealPhases()->move('phase-to-move', 'after-this-phase');
+// Move phase to position after another phase
+Teamleader::dealPhases()->move('phase-uuid', 'after-this-phase-uuid');
 ```
+
+## Helper Methods
 
 ### `forPipeline()`
 
 Get all phases for a specific pipeline.
 
-**Parameters:**
-- `pipelineId` (string): Pipeline UUID
-
-**Example:**
 ```php
-$phases = $teamleader->dealPhases()->forPipeline('pipeline-uuid');
+$phases = Teamleader::dealPhases()->forPipeline('pipeline-uuid');
 ```
 
 ### `byIds()`
 
 Get specific phases by their UUIDs.
 
-**Parameters:**
-- `ids` (array): Array of phase UUIDs
-
-**Example:**
 ```php
-$phases = $teamleader->dealPhases()->byIds(['uuid1', 'uuid2']);
+$phases = Teamleader::dealPhases()->byIds([
+    'phase-uuid-1',
+    'phase-uuid-2'
+]);
 ```
 
-## Filtering
+### Helper Information Methods
+
+```php
+// Get available follow-up actions
+$actions = Teamleader::dealPhases()->getAvailableFollowUpActions();
+// Returns: ['create_event', 'create_call', 'create_task']
+
+// Get available attention after units
+$units = Teamleader::dealPhases()->getAvailableAttentionAfterUnits();
+// Returns: ['days', 'weeks']
+```
+
+## Filters
 
 ### Available Filters
 
-- **`ids`**: Array of phase UUIDs to filter by
-- **`deal_pipeline_id`**: Filter phases by specific pipeline UUID
-
-### Filter Examples
+#### `ids`
+Filter by specific phase UUIDs.
 
 ```php
-// Get phases for a specific pipeline
-$phases = $teamleader->dealPhases()->list([
-    'deal_pipeline_id' => '53a7e592-a136-4bae-ae15-517befd3d75d'
+$phases = Teamleader::dealPhases()->list([
+    'ids' => ['phase-uuid-1', 'phase-uuid-2']
 ]);
+```
 
-// Get specific phases by IDs
-$specificPhases = $teamleader->dealPhases()->list([
-    'ids' => [
-        '21efc56e-1ba8-469d-926a-e89502591b47',
-        'bb50af79-55cd-4be0-8306-e9626c70a90f'
-    ]
+#### `deal_pipeline_id`
+Filter by pipeline UUID.
+
+```php
+$phases = Teamleader::dealPhases()->list([
+    'deal_pipeline_id' => 'pipeline-uuid'
 ]);
+```
 
-// Combine filters
-$filteredPhases = $teamleader->dealPhases()->list([
+## Response Structure
+
+### Phase Object
+
+```php
+[
+    'id' => 'phase-uuid',
+    'name' => 'Qualification',
     'deal_pipeline_id' => 'pipeline-uuid',
-    'ids' => ['phase1-uuid', 'phase2-uuid']
-]);
-```
-
-## Pagination
-
-The deal phases resource supports pagination:
-
-```php
-// Get second page with 10 items per page
-$phases = $teamleader->dealPhases()->list([], [
-    'page_size' => 10,
-    'page_number' => 2
-]);
-```
-
-## Response Format
-
-### List Response
-
-```json
-{
-    "data": [
-        {
-            "id": "21efc56e-1ba8-469d-926a-e89502591b47",
-            "name": "New",
-            "actions": ["create_event", "create_call", "create_task"],
-            "requires_attention_after": {
-                "amount": 7,
-                "unit": "days"
-            },
-            "probability": 0.75
-        }
-    ]
-}
-```
-
-### Create Response
-
-```json
-{
-    "data": {
-        "id": "eab232c6-49b2-4b7e-a977-5e1148dad471",
-        "type": "dealPhase"
-    }
-}
-```
-
-### Duplicate Response
-
-```json
-{
-    "data": {
-        "type": "dealPhase",
-        "id": "eb264fd0-0e5c-0dbf-ae1e-49e7d6a8e6b8"
-    }
-}
-```
-
-## Data Fields
-
-### Phase Fields
-
-- **`id`**: Phase UUID (read-only)
-- **`name`**: Phase name (required for create/update)
-- **`deal_pipeline_id`**: Parent pipeline UUID (required for create)
-- **`requires_attention_after`**: Object defining attention timeframe (required)
-    - **`amount`**: Number of time units (required)
-    - **`unit`**: Time unit - "days" or "weeks" (required)
-- **`estimated_probability`**: Probability estimate (0.0 - 1.0)
-- **`follow_up_actions`**: Array of follow-up actions
-- **`actions`**: Available actions (returned when user has planning access)
-- **`probability`**: Win probability (alias for estimated_probability in responses)
-- **`type`**: Resource type (always "dealPhase")
-
-### Follow-Up Actions
-
-Available follow-up actions:
-- `create_event` - Create a calendar event
-- `create_call` - Create a call task
-- `create_task` - Create a general task
-
-### Attention After Units
-
-Available time units for `requires_attention_after`:
-- `days` - Days
-- `weeks` - Weeks
-
-## Usage Examples
-
-### Basic Operations
-
-```php
-// List all phases
-$allPhases = $teamleader->dealPhases()->list();
-
-// Get phases for a specific pipeline
-$pipelinePhases = $teamleader->dealPhases()->forPipeline('pipeline-uuid');
-
-// Create a new phase
-$newPhase = $teamleader->dealPhases()->create([
-    'name' => 'Investigation',
-    'deal_pipeline_id' => 'f350e48a-fbc3-0a79-e62a-53aa1ae86d44',
     'requires_attention_after' => [
         'amount' => 7,
         'unit' => 'days'
     ],
-    'estimated_probability' => 0.5,
-    'follow_up_actions' => ['create_event']
-]);
-
-// Update phase
-$updatedPhase = $teamleader->dealPhases()->update('phase-uuid', [
-    'name' => 'Updated Phase Name',
-    'estimated_probability' => 0.8
-]);
+    'follow_up_actions' => ['create_task'],
+    'order' => 1
+]
 ```
 
-### Advanced Operations
+### Follow-up Actions
+
+Phases can have automated follow-up actions:
+
+- `create_event` - Automatically create a calendar event
+- `create_call` - Automatically create a call task
+- `create_task` - Automatically create a task
+
+### Attention Timer
+
+The `requires_attention_after` setting triggers a notification when a deal has been in a phase too long:
 
 ```php
-// Duplicate an existing phase
-$duplicatedPhase = $teamleader->dealPhases()->duplicate('source-phase-uuid');
-
-// Move a phase within the pipeline
-$teamleader->dealPhases()->move('phase-to-move', 'after-this-phase');
-
-// Delete a phase (migrate deals to another phase)
-$teamleader->dealPhases()->delete('phase-to-delete', 'target-phase-uuid');
+[
+    'amount' => 7,      // Number of time units
+    'unit' => 'days'    // 'days' or 'weeks'
+]
 ```
 
-### Complex Phase Creation
+## Usage Examples
+
+### Create a Complete Phase
 
 ```php
-// Create a phase with all optional fields
-$comprehensivePhase = $teamleader->dealPhases()->create([
-    'name' => 'Negotiation',
-    'deal_pipeline_id' => 'f350e48a-fbc3-0a79-e62a-53aa1ae86d44',
+$phase = Teamleader::dealPhases()->create([
+    'name' => 'Proposal Sent',
+    'deal_pipeline_id' => 'pipeline-uuid',
     'requires_attention_after' => [
         'amount' => 2,
         'unit' => 'weeks'
     ],
-    'estimated_probability' => 0.85,
     'follow_up_actions' => [
-        'create_event',
-        'create_call',
-        'create_task'
+        'create_task',
+        'create_call'
     ]
 ]);
 ```
 
-### Working with Pipeline Phases
+### Reorder Phases in Pipeline
 
 ```php
-// Get all phases for a pipeline and organize them
-$pipeline = $teamleader->dealPipelines()->info('pipeline-uuid');
-$phases = $teamleader->dealPhases()->forPipeline('pipeline-uuid');
+// Get all phases for a pipeline
+$phases = Teamleader::dealPhases()->forPipeline('pipeline-uuid');
 
-// Create a new phase at the end of the pipeline
-$lastPhase = end($phases['data']);
-$newPhase = $teamleader->dealPhases()->create([
-    'name' => 'Final Review',
+// Move the third phase to second position
+Teamleader::dealPhases()->move(
+    $phases['data'][2]['id'],  // Phase to move
+    $phases['data'][0]['id']   // Place after first phase
+);
+```
+
+### Duplicate Phase to Another Pipeline
+
+```php
+// Duplicate a phase
+$newPhase = Teamleader::dealPhases()->duplicate('source-phase-uuid');
+
+// Update it to belong to different pipeline
+Teamleader::dealPhases()->update($newPhase['data']['id'], [
+    'deal_pipeline_id' => 'different-pipeline-uuid'
+]);
+```
+
+### Delete Phase Safely
+
+```php
+// Get phases for pipeline
+$phases = Teamleader::dealPhases()->forPipeline('pipeline-uuid');
+
+// Find target phase for migration
+$targetPhase = null;
+foreach ($phases['data'] as $phase) {
+    if ($phase['name'] === 'Lost') {
+        $targetPhase = $phase['id'];
+        break;
+    }
+}
+
+if ($targetPhase) {
+    // Delete old phase, migrating deals to target
+    Teamleader::dealPhases()->delete('old-phase-uuid', $targetPhase);
+}
+```
+
+## Common Use Cases
+
+### 1. Setup Standard Sales Pipeline
+
+```php
+function createStandardPipeline($pipelineId)
+{
+    $standardPhases = [
+        ['name' => 'Lead', 'days' => 3],
+        ['name' => 'Qualification', 'days' => 5],
+        ['name' => 'Proposal', 'days' => 7],
+        ['name' => 'Negotiation', 'days' => 10],
+        ['name' => 'Closing', 'days' => 5]
+    ];
+    
+    foreach ($standardPhases as $phaseData) {
+        Teamleader::dealPhases()->create([
+            'name' => $phaseData['name'],
+            'deal_pipeline_id' => $pipelineId,
+            'requires_attention_after' => [
+                'amount' => $phaseData['days'],
+                'unit' => 'days'
+            ],
+            'follow_up_actions' => ['create_task']
+        ]);
+    }
+}
+```
+
+### 2. Analyze Phase Conversion Rates
+
+```php
+function analyzePhaseConversions($pipelineId)
+{
+    $phases = Teamleader::dealPhases()->forPipeline($pipelineId);
+    $stats = [];
+    
+    foreach ($phases['data'] as $key => $phase) {
+        $dealsInPhase = Teamleader::deals()->inPhase($phase['id']);
+        
+        $stats[] = [
+            'phase' => $phase['name'],
+            'deal_count' => count($dealsInPhase['data']),
+            'order' => $phase['order'],
+            'attention_days' => $phase['requires_attention_after']['amount']
+        ];
+    }
+    
+    return $stats;
+}
+```
+
+### 3. Clone Pipeline Structure
+
+```php
+function clonePipelinePhases($sourcePipelineId, $targetPipelineId)
+{
+    $sourcePhases = Teamleader::dealPhases()->forPipeline($sourcePipelineId);
+    $newPhases = [];
+    
+    foreach ($sourcePhases['data'] as $phase) {
+        $newPhase = Teamleader::dealPhases()->create([
+            'name' => $phase['name'],
+            'deal_pipeline_id' => $targetPipelineId,
+            'requires_attention_after' => $phase['requires_attention_after'],
+            'follow_up_actions' => $phase['follow_up_actions'] ?? []
+        ]);
+        
+        $newPhases[] = $newPhase['data'];
+    }
+    
+    return $newPhases;
+}
+```
+
+### 4. Find Stale Deals by Phase
+
+```php
+function findStaleDealsByPhase($pipelineId)
+{
+    $phases = Teamleader::dealPhases()->forPipeline($pipelineId);
+    $staleReport = [];
+    
+    foreach ($phases['data'] as $phase) {
+        $deals = Teamleader::deals()->inPhase($phase['id']);
+        $attentionDays = $phase['requires_attention_after']['amount'];
+        $unit = $phase['requires_attention_after']['unit'];
+        
+        $threshold = $unit === 'weeks' ? $attentionDays * 7 : $attentionDays;
+        $cutoffDate = date('Y-m-d', strtotime("-{$threshold} days"));
+        
+        $staleDeals = array_filter($deals['data'], function($deal) use ($cutoffDate) {
+            return $deal['updated_at'] < $cutoffDate;
+        });
+        
+        if (count($staleDeals) > 0) {
+            $staleReport[] = [
+                'phase' => $phase['name'],
+                'stale_deal_count' => count($staleDeals),
+                'deals' => $staleDeals
+            ];
+        }
+    }
+    
+    return $staleReport;
+}
+```
+
+### 5. Bulk Update Phase Settings
+
+```php
+function updatePhaseAttentionTimers($pipelineId, $newDays)
+{
+    $phases = Teamleader::dealPhases()->forPipeline($pipelineId);
+    
+    foreach ($phases['data'] as $phase) {
+        Teamleader::dealPhases()->update($phase['id'], [
+            'requires_attention_after' => [
+                'amount' => $newDays,
+                'unit' => 'days'
+            ]
+        ]);
+    }
+}
+```
+
+## Best Practices
+
+### 1. Always Use Meaningful Phase Names
+
+```php
+// Good: Clear and descriptive
+Teamleader::dealPhases()->create([
+    'name' => 'Technical Evaluation',
     'deal_pipeline_id' => 'pipeline-uuid',
-    'requires_attention_after' => [
-        'amount' => 3,
-        'unit' => 'days'
-    ],
-    'estimated_probability' => 0.95
+    'requires_attention_after' => ['amount' => 5, 'unit' => 'days']
 ]);
 
-// Then move it to the desired position
-$teamleader->dealPhases()->move(
-    $newPhase['data']['id'], 
-    $lastPhase['id']
-);
+// Bad: Vague naming
+Teamleader::dealPhases()->create([
+    'name' => 'Step 3',
+    'deal_pipeline_id' => 'pipeline-uuid'
+]);
 ```
 
-## Phase Ordering and Movement
-
-Deal phases within a pipeline have a specific order that affects the sales flow:
+### 2. Set Realistic Attention Timers
 
 ```php
-// Get current phases in order
-$phases = $teamleader->dealPhases()->forPipeline('pipeline-uuid');
+// Good: Based on your actual sales cycle
+$phases = [
+    'Qualification' => 3,      // Quick decision needed
+    'Proposal' => 7,           // Time to prepare
+    'Negotiation' => 14,       // Back and forth
+    'Closing' => 30            // Legal/procurement delays
+];
 
-// Move a phase to be after another specific phase
-$teamleader->dealPhases()->move(
-    'phase-to-move-uuid',
-    'place-after-this-phase-uuid'
-);
-
-// To move a phase to the beginning, you'd need to:
-// 1. Find the current first phase
-// 2. Move your phase to be after it
-// 3. Then move the original first phase to be after your phase
-```
-
-## Phase Deletion and Migration
-
-When deleting a phase, you must specify where to migrate existing deals:
-
-```php
-// Before deleting, you might want to check for existing deals
-$phasesToMigrateTo = $teamleader->dealPhases()->forPipeline('same-pipeline-uuid');
-
-// Delete phase and migrate deals
-$teamleader->dealPhases()->delete(
-    'phase-to-delete-uuid',
-    'migration-target-phase-uuid'
-);
-```
-
-## Validation and Business Rules
-
-The SDK includes validation for phase data:
-
-- Phase names must be provided
-- Pipeline ID is required for creation
-- `requires_attention_after` must have both `amount` and `unit`
-- Unit must be either "days" or "weeks"
-- Follow-up actions must be from the allowed list
-- Probability should be between 0.0 and 1.0
-
-```php
-// This will throw an InvalidArgumentException
-try {
-    $teamleader->dealPhases()->create([
-        'name' => 'Test Phase',
-        // Missing deal_pipeline_id - will throw exception
+foreach ($phases as $name => $days) {
+    Teamleader::dealPhases()->create([
+        'name' => $name,
+        'deal_pipeline_id' => 'pipeline-uuid',
+        'requires_attention_after' => [
+            'amount' => $days,
+            'unit' => 'days'
+        ]
     ]);
-} catch (InvalidArgumentException $e) {
-    echo $e->getMessage(); // "Deal pipeline ID is required"
+}
+```
+
+### 3. Use Follow-up Actions Strategically
+
+```php
+// Good: Relevant actions for each phase
+Teamleader::dealPhases()->create([
+    'name' => 'Proposal Sent',
+    'deal_pipeline_id' => 'pipeline-uuid',
+    'requires_attention_after' => ['amount' => 3, 'unit' => 'days'],
+    'follow_up_actions' => ['create_call']  // Follow up call needed
+]);
+
+Teamleader::dealPhases()->create([
+    'name' => 'Negotiation',
+    'deal_pipeline_id' => 'pipeline-uuid',
+    'requires_attention_after' => ['amount' => 7, 'unit' => 'days'],
+    'follow_up_actions' => ['create_task', 'create_event']  // Tasks and meetings
+]);
+```
+
+### 4. Handle Phase Deletion Carefully
+
+```php
+// Good: Check for deals before deleting
+function safelyDeletePhase($phaseId, $targetPhaseId)
+{
+    $dealsInPhase = Teamleader::deals()->inPhase($phaseId);
+    
+    if (count($dealsInPhase['data']) > 0) {
+        Log::info("Migrating {count($dealsInPhase['data'])} deals from phase");
+    }
+    
+    try {
+        return Teamleader::dealPhases()->delete($phaseId, $targetPhaseId);
+    } catch (\Exception $e) {
+        Log::error('Failed to delete phase', [
+            'phase_id' => $phaseId,
+            'error' => $e->getMessage()
+        ]);
+        throw $e;
+    }
+}
+```
+
+### 5. Validate Phase Order
+
+```php
+// Good: Maintain logical phase order
+function validatePhaseOrder($pipelineId)
+{
+    $phases = Teamleader::dealPhases()->forPipeline($pipelineId);
+    
+    // Sort by order
+    usort($phases['data'], function($a, $b) {
+        return $a['order'] - $b['order'];
+    });
+    
+    // Ensure phases flow logically
+    $expectedOrder = ['Lead', 'Qualification', 'Proposal', 'Negotiation', 'Closing'];
+    
+    foreach ($phases['data'] as $key => $phase) {
+        if (isset($expectedOrder[$key]) && $phase['name'] !== $expectedOrder[$key]) {
+            Log::warning('Phase order may be incorrect', [
+                'expected' => $expectedOrder[$key],
+                'actual' => $phase['name'],
+                'position' => $key
+            ]);
+        }
+    }
 }
 ```
 
 ## Error Handling
 
-The deal phases resource follows the standard SDK error handling patterns:
-
 ```php
-$result = $teamleader->dealPhases()->create($phaseData);
+use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
 
-if (isset($result['error']) && $result['error']) {
-    // Handle error
-    $errorMessage = $result['message'] ?? 'Unknown error';
-    $statusCode = $result['status_code'] ?? 0;
-    
-    Log::error("Deal Phases API error: {$errorMessage}", [
-        'status_code' => $statusCode,
-        'phase_data' => $phaseData
+try {
+    $phase = Teamleader::dealPhases()->create([
+        'name' => 'New Phase',
+        'deal_pipeline_id' => 'pipeline-uuid',
+        'requires_attention_after' => [
+            'amount' => 7,
+            'unit' => 'days'
+        ]
     ]);
-}
-```
-
-## Rate Limiting
-
-Deal phases API calls count towards your overall Teamleader API rate limit:
-
-- **List operations**: 1 request per call
-- **Create operations**: 1 request per call
-- **Update operations**: 1 request per call
-- **Delete operations**: 1 request per call
-- **Duplicate operations**: 1 request per call
-- **Move operations**: 1 request per call
-
-Rate limit cost: **1 request per method call**
-
-## Notes
-
-- Phases are automatically sorted by their order in the pipeline flow
-- Phase names should be unique within a pipeline
-- When deleting a phase, all deals in that phase will be moved to the specified target phase
-- The `duplicate()` method creates an exact copy of the source phase within the same pipeline
-- Moving phases only affects their position within the same pipeline
-- The `actions` field is only returned when the user has access to planning and deal automation
-- Probability values are typically expressed as decimals (0.5 = 50%)
-
-## Laravel Integration
-
-When using this resource in Laravel applications, you can inject the SDK:
-
-```php
-use McoreServices\TeamleaderSDK\TeamleaderSDK;
-
-class DealPhaseController extends Controller
-{
-    public function index(TeamleaderSDK $teamleader, Request $request)
-    {
-        $pipelineId = $request->get('pipeline_id');
-        
-        $phases = $pipelineId 
-            ? $teamleader->dealPhases()->forPipeline($pipelineId)
-            : $teamleader->dealPhases()->list();
-            
-        return view('deals.phases.index', compact('phases'));
-    }
+} catch (TeamleaderException $e) {
+    Log::error('Error creating phase', [
+        'error' => $e->getMessage(),
+        'code' => $e->getCode()
+    ]);
     
-    public function store(Request $request, TeamleaderSDK $teamleader)
-    {
-        $phase = $teamleader->dealPhases()->create($request->validated());
-        
-        return redirect()->route('deals.phases.index')
-            ->with('success', 'Phase created successfully');
-    }
-    
-    public function duplicate(TeamleaderSDK $teamleader, string $id)
-    {
-        $duplicatedPhase = $teamleader->dealPhases()->duplicate($id);
-        
+    if ($e->getCode() === 422) {
+        // Validation error
         return response()->json([
-            'success' => true,
-            'phase' => $duplicatedPhase
-        ]);
+            'error' => 'Invalid phase data'
+        ], 422);
     }
-    
-    public function move(Request $request, TeamleaderSDK $teamleader, string $id)
-    {
-        $teamleader->dealPhases()->move(
-            $id,
-            $request->input('after_phase_id')
-        );
-        
-        return response()->json(['success' => true]);
-    }
+}
+
+// Special handling for phase deletion
+try {
+    Teamleader::dealPhases()->delete('phase-uuid', 'target-phase-uuid');
+} catch (\InvalidArgumentException $e) {
+    // Missing target phase for migration
+    return response()->json([
+        'error' => 'Must provide target phase for deal migration'
+    ], 400);
 }
 ```
 
-For more information, refer to the [Teamleader API Documentation](https://developer.focus.teamleader.eu/).
+## Limitations
+
+1. **No Individual Info**: While there is an `info()` method, phases are typically managed through `list()` and filtered by pipeline
+2. **Deletion Requires Migration**: You cannot delete a phase without specifying where to move existing deals
+3. **Order Management**: Phase ordering is managed through the `move()` method, not a direct order field
+
+## Related Resources
+
+- [Deals](deals.md) - Deals move through phases
+- [Deal Pipelines](deal_pipelines.md) - Phases belong to pipelines
+- [Users](../general/users.md) - Track phase owners
+
+## See Also
+
+- [Usage Guide](../usage.md) - General SDK usage
+- [Filtering](../filtering.md) - Advanced filtering techniques

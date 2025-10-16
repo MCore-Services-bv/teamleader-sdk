@@ -1,6 +1,30 @@
 # Deal Pipelines
 
-Manage deal pipelines in Teamleader Focus. Deal pipelines organize your sales process into stages and help track deals through your sales workflow.
+Manage deal pipelines in Teamleader Focus.
+
+## Overview
+
+The Deal Pipelines resource allows you to manage sales pipelines in Teamleader. A pipeline represents your complete sales process and contains multiple phases that deals move through from initial contact to close. Organizations can have multiple pipelines for different types of sales processes.
+
+## Navigation
+
+- [Endpoint](#endpoint)
+- [Capabilities](#capabilities)
+- [Available Methods](#available-methods)
+    - [list()](#list)
+    - [info()](#info)
+    - [create()](#create)
+    - [update()](#update)
+    - [delete()](#delete)
+    - [duplicate()](#duplicate)
+    - [markAsDefault()](#markasdefault)
+- [Helper Methods](#helper-methods)
+- [Response Structure](#response-structure)
+- [Usage Examples](#usage-examples)
+- [Common Use Cases](#common-use-cases)
+- [Best Practices](#best-practices)
+- [Error Handling](#error-handling)
+- [Related Resources](#related-resources)
 
 ## Endpoint
 
@@ -8,28 +32,38 @@ Manage deal pipelines in Teamleader Focus. Deal pipelines organize your sales pr
 
 ## Capabilities
 
-- **Supports Pagination**: ✅ Supported
-- **Supports Filtering**: ✅ Supported
-- **Supports Sorting**: ❌ Not Supported
-- **Supports Sideloading**: ❌ Not Supported
-- **Supports Creation**: ✅ Supported
-- **Supports Update**: ✅ Supported
-- **Supports Deletion**: ✅ Supported
-- **Supports Batch**: ❌ Not Supported
+- **Pagination**: ❌ Not Supported (all pipelines returned)
+- **Filtering**: ❌ Not Supported
+- **Sorting**: ❌ Not Supported
+- **Sideloading**: ❌ Not Supported
+- **Creation**: ✅ Supported
+- **Update**: ✅ Supported
+- **Deletion**: ✅ Supported (requires phase migration)
 
 ## Available Methods
 
 ### `list()`
 
-Get a paginated list of deal pipelines with filtering options.
-
-**Parameters:**
-- `filters` (array): Array of filters to apply
-- `options` (array): Pagination and include options
+Get all deal pipelines.
 
 **Example:**
 ```php
-$pipelines = $teamleader->dealPipelines()->list(['status' => 'open']);
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
+// Get all pipelines
+$pipelines = Teamleader::dealPipelines()->list();
+```
+
+### `info()`
+
+Get detailed information about a specific pipeline.
+
+**Parameters:**
+- `id` (string): Pipeline UUID
+
+**Example:**
+```php
+$pipeline = Teamleader::dealPipelines()->info('pipeline-uuid');
 ```
 
 ### `create()`
@@ -37,11 +71,13 @@ $pipelines = $teamleader->dealPipelines()->list(['status' => 'open']);
 Create a new deal pipeline.
 
 **Parameters:**
-- `data` (array): Pipeline data with required `name` field
+- `data` (array): Pipeline data
 
 **Example:**
 ```php
-$pipeline = $teamleader->dealPipelines()->create(['name' => 'Sales Pipeline']);
+$pipeline = Teamleader::dealPipelines()->create([
+    'name' => 'Enterprise Sales Pipeline'
+]);
 ```
 
 ### `update()`
@@ -50,350 +86,477 @@ Update an existing deal pipeline.
 
 **Parameters:**
 - `id` (string): Pipeline UUID
-- `data` (array): Update data with required `name` field
+- `data` (array): Updated pipeline data
 
 **Example:**
 ```php
-$pipeline = $teamleader->dealPipelines()->update('uuid-here', ['name' => 'Updated Pipeline']);
+$pipeline = Teamleader::dealPipelines()->update('pipeline-uuid', [
+    'name' => 'Updated Enterprise Sales Pipeline'
+]);
 ```
 
 ### `delete()`
 
-Delete a deal pipeline with optional phase migration.
+Delete a deal pipeline. Requires migrating phases from this pipeline to phases in other pipelines.
 
 **Parameters:**
 - `id` (string): Pipeline UUID to delete
-- `migratePhases` (array): Array of phase migration mappings
+- `migratePhases` (array): Array mapping old phase IDs to new phase IDs
 
 **Example:**
 ```php
-$teamleader->dealPipelines()->delete('uuid-here', [
-    ['old_phase_id' => 'old-uuid', 'new_phase_id' => 'new-uuid']
-]);
+// Map each phase to a phase in another pipeline
+$migratePhases = [
+    ['old_phase_id' => 'phase-uuid-1', 'new_phase_id' => 'target-phase-uuid-1'],
+    ['old_phase_id' => 'phase-uuid-2', 'new_phase_id' => 'target-phase-uuid-2'],
+    ['old_phase_id' => 'phase-uuid-3', 'new_phase_id' => 'target-phase-uuid-3']
+];
+
+Teamleader::dealPipelines()->delete('pipeline-uuid', $migratePhases);
 ```
+
+**Important:** You must provide migration instructions for all phases in the pipeline. Any deals in those phases will be moved to the corresponding new phases.
 
 ### `duplicate()`
 
-Create a new deal pipeline by duplicating an existing one.
+Duplicate an existing pipeline with all its phases.
 
 **Parameters:**
 - `id` (string): Source pipeline UUID
 
 **Example:**
 ```php
-$newPipeline = $teamleader->dealPipelines()->duplicate('source-uuid-here');
+$newPipeline = Teamleader::dealPipelines()->duplicate('source-pipeline-uuid');
 ```
 
 ### `markAsDefault()`
 
-Mark a pipeline as the default pipeline.
+Mark a pipeline as the default pipeline for new deals.
 
 **Parameters:**
 - `id` (string): Pipeline UUID
 
 **Example:**
 ```php
-$teamleader->dealPipelines()->markAsDefault('uuid-here');
+Teamleader::dealPipelines()->markAsDefault('pipeline-uuid');
 ```
 
-### `open()`
+## Helper Methods
 
-Get only open pipelines.
+### `all()`
 
-**Example:**
-```php
-$openPipelines = $teamleader->dealPipelines()->open();
-```
-
-### `pendingDeletion()`
-
-Get pipelines that are pending deletion.
-
-**Example:**
-```php
-$pendingPipelines = $teamleader->dealPipelines()->pendingDeletion();
-```
-
-### `byIds()`
-
-Get specific pipelines by their UUIDs.
-
-**Parameters:**
-- `ids` (array): Array of pipeline UUIDs
-
-**Example:**
-```php
-$pipelines = $teamleader->dealPipelines()->byIds(['uuid1', 'uuid2']);
-```
-
-## Filtering
-
-### Available Filters
-
-- **`ids`**: Array of pipeline UUIDs to filter by
-- **`status`**: Filter by pipeline status (open, pending_deletion)
-
-### Filter Examples
+Get all pipelines (alias for `list()`).
 
 ```php
-// Filter by status
-$openPipelines = $teamleader->dealPipelines()->list([
-    'status' => 'open'
-]);
-
-// Filter by specific IDs
-$specificPipelines = $teamleader->dealPipelines()->list([
-    'ids' => [
-        '92296ad0-2d61-4179-b174-9f354ca2157f',
-        '53635682-c382-4fbf-9fd9-9506ca4fbcdd'
-    ]
-]);
-
-// Combine filters
-$filteredPipelines = $teamleader->dealPipelines()->list([
-    'status' => 'open',
-    'ids' => ['uuid1', 'uuid2']
-]);
+$pipelines = Teamleader::dealPipelines()->all();
 ```
 
-## Pagination
+## Response Structure
 
-The deal pipelines resource supports pagination:
+### Pipeline Object
 
 ```php
-// Get second page with 10 items per page
-$pipelines = $teamleader->dealPipelines()->list([], [
-    'page_size' => 10,
-    'page_number' => 2,
-    'includes' => 'pagination'
-]);
+[
+    'id' => 'pipeline-uuid',
+    'name' => 'Enterprise Sales Pipeline',
+    'default' => true
+]
 ```
-
-## Response Format
-
-### List Response
-
-```json
-{
-    "data": [
-        {
-            "id": "811a5825-96f4-4318-83c3-2840935c6003",
-            "name": "Sales Pipeline"
-        }
-    ],
-    "meta": {
-        "page": {
-            "size": 10,
-            "number": 2
-        },
-        "matches": 12,
-        "default": "f350e48a-fbc3-0a79-e62a-53aa1ae86d44"
-    }
-}
-```
-
-### Create Response
-
-```json
-{
-    "data": {
-        "id": "eab232c6-49b2-4b7e-a977-5e1148dad471",
-        "type": "dealPipeline"
-    }
-}
-```
-
-### Duplicate Response
-
-```json
-{
-    "data": {
-        "type": "dealPipeline",
-        "id": "eb264fd0-0e5c-0dbf-ae1e-49e7d6a8e6b8"
-    }
-}
-```
-
-## Data Fields
-
-### Pipeline Fields
-
-- **`id`**: Pipeline UUID (read-only)
-- **`name`**: Pipeline name (required for create/update)
-- **`type`**: Resource type (always "dealPipeline")
-
-### Meta Fields (in list response)
-
-- **`default`**: UUID of the default pipeline
-- **`matches`**: Total number of pipelines matching filters
-- **`page`**: Pagination information
 
 ## Usage Examples
 
-### Basic Operations
+### Create a New Pipeline
 
 ```php
-// List all pipelines
-$allPipelines = $teamleader->dealPipelines()->list();
-
-// Create a new pipeline
-$newPipeline = $teamleader->dealPipelines()->create([
-    'name' => 'New Sales Process'
+// Create pipeline
+$pipeline = Teamleader::dealPipelines()->create([
+    'name' => 'SMB Sales Pipeline'
 ]);
 
-// Update pipeline name
-$updatedPipeline = $teamleader->dealPipelines()->update('uuid-here', [
-    'name' => 'Updated Sales Process'
-]);
-
-// Mark as default
-$teamleader->dealPipelines()->markAsDefault('uuid-here');
-
-// Delete pipeline (without phase migration)
-$teamleader->dealPipelines()->delete('uuid-here');
+// Set as default
+Teamleader::dealPipelines()->markAsDefault($pipeline['data']['id']);
 ```
 
-### Advanced Operations
+### Duplicate Pipeline for Different Market
 
 ```php
-// Duplicate an existing pipeline
-$duplicatedPipeline = $teamleader->dealPipelines()->duplicate('source-uuid');
+// Duplicate existing pipeline
+$newPipeline = Teamleader::dealPipelines()->duplicate('existing-pipeline-uuid');
 
-// Delete with phase migration
-$migrationMap = [
-    [
-        'old_phase_id' => '57785244-0d45-0f01-9c18-5ce1cb68e4c1',
-        'new_phase_id' => '29648aea-52f9-09f7-8e1e-cc5c08b4c742'
-    ]
-];
-$teamleader->dealPipelines()->delete('pipeline-uuid', $migrationMap);
-```
-
-### Filtered Listings
-
-```php
-// Get only open pipelines
-$openPipelines = $teamleader->dealPipelines()->open();
-
-// Get pipelines pending deletion
-$pendingPipelines = $teamleader->dealPipelines()->pendingDeletion();
-
-// Get specific pipelines by IDs
-$specificPipelines = $teamleader->dealPipelines()->byIds([
-    'uuid1',
-    'uuid2'
+// Rename it
+Teamleader::dealPipelines()->update($newPipeline['data']['id'], [
+    'name' => 'International Sales Pipeline'
 ]);
 ```
 
-### Paginated Listings
+### Delete Pipeline Safely
 
 ```php
-// Get paginated results with metadata
-$paginatedPipelines = $teamleader->dealPipelines()->list([], [
-    'page_size' => 20,
-    'page_number' => 1,
-    'includes' => 'pagination'
-]);
+// Get source pipeline phases
+$sourcePipeline = 'pipeline-to-delete-uuid';
+$targetPipeline = 'target-pipeline-uuid';
 
-// Access pagination info
-$totalMatches = $paginatedPipelines['meta']['matches'];
-$currentPage = $paginatedPipelines['meta']['page']['number'];
-$defaultPipeline = $paginatedPipelines['meta']['default'];
+$sourcePhases = Teamleader::dealPhases()->forPipeline($sourcePipeline);
+$targetPhases = Teamleader::dealPhases()->forPipeline($targetPipeline);
+
+// Map phases (match by name or order)
+$phaseMap = [];
+foreach ($sourcePhases['data'] as $key => $sourcePhase) {
+    if (isset($targetPhases['data'][$key])) {
+        $phaseMap[] = [
+            'old_phase_id' => $sourcePhase['id'],
+            'new_phase_id' => $targetPhases['data'][$key]['id']
+        ];
+    }
+}
+
+// Delete pipeline
+Teamleader::dealPipelines()->delete($sourcePipeline, $phaseMap);
 ```
 
-## Pipeline Deletion and Migration
-
-When deleting a pipeline, you must specify how to migrate deals from the phases of the deleted pipeline to phases in other pipelines:
+### Get Default Pipeline
 
 ```php
-// Example: Moving deals from deleted pipeline phases to new locations
-$migrationMap = [
-    [
-        'old_phase_id' => 'phase-from-deleted-pipeline',
-        'new_phase_id' => 'target-phase-in-another-pipeline'
-    ],
-    [
-        'old_phase_id' => 'another-old-phase',
-        'new_phase_id' => 'another-target-phase'
-    ]
-];
+$pipelines = Teamleader::dealPipelines()->list();
 
-$teamleader->dealPipelines()->delete('pipeline-to-delete', $migrationMap);
+$defaultPipeline = null;
+foreach ($pipelines['data'] as $pipeline) {
+    if ($pipeline['default'] === true) {
+        $defaultPipeline = $pipeline;
+        break;
+    }
+}
+```
+
+## Common Use Cases
+
+### 1. Setup Multiple Sales Processes
+
+```php
+function setupSalesPipelines()
+{
+    // Create enterprise pipeline
+    $enterprise = Teamleader::dealPipelines()->create([
+        'name' => 'Enterprise Sales'
+    ]);
+    
+    // Create SMB pipeline
+    $smb = Teamleader::dealPipelines()->create([
+        'name' => 'SMB Sales'
+    ]);
+    
+    // Create partner pipeline
+    $partner = Teamleader::dealPipelines()->create([
+        'name' => 'Partner Sales'
+    ]);
+    
+    // Set enterprise as default
+    Teamleader::dealPipelines()->markAsDefault($enterprise['data']['id']);
+    
+    return [
+        'enterprise' => $enterprise['data'],
+        'smb' => $smb['data'],
+        'partner' => $partner['data']
+    ];
+}
+```
+
+### 2. Clone Pipeline for New Region
+
+```php
+function clonePipelineForRegion($sourcePipelineId, $regionName)
+{
+    // Duplicate pipeline
+    $newPipeline = Teamleader::dealPipelines()->duplicate($sourcePipelineId);
+    
+    // Rename for region
+    Teamleader::dealPipelines()->update($newPipeline['data']['id'], [
+        'name' => "{$regionName} Sales Pipeline"
+    ]);
+    
+    // Get phases and adjust timing for region
+    $phases = Teamleader::dealPhases()->forPipeline($newPipeline['data']['id']);
+    
+    foreach ($phases['data'] as $phase) {
+        // Adjust attention timers based on region
+        $adjustedDays = $phase['requires_attention_after']['amount'] * 1.5; // 50% longer
+        
+        Teamleader::dealPhases()->update($phase['id'], [
+            'requires_attention_after' => [
+                'amount' => ceil($adjustedDays),
+                'unit' => 'days'
+            ]
+        ]);
+    }
+    
+    return $newPipeline['data'];
+}
+```
+
+### 3. Pipeline Health Dashboard
+
+```php
+function getPipelineHealthMetrics()
+{
+    $pipelines = Teamleader::dealPipelines()->list();
+    $metrics = [];
+    
+    foreach ($pipelines['data'] as $pipeline) {
+        $phases = Teamleader::dealPhases()->forPipeline($pipeline['id']);
+        $totalDeals = 0;
+        $totalValue = 0;
+        
+        foreach ($phases['data'] as $phase) {
+            $deals = Teamleader::deals()->inPhase($phase['id']);
+            $totalDeals += count($deals['data']);
+            
+            foreach ($deals['data'] as $deal) {
+                $totalValue += $deal['estimated_value']['amount'];
+            }
+        }
+        
+        $metrics[] = [
+            'pipeline' => $pipeline['name'],
+            'is_default' => $pipeline['default'],
+            'phase_count' => count($phases['data']),
+            'total_deals' => $totalDeals,
+            'total_value' => $totalValue
+        ];
+    }
+    
+    return $metrics;
+}
+```
+
+### 4. Merge Pipelines
+
+```php
+function mergePipelines($sourcePipelineId, $targetPipelineId)
+{
+    // Get phases from both pipelines
+    $sourcePhases = Teamleader::dealPhases()->forPipeline($sourcePipelineId);
+    $targetPhases = Teamleader::dealPhases()->forPipeline($targetPipelineId);
+    
+    // Build migration map (map all source phases to closest target phase)
+    $phaseMap = [];
+    
+    foreach ($sourcePhases['data'] as $sourcePhase) {
+        // Find best matching target phase by name
+        $bestMatch = null;
+        $highestSimilarity = 0;
+        
+        foreach ($targetPhases['data'] as $targetPhase) {
+            $similarity = similar_text(
+                strtolower($sourcePhase['name']),
+                strtolower($targetPhase['name'])
+            );
+            
+            if ($similarity > $highestSimilarity) {
+                $highestSimilarity = $similarity;
+                $bestMatch = $targetPhase['id'];
+            }
+        }
+        
+        $phaseMap[] = [
+            'old_phase_id' => $sourcePhase['id'],
+            'new_phase_id' => $bestMatch ?? $targetPhases['data'][0]['id']
+        ];
+    }
+    
+    // Delete source pipeline
+    return Teamleader::dealPipelines()->delete($sourcePipelineId, $phaseMap);
+}
+```
+
+### 5. Pipeline Performance Comparison
+
+```php
+function comparePipelinePerformance($startDate, $endDate)
+{
+    $pipelines = Teamleader::dealPipelines()->list();
+    $comparison = [];
+    
+    foreach ($pipelines['data'] as $pipeline) {
+        $phases = Teamleader::dealPhases()->forPipeline($pipeline['id']);
+        $phaseIds = array_column($phases['data'], 'id');
+        
+        $wonDeals = [];
+        $lostDeals = [];
+        
+        foreach ($phaseIds as $phaseId) {
+            $won = Teamleader::deals()->won([
+                'phase_id' => $phaseId,
+                'estimated_closing_date_from' => $startDate,
+                'estimated_closing_date_to' => $endDate
+            ]);
+            $wonDeals = array_merge($wonDeals, $won['data']);
+            
+            $lost = Teamleader::deals()->lost([
+                'phase_id' => $phaseId,
+                'estimated_closing_date_from' => $startDate,
+                'estimated_closing_date_to' => $endDate
+            ]);
+            $lostDeals = array_merge($lostDeals, $lost['data']);
+        }
+        
+        $totalClosed = count($wonDeals) + count($lostDeals);
+        
+        $comparison[] = [
+            'pipeline' => $pipeline['name'],
+            'won' => count($wonDeals),
+            'lost' => count($lostDeals),
+            'win_rate' => $totalClosed > 0 
+                ? (count($wonDeals) / $totalClosed) * 100 
+                : 0
+        ];
+    }
+    
+    return $comparison;
+}
+```
+
+## Best Practices
+
+### 1. Use Descriptive Pipeline Names
+
+```php
+// Good: Clearly describes the sales process
+Teamleader::dealPipelines()->create([
+    'name' => 'Enterprise B2B Sales'
+]);
+
+// Bad: Vague or unclear
+Teamleader::dealPipelines()->create([
+    'name' => 'Pipeline 2'
+]);
+```
+
+### 2. Always Have a Default Pipeline
+
+```php
+// Good: Ensure there's always a default
+$pipelines = Teamleader::dealPipelines()->list();
+
+$hasDefault = false;
+foreach ($pipelines['data'] as $pipeline) {
+    if ($pipeline['default'] === true) {
+        $hasDefault = true;
+        break;
+    }
+}
+
+if (!$hasDefault && !empty($pipelines['data'])) {
+    Teamleader::dealPipelines()->markAsDefault($pipelines['data'][0]['id']);
+}
+```
+
+### 3. Validate Phase Mapping Before Deletion
+
+```php
+// Good: Ensure all phases are mapped
+function safelyDeletePipeline($pipelineId, $phaseMap)
+{
+    $phases = Teamleader::dealPhases()->forPipeline($pipelineId);
+    $phaseIds = array_column($phases['data'], 'id');
+    $mappedIds = array_column($phaseMap, 'old_phase_id');
+    
+    $unmappedPhases = array_diff($phaseIds, $mappedIds);
+    
+    if (!empty($unmappedPhases)) {
+        throw new \Exception(
+            'All phases must be mapped before deletion. Missing: ' . 
+            implode(', ', $unmappedPhases)
+        );
+    }
+    
+    return Teamleader::dealPipelines()->delete($pipelineId, $phaseMap);
+}
+```
+
+### 4. Use Duplication for Consistency
+
+```php
+// Good: Start from proven template
+$templatePipeline = 'proven-pipeline-uuid';
+
+$newPipeline = Teamleader::dealPipelines()->duplicate($templatePipeline);
+
+Teamleader::dealPipelines()->update($newPipeline['data']['id'], [
+    'name' => 'New Market Pipeline'
+]);
+```
+
+### 5. Document Pipeline Purpose
+
+```php
+// Good: Maintain external documentation
+function createPipelineWithDocs($name, $description, $targetMarket)
+{
+    $pipeline = Teamleader::dealPipelines()->create([
+        'name' => $name
+    ]);
+    
+    // Store metadata in your system
+    DB::table('pipeline_metadata')->insert([
+        'teamleader_id' => $pipeline['data']['id'],
+        'description' => $description,
+        'target_market' => $targetMarket,
+        'created_by' => auth()->user()->id,
+        'created_at' => now()
+    ]);
+    
+    return $pipeline;
+}
 ```
 
 ## Error Handling
 
-The deal pipelines resource follows the standard SDK error handling patterns:
-
 ```php
-$result = $teamleader->dealPipelines()->create(['name' => 'Test Pipeline']);
+use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
 
-if (isset($result['error']) && $result['error']) {
-    // Handle error
-    $errorMessage = $result['message'] ?? 'Unknown error';
-    $statusCode = $result['status_code'] ?? 0;
-    
-    Log::error("Deal Pipelines API error: {$errorMessage}", [
-        'status_code' => $statusCode
+try {
+    $pipeline = Teamleader::dealPipelines()->create([
+        'name' => 'New Pipeline'
+    ]);
+} catch (TeamleaderException $e) {
+    Log::error('Error creating pipeline', [
+        'error' => $e->getMessage(),
+        'code' => $e->getCode()
     ]);
 }
-```
 
-## Rate Limiting
-
-Deal pipelines API calls count towards your overall Teamleader API rate limit:
-
-- **List operations**: 1 request per call
-- **Create operations**: 1 request per call
-- **Update operations**: 1 request per call
-- **Delete operations**: 1 request per call
-- **Duplicate operations**: 1 request per call
-- **Mark as default operations**: 1 request per call
-
-Rate limit cost: **1 request per method call**
-
-## Notes
-
-- Pipeline names must be unique within your Teamleader account
-- When deleting a pipeline, you must provide migration mappings for all existing deals
-- The `duplicate()` method creates an exact copy including all phases of the source pipeline
-- Only one pipeline can be marked as default at a time
-- Pipelines with status `pending_deletion` cannot be used for new deals
-- The default pipeline cannot be deleted until another pipeline is marked as default
-
-## Laravel Integration
-
-When using this resource in Laravel applications, you can inject the SDK:
-
-```php
-use McoreServices\TeamleaderSDK\TeamleaderSDK;
-
-class DealPipelineController extends Controller
-{
-    public function index(TeamleaderSDK $teamleader)
-    {
-        $pipelines = $teamleader->dealPipelines()->open();
-        
-        return view('deals.pipelines.index', compact('pipelines'));
-    }
-    
-    public function store(Request $request, TeamleaderSDK $teamleader)
-    {
-        $pipeline = $teamleader->dealPipelines()->create([
-            'name' => $request->name
+// Special handling for pipeline deletion
+try {
+    Teamleader::dealPipelines()->delete('pipeline-uuid', $phaseMap);
+} catch (\InvalidArgumentException $e) {
+    // Missing or invalid phase migration map
+    return response()->json([
+        'error' => 'Must provide valid phase migration mapping'
+    ], 400);
+} catch (TeamleaderException $e) {
+    if ($e->getCode() === 400) {
+        // Invalid phase mappings
+        Log::error('Invalid phase migration map', [
+            'pipeline_id' => 'pipeline-uuid',
+            'map' => $phaseMap
         ]);
-        
-        return redirect()->route('deals.pipelines.index')
-            ->with('success', 'Pipeline created successfully');
-    }
-    
-    public function markAsDefault(TeamleaderSDK $teamleader, string $id)
-    {
-        $teamleader->dealPipelines()->markAsDefault($id);
-        
-        return response()->json(['success' => true]);
     }
 }
 ```
 
-For more information, refer to the [Teamleader API Documentation](https://developer.focus.teamleader.eu/).
+## Limitations
+
+1. **No Filtering**: You cannot filter pipelines; `list()` always returns all pipelines
+2. **No Pagination**: All pipelines are returned in a single request
+3. **Deletion Requires Full Phase Mapping**: Every phase must be mapped to a new phase
+4. **Name Only**: Pipelines only have a name field; no description or additional metadata
+
+## Related Resources
+
+- [Deals](deals.md) - Deals belong to pipelines
+- [Deal Phases](deal_phases.md) - Phases belong to pipelines
+- [Users](../general/users.md) - Pipeline owners
+
+## See Also
+
+- [Usage Guide](../usage.md) - General SDK usage
