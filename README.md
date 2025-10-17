@@ -1,11 +1,23 @@
 # Teamleader Focus SDK for Laravel
 
-[![Latest Version](https://img.shields.io/github/v/release/mcore-services/teamleader-sdk)](https://github.com/mcore-services/teamleader-sdk/releases)
+[![Latest Version](https://img.shields.io/github/v/release/MCore-Services-bv/teamleader-sdk?include_prereleases)](https://github.com/MCore-Services-bv/teamleader-sdk/releases)
+[![Total Downloads](https://img.shields.io/packagist/dt/mcore-services/teamleader-sdk)](https://packagist.org/packages/mcore-services/teamleader-sdk)
 [![PHP Version](https://img.shields.io/packagist/php-v/mcore-services/teamleader-sdk)](https://packagist.org/packages/mcore-services/teamleader-sdk)
 [![Laravel Version](https://img.shields.io/badge/Laravel-10%20%7C%2011%20%7C%2012-blue)](https://laravel.com)
-[![License](https://img.shields.io/github/license/mcore-services/teamleader-sdk)](LICENSE.md)
+[![License](https://img.shields.io/github/license/MCore-Services-bv/teamleader-sdk)](https://github.com/MCore-Services-bv/teamleader-sdk/blob/main/LICENSE.md)
 
 A comprehensive, production-ready Laravel package for integrating with the Teamleader Focus API. Built with modern Laravel best practices, featuring automatic token management, intelligent rate limiting, resource sideloading, and complete coverage of all Teamleader Focus API endpoints.
+
+**Quick Links:**
+- 📦 **Packagist:** [packagist.org/packages/mcore-services/teamleader-sdk](https://packagist.org/packages/mcore-services/teamleader-sdk)
+- 💻 **GitHub:** [github.com/MCore-Services-bv/teamleader-sdk](https://github.com/MCore-Services-bv/teamleader-sdk)
+- 📖 **Full Docs:** [/docs folder](https://github.com/MCore-Services-bv/teamleader-sdk/tree/main/docs)
+
+---
+
+## ⚠️ Alpha Release
+
+[... rest of your existing README stays the same ...]
 
 ## ⚠️ Alpha Release
 
