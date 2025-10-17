@@ -2,6 +2,7 @@
 
 namespace McoreServices\TeamleaderSDK\Resources;
 
+use Illuminate\Support\Facades\Cache;
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\TeamleaderSDK;
 use McoreServices\TeamleaderSDK\Traits\FilterTrait;
@@ -53,6 +54,83 @@ abstract class Resource
     }
 
     /**
+     * Generate interactive markdown documentation
+     *
+     * @return string Markdown formatted documentation
+     */
+    public function generateMarkdownDocs(): string
+    {
+        $docs = $this->getDocumentation();
+        $resourceName = $docs['resource'];
+
+        $markdown = "# {$resourceName}\n\n";
+        $markdown .= "{$docs['description']}\n\n";
+
+        // Endpoint information
+        $markdown .= "## Endpoint\n\n";
+        $markdown .= "`{$docs['endpoint']}`\n\n";
+
+        // Capabilities
+        $markdown .= "## Capabilities\n\n";
+        foreach ($docs['capabilities'] as $capability => $supported) {
+            $status = $supported ? '✅ Supported' : '❌ Not Supported';
+            $markdown .= "- **" . ucwords(str_replace('_', ' ', $capability)) . "**: {$status}\n";
+        }
+        $markdown .= "\n";
+
+        // Common filters
+        if (!empty($docs['common_filters'])) {
+            $markdown .= "## Common Filters\n\n";
+            foreach ($docs['common_filters'] as $filter => $description) {
+                $markdown .= "- `{$filter}`: {$description}\n";
+            }
+            $markdown .= "\n";
+        }
+
+        // Usage examples
+        if (!empty($docs['usage_examples'])) {
+            $markdown .= "## Usage Examples\n\n";
+            foreach ($docs['usage_examples'] as $example) {
+                $markdown .= "**{$example['description']}**\n\n";
+                $markdown .= "```php\n{$example['code']}\n```\n\n";
+            }
+        }
+
+        return $markdown;
+    }
+
+    /**
+     * Generate comprehensive API documentation for this resource
+     *
+     * Returns detailed documentation including:
+     * - Resource description
+     * - Available methods
+     * - Filters and sorting options
+     * - Sideloading capabilities
+     * - Usage examples
+     * - Rate limit information
+     * - Response formats
+     *
+     * Can be used to generate dynamic documentation or help text.
+     *
+     * @return array Complete documentation array
+     */
+    public function getDocumentation(): array
+    {
+        return [
+            'resource' => class_basename(static::class),
+            'description' => $this->description,
+            'endpoint' => $this->getBasePath(),
+            'capabilities' => $this->getCapabilities(),
+            'common_filters' => $this->getCommonFilters(),
+            'available_sort_fields' => $this->getAvailableSortFields(),
+            'usage_examples' => $this->getUsageExamples(),
+            'rate_limit_costs' => $this->getRateLimitCost(),
+            'response_formats' => $this->getResponseFormat(),
+        ];
+    }
+
+    /**
      * Get the base API path for this resource
      *
      * Must be implemented by child classes to define the endpoint path.
@@ -61,6 +139,33 @@ abstract class Resource
      * @return string The base endpoint path (without leading slash)
      */
     abstract protected function getBasePath(): string;
+
+    /**
+     * Get comprehensive resource capabilities information
+     *
+     * Returns detailed information about what operations this resource supports,
+     * what relationships can be included, available filters, and default configurations.
+     *
+     * Useful for runtime introspection and building dynamic interfaces.
+     *
+     * @return array Comprehensive capabilities information
+     */
+    public function getCapabilities(): array
+    {
+        return [
+            'supports_pagination' => $this->supportsPagination,
+            'supports_filtering' => $this->supportsFiltering,
+            'supports_sorting' => $this->supportsSorting,
+            'supports_sideloading' => $this->supportsSideloading,
+            'supports_creation' => $this->supportsCreation,
+            'supports_update' => $this->supportsUpdate,
+            'supports_deletion' => $this->supportsDeletion,
+            'supports_batch' => $this->supportsBatch,
+            'default_includes' => $this->defaultIncludes,
+            'available_includes' => $this->getAvailableIncludes(),
+            'endpoint' => $this->getBasePath()
+        ];
+    }
 
     /**
      * Get available relationship includes for sideloading
@@ -75,6 +180,21 @@ abstract class Resource
     protected function getAvailableIncludes(): array
     {
         return $this->availableIncludes;
+    }
+
+    /**
+     * Get common filter options for this resource
+     *
+     * Returns an array describing the most commonly used filters,
+     * their purpose, and expected format.
+     *
+     * Example: ['status' => 'Filter by status (active/inactive)', 'updated_since' => 'ISO 8601 date']
+     *
+     * @return array Associative array of filter names and descriptions
+     */
+    protected function getCommonFilters(): array
+    {
+        return $this->commonFilters;
     }
 
     /**
@@ -93,18 +213,30 @@ abstract class Resource
     }
 
     /**
-     * Get common filter options for this resource
+     * Get usage examples specific to this resource
      *
-     * Returns an array describing the most commonly used filters,
-     * their purpose, and expected format.
+     * Returns code examples demonstrating common use cases and patterns
+     * for working with this resource.
      *
-     * Example: ['status' => 'Filter by status (active/inactive)', 'updated_since' => 'ISO 8601 date']
+     * Each example includes a description and working code snippet.
      *
-     * @return array Associative array of filter names and descriptions
+     * @return array Array of examples with 'description' and 'code' keys
      */
-    protected function getCommonFilters(): array
+    protected function getUsageExamples(): array
     {
-        return $this->commonFilters;
+        $resourceName = strtolower(class_basename(static::class));
+        $methodName = rtrim($resourceName, 's'); // Crude singularization
+
+        return [
+            'list' => [
+                'description' => 'Get all resources with pagination',
+                'code' => "\$results = \$teamleader->{$methodName}s()->list([], ['page_size' => 50]);"
+            ],
+            'info' => [
+                'description' => 'Get a single resource',
+                'code' => "\$resource = \$teamleader->{$methodName}s()->info('uuid-here');"
+            ]
+        ];
     }
 
     /**
@@ -164,33 +296,6 @@ abstract class Resource
     }
 
     /**
-     * Get usage examples specific to this resource
-     *
-     * Returns code examples demonstrating common use cases and patterns
-     * for working with this resource.
-     *
-     * Each example includes a description and working code snippet.
-     *
-     * @return array Array of examples with 'description' and 'code' keys
-     */
-    protected function getUsageExamples(): array
-    {
-        $resourceName = strtolower(class_basename(static::class));
-        $methodName = rtrim($resourceName, 's'); // Crude singularization
-
-        return [
-            'list' => [
-                'description' => 'Get all resources with pagination',
-                'code' => "\$results = \$teamleader->{$methodName}s()->list([], ['page_size' => 50]);"
-            ],
-            'info' => [
-                'description' => 'Get a single resource',
-                'code' => "\$resource = \$teamleader->{$methodName}s()->info('uuid-here');"
-            ]
-        ];
-    }
-
-    /**
      * Validate a UUID format
      *
      * Ensures the provided ID matches UUID v4 format.
@@ -228,14 +333,15 @@ abstract class Resource
      * @return array Formatted query parameters ready for API request
      */
     protected function buildQueryParams(
-        array $includes = [],
-        array $filters = [],
+        array   $includes = [],
+        array   $filters = [],
         ?string $sort = null,
-        string $sortOrder = 'desc',
-        int $pageSize = 20,
-        int $pageNumber = 1,
+        string  $sortOrder = 'desc',
+        int     $pageSize = 20,
+        int     $pageNumber = 1,
         ?string $include = null
-    ): array {
+    ): array
+    {
         $params = [];
 
         // Handle includes (sideloading)
@@ -293,106 +399,76 @@ abstract class Resource
     }
 
     /**
-     * Get comprehensive resource capabilities information
+     * Invalidate cache after updates
      *
-     * Returns detailed information about what operations this resource supports,
-     * what relationships can be included, available filters, and default configurations.
-     *
-     * Useful for runtime introspection and building dynamic interfaces.
-     *
-     * @return array Comprehensive capabilities information
+     * @param string $id Resource ID that was updated
+     * @return void
      */
-    public function getCapabilities(): array
+    protected function invalidateCache(string $id): void
     {
-        return [
-            'supports_pagination' => $this->supportsPagination,
-            'supports_filtering' => $this->supportsFiltering,
-            'supports_sorting' => $this->supportsSorting,
-            'supports_sideloading' => $this->supportsSideloading,
-            'supports_creation' => $this->supportsCreation,
-            'supports_update' => $this->supportsUpdate,
-            'supports_deletion' => $this->supportsDeletion,
-            'supports_batch' => $this->supportsBatch,
-            'default_includes' => $this->defaultIncludes,
-            'available_includes' => $this->getAvailableIncludes(),
-            'endpoint' => $this->getBasePath()
-        ];
+        $this->clearCache($id);
+
+        // Also clear list caches as they might include this resource
+        if (config('cache.default') === 'redis' || config('cache.default') === 'memcached') {
+            Cache::tags(["{$this->getBasePath()}_list"])->flush();
+        }
     }
 
     /**
-     * Generate comprehensive API documentation for this resource
+     * Clear cache for a specific resource
      *
-     * Returns detailed documentation including:
-     * - Resource description
-     * - Available methods
-     * - Filters and sorting options
-     * - Sideloading capabilities
-     * - Usage examples
-     * - Rate limit information
-     * - Response formats
-     *
-     * Can be used to generate dynamic documentation or help text.
-     *
-     * @return array Complete documentation array
+     * @param string|null $id Resource ID to clear cache for (null = all)
+     * @return void
      */
-    public function getDocumentation(): array
+    protected function clearCache(?string $id = null): void
     {
-        return [
-            'resource' => class_basename(static::class),
-            'description' => $this->description,
-            'endpoint' => $this->getBasePath(),
-            'capabilities' => $this->getCapabilities(),
-            'common_filters' => $this->getCommonFilters(),
-            'available_sort_fields' => $this->getAvailableSortFields(),
-            'usage_examples' => $this->getUsageExamples(),
-            'rate_limit_costs' => $this->getRateLimitCost(),
-            'response_formats' => $this->getResponseFormat(),
-        ];
+        if (!config('teamleader.caching.enabled')) {
+            return; // Caching not enabled, nothing to clear
+        }
+
+        if ($id) {
+            // Clear cache for specific resource
+            $cacheKey = $this->getCacheKey($id);
+            Cache::forget($cacheKey);
+
+            $this->api->getLogger()->debug('Cache cleared for resource', [
+                'resource' => $this->getBasePath(),
+                'id' => $id,
+                'cache_key' => $cacheKey
+            ]);
+        } else {
+            // Clear all cache for this resource type using tags
+            if (config('cache.default') === 'redis' || config('cache.default') === 'memcached') {
+                Cache::tags([$this->getBasePath()])->flush();
+
+                $this->api->getLogger()->debug('All cache cleared for resource', [
+                    'resource' => $this->getBasePath()
+                ]);
+            } else {
+                // Fallback for drivers that don't support tags
+                $this->api->getLogger()->warning('Cache tags not supported by cache driver', [
+                    'resource' => $this->getBasePath(),
+                    'cache_driver' => config('cache.default')
+                ]);
+            }
+        }
     }
 
     /**
-     * Generate interactive markdown documentation
+     * Generate cache key for a resource
      *
-     * @return string Markdown formatted documentation
+     * @param string $id Resource ID
+     * @param array $params Additional params to include in key
+     * @return string
      */
-    public function generateMarkdownDocs(): string
+    protected function getCacheKey(string $id, array $params = []): string
     {
-        $docs = $this->getDocumentation();
-        $resourceName = $docs['resource'];
+        $key = "teamleader:{$this->getBasePath()}:{$id}";
 
-        $markdown = "# {$resourceName}\n\n";
-        $markdown .= "{$docs['description']}\n\n";
-
-        // Endpoint information
-        $markdown .= "## Endpoint\n\n";
-        $markdown .= "`{$docs['endpoint']}`\n\n";
-
-        // Capabilities
-        $markdown .= "## Capabilities\n\n";
-        foreach ($docs['capabilities'] as $capability => $supported) {
-            $status = $supported ? '✅ Supported' : '❌ Not Supported';
-            $markdown .= "- **" . ucwords(str_replace('_', ' ', $capability)) . "**: {$status}\n";
-        }
-        $markdown .= "\n";
-
-        // Common filters
-        if (!empty($docs['common_filters'])) {
-            $markdown .= "## Common Filters\n\n";
-            foreach ($docs['common_filters'] as $filter => $description) {
-                $markdown .= "- `{$filter}`: {$description}\n";
-            }
-            $markdown .= "\n";
+        if (!empty($params)) {
+            $key .= ':' . md5(serialize($params));
         }
 
-        // Usage examples
-        if (!empty($docs['usage_examples'])) {
-            $markdown .= "## Usage Examples\n\n";
-            foreach ($docs['usage_examples'] as $example) {
-                $markdown .= "**{$example['description']}**\n\n";
-                $markdown .= "```php\n{$example['code']}\n```\n\n";
-            }
-        }
-
-        return $markdown;
+        return $key;
     }
 }

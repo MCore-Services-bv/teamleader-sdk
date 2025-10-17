@@ -110,6 +110,7 @@ return [
         'log_rate_limits' => env('TEAMLEADER_LOG_RATE_LIMITS', true),
         'log_token_refresh' => env('TEAMLEADER_LOG_TOKEN_REFRESH', true),
         'channel' => env('TEAMLEADER_LOG_CHANNEL', config('logging.default')),
+        'sanitize_logs' => env('TEAMLEADER_SANITIZE_LOGS', true),
     ],
 
     /*

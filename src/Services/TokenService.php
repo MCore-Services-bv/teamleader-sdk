@@ -10,9 +10,11 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use McoreServices\TeamleaderSDK\Traits\SanitizesLogData;
 
 class TokenService
 {
+    use SanitizesLogData;
     // Cache keys for performance (with database backup)
     private const ACCESS_TOKEN_KEY = 'teamleader_access_token';
     private const REFRESH_TOKEN_KEY = 'teamleader_refresh_token';

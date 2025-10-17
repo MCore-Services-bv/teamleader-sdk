@@ -2,7 +2,6 @@
     "name": "mcore-services/teamleader-sdk",
     "description": "Laravel SDK for Teamleader Focus API",
     "type": "library",
-    "version": "1.0.0",
     "license": "MIT",
     "authors": [
         {

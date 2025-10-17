@@ -2,6 +2,7 @@
 
 namespace McoreServices\TeamleaderSDK;
 
+use Exception;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Log;
 use McoreServices\TeamleaderSDK\Services\ConfigurationValidator;
@@ -14,7 +15,7 @@ class TeamleaderServiceProvider extends ServiceProvider
     public function register(): void
     {
         // Merge config
-        $this->mergeConfigFrom(__DIR__.'/../config/teamleader.php', 'teamleader');
+        $this->mergeConfigFrom(__DIR__ . '/../config/teamleader.php', 'teamleader');
 
         // Register SDK singleton
         $this->app->singleton(TeamleaderSDK::class, function ($app) {
@@ -32,16 +33,16 @@ class TeamleaderServiceProvider extends ServiceProvider
     {
         // Publish config
         $this->publishes([
-            __DIR__.'/../config/teamleader.php' => config_path('teamleader.php'),
+            __DIR__ . '/../config/teamleader.php' => config_path('teamleader.php'),
         ], 'teamleader-config');
 
         // Publish migrations
         $this->publishes([
-            __DIR__.'/../database/migrations' => database_path('migrations'),
+            __DIR__ . '/../database/migrations' => database_path('migrations'),
         ], 'teamleader-migrations');
 
         // Load migrations
-        $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+        $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
 
         // Register commands
         if ($this->app->runningInConsole()) {
@@ -49,7 +50,7 @@ class TeamleaderServiceProvider extends ServiceProvider
                 Console\Commands\TeamleaderStatusCommand::class,
                 Console\Commands\TeamleaderHealthCommand::class,
                 Console\Commands\TeamleaderConfigValidateCommand::class,
-                Console\Commands\TeamleaderExportUuids::class,
+                Console\Commands\TeamleaderExportUuidsCommand::class,
             ]);
         }
 
@@ -157,7 +158,7 @@ class TeamleaderServiceProvider extends ServiceProvider
                 );
             }
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             // Don't let validation errors break the application
             Log::error('Teamleader SDK configuration validation encountered an error', [
                 'exception' => get_class($e),

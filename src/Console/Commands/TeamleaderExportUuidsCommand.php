@@ -5,7 +5,7 @@ namespace McoreServices\TeamleaderSDK\Console\Commands;
 use Illuminate\Console\Command;
 use McoreServices\TeamleaderSDK\Facades\Teamleader;
 
-class TeamleaderExportUuids extends Command
+class TeamleaderExportUuidsCommand extends Command
 {
     protected $signature = 'teamleader:export-uuids {--resource=all}';
 

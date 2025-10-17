@@ -2,6 +2,7 @@
 
 namespace McoreServices\TeamleaderSDK\Services;
 
+use McoreServices\TeamleaderSDK\Traits\SanitizesLogData;
 use McoreServices\TeamleaderSDK\Exceptions\{
     TeamleaderException,
     AuthenticationException,
@@ -19,6 +20,7 @@ use GuzzleHttp\Exception\GuzzleException;
 
 class TeamleaderErrorHandler
 {
+    use SanitizesLogData;
     private LoggerInterface $logger;
     private bool $throwExceptions;
 
@@ -81,7 +83,7 @@ class TeamleaderErrorHandler
             'exception_message' => $exception->getMessage()
         ];
 
-        $this->logger->error('Teamleader HTTP exception', $errorContext);
+        $this->logger->error('Teamleader HTTP exception', $this->sanitizeForLog($errorContext));
 
         if ($this->throwExceptions) {
             // Wrap Guzzle exception in our own exception type
@@ -188,16 +190,17 @@ class TeamleaderErrorHandler
      */
     private function logError(int $statusCode, string $message, array $context): void
     {
+        $sanitizedContext = $this->sanitizeForLog($context);
         $logMessage = "Teamleader API error: {$message}";
 
         match (true) {
-            $statusCode >= 500 => $this->logger->critical($logMessage, $context),
-            $statusCode === 429 => $this->logger->warning($logMessage, $context),
-            $statusCode === 401 => $this->logger->error($logMessage, $context),
-            $statusCode === 403 => $this->logger->warning($logMessage, $context),
-            $statusCode === 404 => $this->logger->info($logMessage, $context),
-            $statusCode >= 400 => $this->logger->warning($logMessage, $context),
-            default => $this->logger->error($logMessage, $context)
+            $statusCode >= 500 => $this->logger->critical($logMessage, $sanitizedContext),
+            $statusCode === 429 => $this->logger->warning($logMessage, $sanitizedContext),
+            $statusCode === 401 => $this->logger->error($logMessage, $sanitizedContext),
+            $statusCode === 403 => $this->logger->warning($logMessage, $sanitizedContext),
+            $statusCode === 404 => $this->logger->info($logMessage, $sanitizedContext),
+            $statusCode >= 400 => $this->logger->warning($logMessage, $sanitizedContext),
+            default => $this->logger->error($logMessage, $sanitizedContext)
         };
     }
 

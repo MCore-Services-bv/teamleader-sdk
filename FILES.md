@@ -104,6 +104,7 @@
 │   ├── Console
 │   │   └── Commands
 │   │       ├── TeamleaderConfigValidateCommand.php
+│   │       ├── TeamleaderExportUuidsCommand.php
 │   │       ├── TeamleaderHealthCommand.php
 │   │       └── TeamleaderStatusCommand.php
 │   ├── Constants
@@ -205,7 +206,8 @@
 │   ├── TeamleaderSDK.php
 │   ├── TeamleaderServiceProvider.php
 │   ├── Traits
-│   │   └── FilterTrait.php
+│   │   ├── FilterTrait.php
+│   │   └── SanitizesLogData.php
 │   └── Transformers
 │       └── ResponseTransformer.php
 └── tests
@@ -220,5 +222,5 @@
             ├── RateLimiterTest.php
             └── TokenServiceTest.php
 
-48 directories, 172 files
+48 directories, 174 files
 ```

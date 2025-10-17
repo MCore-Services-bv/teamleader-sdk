@@ -11,11 +11,13 @@ use McoreServices\TeamleaderSDK\Services\TokenService;
 use McoreServices\TeamleaderSDK\Services\ApiRateLimiterService;
 use McoreServices\TeamleaderSDK\Services\TeamleaderErrorHandler;
 use McoreServices\TeamleaderSDK\Exceptions\ConfigurationException;
+use McoreServices\TeamleaderSDK\Traits\SanitizesLogData;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 class TeamleaderSDK
 {
+    use SanitizesLogData;
     protected static $apiCallCount = 0;
     protected static $apiCalls = [];
     protected $client;
@@ -243,10 +245,10 @@ class TeamleaderSDK
 
         $url = $this->authUrl . '/oauth2/authorize?' . http_build_query($params);
 
-        $this->logger->debug('Generated authorization URL', [
+        $this->logger->debug('Generated authorization URL', $this->sanitizeForLog([
             'state' => $state ? 'present' : 'none',
             'redirect_uri' => config('teamleader.redirect_uri')
-        ]);
+        ]));
 
         return $url;
     }

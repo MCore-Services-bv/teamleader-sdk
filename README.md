@@ -7,6 +7,42 @@
 
 A comprehensive, production-ready Laravel package for integrating with the Teamleader Focus API. Built with modern Laravel best practices, featuring automatic token management, intelligent rate limiting, resource sideloading, and complete coverage of all Teamleader Focus API endpoints.
 
+## ⚠️ Alpha Release
+
+This is an **alpha release** (v1.0.0-alpha). While the codebase is production-ready and feature-complete, we're gathering community feedback before the stable 1.0.0 release.
+
+### What "Alpha" Means
+- ✅ **All features implemented** - Complete Teamleader API coverage
+- ✅ **Production-ready code** - Used in live environments
+- ✅ **Comprehensive documentation** - Fully documented
+- ⚠️ **API may change** - Based on community feedback
+- ⚠️ **Expanding test coverage** - Tests in progress
+
+### Known Limitations
+- Batch operations not yet available for most resources
+- Cache invalidation is manual (no automatic invalidation on updates)
+- Test coverage being expanded
+
+### We Need Your Feedback!
+
+We're actively seeking feedback on:
+1. 💡 **Developer Experience** - Is the API intuitive?
+2. 📚 **Documentation** - Is everything clear?
+3. ⚡ **Performance** - How does it perform in your environment?
+4. 🐛 **Bug Reports** - Found an issue? Let us know!
+5. ✨ **Feature Requests** - What would make this better?
+
+**Report Issues:** [GitHub Issues](https://github.com/mcore-services/teamleader-sdk/issues)  
+**Ask Questions:** [GitHub Discussions](https://github.com/mcore-services/teamleader-sdk/discussions)  
+**Email Us:** help@mcore-services.be
+
+### Stability Timeline
+- **Alpha** (Current) - 2-3 weeks of community testing
+- **Beta** - 2-3 weeks of final testing
+- **Stable 1.0.0** - After successful beta period
+
+---
+
 ## ✨ Key Features
 
 ### 🔐 Authentication & Security
