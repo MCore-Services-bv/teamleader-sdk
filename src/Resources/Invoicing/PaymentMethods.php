@@ -11,12 +11,19 @@ class PaymentMethods extends Resource
 
     // Resource capabilities - Payment methods are read-only
     protected bool $supportsCreation = false;
+
     protected bool $supportsUpdate = false;
+
     protected bool $supportsDeletion = false;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = true;
+
     protected bool $supportsSorting = false;
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSideloading = false;
 
     // Available includes for sideloading
@@ -41,27 +48,27 @@ class PaymentMethods extends Resource
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all payment methods',
-            'code' => '$paymentMethods = $teamleader->paymentMethods()->list();'
+            'code' => '$paymentMethods = $teamleader->paymentMethods()->list();',
         ],
         'filter_by_ids' => [
             'description' => 'Get specific payment methods by IDs',
-            'code' => '$paymentMethods = $teamleader->paymentMethods()->byIds([\'uuid1\', \'uuid2\']);'
+            'code' => '$paymentMethods = $teamleader->paymentMethods()->byIds([\'uuid1\', \'uuid2\']);',
         ],
         'get_active' => [
             'description' => 'Get only active payment methods',
-            'code' => '$paymentMethods = $teamleader->paymentMethods()->active();'
+            'code' => '$paymentMethods = $teamleader->paymentMethods()->active();',
         ],
         'get_archived' => [
             'description' => 'Get only archived payment methods',
-            'code' => '$paymentMethods = $teamleader->paymentMethods()->archived();'
+            'code' => '$paymentMethods = $teamleader->paymentMethods()->archived();',
         ],
         'find_by_name' => [
             'description' => 'Find a payment method by name',
-            'code' => '$method = $teamleader->paymentMethods()->findByName("Credit Card");'
+            'code' => '$method = $teamleader->paymentMethods()->findByName("Credit Card");',
         ],
         'as_options' => [
             'description' => 'Get payment methods as key-value pairs for dropdowns',
-            'code' => '$options = $teamleader->paymentMethods()->asOptions();'
+            'code' => '$options = $teamleader->paymentMethods()->asOptions();',
         ],
     ];
 
@@ -76,16 +83,15 @@ class PaymentMethods extends Resource
     /**
      * List payment methods with filtering and pagination
      *
-     * @param array $filters Filter parameters
-     * @param array $options Pagination options
-     * @return array
+     * @param  array  $filters  Filter parameters
+     * @param  array  $options  Pagination options
      */
     public function list(array $filters = [], array $options = []): array
     {
         $params = [];
 
         // Apply filters
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
@@ -93,19 +99,18 @@ class PaymentMethods extends Resource
         if (isset($options['page_size']) || isset($options['page_number'])) {
             $params['page'] = [
                 'size' => $options['page_size'] ?? 20,
-                'number' => $options['page_number'] ?? 1
+                'number' => $options['page_number'] ?? 1,
             ];
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
      * Get active payment methods
      *
-     * @param array $additionalFilters Additional filters to apply
-     * @param array $options Pagination options
-     * @return array
+     * @param  array  $additionalFilters  Additional filters to apply
+     * @param  array  $options  Pagination options
      */
     public function active(array $additionalFilters = [], array $options = []): array
     {
@@ -118,9 +123,8 @@ class PaymentMethods extends Resource
     /**
      * Get archived payment methods
      *
-     * @param array $additionalFilters Additional filters to apply
-     * @param array $options Pagination options
-     * @return array
+     * @param  array  $additionalFilters  Additional filters to apply
+     * @param  array  $options  Pagination options
      */
     public function archived(array $additionalFilters = [], array $options = []): array
     {
@@ -133,9 +137,8 @@ class PaymentMethods extends Resource
     /**
      * Get payment methods by specific IDs
      *
-     * @param array $ids Array of payment method UUIDs
-     * @param array $options Pagination options
-     * @return array
+     * @param  array  $ids  Array of payment method UUIDs
+     * @param  array  $options  Pagination options
      */
     public function byIds(array $ids, array $options = []): array
     {
@@ -149,8 +152,8 @@ class PaymentMethods extends Resource
     /**
      * Find a payment method by name
      *
-     * @param string $name Payment method name to search for
-     * @param bool $activeOnly Whether to search only active payment methods
+     * @param  string  $name  Payment method name to search for
+     * @param  bool  $activeOnly  Whether to search only active payment methods
      * @return array|null Payment method data or null if not found
      */
     public function findByName(string $name, bool $activeOnly = true): ?array
@@ -174,14 +177,14 @@ class PaymentMethods extends Resource
     /**
      * Check if a payment method exists by ID
      *
-     * @param string $id Payment method UUID
-     * @return bool
+     * @param  string  $id  Payment method UUID
      */
     public function exists(string $id): bool
     {
         try {
             $result = $this->byIds([$id]);
-            return !empty($result['data']);
+
+            return ! empty($result['data']);
         } catch (\Exception $e) {
             return false;
         }
@@ -190,8 +193,8 @@ class PaymentMethods extends Resource
     /**
      * Get all payment methods (convenience method that handles pagination)
      *
-     * @param array $filters Filters to apply
-     * @param int $maxPages Maximum number of pages to fetch (default: 10)
+     * @param  array  $filters  Filters to apply
+     * @param  int  $maxPages  Maximum number of pages to fetch (default: 10)
      * @return array All payment methods
      */
     public function all(array $filters = [], int $maxPages = 10): array
@@ -202,14 +205,14 @@ class PaymentMethods extends Resource
         do {
             $result = $this->list($filters, [
                 'page_size' => 100,
-                'page_number' => $page
+                'page_number' => $page,
             ]);
 
-            if (!empty($result['data'])) {
+            if (! empty($result['data'])) {
                 $allMethods = array_merge($allMethods, $result['data']);
             }
 
-            $hasMore = !empty($result['data']) && count($result['data']) === 100;
+            $hasMore = ! empty($result['data']) && count($result['data']) === 100;
             $page++;
         } while ($hasMore && $page <= $maxPages);
 
@@ -219,7 +222,7 @@ class PaymentMethods extends Resource
     /**
      * Get payment methods formatted as options for select dropdowns
      *
-     * @param bool $activeOnly Whether to include only active payment methods
+     * @param  bool  $activeOnly  Whether to include only active payment methods
      * @return array Array with id => name pairs
      */
     public function asOptions(bool $activeOnly = true): array
@@ -238,15 +241,14 @@ class PaymentMethods extends Resource
     /**
      * Validate status values
      *
-     * @param array $statuses
      * @throws InvalidArgumentException
      */
     private function validateStatuses(array $statuses): void
     {
         foreach ($statuses as $status) {
-            if (!in_array($status, $this->validStatuses)) {
+            if (! in_array($status, $this->validStatuses)) {
                 throw new InvalidArgumentException(
-                    "Invalid status '{$status}'. Must be one of: " .
+                    "Invalid status '{$status}'. Must be one of: ".
                     implode(', ', $this->validStatuses)
                 );
             }
@@ -255,9 +257,6 @@ class PaymentMethods extends Resource
 
     /**
      * Build filters for the API request
-     *
-     * @param array $filters
-     * @return array
      */
     protected function buildFilters(array $filters): array
     {
@@ -288,8 +287,8 @@ class PaymentMethods extends Resource
                     'data[].id' => 'Payment method UUID',
                     'data[].name' => 'Payment method name',
                     'data[].status' => 'Status (active or archived)',
-                ]
-            ]
+                ],
+            ],
         ];
     }
 }

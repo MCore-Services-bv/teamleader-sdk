@@ -2,31 +2,31 @@
 
 namespace McoreServices\TeamleaderSDK\Services;
 
+use GuzzleHttp\Exception\GuzzleException;
+use McoreServices\TeamleaderSDK\Exceptions\AuthenticationException;
+use McoreServices\TeamleaderSDK\Exceptions\AuthorizationException;
+use McoreServices\TeamleaderSDK\Exceptions\ConfigurationException;
+use McoreServices\TeamleaderSDK\Exceptions\ConnectionException;
+use McoreServices\TeamleaderSDK\Exceptions\NotFoundException;
+use McoreServices\TeamleaderSDK\Exceptions\RateLimitExceededException;
+use McoreServices\TeamleaderSDK\Exceptions\ServerException;
+use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
+use McoreServices\TeamleaderSDK\Exceptions\ValidationException;
 use McoreServices\TeamleaderSDK\Traits\SanitizesLogData;
-use McoreServices\TeamleaderSDK\Exceptions\{
-    TeamleaderException,
-    AuthenticationException,
-    AuthorizationException,
-    NotFoundException,
-    ValidationException,
-    RateLimitExceededException,
-    ServerException,
-    ConnectionException,
-    ConfigurationException
-};
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
-use GuzzleHttp\Exception\GuzzleException;
 
 class TeamleaderErrorHandler
 {
     use SanitizesLogData;
+
     private LoggerInterface $logger;
+
     private bool $throwExceptions;
 
-    public function __construct(LoggerInterface $logger = null, bool $throwExceptions = null)
+    public function __construct(?LoggerInterface $logger = null, ?bool $throwExceptions = null)
     {
-        $this->logger = $logger ?: new NullLogger();
+        $this->logger = $logger ?: new NullLogger;
         $this->throwExceptions = $throwExceptions ?? config('teamleader.error_handling.throw_exceptions', false);
     }
 
@@ -35,7 +35,7 @@ class TeamleaderErrorHandler
      */
     public function handleApiError(array $result, string $context = ''): void
     {
-        if (!isset($result['error']) || !$result['error']) {
+        if (! isset($result['error']) || ! $result['error']) {
             return; // No error to handle
         }
 
@@ -49,7 +49,7 @@ class TeamleaderErrorHandler
             'primary_error' => $message,
             'all_errors' => $errors,
             'response_data' => $result['response'] ?? null,
-            'headers' => $result['headers'] ?? []
+            'headers' => $result['headers'] ?? [],
         ];
 
         // Log the error with appropriate severity
@@ -80,7 +80,7 @@ class TeamleaderErrorHandler
             'status_code' => $statusCode,
             'response_body' => $responseBody,
             'exception_class' => get_class($exception),
-            'exception_message' => $exception->getMessage()
+            'exception_message' => $exception->getMessage(),
         ];
 
         $this->logger->error('Teamleader HTTP exception', $this->sanitizeForLog($errorContext));
@@ -88,7 +88,7 @@ class TeamleaderErrorHandler
         if ($this->throwExceptions) {
             // Wrap Guzzle exception in our own exception type
             throw new ConnectionException(
-                'HTTP request failed: ' . $exception->getMessage(),
+                'HTTP request failed: '.$exception->getMessage(),
                 $exception->getCode(),
                 $exception,
                 $errorContext,
@@ -104,7 +104,7 @@ class TeamleaderErrorHandler
     {
         $this->logger->critical('Teamleader configuration error', [
             'message' => $message,
-            'context' => $context
+            'context' => $context,
         ]);
 
         if ($this->throwExceptions) {
@@ -129,7 +129,7 @@ class TeamleaderErrorHandler
                 if ($attempt === $maxAttempts) {
                     $this->logger->error("Max retry attempts reached for {$context}", [
                         'attempts' => $maxAttempts,
-                        'final_error' => $e->getMessage()
+                        'final_error' => $e->getMessage(),
                     ]);
                     throw $e;
                 }
@@ -139,14 +139,14 @@ class TeamleaderErrorHandler
                 $this->logger->info("Retrying {$context} after error (attempt {$attempt}/{$maxAttempts})", [
                     'error' => $e->getMessage(),
                     'delay_seconds' => $delay / 1000,
-                    'exception_type' => get_class($e)
+                    'exception_type' => get_class($e),
                 ]);
 
                 usleep($delay * 1000); // Convert ms to microseconds
                 $attempt++;
             } catch (AuthenticationException|AuthorizationException|NotFoundException|ValidationException $e) {
                 // Don't retry these - they won't succeed on retry
-                $this->logger->warning("Non-retryable error in {$context}: " . $e->getMessage());
+                $this->logger->warning("Non-retryable error in {$context}: ".$e->getMessage());
                 throw $e;
             }
         }
@@ -162,8 +162,8 @@ class TeamleaderErrorHandler
     {
         return match (true) {
             $exception instanceof ServerException,
-                $exception instanceof RateLimitExceededException,
-                $exception instanceof ConnectionException => true,
+            $exception instanceof RateLimitExceededException,
+            $exception instanceof ConnectionException => true,
             default => false
         };
     }
@@ -177,11 +177,11 @@ class TeamleaderErrorHandler
             $exception instanceof AuthenticationException => 'Authentication with Teamleader failed. Please reconnect.',
             $exception instanceof AuthorizationException => 'You do not have permission to perform this action.',
             $exception instanceof NotFoundException => 'The requested resource was not found.',
-            $exception instanceof ValidationException => 'The provided data is invalid: ' . implode(', ', $exception->getAllErrors()),
+            $exception instanceof ValidationException => 'The provided data is invalid: '.implode(', ', $exception->getAllErrors()),
             $exception instanceof RateLimitExceededException => 'API rate limit exceeded. Please try again later.',
             $exception instanceof ServerException => 'Teamleader server error. Please try again later.',
             $exception instanceof ConnectionException => 'Connection to Teamleader failed. Please check your internet connection.',
-            default => 'An unexpected error occurred: ' . $exception->getMessage()
+            default => 'An unexpected error occurred: '.$exception->getMessage()
         };
     }
 
@@ -214,7 +214,7 @@ class TeamleaderErrorHandler
             403 => new AuthorizationException($message, 403, null, $context, $statusCode, $errors),
             404 => new NotFoundException($message, 404, null, $context, $statusCode, $errors),
             422 => new ValidationException(
-                'Validation failed: ' . implode(', ', $errors),
+                'Validation failed: '.implode(', ', $errors),
                 422,
                 null,
                 $context,
@@ -288,6 +288,7 @@ class TeamleaderErrorHandler
     public function setThrowExceptions(bool $throwExceptions): self
     {
         $this->throwExceptions = $throwExceptions;
+
         return $this;
     }
 
@@ -310,7 +311,7 @@ class TeamleaderErrorHandler
             'message' => $exception->getMessage(),
             'errors' => $exception->getAllErrors(),
             'user_message' => $this->getUserFriendlyMessage($exception),
-            'retryable' => $this->isRetryableError($exception)
+            'retryable' => $this->isRetryableError($exception),
         ];
     }
 }

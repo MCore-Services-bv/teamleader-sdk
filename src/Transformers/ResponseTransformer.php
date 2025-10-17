@@ -17,7 +17,7 @@ class ResponseTransformer
                 'data' => static::transformData($response['data'], $transformer),
                 'pagination' => static::transformPagination($response['meta']),
                 'included' => static::transformIncluded($response['included'] ?? []),
-                'meta' => $response['meta'] ?? []
+                'meta' => $response['meta'] ?? [],
             ];
         }
 
@@ -25,7 +25,7 @@ class ResponseTransformer
         if (isset($response['data'])) {
             return [
                 'data' => static::transformData($response['data'], $transformer),
-                'included' => static::transformIncluded($response['included'] ?? [])
+                'included' => static::transformIncluded($response['included'] ?? []),
             ];
         }
 
@@ -55,7 +55,7 @@ class ResponseTransformer
             'total_pages' => ceil($matches / max($pageSize, 1)),
             'from' => (($pageNumber - 1) * $pageSize) + 1,
             'to' => min($pageNumber * $pageSize, $matches),
-            'last_page' => ceil($matches / max($pageSize, 1))
+            'last_page' => ceil($matches / max($pageSize, 1)),
         ];
     }
 
@@ -103,19 +103,19 @@ class ResponseTransformer
             'created_at', 'updated_at', 'deleted_at',
             'due_date', 'invoice_date', 'starts_at', 'ends_at',
             'estimated_closing_date', 'closed_at', 'completed_at',
-            'started_at', 'ended_at', 'published_at'
+            'started_at', 'ended_at', 'published_at',
         ];
 
         foreach ($dateFields as $field) {
-            if (isset($resource[$field]) && !empty($resource[$field])) {
+            if (isset($resource[$field]) && ! empty($resource[$field])) {
                 try {
                     $carbon = Carbon::parse($resource[$field]);
-                    $resource[$field . '_human'] = $carbon->diffForHumans();
-                    $resource[$field . '_formatted'] = $carbon->format('Y-m-d H:i:s');
+                    $resource[$field.'_human'] = $carbon->diffForHumans();
+                    $resource[$field.'_formatted'] = $carbon->format('Y-m-d H:i:s');
 
                     // Add date-only version for date fields
                     if (in_array($field, ['due_date', 'invoice_date', 'starts_at', 'ends_at'])) {
-                        $resource[$field . '_date'] = $carbon->format('Y-m-d');
+                        $resource[$field.'_date'] = $carbon->format('Y-m-d');
                     }
                 } catch (\Exception $e) {
                     // If date parsing fails, leave original value
@@ -128,13 +128,13 @@ class ResponseTransformer
         $moneyFields = [
             'total', 'subtotal', 'total_discounted', 'total_tax',
             'amount', 'value', 'estimated_value', 'budget',
-            'unit_price', 'discount_value', 'price', 'cost'
+            'unit_price', 'discount_value', 'price', 'cost',
         ];
 
         foreach ($moneyFields as $field) {
             if (isset($resource[$field]) && is_numeric($resource[$field])) {
                 $currency = $resource['currency'] ?? 'EUR';
-                $resource[$field . '_formatted'] = static::formatMoney($resource[$field], $currency);
+                $resource[$field.'_formatted'] = static::formatMoney($resource[$field], $currency);
             }
         }
 
@@ -159,15 +159,15 @@ class ResponseTransformer
 
         // Add relationship existence helpers
         if (isset($resource['responsible_user_id'])) {
-            $resource['has_responsible_user'] = !empty($resource['responsible_user_id']);
+            $resource['has_responsible_user'] = ! empty($resource['responsible_user_id']);
         }
 
         if (isset($resource['company_id'])) {
-            $resource['has_company'] = !empty($resource['company_id']);
+            $resource['has_company'] = ! empty($resource['company_id']);
         }
 
         if (isset($resource['customer'])) {
-            $resource['has_customer'] = !empty($resource['customer']);
+            $resource['has_customer'] = ! empty($resource['customer']);
             if (isset($resource['customer']['type'])) {
                 $resource['customer_type'] = $resource['customer']['type'];
             }
@@ -195,11 +195,11 @@ class ResponseTransformer
 
         // Format according to European standards for EUR
         if ($currency === 'EUR') {
-            return $symbol . number_format($amount, 2, ',', '.');
+            return $symbol.number_format($amount, 2, ',', '.');
         }
 
         // Default format for other currencies
-        return $symbol . number_format($amount, 2);
+        return $symbol.number_format($amount, 2);
     }
 
     /**
@@ -211,8 +211,8 @@ class ResponseTransformer
             'data' => array_map([static::class, 'transformSingleResource'], $items),
             'meta' => array_merge([
                 'count' => count($items),
-                'transformed_at' => now()->toISOString()
-            ], $meta)
+                'transformed_at' => now()->toISOString(),
+            ], $meta),
         ];
     }
 
@@ -225,8 +225,8 @@ class ResponseTransformer
             'data' => static::transformSingleResource($item),
             'included' => static::transformIncluded($included),
             'meta' => [
-                'transformed_at' => now()->toISOString()
-            ]
+                'transformed_at' => now()->toISOString(),
+            ],
         ];
     }
 
@@ -241,8 +241,8 @@ class ResponseTransformer
             'message' => $message,
             'errors' => $errors,
             'meta' => [
-                'timestamp' => now()->toISOString()
-            ]
+                'timestamp' => now()->toISOString(),
+            ],
         ];
     }
 
@@ -251,12 +251,12 @@ class ResponseTransformer
      */
     public static function withRelationships(array $response): array
     {
-        if (!isset($response['data']) || !isset($response['included'])) {
+        if (! isset($response['data']) || ! isset($response['included'])) {
             return $response;
         }
 
         // Add helper method to find related resources
-        $response['findRelated'] = function(string $type, string $id) use ($response) {
+        $response['findRelated'] = function (string $type, string $id) use ($response) {
             $included = $response['included'][$type] ?? [];
 
             foreach ($included as $resource) {
@@ -288,7 +288,7 @@ class ResponseTransformer
             $summary['pagination'] = [
                 'current_page' => $response['pagination']['current_page'],
                 'total' => $response['pagination']['total'],
-                'has_more' => $response['pagination']['has_more']
+                'has_more' => $response['pagination']['has_more'],
             ];
         }
 
@@ -313,8 +313,8 @@ class ResponseTransformer
             'included' => [],
             'meta' => [
                 'merged_from' => count($responses),
-                'merged_at' => now()->toISOString()
-            ]
+                'merged_at' => now()->toISOString(),
+            ],
         ];
 
         foreach ($responses as $response) {
@@ -332,7 +332,7 @@ class ResponseTransformer
             // Merge included resources
             if (isset($response['included'])) {
                 foreach ($response['included'] as $type => $resources) {
-                    if (!isset($merged['included'][$type])) {
+                    if (! isset($merged['included'][$type])) {
                         $merged['included'][$type] = [];
                     }
                     $merged['included'][$type] = array_merge($merged['included'][$type], $resources);
@@ -347,7 +347,7 @@ class ResponseTransformer
 
             foreach ($resources as $resource) {
                 $id = $resource['id'] ?? uniqid();
-                if (!in_array($id, $seen)) {
+                if (! in_array($id, $seen)) {
                     $unique[] = $resource;
                     $seen[] = $id;
                 }

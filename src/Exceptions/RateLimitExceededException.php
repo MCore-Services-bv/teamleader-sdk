@@ -7,6 +7,7 @@ namespace McoreServices\TeamleaderSDK\Exceptions;
 class RateLimitExceededException extends TeamleaderException
 {
     protected int $retryAfter;
+
     protected ?int $resetTime;
 
     public function __construct(

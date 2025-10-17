@@ -3,9 +3,8 @@
 namespace McoreServices\TeamleaderSDK\Console\Commands;
 
 use Illuminate\Console\Command;
-use McoreServices\TeamleaderSDK\TeamleaderSDK;
 use McoreServices\TeamleaderSDK\Services\HealthCheckService;
-use McoreServices\TeamleaderSDK\Services\ConfigurationValidator;
+use McoreServices\TeamleaderSDK\TeamleaderSDK;
 
 class TeamleaderStatusCommand extends Command
 {
@@ -30,8 +29,9 @@ class TeamleaderStatusCommand extends Command
                 'api_version' => $sdk->getApiVersion(),
                 'token_info' => $tokenInfo,
                 'rate_limit' => $rateLimitStats,
-                'api_calls_count' => $sdk::getApiCallCount()
+                'api_calls_count' => $sdk::getApiCallCount(),
             ]);
+
             return;
         }
 
@@ -66,7 +66,7 @@ class TeamleaderStatusCommand extends Command
         $status = $isConnected ? '<fg=green>✅ Connected</>' : '<fg=red>❌ Not Connected</>';
         $this->line("Connection Status: {$status}");
         $this->line("API Version: <fg=cyan>{$sdk->getApiVersion()}</>");
-        $this->line("Base URL: <fg=cyan>" . config('teamleader.base_url', 'https://api.focus.teamleader.eu') . "</>");
+        $this->line('Base URL: <fg=cyan>'.config('teamleader.base_url', 'https://api.focus.teamleader.eu').'</>');
         $this->newLine();
     }
 
@@ -75,15 +75,15 @@ class TeamleaderStatusCommand extends Command
         $this->line('<fg=yellow>📋 Token Information:</>');
 
         if ($tokenInfo['has_access_token']) {
-            $this->line("  Access Token: <fg=green>✅ Present</>");
+            $this->line('  Access Token: <fg=green>✅ Present</>');
         } else {
-            $this->line("  Access Token: <fg=red>❌ Missing</>");
+            $this->line('  Access Token: <fg=red>❌ Missing</>');
         }
 
         if ($tokenInfo['has_refresh_token']) {
-            $this->line("  Refresh Token: <fg=green>✅ Present</>");
+            $this->line('  Refresh Token: <fg=green>✅ Present</>');
         } else {
-            $this->line("  Refresh Token: <fg=red>❌ Missing</>");
+            $this->line('  Refresh Token: <fg=red>❌ Missing</>');
         }
 
         if ($tokenInfo['expires_at']) {
@@ -130,10 +130,10 @@ class TeamleaderStatusCommand extends Command
         $this->line('<fg=yellow>📊 API Statistics:</>');
         $this->line("  Total Calls This Session: <fg=cyan>{$totalCalls}</>");
 
-        if (!empty($recentCalls)) {
+        if (! empty($recentCalls)) {
             $lastCall = end($recentCalls);
             $this->line("  Last Endpoint: <fg=cyan>{$lastCall['endpoint']}</>");
-            $this->line("  Last Call: <fg=cyan>" . date('H:i:s', (int)$lastCall['timestamp']) . "</>");
+            $this->line('  Last Call: <fg=cyan>'.date('H:i:s', (int) $lastCall['timestamp']).'</>');
         }
 
         $this->newLine();
@@ -148,7 +148,7 @@ class TeamleaderStatusCommand extends Command
             default => 'red'
         };
 
-        $this->line("Overall Health: <fg={$color}>" . strtoupper($status) . "</>");
+        $this->line("Overall Health: <fg={$color}>".strtoupper($status).'</>');
 
         $summary = $healthResult->getSummary();
         if ($summary['error'] > 0) {
@@ -163,20 +163,20 @@ class TeamleaderStatusCommand extends Command
     {
         $this->line('<fg=yellow>💡 Recommendations:</>');
 
-        if (!$isConnected) {
-            $this->line("  • Run <fg=cyan>php artisan teamleader:connect</> to authenticate");
+        if (! $isConnected) {
+            $this->line('  • Run <fg=cyan>php artisan teamleader:connect</> to authenticate');
         }
 
         if ($rateLimitStats['usage_percentage'] > 80) {
-            $this->line("  • Consider implementing request throttling in your application");
+            $this->line('  • Consider implementing request throttling in your application');
         }
 
         if ($rateLimitStats['throttled_requests'] > 0) {
             $this->line("  • {$rateLimitStats['throttled_requests']} requests were throttled for optimal performance");
         }
 
-        $this->line("  • Run <fg=cyan>php artisan teamleader:health</> for detailed diagnostics");
-        $this->line("  • Run <fg=cyan>php artisan teamleader:config:validate</> to check configuration");
+        $this->line('  • Run <fg=cyan>php artisan teamleader:health</> for detailed diagnostics');
+        $this->line('  • Run <fg=cyan>php artisan teamleader:config:validate</> to check configuration');
     }
 
     private function outputJson(array $data): void

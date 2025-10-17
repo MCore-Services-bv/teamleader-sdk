@@ -7,8 +7,8 @@ trait FilterTrait
     /**
      * Apply filters to the parameters.
      *
-     * @param array $params The current parameters
-     * @param array $filters The filters to apply
+     * @param  array  $params  The current parameters
+     * @param  array  $filters  The filters to apply
      * @return array The updated parameters
      */
     protected function applyFilters(array $params = [], array $filters = [])
@@ -16,12 +16,13 @@ trait FilterTrait
         // Remove null or empty array values to avoid invalid filters
         $filters = array_filter($filters, function ($value) {
             if (is_array($value)) {
-                return !empty($value);
+                return ! empty($value);
             }
+
             return $value !== null && $value !== '';
         });
 
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = $filters;
         }
 
@@ -31,9 +32,9 @@ trait FilterTrait
     /**
      * Apply sorting to the parameters.
      *
-     * @param array $params The current parameters
-     * @param string|array $sort Field(s) to sort by
-     * @param string $order Sort order (asc or desc)
+     * @param  array  $params  The current parameters
+     * @param  string|array  $sort  Field(s) to sort by
+     * @param  string  $order  Sort order (asc or desc)
      * @return array The updated parameters
      */
     protected function applySorting(array $params = [], $sort = null, $order = 'asc')
@@ -45,6 +46,7 @@ trait FilterTrait
         // If sort is already a configured array, use it directly
         if (is_array($sort) && isset($sort[0]) && is_array($sort[0])) {
             $params['sort'] = $sort;
+
             return $params;
         }
 
@@ -55,33 +57,34 @@ trait FilterTrait
             foreach ($sort as $field) {
                 $sortConfig[] = [
                     'field' => $field,
-                    'order' => $order
+                    'order' => $order,
                 ];
             }
         } else {
             $sortConfig[] = [
                 'field' => $sort,
-                'order' => $order
+                'order' => $order,
             ];
         }
 
         $params['sort'] = $sortConfig;
+
         return $params;
     }
 
     /**
      * Apply pagination to the parameters.
      *
-     * @param array $params The current parameters
-     * @param int $size Page size
-     * @param int $number Page number
+     * @param  array  $params  The current parameters
+     * @param  int  $size  Page size
+     * @param  int  $number  Page number
      * @return array The updated parameters
      */
     protected function applyPagination(array $params = [], $size = 20, $number = 1)
     {
         $params['page'] = [
             'size' => (int) $size,
-            'number' => (int) $number
+            'number' => (int) $number,
         ];
 
         return $params;
@@ -90,26 +93,26 @@ trait FilterTrait
     /**
      * Apply includes for sideloading related resources (enhanced version).
      *
-     * @param array $params The current parameters
-     * @param string|array $includes The includes to apply
+     * @param  array  $params  The current parameters
+     * @param  string|array  $includes  The includes to apply
      * @return array The updated parameters
      */
     protected function applyIncludes(array $params = [], $includes = null)
     {
-        if (!empty($includes)) {
+        if (! empty($includes)) {
             if (is_array($includes)) {
                 // Filter out empty includes and join with comma
-                $validIncludes = array_filter($includes, function($include) {
-                    return !empty(trim($include));
+                $validIncludes = array_filter($includes, function ($include) {
+                    return ! empty(trim($include));
                 });
 
-                if (!empty($validIncludes)) {
+                if (! empty($validIncludes)) {
                     $params['include'] = implode(',', $validIncludes);
                 }
             } else {
                 // Single include string
                 $trimmedInclude = trim($includes);
-                if (!empty($trimmedInclude)) {
+                if (! empty($trimmedInclude)) {
                     $params['include'] = $trimmedInclude;
                 }
             }
@@ -121,7 +124,7 @@ trait FilterTrait
     /**
      * Fluent interface for sideloading relationships
      *
-     * @param string|array $relationships Relationship(s) to include
+     * @param  string|array  $relationships  Relationship(s) to include
      * @return static
      */
     public function with($relationships)
@@ -129,7 +132,7 @@ trait FilterTrait
         if (is_string($relationships)) {
             // Handle comma-separated string or single relationship
             $relationships = explode(',', $relationships);
-        } elseif (!is_array($relationships)) {
+        } elseif (! is_array($relationships)) {
             // Convert to array if it's neither string nor array
             $relationships = [$relationships];
         }
@@ -198,7 +201,7 @@ trait FilterTrait
         return $this->with([
             'responsible_user',
             'department',
-            'lead.customer'
+            'lead.customer',
         ]);
     }
 
@@ -210,13 +213,12 @@ trait FilterTrait
     public function withoutIncludes()
     {
         $this->pendingIncludes = [];
+
         return $this;
     }
 
     /**
      * Get the current pending includes
-     *
-     * @return array
      */
     protected function getPendingIncludes(): array
     {
@@ -225,15 +227,12 @@ trait FilterTrait
 
     /**
      * Apply pending includes to parameters and clear them
-     *
-     * @param array $params
-     * @return array
      */
     protected function applyPendingIncludes(array $params = []): array
     {
         $pendingIncludes = $this->getPendingIncludes();
 
-        if (!empty($pendingIncludes)) {
+        if (! empty($pendingIncludes)) {
             $params = $this->applyIncludes($params, $pendingIncludes);
             $this->pendingIncludes = []; // Clear after applying
         }
@@ -244,19 +243,19 @@ trait FilterTrait
     /**
      * Build complete query parameters with all applied filters, sorting, pagination, and includes
      *
-     * @param array $baseParams Base parameters
-     * @param array $filters Filters to apply
-     * @param string|array $sort Sorting configuration
-     * @param string $sortOrder Sort order
-     * @param int $pageSize Page size
-     * @param int $pageNumber Page number
-     * @param string|array $includes Includes to apply
+     * @param  array  $baseParams  Base parameters
+     * @param  array  $filters  Filters to apply
+     * @param  string|array  $sort  Sorting configuration
+     * @param  string  $sortOrder  Sort order
+     * @param  int  $pageSize  Page size
+     * @param  int  $pageNumber  Page number
+     * @param  string|array  $includes  Includes to apply
      * @return array Complete parameters array
      */
     protected function buildQueryParams(
         array $baseParams = [],
         array $filters = [],
-              $sort = null,
+        $sort = null,
         string $sortOrder = 'asc',
         int $pageSize = 20,
         int $pageNumber = 1,
@@ -287,7 +286,6 @@ trait FilterTrait
     /**
      * Validate include paths to prevent invalid API calls
      *
-     * @param array $includes
      * @return array Valid includes only
      */
     protected function validateIncludes(array $includes): array
@@ -307,14 +305,12 @@ trait FilterTrait
     /**
      * Get suggested includes for the current resource type
      * Override in specific resource classes to provide context-appropriate suggestions
-     *
-     * @return array
      */
     protected function getSuggestedIncludes(): array
     {
         return [
             'responsible_user',
-            'department'
+            'department',
         ];
     }
 

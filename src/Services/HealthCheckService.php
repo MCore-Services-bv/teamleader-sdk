@@ -2,14 +2,15 @@
 
 namespace McoreServices\TeamleaderSDK\Services;
 
-use McoreServices\TeamleaderSDK\TeamleaderSDK;
+use Exception;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Exception;
+use McoreServices\TeamleaderSDK\TeamleaderSDK;
 
 class HealthCheckService
 {
     private TeamleaderSDK $sdk;
+
     private ConfigurationValidator $configValidator;
 
     public function __construct(TeamleaderSDK $sdk, ConfigurationValidator $configValidator)
@@ -32,7 +33,7 @@ class HealthCheckService
             'dependencies' => $this->checkDependencies(),
             'database_connection' => $this->checkDatabaseConnection(),
             'cache_system' => $this->checkCacheSystem(),
-            'error_handling' => $this->checkErrorHandling()
+            'error_handling' => $this->checkErrorHandling(),
         ];
 
         return new HealthCheckResult($checks);
@@ -50,10 +51,10 @@ class HealthCheckService
                 'is_valid' => $validation->isValid(),
                 'error_count' => $validation->getErrorCount(),
                 'warning_count' => $validation->getWarningCount(),
-                'summary' => $validation->getSummary()
+                'summary' => $validation->getSummary(),
             ];
 
-            if (!$validation->isValid()) {
+            if (! $validation->isValid()) {
                 $details['errors'] = $validation->errors;
             }
 
@@ -63,16 +64,16 @@ class HealthCheckService
 
             return [
                 'status' => $validation->isValid() ? 'healthy' : 'error',
-                'details' => $details
+                'details' => $details,
             ];
 
         } catch (Exception $e) {
             return [
                 'status' => 'error',
                 'details' => [
-                    'error' => 'Configuration validation failed: ' . $e->getMessage(),
-                    'exception' => get_class($e)
-                ]
+                    'error' => 'Configuration validation failed: '.$e->getMessage(),
+                    'exception' => get_class($e),
+                ],
             ];
         }
     }
@@ -87,7 +88,7 @@ class HealthCheckService
             $tokenInfo = $this->sdk->getTokenService()->getTokenInfo();
 
             $status = 'healthy';
-            if (!$isAuthenticated) {
+            if (! $isAuthenticated) {
                 $status = 'warning';
             } elseif ($tokenInfo['needs_refresh']) {
                 $status = 'warning';
@@ -101,17 +102,17 @@ class HealthCheckService
                     'token_source' => $tokenInfo['token_source'] ?? 'unknown',
                     'expires_in_minutes' => isset($tokenInfo['expires_in'])
                         ? round($tokenInfo['expires_in'] / 60, 1)
-                        : null
-                ]
+                        : null,
+                ],
             ];
 
         } catch (Exception $e) {
             return [
                 'status' => 'error',
                 'details' => [
-                    'error' => 'Authentication check failed: ' . $e->getMessage(),
-                    'exception' => get_class($e)
-                ]
+                    'error' => 'Authentication check failed: '.$e->getMessage(),
+                    'exception' => get_class($e),
+                ],
             ];
         }
     }
@@ -122,10 +123,10 @@ class HealthCheckService
     private function checkApiConnectivity(): array
     {
         try {
-            if (!$this->sdk->isAuthenticated()) {
+            if (! $this->sdk->isAuthenticated()) {
                 return [
                     'status' => 'skipped',
-                    'details' => ['reason' => 'Not authenticated - cannot test connectivity']
+                    'details' => ['reason' => 'Not authenticated - cannot test connectivity'],
                 ];
             }
 
@@ -133,15 +134,15 @@ class HealthCheckService
             $response = $this->sdk->users()->me();
             $duration = round((microtime(true) - $start) * 1000, 2);
 
-            $success = !isset($response['error']);
+            $success = ! isset($response['error']);
 
             $details = [
                 'response_time_ms' => $duration,
                 'success' => $success,
-                'api_version' => $this->sdk->getApiVersion()
+                'api_version' => $this->sdk->getApiVersion(),
             ];
 
-            if (!$success) {
+            if (! $success) {
                 $details['error'] = $response['message'] ?? 'Unknown API error';
                 $details['status_code'] = $response['status_code'] ?? null;
             }
@@ -159,16 +160,16 @@ class HealthCheckService
 
             return [
                 'status' => $status,
-                'details' => $details
+                'details' => $details,
             ];
 
         } catch (Exception $e) {
             return [
                 'status' => 'error',
                 'details' => [
-                    'error' => 'Connectivity test failed: ' . $e->getMessage(),
-                    'exception' => get_class($e)
-                ]
+                    'error' => 'Connectivity test failed: '.$e->getMessage(),
+                    'exception' => get_class($e),
+                ],
             ];
         }
     }
@@ -191,21 +192,21 @@ class HealthCheckService
 
             $details = array_merge($stats, [
                 'status_description' => $this->getRateLimitDescription($status),
-                'recommended_action' => $this->getRateLimitRecommendation($usage)
+                'recommended_action' => $this->getRateLimitRecommendation($usage),
             ]);
 
             return [
                 'status' => $status,
-                'details' => $details
+                'details' => $details,
             ];
 
         } catch (Exception $e) {
             return [
                 'status' => 'error',
                 'details' => [
-                    'error' => 'Rate limit check failed: ' . $e->getMessage(),
-                    'exception' => get_class($e)
-                ]
+                    'error' => 'Rate limit check failed: '.$e->getMessage(),
+                    'exception' => get_class($e),
+                ],
             ];
         }
     }
@@ -223,7 +224,7 @@ class HealthCheckService
             $expiresIn = $tokenInfo['expires_in'] ?? 0;
 
             $status = match (true) {
-                !$hasTokens => 'error',
+                ! $hasTokens => 'error',
                 $expiresIn < 300 => 'critical', // Less than 5 minutes
                 $expiresIn < 900 => 'warning',  // Less than 15 minutes
                 $needsRefresh => 'caution',
@@ -235,16 +236,16 @@ class HealthCheckService
 
             return [
                 'status' => $status,
-                'details' => $details
+                'details' => $details,
             ];
 
         } catch (Exception $e) {
             return [
                 'status' => 'error',
                 'details' => [
-                    'error' => 'Token status check failed: ' . $e->getMessage(),
-                    'exception' => get_class($e)
-                ]
+                    'error' => 'Token status check failed: '.$e->getMessage(),
+                    'exception' => get_class($e),
+                ],
             ];
         }
     }
@@ -261,8 +262,8 @@ class HealthCheckService
         $requiredExtensions = ['curl', 'json', 'openssl', 'mbstring'];
         foreach ($requiredExtensions as $ext) {
             $loaded = extension_loaded($ext);
-            $checks['php_extension_' . $ext] = $loaded;
-            if (!$loaded) {
+            $checks['php_extension_'.$ext] = $loaded;
+            if (! $loaded) {
                 $overallStatus = 'error';
             }
         }
@@ -271,8 +272,8 @@ class HealthCheckService
         $recommendedExtensions = ['redis', 'memcached'];
         foreach ($recommendedExtensions as $ext) {
             $loaded = extension_loaded($ext);
-            $checks['php_extension_' . $ext . '_optional'] = $loaded;
-            if (!$loaded && $overallStatus === 'healthy') {
+            $checks['php_extension_'.$ext.'_optional'] = $loaded;
+            if (! $loaded && $overallStatus === 'healthy') {
                 $overallStatus = 'warning';
             }
         }
@@ -295,7 +296,7 @@ class HealthCheckService
 
         return [
             'status' => $overallStatus,
-            'details' => $checks
+            'details' => $checks,
         ];
     }
 
@@ -315,7 +316,7 @@ class HealthCheckService
             $details = [
                 'connection_active' => $connectionOk,
                 'has_tokens_table' => $hasTokenTable,
-                'driver' => DB::connection()->getDriverName()
+                'driver' => DB::connection()->getDriverName(),
             ];
 
             if ($hasTokenTable) {
@@ -329,23 +330,23 @@ class HealthCheckService
             }
 
             $status = $connectionOk ? 'healthy' : 'error';
-            if (!$hasTokenTable && $status === 'healthy') {
+            if (! $hasTokenTable && $status === 'healthy') {
                 $status = 'warning';
                 $details['warning'] = 'Tokens table will be created automatically when needed';
             }
 
             return [
                 'status' => $status,
-                'details' => $details
+                'details' => $details,
             ];
 
         } catch (Exception $e) {
             return [
                 'status' => 'error',
                 'details' => [
-                    'error' => 'Database check failed: ' . $e->getMessage(),
-                    'exception' => get_class($e)
-                ]
+                    'error' => 'Database check failed: '.$e->getMessage(),
+                    'exception' => get_class($e),
+                ],
             ];
         }
     }
@@ -358,16 +359,16 @@ class HealthCheckService
         try {
             $cacheEnabled = config('teamleader.caching.enabled', false);
 
-            if (!$cacheEnabled) {
+            if (! $cacheEnabled) {
                 return [
                     'status' => 'disabled',
-                    'details' => ['message' => 'Caching is disabled in configuration']
+                    'details' => ['message' => 'Caching is disabled in configuration'],
                 ];
             }
 
             $store = config('teamleader.caching.store', 'default');
-            $testKey = 'teamleader_health_check_' . uniqid();
-            $testValue = 'test_' . time();
+            $testKey = 'teamleader_health_check_'.uniqid();
+            $testValue = 'test_'.time();
 
             // Test cache write
             Cache::store($store)->put($testKey, $testValue, 60);
@@ -386,17 +387,17 @@ class HealthCheckService
                     'enabled' => $cacheEnabled,
                     'store' => $store,
                     'working' => $working,
-                    'driver' => config("cache.stores.{$store}.driver")
-                ]
+                    'driver' => config("cache.stores.{$store}.driver"),
+                ],
             ];
 
         } catch (Exception $e) {
             return [
                 'status' => 'error',
                 'details' => [
-                    'error' => 'Cache system check failed: ' . $e->getMessage(),
-                    'exception' => get_class($e)
-                ]
+                    'error' => 'Cache system check failed: '.$e->getMessage(),
+                    'exception' => get_class($e),
+                ],
             ];
         }
     }
@@ -414,7 +415,7 @@ class HealthCheckService
                 'throws_exceptions' => $throwsExceptions,
                 'log_errors' => config('teamleader.error_handling.log_errors', true),
                 'include_stack_trace' => config('teamleader.error_handling.include_stack_trace', false),
-                'parse_teamleader_errors' => config('teamleader.error_handling.parse_teamleader_errors', true)
+                'parse_teamleader_errors' => config('teamleader.error_handling.parse_teamleader_errors', true),
             ];
 
             // Test error handler with a mock error
@@ -422,7 +423,7 @@ class HealthCheckService
                 $mockResult = [
                     'error' => true,
                     'status_code' => 400,
-                    'message' => 'Health check test error'
+                    'message' => 'Health check test error',
                 ];
 
                 // This should not throw in non-exception mode
@@ -441,16 +442,16 @@ class HealthCheckService
 
             return [
                 'status' => 'healthy',
-                'details' => $details
+                'details' => $details,
             ];
 
         } catch (Exception $e) {
             return [
                 'status' => 'error',
                 'details' => [
-                    'error' => 'Error handling check failed: ' . $e->getMessage(),
-                    'exception' => get_class($e)
-                ]
+                    'error' => 'Error handling check failed: '.$e->getMessage(),
+                    'exception' => get_class($e),
+                ],
             ];
         }
     }
@@ -520,7 +521,7 @@ class HealthCheckService
         }
 
         // Remove null values (skipped/disabled checks)
-        $scores = array_filter($scores, fn($score) => $score !== null);
+        $scores = array_filter($scores, fn ($score) => $score !== null);
 
         return empty($scores) ? 0 : (int) round(array_sum($scores) / count($scores));
     }
@@ -534,7 +535,7 @@ class HealthCheckResult
 
     public function isHealthy(): bool
     {
-        return !$this->hasErrors() && !$this->hasCriticalIssues();
+        return ! $this->hasErrors() && ! $this->hasCriticalIssues();
     }
 
     public function hasErrors(): bool
@@ -556,10 +557,18 @@ class HealthCheckResult
     {
         $statuses = array_column($this->checks, 'status');
 
-        if (in_array('error', $statuses)) return 'error';
-        if (in_array('critical', $statuses)) return 'critical';
-        if (in_array('warning', $statuses)) return 'warning';
-        if (in_array('caution', $statuses)) return 'caution';
+        if (in_array('error', $statuses)) {
+            return 'error';
+        }
+        if (in_array('critical', $statuses)) {
+            return 'critical';
+        }
+        if (in_array('warning', $statuses)) {
+            return 'warning';
+        }
+        if (in_array('caution', $statuses)) {
+            return 'caution';
+        }
 
         return 'healthy';
     }
@@ -571,7 +580,7 @@ class HealthCheckResult
 
     public function getChecksByStatus(string $status): array
     {
-        return array_filter($this->checks, fn($check) => $check['status'] === $status);
+        return array_filter($this->checks, fn ($check) => $check['status'] === $status);
     }
 
     public function toArray(): array
@@ -584,7 +593,7 @@ class HealthCheckResult
             'has_warnings' => $this->hasWarnings(),
             'checks' => $this->checks,
             'summary' => $this->getSummary(),
-            'timestamp' => now()->toISOString()
+            'timestamp' => now()->toISOString(),
         ];
     }
 
@@ -594,13 +603,13 @@ class HealthCheckResult
 
         return [
             'total_checks' => count($this->checks),
-            'healthy' => count(array_filter($statuses, fn($s) => $s === 'healthy')),
-            'caution' => count(array_filter($statuses, fn($s) => $s === 'caution')),
-            'warning' => count(array_filter($statuses, fn($s) => $s === 'warning')),
-            'critical' => count(array_filter($statuses, fn($s) => $s === 'critical')),
-            'error' => count(array_filter($statuses, fn($s) => $s === 'error')),
-            'skipped' => count(array_filter($statuses, fn($s) => $s === 'skipped')),
-            'disabled' => count(array_filter($statuses, fn($s) => $s === 'disabled'))
+            'healthy' => count(array_filter($statuses, fn ($s) => $s === 'healthy')),
+            'caution' => count(array_filter($statuses, fn ($s) => $s === 'caution')),
+            'warning' => count(array_filter($statuses, fn ($s) => $s === 'warning')),
+            'critical' => count(array_filter($statuses, fn ($s) => $s === 'critical')),
+            'error' => count(array_filter($statuses, fn ($s) => $s === 'error')),
+            'skipped' => count(array_filter($statuses, fn ($s) => $s === 'skipped')),
+            'disabled' => count(array_filter($statuses, fn ($s) => $s === 'disabled')),
         ];
     }
 }

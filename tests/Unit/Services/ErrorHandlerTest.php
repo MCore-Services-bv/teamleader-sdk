@@ -2,11 +2,11 @@
 
 namespace McoreServices\TeamleaderSDK\Tests\Unit\Services;
 
-use McoreServices\TeamleaderSDK\Tests\TestCase;
-use McoreServices\TeamleaderSDK\Services\TeamleaderErrorHandler;
-use McoreServices\TeamleaderSDK\Exceptions\ValidationException;
 use McoreServices\TeamleaderSDK\Exceptions\RateLimitExceededException;
 use McoreServices\TeamleaderSDK\Exceptions\ServerException;
+use McoreServices\TeamleaderSDK\Exceptions\ValidationException;
+use McoreServices\TeamleaderSDK\Services\TeamleaderErrorHandler;
+use McoreServices\TeamleaderSDK\Tests\TestCase;
 use Psr\Log\NullLogger;
 
 class ErrorHandlerTest extends TestCase
@@ -16,10 +16,10 @@ class ErrorHandlerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->errorHandler = new TeamleaderErrorHandler(new NullLogger(), true);
+        $this->errorHandler = new TeamleaderErrorHandler(new NullLogger, true);
     }
 
-    public function testThrowsValidationExceptionFor422(): void
+    public function test_throws_validation_exception_for422(): void
     {
         $this->expectException(ValidationException::class);
 
@@ -27,13 +27,13 @@ class ErrorHandlerTest extends TestCase
             'error' => true,
             'status_code' => 422,
             'message' => 'Validation failed',
-            'errors' => ['Field is required']
+            'errors' => ['Field is required'],
         ];
 
         $this->errorHandler->handleApiError($result, 'test');
     }
 
-    public function testThrowsRateLimitExceptionFor429(): void
+    public function test_throws_rate_limit_exception_for429(): void
     {
         $this->expectException(RateLimitExceededException::class);
 
@@ -41,33 +41,33 @@ class ErrorHandlerTest extends TestCase
             'error' => true,
             'status_code' => 429,
             'message' => 'Rate limit exceeded',
-            'headers' => ['Retry-After' => ['60']]
+            'headers' => ['Retry-After' => ['60']],
         ];
 
         $this->errorHandler->handleApiError($result, 'test');
     }
 
-    public function testThrowsServerExceptionFor500(): void
+    public function test_throws_server_exception_for500(): void
     {
         $this->expectException(ServerException::class);
 
         $result = [
             'error' => true,
             'status_code' => 500,
-            'message' => 'Server error'
+            'message' => 'Server error',
         ];
 
         $this->errorHandler->handleApiError($result, 'test');
     }
 
-    public function testDoesNotThrowWhenDisabled(): void
+    public function test_does_not_throw_when_disabled(): void
     {
-        $errorHandler = new TeamleaderErrorHandler(new NullLogger(), false);
+        $errorHandler = new TeamleaderErrorHandler(new NullLogger, false);
 
         $result = [
             'error' => true,
             'status_code' => 500,
-            'message' => 'Server error'
+            'message' => 'Server error',
         ];
 
         // Should not throw
@@ -75,7 +75,7 @@ class ErrorHandlerTest extends TestCase
         $this->assertTrue(true); // If we get here, no exception was thrown
     }
 
-    public function testIdentifiesRetryableErrors(): void
+    public function test_identifies_retryable_errors(): void
     {
         $serverError = new ServerException('Server error', 500);
         $this->assertTrue($this->errorHandler->isRetryableError($serverError));

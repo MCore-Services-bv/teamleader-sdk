@@ -10,12 +10,19 @@ class Expenses extends Resource
 
     // Resource capabilities
     protected bool $supportsCreation = false;
+
     protected bool $supportsUpdate = false;
+
     protected bool $supportsDeletion = false;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = true;
+
     protected bool $supportsSorting = false;
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSideloading = false;
 
     // Available includes for sideloading
@@ -37,32 +44,32 @@ class Expenses extends Resource
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all expenses',
-            'code' => '$expenses = $teamleader->expenses()->list();'
+            'code' => '$expenses = $teamleader->expenses()->list();',
         ],
         'list_pending' => [
             'description' => 'Get pending expenses',
-            'code' => '$expenses = $teamleader->expenses()->pending();'
+            'code' => '$expenses = $teamleader->expenses()->pending();',
         ],
         'list_approved' => [
             'description' => 'Get approved expenses',
-            'code' => '$expenses = $teamleader->expenses()->approved();'
+            'code' => '$expenses = $teamleader->expenses()->approved();',
         ],
         'search_by_term' => [
             'description' => 'Search expenses by document number or supplier name',
-            'code' => '$expenses = $teamleader->expenses()->searchByTerm("Office Supplies Inc");'
+            'code' => '$expenses = $teamleader->expenses()->searchByTerm("Office Supplies Inc");',
         ],
         'filter_by_source' => [
             'description' => 'Get incoming invoices only',
-            'code' => '$expenses = $teamleader->expenses()->bySourceType("incomingInvoice");'
+            'code' => '$expenses = $teamleader->expenses()->bySourceType("incomingInvoice");',
         ],
         'date_range' => [
             'description' => 'Get expenses within date range',
-            'code' => '$expenses = $teamleader->expenses()->byDateRange("2024-01-01", "2024-12-31");'
+            'code' => '$expenses = $teamleader->expenses()->byDateRange("2024-01-01", "2024-12-31");',
         ],
         'not_sent' => [
             'description' => 'Get expenses not sent to bookkeeping',
-            'code' => '$expenses = $teamleader->expenses()->notSent();'
-        ]
+            'code' => '$expenses = $teamleader->expenses()->notSent();',
+        ],
     ];
 
     /**
@@ -76,16 +83,15 @@ class Expenses extends Resource
     /**
      * List expenses with filtering and pagination
      *
-     * @param array $filters Filters to apply
-     * @param array $options Additional options (pagination)
-     * @return array
+     * @param  array  $filters  Filters to apply
+     * @param  array  $options  Additional options (pagination)
      */
     public function list(array $filters = [], array $options = []): array
     {
         $params = [];
 
         // Apply filters
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
@@ -93,17 +99,15 @@ class Expenses extends Resource
         if (isset($options['page_size']) || isset($options['page_number'])) {
             $params['page'] = [
                 'size' => $options['page_size'] ?? 20,
-                'number' => $options['page_number'] ?? 1
+                'number' => $options['page_number'] ?? 1,
             ];
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
      * Get expenses with pending review status
-     *
-     * @return array
      */
     public function pending(): array
     {
@@ -112,8 +116,6 @@ class Expenses extends Resource
 
     /**
      * Get expenses with approved review status
-     *
-     * @return array
      */
     public function approved(): array
     {
@@ -122,8 +124,6 @@ class Expenses extends Resource
 
     /**
      * Get expenses with refused review status
-     *
-     * @return array
      */
     public function refused(): array
     {
@@ -133,9 +133,8 @@ class Expenses extends Resource
     /**
      * Get expenses by source type
      *
-     * @param array|string $sourceTypes Source type(s): incomingInvoice, incomingCreditNote, receipt
-     * @param array $additionalFilters Additional filters to apply
-     * @return array
+     * @param  array|string  $sourceTypes  Source type(s): incomingInvoice, incomingCreditNote, receipt
+     * @param  array  $additionalFilters  Additional filters to apply
      */
     public function bySourceType($sourceTypes, array $additionalFilters = []): array
     {
@@ -153,23 +152,22 @@ class Expenses extends Resource
     /**
      * Search expenses by term (document number or supplier name)
      *
-     * @param string $term Search term (case-insensitive)
-     * @param array $additionalFilters Additional filters to apply
-     * @return array
+     * @param  string  $term  Search term (case-insensitive)
+     * @param  array  $additionalFilters  Additional filters to apply
      */
     public function searchByTerm(string $term, array $additionalFilters = []): array
     {
         $filters = array_merge(['term' => $term], $additionalFilters);
+
         return $this->list($filters);
     }
 
     /**
      * Get expenses within a date range
      *
-     * @param string $startDate Start date (ISO format)
-     * @param string $endDate End date (ISO format)
-     * @param array $additionalFilters Additional filters to apply
-     * @return array
+     * @param  string  $startDate  Start date (ISO format)
+     * @param  string  $endDate  End date (ISO format)
+     * @param  array  $additionalFilters  Additional filters to apply
      */
     public function byDateRange(string $startDate, string $endDate, array $additionalFilters = []): array
     {
@@ -177,8 +175,8 @@ class Expenses extends Resource
             'document_date' => [
                 'operator' => 'between',
                 'start' => $startDate,
-                'end' => $endDate
-            ]
+                'end' => $endDate,
+            ],
         ], $additionalFilters);
 
         return $this->list($filters);
@@ -186,8 +184,6 @@ class Expenses extends Resource
 
     /**
      * Get expenses sent to bookkeeping
-     *
-     * @return array
      */
     public function sent(): array
     {
@@ -196,8 +192,6 @@ class Expenses extends Resource
 
     /**
      * Get expenses not sent to bookkeeping
-     *
-     * @return array
      */
     public function notSent(): array
     {
@@ -206,16 +200,13 @@ class Expenses extends Resource
 
     /**
      * Build filters array for the API request
-     *
-     * @param array $filters
-     * @return array
      */
     private function buildFilters(array $filters): array
     {
         $apiFilters = [];
 
         // Handle term filter
-        if (isset($filters['term']) && !empty($filters['term'])) {
+        if (isset($filters['term']) && ! empty($filters['term'])) {
             $apiFilters['term'] = $filters['term'];
         }
 
@@ -252,7 +243,7 @@ class Expenses extends Resource
 
             if (isset($dateFilter['operator'])) {
                 $apiFilters['document_date'] = [
-                    'operator' => $dateFilter['operator']
+                    'operator' => $dateFilter['operator'],
                 ];
 
                 // Add value for equals, before, after operators

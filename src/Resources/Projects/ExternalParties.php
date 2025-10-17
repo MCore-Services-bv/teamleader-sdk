@@ -11,12 +11,19 @@ class ExternalParties extends Resource
 
     // Resource capabilities - External parties have specific add/update/delete operations
     protected bool $supportsCreation = false; // Uses addToProject instead
+
     protected bool $supportsUpdate = false;   // Custom update method
+
     protected bool $supportsDeletion = false; // Custom delete method
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = false;
+
     protected bool $supportsSorting = false;
+
     protected bool $supportsFiltering = false;
+
     protected bool $supportsSideloading = false;
 
     // Available includes for sideloading (none based on API docs)
@@ -43,7 +50,7 @@ class ExternalParties extends Resource
     "contact",
     "contact-uuid",
     "Project Manager"
-);'
+);',
         ],
         'add_company_to_project' => [
             'description' => 'Add a company as external party to a project',
@@ -53,7 +60,7 @@ class ExternalParties extends Resource
     "company-uuid",
     "Contractor",
     "Lead Contractor"
-);'
+);',
         ],
         'add_with_array' => [
             'description' => 'Add external party with full array structure',
@@ -65,7 +72,7 @@ class ExternalParties extends Resource
     ],
     "function" => "Project Manager",
     "sub_function" => "Senior PM"
-]);'
+]);',
         ],
         'update_external_party' => [
             'description' => 'Update an external party',
@@ -79,11 +86,11 @@ class ExternalParties extends Resource
         "function" => "Lead Designer",
         "sub_function" => null
     ]
-);'
+);',
         ],
         'delete_external_party' => [
             'description' => 'Delete an external party',
-            'code' => '$result = $teamleader->externalParties()->delete("external-party-uuid");'
+            'code' => '$result = $teamleader->externalParties()->delete("external-party-uuid");',
         ],
     ];
 
@@ -102,12 +109,12 @@ class ExternalParties extends Resource
      * - addToProject($projectId, $customerType, $customerId, $function, $subFunction)
      * - addToProject($dataArray)
      *
-     * @param string|array $projectIdOrData Project UUID or full data array
-     * @param string|null $customerType Customer type (contact, company) - required if using individual params
-     * @param string|null $customerId Customer UUID - required if using individual params
-     * @param string|null $function Function/role description
-     * @param string|null $subFunction Sub-function/role description
-     * @return array
+     * @param  string|array  $projectIdOrData  Project UUID or full data array
+     * @param  string|null  $customerType  Customer type (contact, company) - required if using individual params
+     * @param  string|null  $customerId  Customer UUID - required if using individual params
+     * @param  string|null  $function  Function/role description
+     * @param  string|null  $subFunction  Sub-function/role description
+     *
      * @throws InvalidArgumentException
      */
     public function addToProject(
@@ -121,7 +128,7 @@ class ExternalParties extends Resource
         if (is_array($projectIdOrData)) {
             $data = $projectIdOrData;
         } else {
-            if (!$customerType || !$customerId) {
+            if (! $customerType || ! $customerId) {
                 throw new InvalidArgumentException(
                     'When using individual parameters, projectId, customerType, and customerId are required'
                 );
@@ -154,21 +161,21 @@ class ExternalParties extends Resource
         }
 
         // Validate customer type
-        if (!in_array($data['customer']['type'], $this->customerTypes)) {
+        if (! in_array($data['customer']['type'], $this->customerTypes)) {
             throw new InvalidArgumentException(
-                'Invalid customer type. Must be one of: ' . implode(', ', $this->customerTypes)
+                'Invalid customer type. Must be one of: '.implode(', ', $this->customerTypes)
             );
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.addToProject', $data);
+        return $this->api->request('POST', $this->getBasePath().'.addToProject', $data);
     }
 
     /**
      * Update an external party
      *
-     * @param string $id External party UUID
-     * @param array $data Update data containing customer, function, and/or sub_function
-     * @return array
+     * @param  string  $id  External party UUID
+     * @param  array  $data  Update data containing customer, function, and/or sub_function
+     *
      * @throws InvalidArgumentException
      */
     public function update($id, array $data): array
@@ -186,22 +193,22 @@ class ExternalParties extends Resource
                 throw new InvalidArgumentException('customer.type and customer.id are required when updating customer');
             }
 
-            if (!in_array($data['customer']['type'], $this->customerTypes)) {
+            if (! in_array($data['customer']['type'], $this->customerTypes)) {
                 throw new InvalidArgumentException(
-                    'Invalid customer type. Must be one of: ' . implode(', ', $this->customerTypes)
+                    'Invalid customer type. Must be one of: '.implode(', ', $this->customerTypes)
                 );
             }
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.update', $data);
+        return $this->api->request('POST', $this->getBasePath().'.update', $data);
     }
 
     /**
      * Delete an external party
      *
-     * @param string $id External party UUID
-     * @param mixed ...$additionalParams Not used for external parties
-     * @return array
+     * @param  string  $id  External party UUID
+     * @param  mixed  ...$additionalParams  Not used for external parties
+     *
      * @throws InvalidArgumentException
      */
     public function delete($id, ...$additionalParams): array
@@ -210,14 +217,13 @@ class ExternalParties extends Resource
             throw new InvalidArgumentException('External party ID is required');
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.delete', ['id' => $id]);
+        return $this->api->request('POST', $this->getBasePath().'.delete', ['id' => $id]);
     }
 
     /**
      * Remove an external party from a project (alias for delete)
      *
-     * @param string $id External party UUID
-     * @return array
+     * @param  string  $id  External party UUID
      */
     public function removeFromProject(string $id): array
     {
@@ -227,10 +233,9 @@ class ExternalParties extends Resource
     /**
      * Update the function/role of an external party
      *
-     * @param string $id External party UUID
-     * @param string|null $function Function/role
-     * @param string|null $subFunction Sub-function/role
-     * @return array
+     * @param  string  $id  External party UUID
+     * @param  string|null  $function  Function/role
+     * @param  string|null  $subFunction  Sub-function/role
      */
     public function updateRole(string $id, ?string $function = null, ?string $subFunction = null): array
     {

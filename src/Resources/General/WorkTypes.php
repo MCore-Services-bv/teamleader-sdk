@@ -11,12 +11,19 @@ class WorkTypes extends Resource
 
     // Resource capabilities
     protected bool $supportsCreation = false;  // Based on API docs, no create endpoint
+
     protected bool $supportsUpdate = false;    // Based on API docs, no update endpoint
+
     protected bool $supportsDeletion = false;  // Based on API docs, no delete endpoint
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = true;
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSorting = true;
+
     protected bool $supportsSideloading = false;
 
     // Available includes for sideloading
@@ -34,31 +41,30 @@ class WorkTypes extends Resource
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all work types',
-            'code' => '$workTypes = $teamleader->workTypes()->list();'
+            'code' => '$workTypes = $teamleader->workTypes()->list();',
         ],
         'search_by_term' => [
             'description' => 'Search work types by name',
-            'code' => '$workTypes = $teamleader->workTypes()->list([\'term\' => \'design\']);'
+            'code' => '$workTypes = $teamleader->workTypes()->list([\'term\' => \'design\']);',
         ],
         'list_specific' => [
             'description' => 'Get specific work types by ID',
-            'code' => '$workTypes = $teamleader->workTypes()->list([\'ids\' => [\'uuid1\', \'uuid2\']]);'
+            'code' => '$workTypes = $teamleader->workTypes()->list([\'ids\' => [\'uuid1\', \'uuid2\']]);',
         ],
         'sorted_list' => [
             'description' => 'Get work types sorted by name',
-            'code' => '$workTypes = $teamleader->workTypes()->list([], [\'sort\' => [[\'field\' => \'name\', \'order\' => \'asc\']]]);'
+            'code' => '$workTypes = $teamleader->workTypes()->list([], [\'sort\' => [[\'field\' => \'name\', \'order\' => \'asc\']]]);',
         ],
         'paginated_list' => [
             'description' => 'Get work types with pagination',
-            'code' => '$workTypes = $teamleader->workTypes()->list([], [\'page_size\' => 50, \'page_number\' => 2]);'
-        ]
+            'code' => '$workTypes = $teamleader->workTypes()->list([], [\'page_size\' => 50, \'page_number\' => 2]);',
+        ],
     ];
 
     /**
      * Search work types by term
      *
-     * @param string $term Search term
-     * @return array
+     * @param  string  $term  Search term
      */
     public function search(string $term): array
     {
@@ -68,16 +74,15 @@ class WorkTypes extends Resource
     /**
      * List work types with enhanced filtering and sorting
      *
-     * @param array $filters Filters to apply
-     * @param array $options Additional options (sorting, pagination)
-     * @return array
+     * @param  array  $filters  Filters to apply
+     * @param  array  $options  Additional options (sorting, pagination)
      */
     public function list(array $filters = [], array $options = []): array
     {
         $params = [];
 
         // Apply filters
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
@@ -90,18 +95,15 @@ class WorkTypes extends Resource
         if (isset($options['page_size']) || isset($options['page_number'])) {
             $params['page'] = [
                 'size' => $options['page_size'] ?? 20,
-                'number' => $options['page_number'] ?? 1
+                'number' => $options['page_number'] ?? 1,
             ];
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
      * Build filters array for the API request
-     *
-     * @param array $filters
-     * @return array
      */
     private function buildFilters(array $filters): array
     {
@@ -123,8 +125,7 @@ class WorkTypes extends Resource
     /**
      * Build sort array for the API request
      *
-     * @param mixed $sort
-     * @return array
+     * @param  mixed  $sort
      */
     private function buildSort($sort): array
     {
@@ -142,7 +143,7 @@ class WorkTypes extends Resource
         if (is_string($sort)) {
             return [
                 'field' => $sort,
-                'order' => 'asc'
+                'order' => 'asc',
             ];
         }
 
@@ -155,7 +156,7 @@ class WorkTypes extends Resource
                 } else {
                     return [
                         'field' => $field,
-                        'order' => $order
+                        'order' => $order,
                     ];
                 }
             }
@@ -164,7 +165,7 @@ class WorkTypes extends Resource
         // Default sort
         return [
             'field' => 'name',
-            'order' => 'asc'
+            'order' => 'asc',
         ];
     }
 
@@ -179,8 +180,7 @@ class WorkTypes extends Resource
     /**
      * Get work types by specific IDs
      *
-     * @param array $ids Array of work type UUIDs
-     * @return array
+     * @param  array  $ids  Array of work type UUIDs
      */
     public function byIds(array $ids): array
     {
@@ -190,25 +190,23 @@ class WorkTypes extends Resource
     /**
      * Get work types with pagination
      *
-     * @param int $pageSize Number of items per page
-     * @param int $pageNumber Page number
-     * @param array $filters Optional filters
-     * @return array
+     * @param  int  $pageSize  Number of items per page
+     * @param  int  $pageNumber  Page number
+     * @param  array  $filters  Optional filters
      */
     public function paginate(int $pageSize = 20, int $pageNumber = 1, array $filters = []): array
     {
         return $this->list($filters, [
             'page_size' => $pageSize,
-            'page_number' => $pageNumber
+            'page_number' => $pageNumber,
         ]);
     }
 
     /**
      * Get work types sorted by name
      *
-     * @param string $order Sort order (asc or desc)
-     * @param array $filters Optional filters
-     * @return array
+     * @param  string  $order  Sort order (asc or desc)
+     * @param  array  $filters  Optional filters
      */
     public function sortedByName(string $order = 'asc', array $filters = []): array
     {
@@ -216,21 +214,19 @@ class WorkTypes extends Resource
             'sort' => [
                 [
                     'field' => 'name',
-                    'order' => $order
-                ]
-            ]
+                    'order' => $order,
+                ],
+            ],
         ]);
     }
 
     /**
      * Get available sort fields for work types (based on API documentation)
-     *
-     * @return array
      */
     public function getAvailableSortFields(): array
     {
         return [
-            'name' => 'Sorts by work type name (alphabetically)'
+            'name' => 'Sorts by work type name (alphabetically)',
         ];
     }
 
@@ -238,25 +234,21 @@ class WorkTypes extends Resource
      * Work types don't support info method as per API docs, but we keep it for consistency
      * and throw a helpful exception
      *
-     * @param string $id Work type UUID
-     * @param mixed $includes Includes (not used)
-     * @return array
+     * @param  string  $id  Work type UUID
+     * @param  mixed  $includes  Includes (not used)
+     *
      * @throws InvalidArgumentException
      */
     public function info($id, $includes = null): array
     {
         throw new InvalidArgumentException(
-            "The workTypes resource does not support individual info requests. " .
+            'The workTypes resource does not support individual info requests. '.
             "Use the list() method with an 'ids' filter to get specific work types."
         );
     }
 
     /**
      * Override the default validation since work types have limited operations
-     *
-     * @param array $data
-     * @param string $operation
-     * @return array
      */
     protected function validateData(array $data, string $operation = 'create'): array
     {
@@ -266,8 +258,6 @@ class WorkTypes extends Resource
 
     /**
      * Override getSuggestedIncludes as work types don't have common includes
-     *
-     * @return array
      */
     protected function getSuggestedIncludes(): array
     {

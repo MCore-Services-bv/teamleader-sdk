@@ -10,8 +10,11 @@ class Departments extends Resource
 
     // Resource capabilities
     protected bool $supportsCreation = false;  // Based on API docs, no create endpoint
+
     protected bool $supportsUpdate = false;    // Based on API docs, no update endpoint
+
     protected bool $supportsDeletion = false;  // Based on API docs, no delete endpoint
+
     protected bool $supportsBatch = false;
 
     // Available includes for sideloading
@@ -29,24 +32,24 @@ class Departments extends Resource
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all departments',
-            'code' => '$departments = $teamleader->departments()->list();'
+            'code' => '$departments = $teamleader->departments()->list();',
         ],
         'list_active' => [
             'description' => 'Get only active departments',
-            'code' => '$departments = $teamleader->departments()->list([\'status\' => [\'active\']]);'
+            'code' => '$departments = $teamleader->departments()->list([\'status\' => [\'active\']]);',
         ],
         'list_specific' => [
             'description' => 'Get specific departments by ID',
-            'code' => '$departments = $teamleader->departments()->list([\'ids\' => [\'uuid1\', \'uuid2\']]);'
+            'code' => '$departments = $teamleader->departments()->list([\'ids\' => [\'uuid1\', \'uuid2\']]);',
         ],
         'sorted_list' => [
             'description' => 'Get departments sorted by name',
-            'code' => '$departments = $teamleader->departments()->list([], [\'sort\' => [[\'field\' => \'name\', \'order\' => \'asc\']]]);'
+            'code' => '$departments = $teamleader->departments()->list([], [\'sort\' => [[\'field\' => \'name\', \'order\' => \'asc\']]]);',
         ],
         'get_single' => [
             'description' => 'Get a single department',
-            'code' => '$department = $teamleader->departments()->info(\'department-uuid-here\');'
-        ]
+            'code' => '$department = $teamleader->departments()->info(\'department-uuid-here\');',
+        ],
     ];
 
     /**
@@ -60,16 +63,15 @@ class Departments extends Resource
     /**
      * List departments with enhanced filtering and sorting
      *
-     * @param array $filters Filters to apply
-     * @param array $options Additional options (sorting, pagination)
-     * @return array
+     * @param  array  $filters  Filters to apply
+     * @param  array  $options  Additional options (sorting, pagination)
      */
     public function list(array $filters = [], array $options = []): array
     {
         $params = [];
 
         // Apply filters
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
@@ -78,35 +80,32 @@ class Departments extends Resource
             $params['sort'] = $this->buildSort($options['sort']);
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
      * Get department information
      *
-     * @param string $id Department UUID
-     * @param mixed $includes Includes (not used for departments)
-     * @return array
+     * @param  string  $id  Department UUID
+     * @param  mixed  $includes  Includes (not used for departments)
      */
     public function info($id, $includes = null): array
     {
         $params = ['id' => $id];
 
         // Departments don't support includes, but we maintain compatibility
-        if (!empty($includes)) {
+        if (! empty($includes)) {
             $params = $this->applyIncludes($params, $includes);
         }
 
         // Apply any pending includes from fluent interface
         $params = $this->applyPendingIncludes($params);
 
-        return $this->api->request('POST', $this->getBasePath() . '.info', $params);
+        return $this->api->request('POST', $this->getBasePath().'.info', $params);
     }
 
     /**
      * Get active departments only
-     *
-     * @return array
      */
     public function active(): array
     {
@@ -115,8 +114,6 @@ class Departments extends Resource
 
     /**
      * Get archived departments only
-     *
-     * @return array
      */
     public function archived(): array
     {
@@ -126,8 +123,7 @@ class Departments extends Resource
     /**
      * Get departments by specific IDs
      *
-     * @param array $ids Array of department UUIDs
-     * @return array
+     * @param  array  $ids  Array of department UUIDs
      */
     public function byIds(array $ids): array
     {
@@ -136,9 +132,6 @@ class Departments extends Resource
 
     /**
      * Build filters array for the API request
-     *
-     * @param array $filters
-     * @return array
      */
     private function buildFilters(array $filters): array
     {
@@ -164,8 +157,7 @@ class Departments extends Resource
     /**
      * Build sort array for the API request
      *
-     * @param mixed $sort
-     * @return array
+     * @param  mixed  $sort
      */
     private function buildSort($sort): array
     {
@@ -179,8 +171,8 @@ class Departments extends Resource
             return [
                 [
                     'field' => $sort,
-                    'order' => 'asc'
-                ]
+                    'order' => 'asc',
+                ],
             ];
         }
 
@@ -194,10 +186,11 @@ class Departments extends Resource
                 } else {
                     $sortArray[] = [
                         'field' => $field,
-                        'order' => $order
+                        'order' => $order,
                     ];
                 }
             }
+
             return $sortArray;
         }
 
@@ -206,22 +199,18 @@ class Departments extends Resource
 
     /**
      * Get available sort fields for departments (based on API documentation)
-     *
-     * @return array
      */
     public function getAvailableSortFields(): array
     {
         return [
             'default_department' => 'When sorting ascending, default departments are listed first (sorting only)',
             'name' => 'Sorts by department name',
-            'created_at' => 'Sorts by department creation date'
+            'created_at' => 'Sorts by department creation date',
         ];
     }
 
     /**
      * Get available status values for filtering
-     *
-     * @return array
      */
     public function getAvailableStatuses(): array
     {
@@ -230,10 +219,6 @@ class Departments extends Resource
 
     /**
      * Override the default validation since departments have limited operations
-     *
-     * @param array $data
-     * @param string $operation
-     * @return array
      */
     protected function validateData(array $data, string $operation = 'create'): array
     {
@@ -243,8 +228,6 @@ class Departments extends Resource
 
     /**
      * Override getSuggestedIncludes as departments don't have common includes
-     *
-     * @return array
      */
     protected function getSuggestedIncludes(): array
     {

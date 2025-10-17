@@ -27,6 +27,7 @@ class TeamleaderConfigValidateCommand extends Command
 
         if ($this->option('json')) {
             $this->outputJson($result);
+
             return $result->isValid() ? 0 : 1;
         }
 
@@ -46,7 +47,7 @@ class TeamleaderConfigValidateCommand extends Command
         $report = $validator->generateReport();
 
         $this->info('📋 Teamleader SDK Configuration Report');
-        $this->line('Generated: ' . now()->toDateTimeString());
+        $this->line('Generated: '.now()->toDateTimeString());
         $this->newLine();
 
         // Environment Info
@@ -70,23 +71,23 @@ class TeamleaderConfigValidateCommand extends Command
         // Validation Results
         $status = $report['overall_status'];
         $statusColor = $status === 'valid' ? 'green' : 'red';
-        $this->line("Overall Status: <fg={$statusColor}>" . strtoupper($status) . "</>");
+        $this->line("Overall Status: <fg={$statusColor}>".strtoupper($status).'</>');
 
-        if (!empty($report['errors'])) {
+        if (! empty($report['errors'])) {
             $this->line('<fg=red>Errors:</fg=red>');
             foreach ($report['errors'] as $error) {
                 $this->line("  ❌ {$error}");
             }
         }
 
-        if (!empty($report['warnings'])) {
+        if (! empty($report['warnings'])) {
             $this->line('<fg=yellow>Warnings:</fg=yellow>');
             foreach ($report['warnings'] as $warning) {
                 $this->line("  ⚠️  {$warning}");
             }
         }
 
-        if (!empty($report['suggestions'])) {
+        if (! empty($report['suggestions'])) {
             $this->newLine();
             $this->line('<fg=yellow>Optimization Suggestions:</fg=yellow>');
             foreach ($report['suggestions'] as $suggestion) {
@@ -134,7 +135,7 @@ class TeamleaderConfigValidateCommand extends Command
         $required = [
             'TEAMLEADER_CLIENT_ID' => 'Your Teamleader application client ID',
             'TEAMLEADER_CLIENT_SECRET' => 'Your Teamleader application client secret',
-            'TEAMLEADER_REDIRECT_URI' => 'Your application callback URL'
+            'TEAMLEADER_REDIRECT_URI' => 'Your application callback URL',
         ];
 
         foreach ($required as $env => $description) {
@@ -154,7 +155,7 @@ class TeamleaderConfigValidateCommand extends Command
         }
 
         // Cache suggestions
-        if (!config('teamleader.caching.enabled')) {
+        if (! config('teamleader.caching.enabled')) {
             $this->line('   3. Enable caching for better performance:');
             $this->line('      Set <fg=cyan>TEAMLEADER_CACHING_ENABLED=true</> in .env');
         }
@@ -176,13 +177,14 @@ class TeamleaderConfigValidateCommand extends Command
 
         if (empty($suggestions)) {
             $this->line('<fg=green>💡 No additional recommendations - configuration looks good!</>');
+
             return;
         }
 
         $this->line('<fg=yellow>💡 Optimization Recommendations:</>');
 
         foreach ($suggestions as $suggestion) {
-            $icon = match($suggestion['type']) {
+            $icon = match ($suggestion['type']) {
                 'performance' => '🚀',
                 'security' => '🔒',
                 'reliability' => '🛡️',
@@ -212,11 +214,11 @@ class TeamleaderConfigValidateCommand extends Command
             'warning_count' => $result->getWarningCount(),
         ];
 
-        if (!empty($result->errors)) {
+        if (! empty($result->errors)) {
             $output['errors'] = $result->errors;
         }
 
-        if (!empty($result->warnings)) {
+        if (! empty($result->warnings)) {
             $output['warnings'] = $result->warnings;
         }
 

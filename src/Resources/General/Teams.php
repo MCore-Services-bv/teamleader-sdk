@@ -11,12 +11,19 @@ class Teams extends Resource
 
     // Resource capabilities
     protected bool $supportsPagination = false;  // Based on API docs, no pagination
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSorting = true;
+
     protected bool $supportsSideloading = false;  // No includes mentioned
+
     protected bool $supportsCreation = false;    // Only list endpoint available
+
     protected bool $supportsUpdate = false;      // Only list endpoint available
+
     protected bool $supportsDeletion = false;    // Only list endpoint available
+
     protected bool $supportsBatch = false;
 
     // Available includes for sideloading
@@ -33,31 +40,30 @@ class Teams extends Resource
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all teams',
-            'code' => '$teams = $teamleader->teams()->list();'
+            'code' => '$teams = $teamleader->teams()->list();',
         ],
         'search_teams' => [
             'description' => 'Search teams by name',
-            'code' => '$teams = $teamleader->teams()->list([\'term\' => \'Designers\']);'
+            'code' => '$teams = $teamleader->teams()->list([\'term\' => \'Designers\']);',
         ],
         'teams_by_lead' => [
             'description' => 'Get teams by team leader',
-            'code' => '$teams = $teamleader->teams()->list([\'team_lead_id\' => \'user-uuid\']);'
+            'code' => '$teams = $teamleader->teams()->list([\'team_lead_id\' => \'user-uuid\']);',
         ],
         'sorted_teams' => [
             'description' => 'Get teams sorted by name',
-            'code' => '$teams = $teamleader->teams()->list([], [\'sort\' => [[\'field\' => \'name\', \'order\' => \'asc\']]]);'
+            'code' => '$teams = $teamleader->teams()->list([], [\'sort\' => [[\'field\' => \'name\', \'order\' => \'asc\']]]);',
         ],
         'specific_teams' => [
             'description' => 'Get specific teams by ID',
-            'code' => '$teams = $teamleader->teams()->list([\'ids\' => [\'team-uuid-1\', \'team-uuid-2\']]);'
-        ]
+            'code' => '$teams = $teamleader->teams()->list([\'ids\' => [\'team-uuid-1\', \'team-uuid-2\']]);',
+        ],
     ];
 
     /**
      * Search teams by name
      *
-     * @param string $term Search term
-     * @return array
+     * @param  string  $term  Search term
      */
     public function search(string $term): array
     {
@@ -67,16 +73,15 @@ class Teams extends Resource
     /**
      * List teams with filtering and sorting
      *
-     * @param array $filters Filters to apply
-     * @param array $options Additional options (sorting)
-     * @return array
+     * @param  array  $filters  Filters to apply
+     * @param  array  $options  Additional options (sorting)
      */
     public function list(array $filters = [], array $options = []): array
     {
         $params = [];
 
         // Apply filters
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
@@ -85,14 +90,11 @@ class Teams extends Resource
             $params['sort'] = $this->buildSort($options['sort']);
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
      * Build filters array for the API request
-     *
-     * @param array $filters
-     * @return array
      */
     private function buildFilters(array $filters): array
     {
@@ -119,8 +121,7 @@ class Teams extends Resource
     /**
      * Build sort array for the API request
      *
-     * @param mixed $sort
-     * @return array
+     * @param  mixed  $sort
      */
     private function buildSort($sort): array
     {
@@ -134,8 +135,8 @@ class Teams extends Resource
             return [
                 [
                     'field' => $sort,
-                    'order' => 'asc'
-                ]
+                    'order' => 'asc',
+                ],
             ];
         }
 
@@ -149,10 +150,11 @@ class Teams extends Resource
                 } else {
                     $sortArray[] = [
                         'field' => $field,
-                        'order' => $order
+                        'order' => $order,
                     ];
                 }
             }
+
             return $sortArray;
         }
 
@@ -170,8 +172,7 @@ class Teams extends Resource
     /**
      * Get teams by specific IDs
      *
-     * @param array $ids Array of team UUIDs
-     * @return array
+     * @param  array  $ids  Array of team UUIDs
      */
     public function byIds(array $ids): array
     {
@@ -181,8 +182,7 @@ class Teams extends Resource
     /**
      * Get teams by team leader
      *
-     * @param string $teamLeadId User UUID of the team leader
-     * @return array
+     * @param  string  $teamLeadId  User UUID of the team leader
      */
     public function byTeamLead(string $teamLeadId): array
     {
@@ -192,8 +192,7 @@ class Teams extends Resource
     /**
      * Get teams sorted by name
      *
-     * @param string $order Sort order (asc or desc)
-     * @return array
+     * @param  string  $order  Sort order (asc or desc)
      */
     public function sortedByName(string $order = 'asc'): array
     {
@@ -201,21 +200,19 @@ class Teams extends Resource
             'sort' => [
                 [
                     'field' => 'name',
-                    'order' => $order
-                ]
-            ]
+                    'order' => $order,
+                ],
+            ],
         ]);
     }
 
     /**
      * Get available sort fields for teams (based on API documentation)
-     *
-     * @return array
      */
     public function getAvailableSortFields(): array
     {
         return [
-            'name' => 'Sort by team name'
+            'name' => 'Sort by team name',
         ];
     }
 
@@ -254,10 +251,6 @@ class Teams extends Resource
 
     /**
      * Override the default validation since teams have limited operations
-     *
-     * @param array $data
-     * @param string $operation
-     * @return array
      */
     protected function validateData(array $data, string $operation = 'create'): array
     {
@@ -267,8 +260,6 @@ class Teams extends Resource
 
     /**
      * Override getSuggestedIncludes as teams don't have includes
-     *
-     * @return array
      */
     protected function getSuggestedIncludes(): array
     {

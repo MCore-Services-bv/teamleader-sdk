@@ -10,12 +10,19 @@ class Quotations extends Resource
 
     // Resource capabilities
     protected bool $supportsCreation = true;
+
     protected bool $supportsUpdate = true;
+
     protected bool $supportsDeletion = true;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = true;
+
     protected bool $supportsSorting = false;
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSideloading = true;
 
     // Available includes for sideloading
@@ -46,35 +53,35 @@ class Quotations extends Resource
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all quotations',
-            'code' => '$quotations = $teamleader->quotations()->list();'
+            'code' => '$quotations = $teamleader->quotations()->list();',
         ],
         'list_specific' => [
             'description' => 'Get specific quotations by ID',
-            'code' => '$quotations = $teamleader->quotations()->list([\'ids\' => [\'uuid1\', \'uuid2\']]);'
+            'code' => '$quotations = $teamleader->quotations()->list([\'ids\' => [\'uuid1\', \'uuid2\']]);',
         ],
         'get_single' => [
             'description' => 'Get a single quotation with expiry',
-            'code' => '$quotation = $teamleader->quotations()->include(\'expiry\')->info(\'quotation-uuid\');'
+            'code' => '$quotation = $teamleader->quotations()->include(\'expiry\')->info(\'quotation-uuid\');',
         ],
         'create' => [
             'description' => 'Create a new quotation',
-            'code' => '$quotation = $teamleader->quotations()->create([\'deal_id\' => \'deal-uuid\', \'currency\' => [\'code\' => \'EUR\'], \'grouped_lines\' => [...]]);'
+            'code' => '$quotation = $teamleader->quotations()->create([\'deal_id\' => \'deal-uuid\', \'currency\' => [\'code\' => \'EUR\'], \'grouped_lines\' => [...]]);',
         ],
         'update' => [
             'description' => 'Update a quotation',
-            'code' => '$teamleader->quotations()->update(\'quotation-uuid\', [\'grouped_lines\' => [...]]);'
+            'code' => '$teamleader->quotations()->update(\'quotation-uuid\', [\'grouped_lines\' => [...]]);',
         ],
         'accept' => [
             'description' => 'Accept a quotation',
-            'code' => '$teamleader->quotations()->accept(\'quotation-uuid\');'
+            'code' => '$teamleader->quotations()->accept(\'quotation-uuid\');',
         ],
         'send' => [
             'description' => 'Send a quotation via email',
-            'code' => '$teamleader->quotations()->send([\'quotations\' => [\'uuid1\'], \'from\' => [...], \'recipients\' => [...], \'subject\' => \'...\', \'content\' => \'...\', \'language\' => \'en\']);'
+            'code' => '$teamleader->quotations()->send([\'quotations\' => [\'uuid1\'], \'from\' => [...], \'recipients\' => [...], \'subject\' => \'...\', \'content\' => \'...\', \'language\' => \'en\']);',
         ],
         'download' => [
             'description' => 'Download a quotation as PDF',
-            'code' => '$download = $teamleader->quotations()->download(\'quotation-uuid\', \'pdf\');'
+            'code' => '$download = $teamleader->quotations()->download(\'quotation-uuid\', \'pdf\');',
         ],
     ];
 
@@ -89,16 +96,15 @@ class Quotations extends Resource
     /**
      * List quotations with enhanced filtering and pagination
      *
-     * @param array $filters Filters to apply
-     * @param array $options Additional options (pagination)
-     * @return array
+     * @param  array  $filters  Filters to apply
+     * @param  array  $options  Additional options (pagination)
      */
     public function list(array $filters = [], array $options = []): array
     {
         $params = [];
 
         // Apply filters
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
@@ -107,119 +113,112 @@ class Quotations extends Resource
             $params['page'] = $this->buildPagination($options['page']);
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
      * Get quotation information
      *
-     * @param string $id Quotation UUID
-     * @param mixed $includes Includes to load (e.g., 'expiry')
-     * @return array
+     * @param  string  $id  Quotation UUID
+     * @param  mixed  $includes  Includes to load (e.g., 'expiry')
      */
     public function info($id, $includes = null): array
     {
         $params = ['id' => $id];
 
         // Apply includes
-        if (!empty($includes)) {
+        if (! empty($includes)) {
             $params = $this->applyIncludes($params, $includes);
         }
 
         // Apply any pending includes from fluent interface
         $params = $this->applyPendingIncludes($params);
 
-        return $this->api->request('POST', $this->getBasePath() . '.info', $params);
+        return $this->api->request('POST', $this->getBasePath().'.info', $params);
     }
 
     /**
      * Create a new quotation
      *
-     * @param array $data Quotation data
-     * @return array
+     * @param  array  $data  Quotation data
      */
     public function create(array $data): array
     {
         $this->validateCreateData($data);
 
-        return $this->api->request('POST', $this->getBasePath() . '.create', $data);
+        return $this->api->request('POST', $this->getBasePath().'.create', $data);
     }
 
     /**
      * Update a quotation
      *
-     * @param string $id Quotation UUID
-     * @param array $data Updated quotation data
-     * @return array
+     * @param  string  $id  Quotation UUID
+     * @param  array  $data  Updated quotation data
      */
     public function update(string $id, array $data): array
     {
         $data['id'] = $id;
 
-        return $this->api->request('POST', $this->getBasePath() . '.update', $data);
+        return $this->api->request('POST', $this->getBasePath().'.update', $data);
     }
 
     /**
      * Delete a quotation
      *
-     * @param string $id Quotation UUID
-     * @return array
+     * @param  string  $id  Quotation UUID
      */
     public function delete(string $id): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.delete', ['id' => $id]);
+        return $this->api->request('POST', $this->getBasePath().'.delete', ['id' => $id]);
     }
 
     /**
      * Mark a quotation as accepted
      *
-     * @param string $id Quotation UUID
-     * @return array
+     * @param  string  $id  Quotation UUID
      */
     public function accept(string $id): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.accept', ['id' => $id]);
+        return $this->api->request('POST', $this->getBasePath().'.accept', ['id' => $id]);
     }
 
     /**
      * Send one or more quotations via email
      *
-     * @param array $data Send parameters including quotations, sender, recipients, subject, content, and language
-     * @return array
+     * @param  array  $data  Send parameters including quotations, sender, recipients, subject, content, and language
      */
     public function send(array $data): array
     {
         $this->validateSendData($data);
 
-        return $this->api->request('POST', $this->getBasePath() . '.send', $data);
+        return $this->api->request('POST', $this->getBasePath().'.send', $data);
     }
 
     /**
      * Download a quotation in a specific format
      *
-     * @param string $id Quotation UUID
-     * @param string $format Download format (default: 'pdf')
+     * @param  string  $id  Quotation UUID
+     * @param  string  $format  Download format (default: 'pdf')
      * @return array Returns location URL and expiration time
      */
     public function download(string $id, string $format = 'pdf'): array
     {
-        if (!in_array($format, $this->supportedFormats)) {
+        if (! in_array($format, $this->supportedFormats)) {
             throw new \InvalidArgumentException(
-                "Invalid format '{$format}'. Supported formats: " . implode(', ', $this->supportedFormats)
+                "Invalid format '{$format}'. Supported formats: ".implode(', ', $this->supportedFormats)
             );
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.download', [
+        return $this->api->request('POST', $this->getBasePath().'.download', [
             'id' => $id,
-            'format' => $format
+            'format' => $format,
         ]);
     }
 
     /**
      * Get quotations by specific IDs
      *
-     * @param array $ids Array of quotation UUIDs
-     * @return array
+     * @param  array  $ids  Array of quotation UUIDs
      */
     public function byIds(array $ids): array
     {
@@ -229,8 +228,7 @@ class Quotations extends Resource
     /**
      * Get quotations by status
      *
-     * @param string|array $status Single status or array of statuses
-     * @return array
+     * @param  string|array  $status  Single status or array of statuses
      */
     public function byStatus($status): array
     {
@@ -239,9 +237,9 @@ class Quotations extends Resource
         }
 
         foreach ($status as $s) {
-            if (!in_array($s, $this->validStatuses)) {
+            if (! in_array($s, $this->validStatuses)) {
                 throw new \InvalidArgumentException(
-                    "Invalid status '{$s}'. Must be one of: " . implode(', ', $this->validStatuses)
+                    "Invalid status '{$s}'. Must be one of: ".implode(', ', $this->validStatuses)
                 );
             }
         }
@@ -251,9 +249,6 @@ class Quotations extends Resource
 
     /**
      * Build filters array for the API request
-     *
-     * @param array $filters
-     * @return array
      */
     private function buildFilters(array $filters): array
     {
@@ -269,9 +264,6 @@ class Quotations extends Resource
 
     /**
      * Build pagination parameters
-     *
-     * @param array $pagination
-     * @return array
      */
     private function buildPagination(array $pagination): array
     {
@@ -291,16 +283,15 @@ class Quotations extends Resource
     /**
      * Validate data for creating a quotation
      *
-     * @param array $data
      * @throws \InvalidArgumentException
      */
     private function validateCreateData(array $data): void
     {
-        if (!isset($data['deal_id'])) {
+        if (! isset($data['deal_id'])) {
             throw new \InvalidArgumentException('deal_id is required to create a quotation');
         }
 
-        if (!isset($data['grouped_lines']) && !isset($data['text'])) {
+        if (! isset($data['grouped_lines']) && ! isset($data['text'])) {
             throw new \InvalidArgumentException('A quotation needs either grouped_lines or text to be valid');
         }
     }
@@ -308,32 +299,31 @@ class Quotations extends Resource
     /**
      * Validate data for sending quotations
      *
-     * @param array $data
      * @throws \InvalidArgumentException
      */
     private function validateSendData(array $data): void
     {
-        if (!isset($data['quotations']) || !is_array($data['quotations']) || empty($data['quotations'])) {
+        if (! isset($data['quotations']) || ! is_array($data['quotations']) || empty($data['quotations'])) {
             throw new \InvalidArgumentException('quotations array is required and must not be empty');
         }
 
-        if (!isset($data['from']) || !isset($data['from']['sender'])) {
+        if (! isset($data['from']) || ! isset($data['from']['sender'])) {
             throw new \InvalidArgumentException('from.sender is required');
         }
 
-        if (!isset($data['recipients']) || !isset($data['recipients']['to']) || empty($data['recipients']['to'])) {
+        if (! isset($data['recipients']) || ! isset($data['recipients']['to']) || empty($data['recipients']['to'])) {
             throw new \InvalidArgumentException('recipients.to is required and must not be empty');
         }
 
-        if (!isset($data['subject'])) {
+        if (! isset($data['subject'])) {
             throw new \InvalidArgumentException('subject is required');
         }
 
-        if (!isset($data['content'])) {
+        if (! isset($data['content'])) {
             throw new \InvalidArgumentException('content is required');
         }
 
-        if (!isset($data['language'])) {
+        if (! isset($data['language'])) {
             throw new \InvalidArgumentException('language is required');
         }
     }
@@ -348,8 +338,8 @@ class Quotations extends Resource
                 'description' => 'Response contains the created quotation ID and type',
                 'fields' => [
                     'data.id' => 'UUID of the created quotation',
-                    'data.type' => 'Resource type (always "quotation")'
-                ]
+                    'data.type' => 'Resource type (always "quotation")',
+                ],
             ],
             'info' => [
                 'description' => 'Complete quotation information',
@@ -367,37 +357,37 @@ class Quotations extends Resource
                     'data.name' => 'Quotation name',
                     'data.document_template' => 'Document template reference (nullable)',
                     'data.expiry' => 'Expiry information (if includes=expiry is requested)',
-                ]
+                ],
             ],
             'list' => [
                 'description' => 'Array of quotations',
                 'fields' => [
-                    'data' => 'Array of quotation objects with structure similar to info endpoint'
-                ]
+                    'data' => 'Array of quotation objects with structure similar to info endpoint',
+                ],
             ],
             'download' => [
                 'description' => 'Temporary download URL for quotation',
                 'fields' => [
                     'data.location' => 'Temporary URL where the file can be downloaded',
                     'data.expires' => 'Expiration time of the temporary download link',
-                ]
+                ],
             ],
             'send' => [
                 'description' => 'Empty response on success (204 status)',
-                'fields' => []
+                'fields' => [],
             ],
             'accept' => [
                 'description' => 'Empty response on success (204 status)',
-                'fields' => []
+                'fields' => [],
             ],
             'update' => [
                 'description' => 'Empty response on success (204 status)',
-                'fields' => []
+                'fields' => [],
             ],
             'delete' => [
                 'description' => 'Empty response on success (204 status)',
-                'fields' => []
-            ]
+                'fields' => [],
+            ],
         ];
     }
 }

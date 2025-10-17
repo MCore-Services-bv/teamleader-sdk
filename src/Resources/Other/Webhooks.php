@@ -11,12 +11,19 @@ class Webhooks extends Resource
 
     // Resource capabilities - Webhooks support list, register, and unregister operations
     protected bool $supportsCreation = false;  // Uses custom register() method instead
+
     protected bool $supportsUpdate = false;
+
     protected bool $supportsDeletion = false;  // Uses custom unregister() method instead
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = false;
+
     protected bool $supportsSorting = false;
+
     protected bool $supportsFiltering = false;
+
     protected bool $supportsSideloading = false;
 
     // Available includes for sideloading (none for webhooks)
@@ -127,14 +134,14 @@ class Webhooks extends Resource
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all registered webhooks',
-            'code' => '$webhooks = $teamleader->webhooks()->list();'
+            'code' => '$webhooks = $teamleader->webhooks()->list();',
         ],
         'register_single_event' => [
             'description' => 'Register a webhook for a single event type',
             'code' => '$result = $teamleader->webhooks()->register(
                 "https://example.com/webhook",
                 ["invoice.booked"]
-            );'
+            );',
         ],
         'register_multiple_events' => [
             'description' => 'Register a webhook for multiple event types',
@@ -145,19 +152,19 @@ class Webhooks extends Resource
                     "invoice.sent",
                     "invoice.paymentRegistered"
                 ]
-            );'
+            );',
         ],
         'register_all_invoice_events' => [
             'description' => 'Register a webhook for all invoice-related events',
             'code' => '$types = $teamleader->webhooks()->getInvoiceEventTypes();
-            $result = $teamleader->webhooks()->register("https://example.com/webhook", $types);'
-                    ],
-                    'unregister_specific_events' => [
-                        'description' => 'Unregister specific event types from a webhook',
-                        'code' => '$result = $teamleader->webhooks()->unregister(
+            $result = $teamleader->webhooks()->register("https://example.com/webhook", $types);',
+        ],
+        'unregister_specific_events' => [
+            'description' => 'Unregister specific event types from a webhook',
+            'code' => '$result = $teamleader->webhooks()->unregister(
                 "https://example.com/webhook",
                 ["invoice.booked"]
-            );'
+            );',
         ],
         'unregister_all_events' => [
             'description' => 'Unregister all events for a webhook URL',
@@ -170,12 +177,12 @@ class Webhooks extends Resource
                     break;
                 }
             }
-            $result = $teamleader->webhooks()->unregister($url, $types);'
+            $result = $teamleader->webhooks()->unregister($url, $types);',
         ],
         'get_event_types_by_category' => [
             'description' => 'Get event types for a specific category',
             'code' => '$contactEvents = $teamleader->webhooks()->getEventTypesByCategory("contact");
-            $dealEvents = $teamleader->webhooks()->getEventTypesByCategory("deal");'
+            $dealEvents = $teamleader->webhooks()->getEventTypesByCategory("deal");',
         ],
     ];
 
@@ -191,21 +198,21 @@ class Webhooks extends Resource
      * List all registered webhooks
      * Webhooks are returned ordered by URL
      *
-     * @param array $filters Not used for webhooks
-     * @param array $options Not used for webhooks
-     * @return array
+     * @param  array  $filters  Not used for webhooks
+     * @param  array  $options  Not used for webhooks
      */
     public function list(array $filters = [], array $options = []): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.list');
+        return $this->api->request('POST', $this->getBasePath().'.list');
     }
 
     /**
      * Register a new webhook
      *
-     * @param string $url Your webhook URL (must be a valid HTTPS URL)
-     * @param array $types Array of event types that should trigger this webhook
+     * @param  string  $url  Your webhook URL (must be a valid HTTPS URL)
+     * @param  array  $types  Array of event types that should trigger this webhook
      * @return array Response with 204 status on success
+     *
      * @throws InvalidArgumentException
      */
     public function register(string $url, array $types): array
@@ -217,16 +224,17 @@ class Webhooks extends Resource
             'types' => $types,
         ];
 
-        return $this->api->request('POST', $this->getBasePath() . '.register', $data);
+        return $this->api->request('POST', $this->getBasePath().'.register', $data);
     }
 
     /**
      * Unregister a webhook
      * Removes the specified event types from the webhook URL
      *
-     * @param string $url Your webhook URL
-     * @param array $types Array of event types to unregister
+     * @param  string  $url  Your webhook URL
+     * @param  array  $types  Array of event types to unregister
      * @return array Response with 204 status on success
+     *
      * @throws InvalidArgumentException
      */
     public function unregister(string $url, array $types): array
@@ -238,14 +246,12 @@ class Webhooks extends Resource
             'types' => $types,
         ];
 
-        return $this->api->request('POST', $this->getBasePath() . '.unregister', $data);
+        return $this->api->request('POST', $this->getBasePath().'.unregister', $data);
     }
 
     /**
      * Validate webhook registration/unregistration data
      *
-     * @param string $url
-     * @param array $types
      * @throws InvalidArgumentException
      */
     protected function validateWebhookData(string $url, array $types): void
@@ -255,12 +261,12 @@ class Webhooks extends Resource
             throw new InvalidArgumentException('Webhook URL is required');
         }
 
-        if (!filter_var($url, FILTER_VALIDATE_URL)) {
+        if (! filter_var($url, FILTER_VALIDATE_URL)) {
             throw new InvalidArgumentException('Invalid webhook URL format');
         }
 
         // Validate URL is HTTPS
-        if (!str_starts_with($url, 'https://')) {
+        if (! str_starts_with($url, 'https://')) {
             throw new InvalidArgumentException('Webhook URL must use HTTPS protocol');
         }
 
@@ -269,13 +275,13 @@ class Webhooks extends Resource
             throw new InvalidArgumentException('At least one event type is required');
         }
 
-        if (!is_array($types)) {
+        if (! is_array($types)) {
             throw new InvalidArgumentException('Event types must be an array');
         }
 
         // Validate each event type
         foreach ($types as $type) {
-            if (!in_array($type, $this->eventTypes)) {
+            if (! in_array($type, $this->eventTypes)) {
                 throw new InvalidArgumentException(
                     "Invalid event type: {$type}. Use getAvailableEventTypes() to see all valid types."
                 );
@@ -285,8 +291,6 @@ class Webhooks extends Resource
 
     /**
      * Get all available webhook event types
-     *
-     * @return array
      */
     public function getAvailableEventTypes(): array
     {
@@ -296,13 +300,13 @@ class Webhooks extends Resource
     /**
      * Get event types filtered by category
      *
-     * @param string $category Category name (e.g., 'invoice', 'contact', 'deal')
+     * @param  string  $category  Category name (e.g., 'invoice', 'contact', 'deal')
      * @return array Array of event types for the specified category
      */
     public function getEventTypesByCategory(string $category): array
     {
-        $filtered = array_filter($this->eventTypes, function($type) use ($category) {
-            return str_starts_with($type, $category . '.');
+        $filtered = array_filter($this->eventTypes, function ($type) use ($category) {
+            return str_starts_with($type, $category.'.');
         });
 
         return array_values($filtered);
@@ -310,8 +314,6 @@ class Webhooks extends Resource
 
     /**
      * Get all invoice-related event types
-     *
-     * @return array
      */
     public function getInvoiceEventTypes(): array
     {
@@ -323,8 +325,6 @@ class Webhooks extends Resource
 
     /**
      * Get all deal-related event types
-     *
-     * @return array
      */
     public function getDealEventTypes(): array
     {
@@ -333,8 +333,6 @@ class Webhooks extends Resource
 
     /**
      * Get all contact-related event types
-     *
-     * @return array
      */
     public function getContactEventTypes(): array
     {
@@ -343,8 +341,6 @@ class Webhooks extends Resource
 
     /**
      * Get all company-related event types
-     *
-     * @return array
      */
     public function getCompanyEventTypes(): array
     {
@@ -353,8 +349,6 @@ class Webhooks extends Resource
 
     /**
      * Get all project-related event types
-     *
-     * @return array
      */
     public function getProjectEventTypes(): array
     {
@@ -366,8 +360,6 @@ class Webhooks extends Resource
 
     /**
      * Get all task-related event types
-     *
-     * @return array
      */
     public function getTaskEventTypes(): array
     {
@@ -379,8 +371,6 @@ class Webhooks extends Resource
 
     /**
      * Get all time tracking-related event types
-     *
-     * @return array
      */
     public function getTimeTrackingEventTypes(): array
     {

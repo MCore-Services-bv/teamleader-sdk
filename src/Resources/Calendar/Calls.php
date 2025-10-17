@@ -11,12 +11,19 @@ class Calls extends Resource
 
     // Resource capabilities - Calls support core operations
     protected bool $supportsCreation = true;
+
     protected bool $supportsUpdate = true;
+
     protected bool $supportsDeletion = false; // No delete endpoint in API
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = true;
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSorting = false; // Not explicitly mentioned in docs
+
     protected bool $supportsSideloading = false; // No includes mentioned
 
     // Common filters based on API documentation
@@ -24,7 +31,7 @@ class Calls extends Resource
         'scheduled_after' => 'Filter on calls occurring on or after a given date (YYYY-MM-DD)',
         'scheduled_before' => 'Filter on calls occurring on or before a given date (YYYY-MM-DD)',
         'relates_to' => 'Filter calls by related object (company)',
-        'call_outcome_id' => 'Filter on completed calls by outcome'
+        'call_outcome_id' => 'Filter on completed calls by outcome',
     ];
 
     /**
@@ -35,7 +42,7 @@ class Calls extends Resource
         $params = [];
 
         // Build filter structure
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $filterData = [];
 
             if (isset($filters['scheduled_after'])) {
@@ -54,7 +61,7 @@ class Calls extends Resource
                 $filterData['call_outcome_id'] = $filters['call_outcome_id'];
             }
 
-            if (!empty($filterData)) {
+            if (! empty($filterData)) {
                 $params['filter'] = $filterData;
             }
         }
@@ -63,11 +70,11 @@ class Calls extends Resource
         if (isset($options['page_size']) || isset($options['page_number'])) {
             $params['page'] = [
                 'size' => $options['page_size'] ?? 20,
-                'number' => $options['page_number'] ?? 1
+                'number' => $options['page_number'] ?? 1,
             ];
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
@@ -77,8 +84,8 @@ class Calls extends Resource
     {
         $this->validateId($id);
 
-        return $this->api->request('POST', $this->getBasePath() . '.info', [
-            'id' => $id
+        return $this->api->request('POST', $this->getBasePath().'.info', [
+            'id' => $id,
         ]);
     }
 
@@ -90,26 +97,26 @@ class Calls extends Resource
         // Validate required fields
         $requiredFields = ['participant', 'due_at', 'assignee'];
         foreach ($requiredFields as $field) {
-            if (!isset($data[$field])) {
+            if (! isset($data[$field])) {
                 throw new InvalidArgumentException("Field '{$field}' is required for creating a call");
             }
         }
 
         // Validate participant structure
-        if (!isset($data['participant']['customer'])) {
-            throw new InvalidArgumentException("Participant must have a customer object");
+        if (! isset($data['participant']['customer'])) {
+            throw new InvalidArgumentException('Participant must have a customer object');
         }
 
-        if (!isset($data['participant']['customer']['type']) || !isset($data['participant']['customer']['id'])) {
-            throw new InvalidArgumentException("Participant customer must have type and id");
+        if (! isset($data['participant']['customer']['type']) || ! isset($data['participant']['customer']['id'])) {
+            throw new InvalidArgumentException('Participant customer must have type and id');
         }
 
         // Validate assignee structure
-        if (!isset($data['assignee']['type']) || !isset($data['assignee']['id'])) {
-            throw new InvalidArgumentException("Assignee must have type and id");
+        if (! isset($data['assignee']['type']) || ! isset($data['assignee']['id'])) {
+            throw new InvalidArgumentException('Assignee must have type and id');
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.add', $data);
+        return $this->api->request('POST', $this->getBasePath().'.add', $data);
     }
 
     /**
@@ -122,7 +129,7 @@ class Calls extends Resource
         // Add ID to the data
         $data['id'] = $id;
 
-        return $this->api->request('POST', $this->getBasePath() . '.update', $data);
+        return $this->api->request('POST', $this->getBasePath().'.update', $data);
     }
 
     /**
@@ -142,7 +149,7 @@ class Calls extends Resource
             $data['outcome_summary'] = $outcomeSummary;
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.complete', $data);
+        return $this->api->request('POST', $this->getBasePath().'.complete', $data);
     }
 
     /**
@@ -151,6 +158,7 @@ class Calls extends Resource
     public function upcoming(array $options = []): array
     {
         $today = date('Y-m-d');
+
         return $this->list(['scheduled_after' => $today], $options);
     }
 
@@ -160,6 +168,7 @@ class Calls extends Resource
     public function overdue(array $options = []): array
     {
         $today = date('Y-m-d');
+
         return $this->list(['scheduled_before' => $today], $options);
     }
 
@@ -173,8 +182,8 @@ class Calls extends Resource
         return $this->list([
             'relates_to' => [
                 'type' => 'company',
-                'id' => $companyId
-            ]
+                'id' => $companyId,
+            ],
         ], $options);
     }
 
@@ -185,7 +194,7 @@ class Calls extends Resource
     {
         return $this->list([
             'scheduled_after' => $startDate,
-            'scheduled_before' => $endDate
+            'scheduled_before' => $endDate,
         ], $options);
     }
 
@@ -195,6 +204,7 @@ class Calls extends Resource
     public function today(array $options = []): array
     {
         $today = date('Y-m-d');
+
         return $this->betweenDates($today, $today, $options);
     }
 
@@ -205,6 +215,7 @@ class Calls extends Resource
     {
         $startOfWeek = date('Y-m-d', strtotime('monday this week'));
         $endOfWeek = date('Y-m-d', strtotime('sunday this week'));
+
         return $this->betweenDates($startOfWeek, $endOfWeek, $options);
     }
 

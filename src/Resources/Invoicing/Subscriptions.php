@@ -11,12 +11,19 @@ class Subscriptions extends Resource
 
     // Resource capabilities based on API documentation
     protected bool $supportsCreation = true;
+
     protected bool $supportsUpdate = true;
+
     protected bool $supportsDeletion = false;  // Uses deactivate instead
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = true;
+
     protected bool $supportsSorting = true;
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSideloading = false;
 
     // Available includes for sideloading
@@ -80,35 +87,35 @@ class Subscriptions extends Resource
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all subscriptions',
-            'code' => '$subscriptions = $teamleader->subscriptions()->list();'
+            'code' => '$subscriptions = $teamleader->subscriptions()->list();',
         ],
         'filter_by_status' => [
             'description' => 'Get active subscriptions',
-            'code' => '$subscriptions = $teamleader->subscriptions()->active();'
+            'code' => '$subscriptions = $teamleader->subscriptions()->active();',
         ],
         'filter_by_customer' => [
             'description' => 'Get subscriptions for a specific customer',
-            'code' => '$subscriptions = $teamleader->subscriptions()->forCustomer(\'company\', \'company-uuid\');'
+            'code' => '$subscriptions = $teamleader->subscriptions()->forCustomer(\'company\', \'company-uuid\');',
         ],
         'filter_by_department' => [
             'description' => 'Get subscriptions for a specific department',
-            'code' => '$subscriptions = $teamleader->subscriptions()->forDepartment(\'department-uuid\');'
+            'code' => '$subscriptions = $teamleader->subscriptions()->forDepartment(\'department-uuid\');',
         ],
         'create_subscription' => [
             'description' => 'Create a new subscription',
-            'code' => '$subscription = $teamleader->subscriptions()->create([...]);'
+            'code' => '$subscription = $teamleader->subscriptions()->create([...]);',
         ],
         'update_subscription' => [
             'description' => 'Update an existing subscription',
-            'code' => '$subscription = $teamleader->subscriptions()->update(\'subscription-uuid\', [...]);'
+            'code' => '$subscription = $teamleader->subscriptions()->update(\'subscription-uuid\', [...]);',
         ],
         'deactivate_subscription' => [
             'description' => 'Deactivate a subscription',
-            'code' => '$result = $teamleader->subscriptions()->deactivate(\'subscription-uuid\');'
+            'code' => '$result = $teamleader->subscriptions()->deactivate(\'subscription-uuid\');',
         ],
         'get_info' => [
             'description' => 'Get detailed information about a subscription',
-            'code' => '$subscription = $teamleader->subscriptions()->info(\'subscription-uuid\');'
+            'code' => '$subscription = $teamleader->subscriptions()->info(\'subscription-uuid\');',
         ],
     ];
 
@@ -128,7 +135,7 @@ class Subscriptions extends Resource
         $params = [];
 
         // Apply filters
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
@@ -145,7 +152,7 @@ class Subscriptions extends Resource
             $params['sort'] = $this->buildSort($options['sort']);
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
@@ -153,7 +160,7 @@ class Subscriptions extends Resource
      */
     public function info($id, $includes = null): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.info', [
+        return $this->api->request('POST', $this->getBasePath().'.info', [
             'id' => $id,
         ]);
     }
@@ -166,7 +173,8 @@ class Subscriptions extends Resource
     public function create(array $data): array
     {
         $this->validateSubscriptionData($data, 'create');
-        return $this->api->request('POST', $this->getBasePath() . '.create', $data);
+
+        return $this->api->request('POST', $this->getBasePath().'.create', $data);
     }
 
     /**
@@ -178,7 +186,8 @@ class Subscriptions extends Resource
     {
         $data['id'] = $id;
         $this->validateSubscriptionData($data, 'update');
-        return $this->api->request('POST', $this->getBasePath() . '.update', $data);
+
+        return $this->api->request('POST', $this->getBasePath().'.update', $data);
     }
 
     /**
@@ -186,7 +195,7 @@ class Subscriptions extends Resource
      */
     public function deactivate($id): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.deactivate', [
+        return $this->api->request('POST', $this->getBasePath().'.deactivate', [
             'id' => $id,
         ]);
     }
@@ -282,13 +291,13 @@ class Subscriptions extends Resource
             ];
 
             foreach ($requiredFields as $field) {
-                if (!isset($data[$field])) {
+                if (! isset($data[$field])) {
                     throw new InvalidArgumentException("Field '{$field}' is required for subscription creation");
                 }
             }
 
             // Validate invoicee structure
-            if (!isset($data['invoicee']['customer']['type']) || !isset($data['invoicee']['customer']['id'])) {
+            if (! isset($data['invoicee']['customer']['type']) || ! isset($data['invoicee']['customer']['id'])) {
                 throw new InvalidArgumentException('Invoicee must include customer type and id');
             }
 
@@ -296,7 +305,7 @@ class Subscriptions extends Resource
         }
 
         // Required field for update
-        if ($operation === 'update' && !isset($data['id'])) {
+        if ($operation === 'update' && ! isset($data['id'])) {
             throw new InvalidArgumentException('Subscription ID is required for update');
         }
 
@@ -331,9 +340,9 @@ class Subscriptions extends Resource
      */
     protected function validateCustomerType(string $type): void
     {
-        if (!in_array($type, $this->customerTypes)) {
+        if (! in_array($type, $this->customerTypes)) {
             throw new InvalidArgumentException(
-                "Invalid customer type. Must be one of: " . implode(', ', $this->customerTypes)
+                'Invalid customer type. Must be one of: '.implode(', ', $this->customerTypes)
             );
         }
     }
@@ -343,9 +352,9 @@ class Subscriptions extends Resource
      */
     protected function validateBillingCycleUnit(string $unit): void
     {
-        if (!in_array($unit, $this->billingCycleUnits)) {
+        if (! in_array($unit, $this->billingCycleUnits)) {
             throw new InvalidArgumentException(
-                "Invalid billing cycle unit. Must be one of: " . implode(', ', $this->billingCycleUnits)
+                'Invalid billing cycle unit. Must be one of: '.implode(', ', $this->billingCycleUnits)
             );
         }
     }
@@ -355,9 +364,9 @@ class Subscriptions extends Resource
      */
     protected function validatePaymentTermType(string $type): void
     {
-        if (!in_array($type, $this->paymentTermTypes)) {
+        if (! in_array($type, $this->paymentTermTypes)) {
             throw new InvalidArgumentException(
-                "Invalid payment term type. Must be one of: " . implode(', ', $this->paymentTermTypes)
+                'Invalid payment term type. Must be one of: '.implode(', ', $this->paymentTermTypes)
             );
         }
     }
@@ -367,9 +376,9 @@ class Subscriptions extends Resource
      */
     protected function validateInvoiceGenerationAction(string $action): void
     {
-        if (!in_array($action, $this->invoiceGenerationActions)) {
+        if (! in_array($action, $this->invoiceGenerationActions)) {
             throw new InvalidArgumentException(
-                "Invalid invoice generation action. Must be one of: " . implode(', ', $this->invoiceGenerationActions)
+                'Invalid invoice generation action. Must be one of: '.implode(', ', $this->invoiceGenerationActions)
             );
         }
     }
@@ -379,25 +388,25 @@ class Subscriptions extends Resource
      */
     protected function validateGroupedLines(array $groupedLines): void
     {
-        if (!is_array($groupedLines) || empty($groupedLines)) {
+        if (! is_array($groupedLines) || empty($groupedLines)) {
             throw new InvalidArgumentException('Grouped lines must be a non-empty array');
         }
 
         foreach ($groupedLines as $group) {
-            if (!isset($group['line_items']) || !is_array($group['line_items']) || empty($group['line_items'])) {
+            if (! isset($group['line_items']) || ! is_array($group['line_items']) || empty($group['line_items'])) {
                 throw new InvalidArgumentException('Each grouped line must have a non-empty line_items array');
             }
 
             foreach ($group['line_items'] as $item) {
                 $requiredItemFields = ['quantity', 'description', 'unit_price', 'tax_rate_id'];
                 foreach ($requiredItemFields as $field) {
-                    if (!isset($item[$field])) {
+                    if (! isset($item[$field])) {
                         throw new InvalidArgumentException("Line item missing required field: {$field}");
                     }
                 }
 
                 // Validate unit_price structure
-                if (!isset($item['unit_price']['amount']) || !isset($item['unit_price']['tax'])) {
+                if (! isset($item['unit_price']['amount']) || ! isset($item['unit_price']['tax'])) {
                     throw new InvalidArgumentException('Unit price must include amount and tax fields');
                 }
             }
@@ -415,9 +424,9 @@ class Subscriptions extends Resource
             // Validate status values
             if ($key === 'status' && is_array($value)) {
                 foreach ($value as $status) {
-                    if (!in_array($status, $this->statusValues)) {
+                    if (! in_array($status, $this->statusValues)) {
                         throw new InvalidArgumentException(
-                            "Invalid status value. Must be one of: " . implode(', ', $this->statusValues)
+                            'Invalid status value. Must be one of: '.implode(', ', $this->statusValues)
                         );
                     }
                 }

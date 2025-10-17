@@ -10,12 +10,19 @@ class BusinessTypes extends Resource
 
     // Resource capabilities - BusinessTypes is read-only
     protected bool $supportsCreation = false;
+
     protected bool $supportsUpdate = false;
+
     protected bool $supportsDeletion = false;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = false;
+
     protected bool $supportsSorting = false;
+
     protected bool $supportsFiltering = true; // Only country filtering
+
     protected bool $supportsSideloading = false;
 
     // Available includes (none for business types)
@@ -30,18 +37,18 @@ class BusinessTypes extends Resource
     protected array $usageExamples = [
         'list_for_country' => [
             'description' => 'Get business types for Belgium',
-            'code' => '$businessTypes = $teamleader->businessTypes()->forCountry("BE");'
+            'code' => '$businessTypes = $teamleader->businessTypes()->forCountry("BE");',
         ],
         'list_for_netherlands' => [
             'description' => 'Get business types for Netherlands',
-            'code' => '$businessTypes = $teamleader->businessTypes()->forCountry("NL");'
+            'code' => '$businessTypes = $teamleader->businessTypes()->forCountry("NL");',
         ],
         'list_multiple_countries' => [
             'description' => 'Get business types for multiple countries',
             'code' => '
 $beTypes = $teamleader->businessTypes()->forCountry("BE");
-$nlTypes = $teamleader->businessTypes()->forCountry("NL");'
-        ]
+$nlTypes = $teamleader->businessTypes()->forCountry("NL");',
+        ],
     ];
 
     /**
@@ -55,22 +62,21 @@ $nlTypes = $teamleader->businessTypes()->forCountry("NL");'
     /**
      * Get business types for a specific country
      *
-     * @param string $countryCode ISO country code (e.g., "BE", "NL")
-     * @return array
+     * @param  string  $countryCode  ISO country code (e.g., "BE", "NL")
      */
     public function forCountry(string $countryCode): array
     {
         $params = ['country' => strtoupper($countryCode)];
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
      * Override list method to require country parameter
      *
-     * @param array $filters Must contain 'country' key
-     * @param array $options Not used for business types
-     * @return array
+     * @param  array  $filters  Must contain 'country' key
+     * @param  array  $options  Not used for business types
+     *
      * @throws \InvalidArgumentException
      */
     public function list(array $filters = [], array $options = []): array
@@ -83,13 +89,11 @@ $nlTypes = $teamleader->businessTypes()->forCountry("NL");'
 
         $params = ['country' => strtoupper($filters['country'])];
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
      * Get business types for Belgium (convenience method)
-     *
-     * @return array
      */
     public function belgium(): array
     {
@@ -98,8 +102,6 @@ $nlTypes = $teamleader->businessTypes()->forCountry("NL");'
 
     /**
      * Get business types for Netherlands (convenience method)
-     *
-     * @return array
      */
     public function netherlands(): array
     {
@@ -108,8 +110,6 @@ $nlTypes = $teamleader->businessTypes()->forCountry("NL");'
 
     /**
      * Get business types for France (convenience method)
-     *
-     * @return array
      */
     public function france(): array
     {
@@ -118,8 +118,6 @@ $nlTypes = $teamleader->businessTypes()->forCountry("NL");'
 
     /**
      * Get business types for Germany (convenience method)
-     *
-     * @return array
      */
     public function germany(): array
     {
@@ -128,8 +126,6 @@ $nlTypes = $teamleader->businessTypes()->forCountry("NL");'
 
     /**
      * Get business types for United Kingdom (convenience method)
-     *
-     * @return array
      */
     public function unitedKingdom(): array
     {
@@ -139,7 +135,7 @@ $nlTypes = $teamleader->businessTypes()->forCountry("NL");'
     /**
      * Get business types for multiple countries at once
      *
-     * @param array $countryCodes Array of ISO country codes
+     * @param  array  $countryCodes  Array of ISO country codes
      * @return array Array with country codes as keys
      */
     public function forCountries(array $countryCodes): array
@@ -156,8 +152,6 @@ $nlTypes = $teamleader->businessTypes()->forCountry("NL");'
     /**
      * Get available countries that support business types
      * (This is a helper method - actual supported countries depend on Teamleader)
-     *
-     * @return array
      */
     public function getSupportedCountries(): array
     {
@@ -171,15 +165,12 @@ $nlTypes = $teamleader->businessTypes()->forCountry("NL");'
             'CH' => 'Switzerland',
             'AT' => 'Austria',
             'ES' => 'Spain',
-            'IT' => 'Italy'
+            'IT' => 'Italy',
         ];
     }
 
     /**
      * Validate country code format
-     *
-     * @param string $countryCode
-     * @return bool
      */
     public function isValidCountryCode(string $countryCode): bool
     {
@@ -189,9 +180,9 @@ $nlTypes = $teamleader->businessTypes()->forCountry("NL");'
     /**
      * Override info method as it's not supported for business types
      *
-     * @param string $id
-     * @param mixed $includes
-     * @return array
+     * @param  string  $id
+     * @param  mixed  $includes
+     *
      * @throws \InvalidArgumentException
      */
     public function info($id, $includes = null): array
@@ -203,8 +194,6 @@ $nlTypes = $teamleader->businessTypes()->forCountry("NL");'
 
     /**
      * Override getSuggestedIncludes as business types don't have includes
-     *
-     * @return array
      */
     protected function getSuggestedIncludes(): array
     {
@@ -213,8 +202,6 @@ $nlTypes = $teamleader->businessTypes()->forCountry("NL");'
 
     /**
      * Get response structure documentation
-     *
-     * @return array
      */
     public function getResponseStructure(): array
     {
@@ -225,18 +212,14 @@ $nlTypes = $teamleader->businessTypes()->forCountry("NL");'
                 'items' => [
                     'id' => 'Business type UUID',
                     'name' => 'Business type name (e.g., "VZW/ASBL", "BV/SRL")',
-                    'country' => 'Country code (e.g., "BE")'
-                ]
-            ]
+                    'country' => 'Country code (e.g., "BE")',
+                ],
+            ],
         ];
     }
 
     /**
      * Override validation since business types don't support create/update
-     *
-     * @param array $data
-     * @param string $operation
-     * @return array
      */
     protected function validateData(array $data, string $operation = 'create'): array
     {

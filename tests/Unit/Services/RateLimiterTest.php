@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace McoreServices\TeamleaderSDK\Tests\Unit\Services;
 
-use McoreServices\TeamleaderSDK\Tests\TestCase;
 use McoreServices\TeamleaderSDK\Services\ApiRateLimiterService;
+use McoreServices\TeamleaderSDK\Tests\TestCase;
 
 class RateLimiterTest extends TestCase
 {
@@ -14,12 +14,12 @@ class RateLimiterTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->rateLimiter = new ApiRateLimiterService();
+        $this->rateLimiter = new ApiRateLimiterService;
         // Reset rate limiter state for each test
         $this->rateLimiter->reset();
     }
 
-    public function testAllowsRequestsWithinLimit(): void
+    public function test_allows_requests_within_limit(): void
     {
         $result = $this->rateLimiter->checkAndThrottle();
 
@@ -27,7 +27,7 @@ class RateLimiterTest extends TestCase
         $this->assertEquals(0, $result['delay_applied']);
     }
 
-    public function testRecordsRequests(): void
+    public function test_records_requests(): void
     {
         $stats = $this->rateLimiter->getStatistics();
         $initialCount = $stats['total_requests'];
@@ -38,7 +38,7 @@ class RateLimiterTest extends TestCase
         $this->assertEquals($initialCount + 1, $stats['total_requests']);
     }
 
-    public function testCalculatesUsagePercentage(): void
+    public function test_calculates_usage_percentage(): void
     {
         // Make some requests
         for ($i = 0; $i < 50; $i++) {
@@ -50,7 +50,7 @@ class RateLimiterTest extends TestCase
         $this->assertLessThanOrEqual(100, $stats['usage_percentage']);
     }
 
-    public function testRespectsRateLimitHeaders(): void
+    public function test_respects_rate_limit_headers(): void
     {
         // Make some requests first to have local usage
         for ($i = 0; $i < 50; $i++) {

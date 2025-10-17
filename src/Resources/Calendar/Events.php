@@ -11,12 +11,19 @@ class Events extends Resource
 
     // Resource capabilities - Events support full CRUD operations
     protected bool $supportsCreation = true;
+
     protected bool $supportsUpdate = true;
+
     protected bool $supportsDeletion = true; // Via cancel() method
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = true;
+
     protected bool $supportsSorting = true;
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSideloading = false; // No includes mentioned in API docs
 
     // Available includes for sideloading (none based on API docs)
@@ -61,18 +68,18 @@ class Events extends Resource
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all events',
-            'code' => '$events = $teamleader->events()->list();'
+            'code' => '$events = $teamleader->events()->list();',
         ],
         'list_for_user' => [
             'description' => 'Get events for a specific user',
-            'code' => '$events = $teamleader->events()->forUser("user-uuid");'
+            'code' => '$events = $teamleader->events()->forUser("user-uuid");',
         ],
         'list_by_date_range' => [
             'description' => 'Get events within a date range',
             'code' => '$events = $teamleader->events()->list([
     "ends_after" => "2025-01-01T00:00:00+00:00",
     "starts_before" => "2025-12-31T23:59:59+00:00"
-]);'
+]);',
         ],
         'create_event' => [
             'description' => 'Create a new calendar event',
@@ -84,22 +91,22 @@ class Events extends Resource
     "attendees" => [
         ["type" => "user", "id" => "user-uuid"]
     ]
-]);'
+]);',
         ],
         'update_event' => [
             'description' => 'Update an existing event',
             'code' => '$event = $teamleader->events()->update("event-uuid", [
     "title" => "Updated meeting title",
     "starts_at" => "2025-02-04T17:00:00+00:00"
-]);'
+]);',
         ],
         'cancel_event' => [
             'description' => 'Cancel an event (for all attendees)',
-            'code' => '$result = $teamleader->events()->cancel("event-uuid");'
+            'code' => '$result = $teamleader->events()->cancel("event-uuid");',
         ],
         'search_events' => [
             'description' => 'Search events by term',
-            'code' => '$events = $teamleader->events()->search("coffee");'
+            'code' => '$events = $teamleader->events()->search("coffee");',
         ],
     ];
 
@@ -119,7 +126,7 @@ class Events extends Resource
         $params = [];
 
         // Build filter object
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
@@ -136,7 +143,7 @@ class Events extends Resource
             $params['sort'] = $this->buildSort($options['sort']);
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
@@ -144,7 +151,7 @@ class Events extends Resource
      */
     public function info($id, $includes = null): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.info', [
+        return $this->api->request('POST', $this->getBasePath().'.info', [
             'id' => $id,
         ]);
     }
@@ -157,7 +164,8 @@ class Events extends Resource
     public function create(array $data): array
     {
         $this->validateEventData($data, 'create');
-        return $this->api->request('POST', $this->getBasePath() . '.create', $data);
+
+        return $this->api->request('POST', $this->getBasePath().'.create', $data);
     }
 
     /**
@@ -169,7 +177,8 @@ class Events extends Resource
     {
         $data['id'] = $id;
         $this->validateEventData($data, 'update');
-        return $this->api->request('POST', $this->getBasePath() . '.update', $data);
+
+        return $this->api->request('POST', $this->getBasePath().'.update', $data);
     }
 
     /**
@@ -179,7 +188,7 @@ class Events extends Resource
      */
     public function cancel(string $id): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.cancel', [
+        return $this->api->request('POST', $this->getBasePath().'.cancel', [
             'id' => $id,
         ]);
     }
@@ -195,9 +204,8 @@ class Events extends Resource
     /**
      * Get events for a specific user
      *
-     * @param string $userId User UUID
-     * @param array $options Additional options
-     * @return array
+     * @param  string  $userId  User UUID
+     * @param  array  $options  Additional options
      */
     public function forUser(string $userId, array $options = []): array
     {
@@ -210,9 +218,8 @@ class Events extends Resource
     /**
      * Get events for a specific activity type
      *
-     * @param string $activityTypeId Activity type UUID
-     * @param array $options Additional options
-     * @return array
+     * @param  string  $activityTypeId  Activity type UUID
+     * @param  array  $options  Additional options
      */
     public function forActivityType(string $activityTypeId, array $options = []): array
     {
@@ -225,9 +232,8 @@ class Events extends Resource
     /**
      * Search events by term (searches title and description)
      *
-     * @param string $term Search term
-     * @param array $options Additional options
-     * @return array
+     * @param  string  $term  Search term
+     * @param  array  $options  Additional options
      */
     public function search(string $term, array $options = []): array
     {
@@ -240,10 +246,9 @@ class Events extends Resource
     /**
      * Get events within a date range
      *
-     * @param string $startsAfter ISO 8601 datetime
-     * @param string $endsBefore ISO 8601 datetime
-     * @param array $options Additional options
-     * @return array
+     * @param  string  $startsAfter  ISO 8601 datetime
+     * @param  string  $endsBefore  ISO 8601 datetime
+     * @param  array  $options  Additional options
      */
     public function betweenDates(string $startsAfter, string $endsBefore, array $options = []): array
     {
@@ -259,9 +264,8 @@ class Events extends Resource
     /**
      * Get events by specific IDs
      *
-     * @param array $ids Array of event UUIDs
-     * @param array $options Additional options
-     * @return array
+     * @param  array  $ids  Array of event UUIDs
+     * @param  array  $options  Additional options
      */
     public function byIds(array $ids, array $options = []): array
     {
@@ -274,10 +278,9 @@ class Events extends Resource
     /**
      * Get events for a specific attendee
      *
-     * @param string $attendeeType Type of attendee (user, contact)
-     * @param string $attendeeId UUID of the attendee
-     * @param array $options Additional options
-     * @return array
+     * @param  string  $attendeeType  Type of attendee (user, contact)
+     * @param  string  $attendeeId  UUID of the attendee
+     * @param  array  $options  Additional options
      */
     public function forAttendee(string $attendeeType, string $attendeeId, array $options = []): array
     {
@@ -297,10 +300,9 @@ class Events extends Resource
     /**
      * Get events linked to a specific entity
      *
-     * @param string $linkType Type of link (contact, company, deal)
-     * @param string $linkId UUID of the linked entity
-     * @param array $options Additional options
-     * @return array
+     * @param  string  $linkType  Type of link (contact, company, deal)
+     * @param  string  $linkId  UUID of the linked entity
+     * @param  array  $options  Additional options
      */
     public function forLink(string $linkType, string $linkId, array $options = []): array
     {
@@ -320,8 +322,8 @@ class Events extends Resource
     /**
      * Validate event data for create/update operations
      *
-     * @param array $data
-     * @param string $operation 'create' or 'update'
+     * @param  string  $operation  'create' or 'update'
+     *
      * @throws InvalidArgumentException
      */
     protected function validateEventData(array $data, string $operation = 'create'): void
@@ -364,12 +366,12 @@ class Events extends Resource
         // Validate attendees structure if provided
         if (isset($data['attendees']) && is_array($data['attendees'])) {
             foreach ($data['attendees'] as $attendee) {
-                if (!isset($attendee['type']) || !in_array($attendee['type'], $this->attendeeTypes)) {
+                if (! isset($attendee['type']) || ! in_array($attendee['type'], $this->attendeeTypes)) {
                     throw new InvalidArgumentException(
-                        'Invalid attendee type. Must be one of: ' . implode(', ', $this->attendeeTypes)
+                        'Invalid attendee type. Must be one of: '.implode(', ', $this->attendeeTypes)
                     );
                 }
-                if (!isset($attendee['id']) || empty($attendee['id'])) {
+                if (! isset($attendee['id']) || empty($attendee['id'])) {
                     throw new InvalidArgumentException('Attendee id is required');
                 }
             }
@@ -378,12 +380,12 @@ class Events extends Resource
         // Validate links structure if provided
         if (isset($data['links']) && is_array($data['links'])) {
             foreach ($data['links'] as $link) {
-                if (!isset($link['type']) || !in_array($link['type'], $this->linkTypes)) {
+                if (! isset($link['type']) || ! in_array($link['type'], $this->linkTypes)) {
                     throw new InvalidArgumentException(
-                        'Invalid link type. Must be one of: ' . implode(', ', $this->linkTypes)
+                        'Invalid link type. Must be one of: '.implode(', ', $this->linkTypes)
                     );
                 }
-                if (!isset($link['id']) || empty($link['id'])) {
+                if (! isset($link['id']) || empty($link['id'])) {
                     throw new InvalidArgumentException('Link id is required');
                 }
             }
@@ -393,14 +395,12 @@ class Events extends Resource
     /**
      * Validate datetime format (ISO 8601)
      *
-     * @param string $datetime
-     * @param string $fieldName
      * @throws InvalidArgumentException
      */
     protected function validateDateTimeFormat(string $datetime, string $fieldName): void
     {
         $pattern = '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/';
-        if (!preg_match($pattern, $datetime)) {
+        if (! preg_match($pattern, $datetime)) {
             throw new InvalidArgumentException(
                 "{$fieldName} must be in ISO 8601 format (e.g., 2025-02-04T16:00:00+00:00)"
             );
@@ -410,14 +410,13 @@ class Events extends Resource
     /**
      * Validate attendee type
      *
-     * @param string $type
      * @throws InvalidArgumentException
      */
     protected function validateAttendeeType(string $type): void
     {
-        if (!in_array($type, $this->attendeeTypes)) {
+        if (! in_array($type, $this->attendeeTypes)) {
             throw new InvalidArgumentException(
-                'Invalid attendee type. Must be one of: ' . implode(', ', $this->attendeeTypes)
+                'Invalid attendee type. Must be one of: '.implode(', ', $this->attendeeTypes)
             );
         }
     }
@@ -425,23 +424,19 @@ class Events extends Resource
     /**
      * Validate link type
      *
-     * @param string $type
      * @throws InvalidArgumentException
      */
     protected function validateLinkType(string $type): void
     {
-        if (!in_array($type, $this->linkTypes)) {
+        if (! in_array($type, $this->linkTypes)) {
             throw new InvalidArgumentException(
-                'Invalid link type. Must be one of: ' . implode(', ', $this->linkTypes)
+                'Invalid link type. Must be one of: '.implode(', ', $this->linkTypes)
             );
         }
     }
 
     /**
      * Build filters array for the API request
-     *
-     * @param array $filters
-     * @return array
      */
     protected function buildFilters(array $filters): array
     {
@@ -463,9 +458,6 @@ class Events extends Resource
 
     /**
      * Build sort array for the API request
-     *
-     * @param array $sort
-     * @return array
      */
     protected function buildSort(array $sort): array
     {

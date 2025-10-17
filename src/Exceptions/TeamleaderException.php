@@ -12,7 +12,9 @@ use Exception;
 class TeamleaderException extends Exception
 {
     protected array $context;
+
     protected ?int $statusCode;
+
     protected array $errors;
 
     public function __construct(

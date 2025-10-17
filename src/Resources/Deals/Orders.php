@@ -10,12 +10,19 @@ class Orders extends Resource
 
     // Resource capabilities - Orders are read-only
     protected bool $supportsCreation = false;
+
     protected bool $supportsUpdate = false;
+
     protected bool $supportsDeletion = false;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = false;
+
     protected bool $supportsSorting = false;
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSideloading = true;
 
     // Available includes for sideloading
@@ -45,19 +52,19 @@ class Orders extends Resource
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all orders',
-            'code' => '$orders = $teamleader->orders()->list();'
+            'code' => '$orders = $teamleader->orders()->list();',
         ],
         'list_specific' => [
             'description' => 'Get specific orders by ID',
-            'code' => '$orders = $teamleader->orders()->list([\'ids\' => [\'uuid1\', \'uuid2\']]);'
+            'code' => '$orders = $teamleader->orders()->list([\'ids\' => [\'uuid1\', \'uuid2\']]);',
         ],
         'get_single' => [
             'description' => 'Get a single order with custom fields',
-            'code' => '$order = $teamleader->orders()->include(\'custom_fields\')->info(\'order-uuid\');'
+            'code' => '$order = $teamleader->orders()->include(\'custom_fields\')->info(\'order-uuid\');',
         ],
         'by_ids' => [
             'description' => 'Get orders by IDs using convenience method',
-            'code' => '$orders = $teamleader->orders()->byIds([\'uuid1\', \'uuid2\']);'
+            'code' => '$orders = $teamleader->orders()->byIds([\'uuid1\', \'uuid2\']);',
         ],
     ];
 
@@ -72,16 +79,15 @@ class Orders extends Resource
     /**
      * List orders with optional filtering
      *
-     * @param array $filters Filters to apply
-     * @param array $options Additional options (includes)
-     * @return array
+     * @param  array  $filters  Filters to apply
+     * @param  array  $options  Additional options (includes)
      */
     public function list(array $filters = [], array $options = []): array
     {
         $params = [];
 
         // Apply filters
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
@@ -95,36 +101,34 @@ class Orders extends Resource
         // Apply any pending includes from fluent interface
         $params = $this->applyPendingIncludes($params);
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
      * Get order information
      *
-     * @param string $id Order UUID
-     * @param mixed $includes Includes to load (e.g., 'custom_fields')
-     * @return array
+     * @param  string  $id  Order UUID
+     * @param  mixed  $includes  Includes to load (e.g., 'custom_fields')
      */
     public function info($id, $includes = null): array
     {
         $params = ['id' => $id];
 
         // Apply includes
-        if (!empty($includes)) {
+        if (! empty($includes)) {
             $params = $this->applyIncludes($params, $includes);
         }
 
         // Apply any pending includes from fluent interface
         $params = $this->applyPendingIncludes($params);
 
-        return $this->api->request('POST', $this->getBasePath() . '.info', $params);
+        return $this->api->request('POST', $this->getBasePath().'.info', $params);
     }
 
     /**
      * Get orders by specific IDs
      *
-     * @param array $ids Array of order UUIDs
-     * @return array
+     * @param  array  $ids  Array of order UUIDs
      */
     public function byIds(array $ids): array
     {
@@ -133,9 +137,6 @@ class Orders extends Resource
 
     /**
      * Build filters array for the API request
-     *
-     * @param array $filters
-     * @return array
      */
     private function buildFilters(array $filters): array
     {
@@ -199,7 +200,7 @@ class Orders extends Resource
                     'data.project' => 'Project reference (nullable)',
                     'data.assignee' => 'Assignee reference (nullable)',
                     'data.custom_fields' => 'Custom fields (only with includes=custom_fields)',
-                ]
+                ],
             ],
             'list' => [
                 'description' => 'Array of orders',
@@ -218,15 +219,13 @@ class Orders extends Resource
                     'data[].project' => 'Project reference (nullable)',
                     'data[].assignee' => 'Assignee reference (nullable)',
                     'data[].custom_fields' => 'Custom fields (only with includes=custom_fields)',
-                ]
-            ]
+                ],
+            ],
         ];
     }
 
     /**
      * Get payment term types
-     *
-     * @return array
      */
     public function getPaymentTermTypes(): array
     {
@@ -235,8 +234,6 @@ class Orders extends Resource
 
     /**
      * Get supplier types
-     *
-     * @return array
      */
     public function getSupplierTypes(): array
     {

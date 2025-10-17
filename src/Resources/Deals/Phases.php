@@ -11,12 +11,19 @@ class Phases extends Resource
 
     // Resource capabilities
     protected bool $supportsPagination = true;
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSorting = false;
+
     protected bool $supportsSideloading = false;
+
     protected bool $supportsCreation = true;
+
     protected bool $supportsUpdate = true;
+
     protected bool $supportsDeletion = true;
+
     protected bool $supportsBatch = false;
 
     // Available includes for sideloading (none for deal phases)
@@ -32,24 +39,24 @@ class Phases extends Resource
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all phases across all pipelines',
-            'code' => '$phases = $teamleader->dealPhases()->list();'
+            'code' => '$phases = $teamleader->dealPhases()->list();',
         ],
         'list_for_pipeline' => [
             'description' => 'Get phases for specific pipeline',
-            'code' => '$phases = $teamleader->dealPhases()->list([\'deal_pipeline_id\' => \'pipeline-uuid\']);'
+            'code' => '$phases = $teamleader->dealPhases()->list([\'deal_pipeline_id\' => \'pipeline-uuid\']);',
         ],
         'create_phase' => [
             'description' => 'Create a new phase',
-            'code' => '$phase = $teamleader->dealPhases()->create([\'name\' => \'New Phase\', \'deal_pipeline_id\' => \'uuid\', \'requires_attention_after\' => [\'amount\' => 7, \'unit\' => \'days\']]);'
+            'code' => '$phase = $teamleader->dealPhases()->create([\'name\' => \'New Phase\', \'deal_pipeline_id\' => \'uuid\', \'requires_attention_after\' => [\'amount\' => 7, \'unit\' => \'days\']]);',
         ],
         'duplicate_phase' => [
             'description' => 'Duplicate an existing phase',
-            'code' => '$newPhase = $teamleader->dealPhases()->duplicate(\'source-phase-uuid\');'
+            'code' => '$newPhase = $teamleader->dealPhases()->duplicate(\'source-phase-uuid\');',
         ],
         'move_phase' => [
             'description' => 'Move phase to new position',
-            'code' => '$teamleader->dealPhases()->move(\'phase-uuid\', \'after-phase-uuid\');'
-        ]
+            'code' => '$teamleader->dealPhases()->move(\'phase-uuid\', \'after-phase-uuid\');',
+        ],
     ];
 
     /**
@@ -63,16 +70,15 @@ class Phases extends Resource
     /**
      * List deal phases with enhanced filtering and pagination
      *
-     * @param array $filters Filters to apply
-     * @param array $options Additional options (pagination)
-     * @return array
+     * @param  array  $filters  Filters to apply
+     * @param  array  $options  Additional options (pagination)
      */
     public function list(array $filters = [], array $options = []): array
     {
         $params = [];
 
         // Apply filters
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
@@ -80,22 +86,21 @@ class Phases extends Resource
         if (isset($options['page_size']) || isset($options['page_number'])) {
             $params['page'] = [
                 'size' => $options['page_size'] ?? 20,
-                'number' => $options['page_number'] ?? 1
+                'number' => $options['page_number'] ?? 1,
             ];
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
      * Create a new deal phase
      *
-     * @param array $data Phase data
-     * @return array
+     * @param  array  $data  Phase data
      */
     public function create(array $data): array
     {
-        if (!$this->supportsCreation) {
+        if (! $this->supportsCreation) {
             throw new InvalidArgumentException(
                 "The {$this->getBasePath()} resource does not support creation"
             );
@@ -116,11 +121,11 @@ class Phases extends Resource
 
         // Validate requires_attention_after structure
         $attentionAfter = $data['requires_attention_after'];
-        if (!isset($attentionAfter['amount']) || !isset($attentionAfter['unit'])) {
+        if (! isset($attentionAfter['amount']) || ! isset($attentionAfter['unit'])) {
             throw new InvalidArgumentException('requires_attention_after must include amount and unit');
         }
 
-        if (!in_array($attentionAfter['unit'], ['days', 'weeks'])) {
+        if (! in_array($attentionAfter['unit'], ['days', 'weeks'])) {
             throw new InvalidArgumentException('requires_attention_after unit must be "days" or "weeks"');
         }
 
@@ -128,25 +133,24 @@ class Phases extends Resource
         if (isset($data['follow_up_actions']) && is_array($data['follow_up_actions'])) {
             $validActions = ['create_event', 'create_call', 'create_task'];
             foreach ($data['follow_up_actions'] as $action) {
-                if (!in_array($action, $validActions)) {
+                if (! in_array($action, $validActions)) {
                     throw new InvalidArgumentException("Invalid follow_up_action: {$action}");
                 }
             }
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.create', $data);
+        return $this->api->request('POST', $this->getBasePath().'.create', $data);
     }
 
     /**
      * Update a deal phase
      *
-     * @param string $id Phase UUID
-     * @param array $data Update data
-     * @return array
+     * @param  string  $id  Phase UUID
+     * @param  array  $data  Update data
      */
     public function update($id, array $data): array
     {
-        if (!$this->supportsUpdate) {
+        if (! $this->supportsUpdate) {
             throw new InvalidArgumentException(
                 "The {$this->getBasePath()} resource does not support updates"
             );
@@ -157,11 +161,11 @@ class Phases extends Resource
         // Validate requires_attention_after if provided
         if (isset($data['requires_attention_after'])) {
             $attentionAfter = $data['requires_attention_after'];
-            if (!isset($attentionAfter['amount']) || !isset($attentionAfter['unit'])) {
+            if (! isset($attentionAfter['amount']) || ! isset($attentionAfter['unit'])) {
                 throw new InvalidArgumentException('requires_attention_after must include amount and unit');
             }
 
-            if (!in_array($attentionAfter['unit'], ['days', 'weeks'])) {
+            if (! in_array($attentionAfter['unit'], ['days', 'weeks'])) {
                 throw new InvalidArgumentException('requires_attention_after unit must be "days" or "weeks"');
             }
         }
@@ -170,21 +174,20 @@ class Phases extends Resource
         if (isset($data['follow_up_actions']) && is_array($data['follow_up_actions'])) {
             $validActions = ['create_event', 'create_call', 'create_task'];
             foreach ($data['follow_up_actions'] as $action) {
-                if (!in_array($action, $validActions)) {
+                if (! in_array($action, $validActions)) {
                     throw new InvalidArgumentException("Invalid follow_up_action: {$action}");
                 }
             }
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.update', $data);
+        return $this->api->request('POST', $this->getBasePath().'.update', $data);
     }
 
     /**
      * Delete a deal phase with migration to another phase
      *
-     * @param string $id Phase UUID to delete
-     * @param mixed ...$additionalParams Additional parameters (expects newPhaseId as first param)
-     * @return array
+     * @param  string  $id  Phase UUID to delete
+     * @param  mixed  ...$additionalParams  Additional parameters (expects newPhaseId as first param)
      */
     public function delete($id, ...$additionalParams): array
     {
@@ -214,36 +217,33 @@ class Phases extends Resource
     /**
      * Duplicate an existing deal phase
      *
-     * @param string $id Source phase UUID
-     * @return array
+     * @param  string  $id  Source phase UUID
      */
     public function duplicate(string $id): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.duplicate', [
-            'id' => $id
+        return $this->api->request('POST', $this->getBasePath().'.duplicate', [
+            'id' => $id,
         ]);
     }
 
     /**
      * Move a phase to a new position in the pipeline
      *
-     * @param string $id Phase UUID to move
-     * @param string $afterPhaseId Phase UUID to place this phase after
-     * @return array
+     * @param  string  $id  Phase UUID to move
+     * @param  string  $afterPhaseId  Phase UUID to place this phase after
      */
     public function move(string $id, string $afterPhaseId): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.move', [
+        return $this->api->request('POST', $this->getBasePath().'.move', [
             'id' => $id,
-            'after_phase_id' => $afterPhaseId
+            'after_phase_id' => $afterPhaseId,
         ]);
     }
 
     /**
      * Get phases for a specific pipeline
      *
-     * @param string $pipelineId Pipeline UUID
-     * @return array
+     * @param  string  $pipelineId  Pipeline UUID
      */
     public function forPipeline(string $pipelineId): array
     {
@@ -253,8 +253,7 @@ class Phases extends Resource
     /**
      * Get phases by specific IDs
      *
-     * @param array $ids Array of phase UUIDs
-     * @return array
+     * @param  array  $ids  Array of phase UUIDs
      */
     public function byIds(array $ids): array
     {
@@ -263,9 +262,6 @@ class Phases extends Resource
 
     /**
      * Build filters array for the API request
-     *
-     * @param array $filters
-     * @return array
      */
     private function buildFilters(array $filters): array
     {
@@ -286,8 +282,6 @@ class Phases extends Resource
 
     /**
      * Get available follow-up actions
-     *
-     * @return array
      */
     public function getAvailableFollowUpActions(): array
     {
@@ -296,8 +290,6 @@ class Phases extends Resource
 
     /**
      * Get available attention after units
-     *
-     * @return array
      */
     public function getAvailableAttentionAfterUnits(): array
     {
@@ -306,10 +298,6 @@ class Phases extends Resource
 
     /**
      * Validate phase data
-     *
-     * @param array $data
-     * @param string $operation
-     * @return array
      */
     protected function validateData(array $data, string $operation = 'create'): array
     {
@@ -318,6 +306,7 @@ class Phases extends Resource
             if (in_array($key, ['name', 'deal_pipeline_id', 'requires_attention_after', 'id'])) {
                 return true; // Keep required fields even if empty for validation
             }
+
             return $value !== '' && $value !== null && $value !== [];
         }, ARRAY_FILTER_USE_BOTH);
 
@@ -326,8 +315,6 @@ class Phases extends Resource
 
     /**
      * Override getSuggestedIncludes as phases don't have common includes
-     *
-     * @return array
      */
     protected function getSuggestedIncludes(): array
     {

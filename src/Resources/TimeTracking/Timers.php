@@ -11,12 +11,19 @@ class Timers extends Resource
 
     // Resource capabilities - Timers support limited operations
     protected bool $supportsCreation = true;   // Can start timers
+
     protected bool $supportsUpdate = true;     // Can update current timer
+
     protected bool $supportsDeletion = false;  // No delete endpoint, use stop instead
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = false;
+
     protected bool $supportsSorting = false;
+
     protected bool $supportsFiltering = false;
+
     protected bool $supportsSideloading = false;
 
     // Available includes (none for timers)
@@ -32,7 +39,7 @@ class Timers extends Resource
         'event',
         'todo',
         'milestone',
-        'ticket'
+        'ticket',
     ];
 
     // Usage examples specific to timers
@@ -47,7 +54,7 @@ class Timers extends Resource
     ],
     \'description\' => \'Working on project\',
     \'invoiceable\' => true
-]);'
+]);',
         ],
         'start_timer_for_ticket' => [
             'description' => 'Start a timer for a ticket',
@@ -56,20 +63,20 @@ class Timers extends Resource
     \'ticket-uuid\',
     \'work-type-uuid\',
     [\'description\' => \'Fixing bug\', \'invoiceable\' => true]
-);'
+);',
         ],
         'get_current' => [
             'description' => 'Get the currently running timer',
-            'code' => '$currentTimer = $teamleader->timers()->current();'
+            'code' => '$currentTimer = $teamleader->timers()->current();',
         ],
         'update_current' => [
             'description' => 'Update the current timer description',
-            'code' => '$result = $teamleader->timers()->update([\'description\' => \'Updated description\']);'
+            'code' => '$result = $teamleader->timers()->update([\'description\' => \'Updated description\']);',
         ],
         'stop_timer' => [
             'description' => 'Stop the current timer',
-            'code' => '$result = $teamleader->timers()->stop();'
-        ]
+            'code' => '$result = $teamleader->timers()->stop();',
+        ],
     ];
 
     /**
@@ -83,25 +90,24 @@ class Timers extends Resource
     /**
      * Start a new timer
      *
-     * @param array $data Timer data
-     * @return array
+     * @param  array  $data  Timer data
+     *
      * @throws InvalidArgumentException
      */
     public function start(array $data): array
     {
         $this->validateStartData($data);
 
-        return $this->api->request('POST', $this->getBasePath() . '.start', $data);
+        return $this->api->request('POST', $this->getBasePath().'.start', $data);
     }
 
     /**
      * Start a timer for a specific subject (convenience method)
      *
-     * @param string $subjectType Type of subject (company, contact, event, todo, milestone, ticket)
-     * @param string $subjectId UUID of the subject
-     * @param string $workTypeId UUID of the work type
-     * @param array $options Additional options (description, invoiceable, started_at)
-     * @return array
+     * @param  string  $subjectType  Type of subject (company, contact, event, todo, milestone, ticket)
+     * @param  string  $subjectId  UUID of the subject
+     * @param  string  $workTypeId  UUID of the work type
+     * @param  array  $options  Additional options (description, invoiceable, started_at)
      */
     public function startForSubject(
         string $subjectType,
@@ -115,8 +121,8 @@ class Timers extends Resource
             'work_type_id' => $workTypeId,
             'subject' => [
                 'type' => $subjectType,
-                'id' => $subjectId
-            ]
+                'id' => $subjectId,
+            ],
         ], $options);
 
         return $this->start($data);
@@ -124,23 +130,19 @@ class Timers extends Resource
 
     /**
      * Get the current running timer
-     *
-     * @return array
      */
     public function current(): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.current');
+        return $this->api->request('POST', $this->getBasePath().'.current');
     }
 
     /**
      * Stop the current timer
      * This will add a new time tracking entry in the background
-     *
-     * @return array
      */
     public function stop(): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.stop');
+        return $this->api->request('POST', $this->getBasePath().'.stop');
     }
 
     /**
@@ -150,19 +152,19 @@ class Timers extends Resource
     public function updateCurrent(array $data): array
     {
         $this->validateUpdateData($data);
-        return $this->api->request('POST', $this->getBasePath() . '.update', $data);
+
+        return $this->api->request('POST', $this->getBasePath().'.update', $data);
     }
 
     /**
      * Check if there is a timer currently running
-     *
-     * @return bool
      */
     public function isRunning(): bool
     {
         try {
             $response = $this->current();
-            return !empty($response['data']);
+
+            return ! empty($response['data']);
         } catch (\Exception $e) {
             return false;
         }
@@ -171,34 +173,33 @@ class Timers extends Resource
     /**
      * Validate data for starting a timer
      *
-     * @param array $data
      * @throws InvalidArgumentException
      */
     private function validateStartData(array $data): void
     {
         // Subject is required and must have type and id
-        if (!isset($data['subject']) || !is_array($data['subject'])) {
+        if (! isset($data['subject']) || ! is_array($data['subject'])) {
             throw new InvalidArgumentException('Subject is required and must be an array');
         }
 
-        if (!isset($data['subject']['type']) || !isset($data['subject']['id'])) {
+        if (! isset($data['subject']['type']) || ! isset($data['subject']['id'])) {
             throw new InvalidArgumentException('Subject must contain both type and id');
         }
 
         $this->validateSubjectType($data['subject']['type']);
 
         // work_type_id is required
-        if (!isset($data['work_type_id']) || empty($data['work_type_id'])) {
+        if (! isset($data['work_type_id']) || empty($data['work_type_id'])) {
             throw new InvalidArgumentException('work_type_id is required');
         }
 
         // If started_at is provided, validate format
-        if (isset($data['started_at']) && !$this->isValidDateTime($data['started_at'])) {
+        if (isset($data['started_at']) && ! $this->isValidDateTime($data['started_at'])) {
             throw new InvalidArgumentException('started_at must be in ISO 8601 format');
         }
 
         // If invoiceable is provided, validate it's boolean
-        if (isset($data['invoiceable']) && !is_bool($data['invoiceable'])) {
+        if (isset($data['invoiceable']) && ! is_bool($data['invoiceable'])) {
             throw new InvalidArgumentException('invoiceable must be a boolean');
         }
     }
@@ -206,7 +207,6 @@ class Timers extends Resource
     /**
      * Validate data for updating a timer
      *
-     * @param array $data
      * @throws InvalidArgumentException
      */
     private function validateUpdateData(array $data): void
@@ -218,19 +218,19 @@ class Timers extends Resource
 
         // If subject is provided, validate it
         if (isset($data['subject'])) {
-            if (!is_array($data['subject']) || !isset($data['subject']['type']) || !isset($data['subject']['id'])) {
+            if (! is_array($data['subject']) || ! isset($data['subject']['type']) || ! isset($data['subject']['id'])) {
                 throw new InvalidArgumentException('Subject must be an array with type and id');
             }
             $this->validateSubjectType($data['subject']['type']);
         }
 
         // If started_at is provided, validate format
-        if (isset($data['started_at']) && !$this->isValidDateTime($data['started_at'])) {
+        if (isset($data['started_at']) && ! $this->isValidDateTime($data['started_at'])) {
             throw new InvalidArgumentException('started_at must be in ISO 8601 format');
         }
 
         // If invoiceable is provided, validate it's boolean
-        if (isset($data['invoiceable']) && !is_bool($data['invoiceable'])) {
+        if (isset($data['invoiceable']) && ! is_bool($data['invoiceable'])) {
             throw new InvalidArgumentException('invoiceable must be a boolean');
         }
     }
@@ -238,14 +238,13 @@ class Timers extends Resource
     /**
      * Validate subject type
      *
-     * @param string $type
      * @throws InvalidArgumentException
      */
     private function validateSubjectType(string $type): void
     {
-        if (!in_array($type, $this->availableSubjectTypes)) {
+        if (! in_array($type, $this->availableSubjectTypes)) {
             throw new InvalidArgumentException(
-                "Invalid subject type '{$type}'. Available types: " .
+                "Invalid subject type '{$type}'. Available types: ".
                 implode(', ', $this->availableSubjectTypes)
             );
         }
@@ -253,14 +252,12 @@ class Timers extends Resource
 
     /**
      * Validate datetime format (ISO 8601)
-     *
-     * @param string $datetime
-     * @return bool
      */
     private function isValidDateTime(string $datetime): bool
     {
         try {
             new \DateTime($datetime);
+
             return true;
         } catch (\Exception $e) {
             return false;
@@ -269,8 +266,6 @@ class Timers extends Resource
 
     /**
      * Get available subject types
-     *
-     * @return array
      */
     public function getAvailableSubjectTypes(): array
     {

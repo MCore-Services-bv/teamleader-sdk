@@ -11,17 +11,24 @@ class Contacts extends Resource
 
     // Resource capabilities - Contacts support full CRUD operations
     protected bool $supportsCreation = true;
+
     protected bool $supportsUpdate = true;
+
     protected bool $supportsDeletion = true;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = true;
+
     protected bool $supportsSorting = true;
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSideloading = true;
 
     // Available includes for sideloading (based on API docs)
     protected array $availableIncludes = [
-        'custom_fields'
+        'custom_fields',
     ];
 
     // Default includes
@@ -35,35 +42,35 @@ class Contacts extends Resource
         'term' => 'Search term (searches first_name, last_name, email and telephone)',
         'updated_since' => 'ISO 8601 datetime',
         'tags' => 'Array of tag names (filters on contacts coupled to all given tags)',
-        'status' => 'Contact status (active, deactivated)'
+        'status' => 'Contact status (active, deactivated)',
     ];
 
     // Usage examples specific to contacts
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all contacts',
-            'code' => '$contacts = $teamleader->contacts()->list();'
+            'code' => '$contacts = $teamleader->contacts()->list();',
         ],
         'search_by_term' => [
             'description' => 'Search contacts by term',
-            'code' => '$contacts = $teamleader->contacts()->search("John");'
+            'code' => '$contacts = $teamleader->contacts()->search("John");',
         ],
         'filter_by_company' => [
             'description' => 'Get contacts for specific company',
-            'code' => '$contacts = $teamleader->contacts()->forCompany("company-uuid");'
+            'code' => '$contacts = $teamleader->contacts()->forCompany("company-uuid");',
         ],
         'filter_by_email' => [
             'description' => 'Find contact by email',
-            'code' => '$contacts = $teamleader->contacts()->byEmail("john@example.com");'
+            'code' => '$contacts = $teamleader->contacts()->byEmail("john@example.com");',
         ],
         'with_custom_fields' => [
             'description' => 'Get contacts with custom fields',
-            'code' => '$contacts = $teamleader->contacts()->withCustomFields()->list();'
+            'code' => '$contacts = $teamleader->contacts()->withCustomFields()->list();',
         ],
         'create_contact' => [
             'description' => 'Create a new contact',
-            'code' => '$contact = $teamleader->contacts()->create(["first_name" => "John", "last_name" => "Doe"]);'
-        ]
+            'code' => '$contact = $teamleader->contacts()->create(["first_name" => "John", "last_name" => "Doe"]);',
+        ],
     ];
 
     /**
@@ -89,7 +96,7 @@ class Contacts extends Resource
             $options['include'] ?? null
         );
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
@@ -99,14 +106,14 @@ class Contacts extends Resource
     {
         $params = ['id' => $id];
 
-        if (!empty($includes)) {
+        if (! empty($includes)) {
             $params = $this->applyIncludes($params, $includes);
         }
 
         // Apply any pending includes from fluent interface
         $params = $this->applyPendingIncludes($params);
 
-        return $this->api->request('POST', $this->getBasePath() . '.info', $params);
+        return $this->api->request('POST', $this->getBasePath().'.info', $params);
     }
 
     /**
@@ -115,7 +122,8 @@ class Contacts extends Resource
     public function create(array $data): array
     {
         $validatedData = $this->validateContactData($data, 'create');
-        return $this->api->request('POST', $this->getBasePath() . '.add', $validatedData);
+
+        return $this->api->request('POST', $this->getBasePath().'.add', $validatedData);
     }
 
     /**
@@ -125,7 +133,8 @@ class Contacts extends Resource
     {
         $data['id'] = $id;
         $validatedData = $this->validateContactData($data, 'update');
-        return $this->api->request('POST', $this->getBasePath() . '.update', $validatedData);
+
+        return $this->api->request('POST', $this->getBasePath().'.update', $validatedData);
     }
 
     /**
@@ -133,7 +142,7 @@ class Contacts extends Resource
      */
     public function delete($id, ...$additionalParams): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.delete', ['id' => $id]);
+        return $this->api->request('POST', $this->getBasePath().'.delete', ['id' => $id]);
     }
 
     /**
@@ -156,8 +165,8 @@ class Contacts extends Resource
             array_merge([
                 'email' => [
                     'type' => 'primary',
-                    'email' => $email
-                ]
+                    'email' => $email,
+                ],
             ], $options['filters'] ?? []),
             $options
         );
@@ -231,9 +240,9 @@ class Contacts extends Resource
             $tags = [$tags];
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.tag', [
+        return $this->api->request('POST', $this->getBasePath().'.tag', [
             'id' => $id,
-            'tags' => $tags
+            'tags' => $tags,
         ]);
     }
 
@@ -246,9 +255,9 @@ class Contacts extends Resource
             $tags = [$tags];
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.untag', [
+        return $this->api->request('POST', $this->getBasePath().'.untag', [
             'id' => $id,
-            'tags' => $tags
+            'tags' => $tags,
         ]);
     }
 
@@ -259,11 +268,11 @@ class Contacts extends Resource
     {
         $results = [];
 
-        if (!empty($tagsToAdd)) {
+        if (! empty($tagsToAdd)) {
             $results['tagged'] = $this->tag($id, $tagsToAdd);
         }
 
-        if (!empty($tagsToRemove)) {
+        if (! empty($tagsToRemove)) {
             $results['untagged'] = $this->untag($id, $tagsToRemove);
         }
 
@@ -277,7 +286,7 @@ class Contacts extends Resource
     {
         $params = [
             'id' => $id,
-            'company_id' => $companyId
+            'company_id' => $companyId,
         ];
 
         // Optional fields
@@ -289,7 +298,7 @@ class Contacts extends Resource
             $params['decision_maker'] = $data['decision_maker'];
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.linkToCompany', $params);
+        return $this->api->request('POST', $this->getBasePath().'.linkToCompany', $params);
     }
 
     /**
@@ -297,9 +306,9 @@ class Contacts extends Resource
      */
     public function unlinkFromCompany(string $id, string $companyId): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.unlinkFromCompany', [
+        return $this->api->request('POST', $this->getBasePath().'.unlinkFromCompany', [
             'id' => $id,
-            'company_id' => $companyId
+            'company_id' => $companyId,
         ]);
     }
 
@@ -310,7 +319,7 @@ class Contacts extends Resource
     {
         $params = [
             'id' => $id,
-            'company_id' => $companyId
+            'company_id' => $companyId,
         ];
 
         // Optional fields
@@ -322,7 +331,7 @@ class Contacts extends Resource
             $params['decision_maker'] = $data['decision_maker'];
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.updateCompanyLink', $params);
+        return $this->api->request('POST', $this->getBasePath().'.updateCompanyLink', $params);
     }
 
     /**
@@ -353,24 +362,24 @@ class Contacts extends Resource
         // Validate email format if provided
         if (isset($data['emails']) && is_array($data['emails'])) {
             foreach ($data['emails'] as $email) {
-                if (isset($email['email']) && !filter_var($email['email'], FILTER_VALIDATE_EMAIL)) {
-                    throw new InvalidArgumentException('Invalid email format: ' . $email['email']);
+                if (isset($email['email']) && ! filter_var($email['email'], FILTER_VALIDATE_EMAIL)) {
+                    throw new InvalidArgumentException('Invalid email format: '.$email['email']);
                 }
             }
         }
 
         // Validate website URL if provided
-        if (isset($data['website']) && !empty($data['website'])) {
-            if (!filter_var($data['website'], FILTER_VALIDATE_URL)) {
-                throw new InvalidArgumentException('Invalid website URL format: ' . $data['website']);
+        if (isset($data['website']) && ! empty($data['website'])) {
+            if (! filter_var($data['website'], FILTER_VALIDATE_URL)) {
+                throw new InvalidArgumentException('Invalid website URL format: '.$data['website']);
             }
         }
 
         // Validate gender if provided
         if (isset($data['gender'])) {
             $validGenders = ['female', 'male', 'non_binary', 'prefers_not_to_say', 'unknown'];
-            if (!in_array($data['gender'], $validGenders)) {
-                throw new InvalidArgumentException('Invalid gender. Must be one of: ' . implode(', ', $validGenders));
+            if (! in_array($data['gender'], $validGenders)) {
+                throw new InvalidArgumentException('Invalid gender. Must be one of: '.implode(', ', $validGenders));
             }
         }
 
@@ -405,12 +414,12 @@ class Contacts extends Resource
                     if (is_string($value)) {
                         $apiFilters['email'] = [
                             'type' => 'primary',
-                            'email' => $value
+                            'email' => $value,
                         ];
                     } elseif (is_array($value) && isset($value['email'])) {
                         $apiFilters['email'] = [
                             'type' => $value['type'] ?? 'primary',
-                            'email' => $value['email']
+                            'email' => $value['email'],
                         ];
                     }
                     break;
@@ -440,7 +449,7 @@ class Contacts extends Resource
                     $apiFilters['status'] = $value;
                     break;
 
-                // Handle legacy/alternative field names
+                    // Handle legacy/alternative field names
                 case 'search':
                 case 'general_search':
                     // Map general search to 'term'
@@ -449,7 +458,7 @@ class Contacts extends Resource
             }
         }
 
-        if (!empty($apiFilters)) {
+        if (! empty($apiFilters)) {
             $params['filter'] = $apiFilters;
         }
 
@@ -464,7 +473,7 @@ class Contacts extends Resource
         return [
             'added_at' => 'Date contact was added',
             'name' => 'Contact name (first_name + last_name)',
-            'updated_at' => 'Date contact was last updated'
+            'updated_at' => 'Date contact was last updated',
         ];
     }
 

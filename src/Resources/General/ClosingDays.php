@@ -13,12 +13,19 @@ class ClosingDays extends Resource
 
     // Resource capabilities based on API documentation
     protected bool $supportsCreation = true;
+
     protected bool $supportsUpdate = false;    // No update endpoint in API
+
     protected bool $supportsDeletion = true;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsSideloading = false; // No includes mentioned in API docs
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSorting = false;    // No sorting mentioned in API docs
+
     protected bool $supportsPagination = true;
 
     // Available includes for sideloading (none for closing days)
@@ -34,31 +41,30 @@ class ClosingDays extends Resource
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all closing days',
-            'code' => '$closingDays = $teamleader->closingDays()->list();'
+            'code' => '$closingDays = $teamleader->closingDays()->list();',
         ],
         'list_filtered' => [
             'description' => 'Get closing days within a date range',
-            'code' => '$closingDays = $teamleader->closingDays()->list([\'date_after\' => \'2023-12-01\', \'date_before\' => \'2023-12-31\']);'
+            'code' => '$closingDays = $teamleader->closingDays()->list([\'date_after\' => \'2023-12-01\', \'date_before\' => \'2023-12-31\']);',
         ],
         'add_closing_day' => [
             'description' => 'Add a new closing day',
-            'code' => '$result = $teamleader->closingDays()->create([\'day\' => \'2024-02-01\']);'
+            'code' => '$result = $teamleader->closingDays()->create([\'day\' => \'2024-02-01\']);',
         ],
         'delete_closing_day' => [
             'description' => 'Delete a closing day',
-            'code' => '$result = $teamleader->closingDays()->delete(\'closing-day-uuid\');'
+            'code' => '$result = $teamleader->closingDays()->delete(\'closing-day-uuid\');',
         ],
         'current_month' => [
             'description' => 'Get closing days for current month',
-            'code' => '$closingDays = $teamleader->closingDays()->forMonth(date(\'Y-m\'));'
-        ]
+            'code' => '$closingDays = $teamleader->closingDays()->forMonth(date(\'Y-m\'));',
+        ],
     ];
 
     /**
      * Delete a closing day
      *
-     * @param string $id Closing day UUID
-     * @return array
+     * @param  string  $id  Closing day UUID
      */
     public function delete($id, ...$additionalParams): array
     {
@@ -66,7 +72,7 @@ class ClosingDays extends Resource
             throw new InvalidArgumentException('Closing day ID is required for deletion');
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.delete', ['id' => $id]);
+        return $this->api->request('POST', $this->getBasePath().'.delete', ['id' => $id]);
     }
 
     /**
@@ -80,37 +86,35 @@ class ClosingDays extends Resource
     /**
      * Get closing days for a specific month
      *
-     * @param string $yearMonth Format: YYYY-MM
-     * @return array
+     * @param  string  $yearMonth  Format: YYYY-MM
      */
     public function forMonth(string $yearMonth): array
     {
-        if (!preg_match('/^\d{4}-\d{2}$/', $yearMonth)) {
+        if (! preg_match('/^\d{4}-\d{2}$/', $yearMonth)) {
             throw new InvalidArgumentException('Month format must be YYYY-MM');
         }
 
-        $startDate = $yearMonth . '-01';
+        $startDate = $yearMonth.'-01';
         $endDate = date('Y-m-t', strtotime($startDate));
 
         return $this->list([
             'date_after' => $startDate,
-            'date_before' => $endDate
+            'date_before' => $endDate,
         ]);
     }
 
     /**
      * List closing days with enhanced filtering and pagination
      *
-     * @param array $filters Filters to apply
-     * @param array $options Additional options (pagination)
-     * @return array
+     * @param  array  $filters  Filters to apply
+     * @param  array  $options  Additional options (pagination)
      */
     public function list(array $filters = [], array $options = []): array
     {
         $params = [];
 
         // Apply filters
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
@@ -118,7 +122,7 @@ class ClosingDays extends Resource
         if (isset($options['page_size']) || isset($options['page_number'])) {
             $params['page'] = [
                 'size' => $options['page_size'] ?? 20,
-                'number' => $options['page_number'] ?? 1
+                'number' => $options['page_number'] ?? 1,
             ];
         }
 
@@ -127,14 +131,11 @@ class ClosingDays extends Resource
             $params['include'] = 'pagination';
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
      * Build filters array for the API request
-     *
-     * @param array $filters
-     * @return array
      */
     private function buildFilters(array $filters): array
     {
@@ -142,7 +143,7 @@ class ClosingDays extends Resource
 
         // Handle date_before filter
         if (isset($filters['date_before'])) {
-            if (!$this->isValidDate($filters['date_before'])) {
+            if (! $this->isValidDate($filters['date_before'])) {
                 throw new InvalidArgumentException('date_before must be in YYYY-MM-DD format');
             }
             $apiFilters['date_before'] = $filters['date_before'];
@@ -150,7 +151,7 @@ class ClosingDays extends Resource
 
         // Handle date_after filter
         if (isset($filters['date_after'])) {
-            if (!$this->isValidDate($filters['date_after'])) {
+            if (! $this->isValidDate($filters['date_after'])) {
                 throw new InvalidArgumentException('date_after must be in YYYY-MM-DD format');
             }
             $apiFilters['date_after'] = $filters['date_after'];
@@ -161,44 +162,40 @@ class ClosingDays extends Resource
 
     /**
      * Validate date format
-     *
-     * @param string $date
-     * @return bool
      */
     private function isValidDate(string $date): bool
     {
         $d = DateTime::createFromFormat('Y-m-d', $date);
+
         return $d && $d->format('Y-m-d') === $date;
     }
 
     /**
      * Get closing days for a specific year
      *
-     * @param int|string $year
-     * @return array
+     * @param  int|string  $year
      */
     public function forYear($year): array
     {
-        if (!is_numeric($year) || $year < 1900 || $year > 2100) {
+        if (! is_numeric($year) || $year < 1900 || $year > 2100) {
             throw new InvalidArgumentException('Year must be a valid 4-digit year');
         }
 
         return $this->list([
-            'date_after' => $year . '-01-01',
-            'date_before' => $year . '-12-31'
+            'date_after' => $year.'-01-01',
+            'date_before' => $year.'-12-31',
         ]);
     }
 
     /**
      * Get closing days within a date range
      *
-     * @param string $startDate Start date (YYYY-MM-DD)
-     * @param string $endDate End date (YYYY-MM-DD)
-     * @return array
+     * @param  string  $startDate  Start date (YYYY-MM-DD)
+     * @param  string  $endDate  End date (YYYY-MM-DD)
      */
     public function forDateRange(string $startDate, string $endDate): array
     {
-        if (!$this->isValidDate($startDate) || !$this->isValidDate($endDate)) {
+        if (! $this->isValidDate($startDate) || ! $this->isValidDate($endDate)) {
             throw new InvalidArgumentException('Both dates must be in YYYY-MM-DD format');
         }
 
@@ -208,15 +205,14 @@ class ClosingDays extends Resource
 
         return $this->list([
             'date_after' => $startDate,
-            'date_before' => $endDate
+            'date_before' => $endDate,
         ]);
     }
 
     /**
      * Get upcoming closing days (from today forward)
      *
-     * @param int $daysAhead Number of days to look ahead (default: 30)
-     * @return array
+     * @param  int  $daysAhead  Number of days to look ahead (default: 30)
      */
     public function upcoming(int $daysAhead = 30): array
     {
@@ -225,47 +221,44 @@ class ClosingDays extends Resource
 
         return $this->list([
             'date_after' => $today,
-            'date_before' => $futureDate
+            'date_before' => $futureDate,
         ]);
     }
 
     /**
      * Check if a specific date is a closing day
      *
-     * @param string $date Date in YYYY-MM-DD format
-     * @return bool
+     * @param  string  $date  Date in YYYY-MM-DD format
      */
     public function isClosingDay(string $date): bool
     {
-        if (!$this->isValidDate($date)) {
+        if (! $this->isValidDate($date)) {
             throw new InvalidArgumentException('Date must be in YYYY-MM-DD format');
         }
 
         $result = $this->list([
             'date_after' => $date,
-            'date_before' => $date
+            'date_before' => $date,
         ]);
 
-        return !empty($result['data']) && count($result['data']) > 0;
+        return ! empty($result['data']) && count($result['data']) > 0;
     }
 
     /**
      * Get available filter fields
-     *
-     * @return array
      */
     public function getAvailableFilters(): array
     {
         return [
             'date_before' => 'End of the period (inclusive)',
-            'date_after' => 'Start of the period (inclusive)'
+            'date_after' => 'Start of the period (inclusive)',
         ];
     }
 
     /**
      * Bulk add multiple closing days
      *
-     * @param array $dates Array of dates in YYYY-MM-DD format
+     * @param  array  $dates  Array of dates in YYYY-MM-DD format
      * @return array Results of all create operations
      */
     public function bulkAdd(array $dates): array
@@ -279,7 +272,7 @@ class ClosingDays extends Resource
                 $results[] = [
                     'error' => true,
                     'date' => $date,
-                    'message' => $e->getMessage()
+                    'message' => $e->getMessage(),
                 ];
             }
         }
@@ -290,8 +283,7 @@ class ClosingDays extends Resource
     /**
      * Add a closing day (alias for create)
      *
-     * @param string $day Date in YYYY-MM-DD format
-     * @return array
+     * @param  string  $day  Date in YYYY-MM-DD format
      */
     public function add(string $day): array
     {
@@ -301,39 +293,37 @@ class ClosingDays extends Resource
     /**
      * Add a closing day (create method override)
      *
-     * @param array $data Data containing 'day' field
-     * @return array
+     * @param  array  $data  Data containing 'day' field
      */
     public function create(array $data): array
     {
         // Validate required field
-        if (!isset($data['day']) || empty($data['day'])) {
+        if (! isset($data['day']) || empty($data['day'])) {
             throw new InvalidArgumentException('The "day" field is required to create a closing day');
         }
 
         // Validate date format
-        if (!$this->isValidDate($data['day'])) {
+        if (! $this->isValidDate($data['day'])) {
             throw new InvalidArgumentException('The "day" field must be a valid date in YYYY-MM-DD format');
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.add', $data);
+        return $this->api->request('POST', $this->getBasePath().'.add', $data);
     }
 
     /**
      * Get holidays for common countries (convenience method)
      * Note: This would typically be combined with external holiday APIs
      *
-     * @param int $year
-     * @param string $country Country code (for future extension)
+     * @param  string  $country  Country code (for future extension)
      * @return array Suggested dates for common holidays
      */
     public function getCommonHolidays(int $year, string $country = 'BE'): array
     {
         // Basic holidays for Belgium (can be extended)
         $holidays = [
-            'New Year\'s Day' => $year . '-01-01',
-            'Christmas Day' => $year . '-12-25',
-            'Boxing Day' => $year . '-12-26',
+            'New Year\'s Day' => $year.'-01-01',
+            'Christmas Day' => $year.'-12-25',
+            'Boxing Day' => $year.'-12-26',
         ];
 
         // Add Easter-based holidays (simplified calculation)
@@ -345,20 +335,16 @@ class ClosingDays extends Resource
 
     /**
      * Override the default validation
-     *
-     * @param array $data
-     * @param string $operation
-     * @return array
      */
     protected function validateData(array $data, string $operation = 'create'): array
     {
         if ($operation === 'create') {
             // Validate required fields for creation
-            if (!isset($data['day'])) {
+            if (! isset($data['day'])) {
                 throw new InvalidArgumentException('The "day" field is required');
             }
 
-            if (!$this->isValidDate($data['day'])) {
+            if (! $this->isValidDate($data['day'])) {
                 throw new InvalidArgumentException('The "day" field must be a valid date in YYYY-MM-DD format');
             }
         }
@@ -368,8 +354,6 @@ class ClosingDays extends Resource
 
     /**
      * Override getSuggestedIncludes as closing days don't have includes
-     *
-     * @return array
      */
     protected function getSuggestedIncludes(): array
     {

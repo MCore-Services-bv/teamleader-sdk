@@ -11,12 +11,19 @@ class CloudPlatforms extends Resource
 
     // Resource capabilities - CloudPlatforms only supports URL fetching
     protected bool $supportsCreation = false;
+
     protected bool $supportsUpdate = false;
+
     protected bool $supportsDeletion = false;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = false;
+
     protected bool $supportsSorting = false;
+
     protected bool $supportsFiltering = false;
+
     protected bool $supportsSideloading = false;
 
     // Available includes for sideloading (none for cloud platforms)
@@ -40,22 +47,22 @@ class CloudPlatforms extends Resource
         'get_invoice_url' => [
             'description' => 'Get cloud platform URL for an invoice',
             'code' => '$result = $teamleader->cloudPlatforms()->url("invoice", "invoice-uuid");
-$url = $result["data"]["url"];'
+$url = $result["data"]["url"];',
         ],
         'get_quotation_url' => [
             'description' => 'Get cloud platform URL for a quotation',
             'code' => '$result = $teamleader->cloudPlatforms()->url("quotation", "quotation-uuid");
-$url = $result["data"]["url"];'
+$url = $result["data"]["url"];',
         ],
         'get_ticket_url' => [
             'description' => 'Get cloud platform URL for a ticket',
             'code' => '$result = $teamleader->cloudPlatforms()->url("ticket", "ticket-uuid");
-$url = $result["data"]["url"];'
+$url = $result["data"]["url"];',
         ],
         'redirect_to_invoice' => [
             'description' => 'Redirect user to invoice in cloud platform',
             'code' => '$result = $teamleader->cloudPlatforms()->url("invoice", $invoiceId);
-return redirect($result["data"]["url"]);'
+return redirect($result["data"]["url"]);',
         ],
         'get_multiple_urls' => [
             'description' => 'Get cloud platform URLs for multiple resources',
@@ -65,7 +72,7 @@ $urls = [];
 foreach ($invoiceIds as $id) {
     $result = $teamleader->cloudPlatforms()->url("invoice", $id);
     $urls[$id] = $result["data"]["url"];
-}'
+}',
         ],
     ];
 
@@ -80,9 +87,10 @@ foreach ($invoiceIds as $id) {
     /**
      * Fetch cloud platform URL for a specific resource type and ID
      *
-     * @param string $type Resource type (invoice, quotation, or ticket)
-     * @param string $id Resource UUID
+     * @param  string  $type  Resource type (invoice, quotation, or ticket)
+     * @param  string  $id  Resource UUID
      * @return array Response containing the cloud platform URL
+     *
      * @throws InvalidArgumentException
      */
     public function url(string $type, string $id): array
@@ -94,14 +102,14 @@ foreach ($invoiceIds as $id) {
             'id' => $id,
         ];
 
-        return $this->api->request('POST', $this->getBasePath() . '.url', $data);
+        return $this->api->request('POST', $this->getBasePath().'.url', $data);
     }
 
     /**
      * Get cloud platform URL for an invoice
      * Convenience method for invoice-specific URLs
      *
-     * @param string $invoiceId Invoice UUID
+     * @param  string  $invoiceId  Invoice UUID
      * @return array Response containing the cloud platform URL
      */
     public function invoiceUrl(string $invoiceId): array
@@ -113,7 +121,7 @@ foreach ($invoiceIds as $id) {
      * Get cloud platform URL for a quotation
      * Convenience method for quotation-specific URLs
      *
-     * @param string $quotationId Quotation UUID
+     * @param  string  $quotationId  Quotation UUID
      * @return array Response containing the cloud platform URL
      */
     public function quotationUrl(string $quotationId): array
@@ -125,7 +133,7 @@ foreach ($invoiceIds as $id) {
      * Get cloud platform URL for a ticket
      * Convenience method for ticket-specific URLs
      *
-     * @param string $ticketId Ticket UUID
+     * @param  string  $ticketId  Ticket UUID
      * @return array Response containing the cloud platform URL
      */
     public function ticketUrl(string $ticketId): array
@@ -137,16 +145,17 @@ foreach ($invoiceIds as $id) {
      * Get cloud platform URLs for multiple resources of the same type
      * This is a convenience method that calls the API multiple times
      *
-     * @param string $type Resource type
-     * @param array $ids Array of resource UUIDs
+     * @param  string  $type  Resource type
+     * @param  array  $ids  Array of resource UUIDs
      * @return array Associative array mapping IDs to URLs
+     *
      * @throws InvalidArgumentException
      */
     public function batchUrls(string $type, array $ids): array
     {
-        if (!in_array($type, $this->supportedTypes)) {
+        if (! in_array($type, $this->supportedTypes)) {
             throw new InvalidArgumentException(
-                "Invalid type: {$type}. Must be one of: " . implode(', ', $this->supportedTypes)
+                "Invalid type: {$type}. Must be one of: ".implode(', ', $this->supportedTypes)
             );
         }
 
@@ -167,20 +176,21 @@ foreach ($invoiceIds as $id) {
     /**
      * Extract just the URL string from the API response
      *
-     * @param string $type Resource type
-     * @param string $id Resource UUID
+     * @param  string  $type  Resource type
+     * @param  string  $id  Resource UUID
      * @return string The cloud platform URL
      */
     public function getUrl(string $type, string $id): string
     {
         $result = $this->url($type, $id);
+
         return $result['data']['url'];
     }
 
     /**
      * Extract just the URL string for an invoice
      *
-     * @param string $invoiceId Invoice UUID
+     * @param  string  $invoiceId  Invoice UUID
      * @return string The cloud platform URL
      */
     public function getInvoiceUrl(string $invoiceId): string
@@ -191,7 +201,7 @@ foreach ($invoiceIds as $id) {
     /**
      * Extract just the URL string for a quotation
      *
-     * @param string $quotationId Quotation UUID
+     * @param  string  $quotationId  Quotation UUID
      * @return string The cloud platform URL
      */
     public function getQuotationUrl(string $quotationId): string
@@ -202,7 +212,7 @@ foreach ($invoiceIds as $id) {
     /**
      * Extract just the URL string for a ticket
      *
-     * @param string $ticketId Ticket UUID
+     * @param  string  $ticketId  Ticket UUID
      * @return string The cloud platform URL
      */
     public function getTicketUrl(string $ticketId): string
@@ -213,8 +223,6 @@ foreach ($invoiceIds as $id) {
     /**
      * Validate URL request parameters
      *
-     * @param string $type
-     * @param string $id
      * @throws InvalidArgumentException
      */
     protected function validateUrlRequest(string $type, string $id): void
@@ -224,9 +232,9 @@ foreach ($invoiceIds as $id) {
             throw new InvalidArgumentException('Resource type is required');
         }
 
-        if (!in_array($type, $this->supportedTypes)) {
+        if (! in_array($type, $this->supportedTypes)) {
             throw new InvalidArgumentException(
-                "Invalid type: {$type}. Must be one of: " . implode(', ', $this->supportedTypes)
+                "Invalid type: {$type}. Must be one of: ".implode(', ', $this->supportedTypes)
             );
         }
 
@@ -236,7 +244,7 @@ foreach ($invoiceIds as $id) {
         }
 
         // Basic UUID format validation
-        if (!$this->isValidUuid($id)) {
+        if (! $this->isValidUuid($id)) {
             throw new InvalidArgumentException(
                 "Invalid ID format: {$id}. Must be a valid UUID."
             );
@@ -245,20 +253,16 @@ foreach ($invoiceIds as $id) {
 
     /**
      * Check if a string is a valid UUID format
-     *
-     * @param string $uuid
-     * @return bool
      */
     protected function isValidUuid(string $uuid): bool
     {
         $pattern = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i';
+
         return preg_match($pattern, $uuid) === 1;
     }
 
     /**
      * Get all supported resource types
-     *
-     * @return array
      */
     public function getSupportedTypes(): array
     {
@@ -267,9 +271,6 @@ foreach ($invoiceIds as $id) {
 
     /**
      * Check if a resource type is supported
-     *
-     * @param string $type
-     * @return bool
      */
     public function isTypeSupported(string $type): bool
     {

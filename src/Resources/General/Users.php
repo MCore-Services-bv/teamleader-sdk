@@ -10,13 +10,16 @@ class Users extends Resource
 
     // Resource capabilities
     protected bool $supportsCreation = false;  // Based on API docs, no create endpoint
+
     protected bool $supportsUpdate = false;    // Based on API docs, no update endpoint
+
     protected bool $supportsDeletion = false;  // Based on API docs, no delete endpoint
+
     protected bool $supportsBatch = false;
 
     // Available includes for sideloading
     protected array $availableIncludes = [
-        'external_rate' => 'Include external hourly rates for the user'
+        'external_rate' => 'Include external hourly rates for the user',
     ];
 
     // Common filters based on API documentation
@@ -30,36 +33,36 @@ class Users extends Resource
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all users',
-            'code' => '$users = $teamleader->users()->list();'
+            'code' => '$users = $teamleader->users()->list();',
         ],
         'list_active' => [
             'description' => 'Get only active users',
-            'code' => '$users = $teamleader->users()->list([\'status\' => [\'active\']]);'
+            'code' => '$users = $teamleader->users()->list([\'status\' => [\'active\']]);',
         ],
         'search_users' => [
             'description' => 'Search users by term',
-            'code' => '$users = $teamleader->users()->list([\'term\' => \'John\']);'
+            'code' => '$users = $teamleader->users()->list([\'term\' => \'John\']);',
         ],
         'sorted_list' => [
             'description' => 'Get users sorted by first name',
-            'code' => '$users = $teamleader->users()->list([], [\'sort\' => [[\'field\' => \'first_name\', \'order\' => \'asc\']]]);'
+            'code' => '$users = $teamleader->users()->list([], [\'sort\' => [[\'field\' => \'first_name\', \'order\' => \'asc\']]]);',
         ],
         'get_single' => [
             'description' => 'Get a single user with external rate',
-            'code' => '$user = $teamleader->users()->info(\'user-uuid-here\', \'external_rate\');'
+            'code' => '$user = $teamleader->users()->info(\'user-uuid-here\', \'external_rate\');',
         ],
         'get_current_user' => [
             'description' => 'Get current authenticated user',
-            'code' => '$currentUser = $teamleader->users()->me();'
+            'code' => '$currentUser = $teamleader->users()->me();',
         ],
         'get_user_schedule' => [
             'description' => 'Get user week schedule',
-            'code' => '$schedule = $teamleader->users()->getWeekSchedule(\'user-uuid-here\');'
+            'code' => '$schedule = $teamleader->users()->getWeekSchedule(\'user-uuid-here\');',
         ],
         'get_user_days_off' => [
             'description' => 'Get user days off',
-            'code' => '$daysOff = $teamleader->users()->listDaysOff(\'user-uuid-here\', [\'starts_after\' => \'2023-10-01\']);'
-        ]
+            'code' => '$daysOff = $teamleader->users()->listDaysOff(\'user-uuid-here\', [\'starts_after\' => \'2023-10-01\']);',
+        ],
     ];
 
     /**
@@ -73,16 +76,15 @@ class Users extends Resource
     /**
      * List users with enhanced filtering and sorting
      *
-     * @param array $filters Filters to apply
-     * @param array $options Additional options (sorting, pagination)
-     * @return array
+     * @param  array  $filters  Filters to apply
+     * @param  array  $options  Additional options (sorting, pagination)
      */
     public function list(array $filters = [], array $options = []): array
     {
         $params = [];
 
         // Apply filters
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
@@ -95,26 +97,25 @@ class Users extends Resource
         if (isset($options['page_size']) || isset($options['page_number'])) {
             $params['page'] = [
                 'size' => $options['page_size'] ?? 20,
-                'number' => $options['page_number'] ?? 1
+                'number' => $options['page_number'] ?? 1,
             ];
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
      * Get user information
      *
-     * @param string $id User UUID
-     * @param mixed $includes Includes (external_rate)
-     * @return array
+     * @param  string  $id  User UUID
+     * @param  mixed  $includes  Includes (external_rate)
      */
     public function info($id, $includes = null): array
     {
         $params = ['id' => $id];
 
         // Handle includes
-        if (!empty($includes)) {
+        if (! empty($includes)) {
             if (is_array($includes)) {
                 $params['includes'] = implode(',', $includes);
             } else {
@@ -125,47 +126,43 @@ class Users extends Resource
         // Apply any pending includes from fluent interface
         $params = $this->applyPendingIncludes($params);
 
-        return $this->api->request('POST', $this->getBasePath() . '.info', $params);
+        return $this->api->request('POST', $this->getBasePath().'.info', $params);
     }
 
     /**
      * Get current authenticated user
-     *
-     * @return array
      */
     public function me(): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.me');
+        return $this->api->request('POST', $this->getBasePath().'.me');
     }
 
     /**
      * Get user week schedule
      * Only available with the Weekly working schedule feature
      *
-     * @param string $id User UUID
-     * @return array
+     * @param  string  $id  User UUID
      */
     public function getWeekSchedule(string $id): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.getWeekSchedule', [
-            'id' => $id
+        return $this->api->request('POST', $this->getBasePath().'.getWeekSchedule', [
+            'id' => $id,
         ]);
     }
 
     /**
      * List user days off
      *
-     * @param string $id User UUID
-     * @param array $filters Filter options (starts_after, ends_before)
-     * @param array $options Pagination options
-     * @return array
+     * @param  string  $id  User UUID
+     * @param  array  $filters  Filter options (starts_after, ends_before)
+     * @param  array  $options  Pagination options
      */
     public function listDaysOff(string $id, array $filters = [], array $options = []): array
     {
         $params = ['id' => $id];
 
         // Apply filters
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = [];
 
             if (isset($filters['starts_after'])) {
@@ -181,17 +178,15 @@ class Users extends Resource
         if (isset($options['page_size']) || isset($options['page_number'])) {
             $params['page'] = [
                 'size' => $options['page_size'] ?? 20,
-                'number' => $options['page_number'] ?? 1
+                'number' => $options['page_number'] ?? 1,
             ];
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.listDaysOff', $params);
+        return $this->api->request('POST', $this->getBasePath().'.listDaysOff', $params);
     }
 
     /**
      * Get active users only
-     *
-     * @return array
      */
     public function active(): array
     {
@@ -200,8 +195,6 @@ class Users extends Resource
 
     /**
      * Get deactivated users only
-     *
-     * @return array
      */
     public function deactivated(): array
     {
@@ -211,8 +204,7 @@ class Users extends Resource
     /**
      * Search users by term
      *
-     * @param string $term Search term
-     * @return array
+     * @param  string  $term  Search term
      */
     public function search(string $term): array
     {
@@ -222,8 +214,7 @@ class Users extends Resource
     /**
      * Get users by specific IDs
      *
-     * @param array $ids Array of user UUIDs
-     * @return array
+     * @param  array  $ids  Array of user UUIDs
      */
     public function byIds(array $ids): array
     {
@@ -242,9 +233,6 @@ class Users extends Resource
 
     /**
      * Build filters array for the API request
-     *
-     * @param array $filters
-     * @return array
      */
     private function buildFilters(array $filters): array
     {
@@ -275,8 +263,7 @@ class Users extends Resource
     /**
      * Build sort array for the API request
      *
-     * @param mixed $sort
-     * @return array
+     * @param  mixed  $sort
      */
     private function buildSort($sort): array
     {
@@ -290,8 +277,8 @@ class Users extends Resource
             return [
                 [
                     'field' => $sort,
-                    'order' => 'asc'
-                ]
+                    'order' => 'asc',
+                ],
             ];
         }
 
@@ -305,10 +292,11 @@ class Users extends Resource
                 } else {
                     $sortArray[] = [
                         'field' => $field,
-                        'order' => $order
+                        'order' => $order,
                     ];
                 }
             }
+
             return $sortArray;
         }
 
@@ -317,8 +305,6 @@ class Users extends Resource
 
     /**
      * Get available sort fields for users (based on API documentation)
-     *
-     * @return array
      */
     public function getAvailableSortFields(): array
     {
@@ -326,14 +312,12 @@ class Users extends Resource
             'first_name' => 'Sort by first name',
             'last_name' => 'Sort by last name',
             'email' => 'Sort by email address',
-            'function' => 'Sort by user function/role'
+            'function' => 'Sort by user function/role',
         ];
     }
 
     /**
      * Get available status values for filtering
-     *
-     * @return array
      */
     public function getAvailableStatuses(): array
     {
@@ -342,8 +326,6 @@ class Users extends Resource
 
     /**
      * Override getSuggestedIncludes for users
-     *
-     * @return array
      */
     protected function getSuggestedIncludes(): array
     {

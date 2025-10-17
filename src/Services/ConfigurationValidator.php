@@ -2,11 +2,10 @@
 
 namespace McoreServices\TeamleaderSDK\Services;
 
-use McoreServices\TeamleaderSDK\Exceptions\ConfigurationException;
-
 class ConfigurationValidator
 {
     private array $errors = [];
+
     private array $warnings = [];
 
     public function validate(): ValidationResult
@@ -32,7 +31,7 @@ class ConfigurationValidator
         $required = [
             'teamleader.client_id' => 'TEAMLEADER_CLIENT_ID',
             'teamleader.client_secret' => 'TEAMLEADER_CLIENT_SECRET',
-            'teamleader.redirect_uri' => 'TEAMLEADER_REDIRECT_URI'
+            'teamleader.redirect_uri' => 'TEAMLEADER_REDIRECT_URI',
         ];
 
         foreach ($required as $config => $env) {
@@ -40,6 +39,7 @@ class ConfigurationValidator
 
             if (empty($value)) {
                 $this->errors[] = "Missing required configuration: {$env}";
+
                 continue;
             }
 
@@ -62,7 +62,7 @@ class ConfigurationValidator
         $urls = [
             'teamleader.redirect_uri' => 'Redirect URI',
             'teamleader.base_url' => 'Base URL',
-            'teamleader.auth_url' => 'Auth URL'
+            'teamleader.auth_url' => 'Auth URL',
         ];
 
         foreach ($urls as $config => $name) {
@@ -73,22 +73,24 @@ class ConfigurationValidator
                 if ($config === 'teamleader.redirect_uri') {
                     $this->errors[] = "Missing {$name}";
                 }
+
                 continue;
             }
 
-            if (!filter_var($url, FILTER_VALIDATE_URL)) {
+            if (! filter_var($url, FILTER_VALIDATE_URL)) {
                 $this->errors[] = "Invalid {$name} format: {$url}";
+
                 continue;
             }
 
             // Additional URL validation
             if ($config === 'teamleader.redirect_uri') {
-                if (!in_array(parse_url($url, PHP_URL_SCHEME), ['http', 'https'])) {
-                    $this->errors[] = "Redirect URI must use http or https scheme";
+                if (! in_array(parse_url($url, PHP_URL_SCHEME), ['http', 'https'])) {
+                    $this->errors[] = 'Redirect URI must use http or https scheme';
                 }
 
                 if (app()->environment('production') && parse_url($url, PHP_URL_SCHEME) === 'http') {
-                    $this->warnings[] = "Using HTTP redirect URI in production is not recommended - use HTTPS";
+                    $this->warnings[] = 'Using HTTP redirect URI in production is not recommended - use HTTPS';
                 }
             }
         }
@@ -116,7 +118,7 @@ class ConfigurationValidator
             }
         } else {
             // Development-specific checks
-            if (!config('teamleader.development.debug_mode')) {
+            if (! config('teamleader.development.debug_mode')) {
                 $this->warnings[] = 'Debug mode is disabled in development - you might want to enable it';
             }
         }
@@ -139,7 +141,7 @@ class ConfigurationValidator
         if (config('teamleader.caching.enabled')) {
             $store = config('teamleader.caching.store');
 
-            if ($store !== 'default' && !config("cache.stores.{$store}")) {
+            if ($store !== 'default' && ! config("cache.stores.{$store}")) {
                 $this->errors[] = "Cache store '{$store}' is not configured";
             }
 
@@ -181,13 +183,14 @@ class ConfigurationValidator
             \DB::connection()->getPdo();
         } catch (\Exception $e) {
             $this->errors[] = "Database connection failed: {$e->getMessage()}";
+
             return;
         }
 
         // Check if migrations might be needed
         try {
             $hasTable = \DB::getSchemaBuilder()->hasTable('teamleader_tokens');
-            if (!$hasTable) {
+            if (! $hasTable) {
                 $this->warnings[] = 'Teamleader tokens table does not exist - token storage will be created automatically';
             }
         } catch (\Exception $e) {
@@ -204,20 +207,20 @@ class ConfigurationValidator
         $recommended = ['redis', 'memcached'];
 
         foreach ($required as $ext) {
-            if (!extension_loaded($ext)) {
+            if (! extension_loaded($ext)) {
                 $this->errors[] = "Required PHP extension '{$ext}' is not loaded";
             }
         }
 
         foreach ($recommended as $ext) {
-            if (!extension_loaded($ext)) {
+            if (! extension_loaded($ext)) {
                 $this->warnings[] = "Recommended PHP extension '{$ext}' is not loaded (needed for advanced caching)";
             }
         }
 
         // Check PHP version
         if (version_compare(PHP_VERSION, '8.2.0', '<')) {
-            $this->warnings[] = "PHP version " . PHP_VERSION . " is supported but PHP 8.2+ is recommended";
+            $this->warnings[] = 'PHP version '.PHP_VERSION.' is supported but PHP 8.2+ is recommended';
         }
     }
 
@@ -234,7 +237,7 @@ class ConfigurationValidator
 
         if (version_compare($laravelVersion, '11.0', '>=')) {
             // Check for Laravel 11 specific compatibility
-            $this->warnings[] = "Laravel 11 detected - ensure all features are compatible";
+            $this->warnings[] = 'Laravel 11 detected - ensure all features are compatible';
         }
     }
 
@@ -246,12 +249,12 @@ class ConfigurationValidator
         $suggestions = [];
 
         // Performance suggestions
-        if (!config('teamleader.caching.enabled')) {
+        if (! config('teamleader.caching.enabled')) {
             $suggestions[] = [
                 'type' => 'performance',
                 'title' => 'Enable Caching',
                 'description' => 'Enable response caching to improve performance',
-                'config' => 'teamleader.caching.enabled = true'
+                'config' => 'teamleader.caching.enabled = true',
             ];
         }
 
@@ -261,18 +264,18 @@ class ConfigurationValidator
                 'type' => 'security',
                 'title' => 'Disable Debug Mode',
                 'description' => 'Debug mode should be disabled in production',
-                'config' => 'teamleader.development.debug_mode = false'
+                'config' => 'teamleader.development.debug_mode = false',
             ];
         }
 
         // Reliability suggestions
         $timeout = config('teamleader.api.timeout');
-        if (!$timeout || $timeout < 30) {
+        if (! $timeout || $timeout < 30) {
             $suggestions[] = [
                 'type' => 'reliability',
                 'title' => 'Increase API Timeout',
                 'description' => 'Consider increasing API timeout for better reliability',
-                'config' => 'teamleader.api.timeout = 30'
+                'config' => 'teamleader.api.timeout = 30',
             ];
         }
 
@@ -288,8 +291,8 @@ class ConfigurationValidator
 
         return [
             'overall_status' => $validation->isValid() ? 'valid' : 'invalid',
-            'has_errors' => !empty($this->errors),
-            'has_warnings' => !empty($this->warnings),
+            'has_errors' => ! empty($this->errors),
+            'has_warnings' => ! empty($this->warnings),
             'errors' => $this->errors,
             'warnings' => $this->warnings,
             'suggestions' => $this->getSuggestions(),
@@ -297,13 +300,13 @@ class ConfigurationValidator
             'php_version' => PHP_VERSION,
             'laravel_version' => app()->version(),
             'configuration_summary' => [
-                'client_id' => !empty(config('teamleader.client_id')) ? 'configured' : 'missing',
-                'client_secret' => !empty(config('teamleader.client_secret')) ? 'configured' : 'missing',
+                'client_id' => ! empty(config('teamleader.client_id')) ? 'configured' : 'missing',
+                'client_secret' => ! empty(config('teamleader.client_secret')) ? 'configured' : 'missing',
                 'redirect_uri' => config('teamleader.redirect_uri', 'missing'),
                 'caching_enabled' => config('teamleader.caching.enabled', false),
                 'debug_mode' => config('teamleader.development.debug_mode', false),
             ],
-            'validated_at' => now()->toISOString()
+            'validated_at' => now()->toISOString(),
         ];
     }
 }
@@ -322,14 +325,14 @@ class ValidationResult
 
     public function hasWarnings(): bool
     {
-        return !empty($this->warnings);
+        return ! empty($this->warnings);
     }
 
     public function getAllIssues(): array
     {
         return array_merge(
-            array_map(fn($error) => ['type' => 'error', 'message' => $error], $this->errors),
-            array_map(fn($warning) => ['type' => 'warning', 'message' => $warning], $this->warnings)
+            array_map(fn ($error) => ['type' => 'error', 'message' => $error], $this->errors),
+            array_map(fn ($warning) => ['type' => 'warning', 'message' => $warning], $this->warnings)
         );
     }
 
@@ -348,10 +351,10 @@ class ValidationResult
         if ($this->isValid()) {
             return $this->hasWarnings()
                 ? "Configuration is valid with {$this->getWarningCount()} warning(s)"
-                : "Configuration is valid";
+                : 'Configuration is valid';
         }
 
-        return "Configuration has {$this->getErrorCount()} error(s)" .
-            ($this->hasWarnings() ? " and {$this->getWarningCount()} warning(s)" : "");
+        return "Configuration has {$this->getErrorCount()} error(s)".
+            ($this->hasWarnings() ? " and {$this->getWarningCount()} warning(s)" : '');
     }
 }

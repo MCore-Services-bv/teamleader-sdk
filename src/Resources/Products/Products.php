@@ -11,18 +11,25 @@ class Products extends Resource
 
     // Resource capabilities - Products support full CRUD operations
     protected bool $supportsCreation = true;
+
     protected bool $supportsUpdate = true;
+
     protected bool $supportsDeletion = true;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = true;
+
     protected bool $supportsSorting = false; // API docs don't mention sorting for products
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSideloading = true;
 
     // Available includes for sideloading (based on API docs)
     protected array $availableIncludes = [
         'suppliers',
-        'custom_fields'
+        'custom_fields',
     ];
 
     // Default includes
@@ -32,31 +39,31 @@ class Products extends Resource
     protected array $commonFilters = [
         'ids' => 'Array of product UUIDs',
         'term' => 'Search term (will filter on the name or the code)',
-        'updated_since' => 'ISO 8601 datetime'
+        'updated_since' => 'ISO 8601 datetime',
     ];
 
     // Usage examples specific to products
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all products',
-            'code' => '$products = $teamleader->products()->list();'
+            'code' => '$products = $teamleader->products()->list();',
         ],
         'search_by_term' => [
             'description' => 'Search products by name or code',
-            'code' => '$products = $teamleader->products()->search("cookies");'
+            'code' => '$products = $teamleader->products()->search("cookies");',
         ],
         'with_suppliers' => [
             'description' => 'Get products with suppliers',
-            'code' => '$products = $teamleader->products()->withSuppliers()->list();'
+            'code' => '$products = $teamleader->products()->withSuppliers()->list();',
         ],
         'with_custom_fields' => [
             'description' => 'Get products with custom fields',
-            'code' => '$products = $teamleader->products()->withCustomFields()->list();'
+            'code' => '$products = $teamleader->products()->withCustomFields()->list();',
         ],
         'create_product' => [
             'description' => 'Create a new product',
-            'code' => '$product = $teamleader->products()->create(["name" => "Dark Chocolate Cookies", "code" => "COOK-DARK-001"]);'
-        ]
+            'code' => '$product = $teamleader->products()->create(["name" => "Dark Chocolate Cookies", "code" => "COOK-DARK-001"]);',
+        ],
     ];
 
     /**
@@ -94,7 +101,7 @@ class Products extends Resource
         // Apply any pending includes from fluent interface
         $params = $this->applyPendingIncludes($params);
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
@@ -105,7 +112,7 @@ class Products extends Resource
         $params = ['id' => $id];
 
         // FIXED: Use 'includes' parameter name as per API documentation
-        if (!empty($includes)) {
+        if (! empty($includes)) {
             if (is_array($includes)) {
                 $params['includes'] = implode(',', $includes);
             } else {
@@ -114,12 +121,12 @@ class Products extends Resource
         }
 
         // Apply any pending includes from fluent interface
-        if (!empty($this->pendingIncludes)) {
+        if (! empty($this->pendingIncludes)) {
             $existingIncludes = $params['includes'] ?? '';
             $pendingIncludesStr = implode(',', $this->pendingIncludes);
 
-            if (!empty($existingIncludes)) {
-                $params['includes'] = $existingIncludes . ',' . $pendingIncludesStr;
+            if (! empty($existingIncludes)) {
+                $params['includes'] = $existingIncludes.','.$pendingIncludesStr;
             } else {
                 $params['includes'] = $pendingIncludesStr;
             }
@@ -128,7 +135,7 @@ class Products extends Resource
             $this->pendingIncludes = [];
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.info', $params);
+        return $this->api->request('POST', $this->getBasePath().'.info', $params);
     }
 
     /**
@@ -137,7 +144,8 @@ class Products extends Resource
     public function create(array $data): array
     {
         $validatedData = $this->validateProductData($data, 'create');
-        return $this->api->request('POST', $this->getBasePath() . '.add', $validatedData);
+
+        return $this->api->request('POST', $this->getBasePath().'.add', $validatedData);
     }
 
     /**
@@ -147,7 +155,8 @@ class Products extends Resource
     {
         $data['id'] = $id;
         $validatedData = $this->validateProductData($data, 'update');
-        return $this->api->request('POST', $this->getBasePath() . '.update', $validatedData);
+
+        return $this->api->request('POST', $this->getBasePath().'.update', $validatedData);
     }
 
     /**
@@ -155,7 +164,7 @@ class Products extends Resource
      */
     public function delete($id, ...$additionalParams): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.delete', ['id' => $id]);
+        return $this->api->request('POST', $this->getBasePath().'.delete', ['id' => $id]);
     }
 
     /**
@@ -200,7 +209,7 @@ class Products extends Resource
             'department_id' => 'string',
             'product_category_id' => 'string',
             'tax_rate_id' => 'string',
-            'custom_fields' => 'array'
+            'custom_fields' => 'array',
         ];
 
         if ($operation === 'create') {
@@ -232,7 +241,7 @@ class Products extends Resource
         $current = $data;
 
         foreach ($parts as $part) {
-            if (!isset($current[$part])) {
+            if (! isset($current[$part])) {
                 return; // Field doesn't exist, skip validation
             }
             $current = $current[$part];
@@ -267,7 +276,7 @@ class Products extends Resource
                     $apiFilters['updated_since'] = $value;
                     break;
 
-                // Handle legacy/alternative field names
+                    // Handle legacy/alternative field names
                 case 'search':
                 case 'general_search':
                     // Map general search to 'term'
@@ -276,7 +285,7 @@ class Products extends Resource
             }
         }
 
-        if (!empty($apiFilters)) {
+        if (! empty($apiFilters)) {
             $params['filter'] = $apiFilters;
         }
 

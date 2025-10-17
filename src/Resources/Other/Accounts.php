@@ -11,12 +11,19 @@ class Accounts extends Resource
 
     // Resource capabilities - Accounts only supports status checking
     protected bool $supportsCreation = false;
+
     protected bool $supportsUpdate = false;
+
     protected bool $supportsDeletion = false;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = false;
+
     protected bool $supportsSorting = false;
+
     protected bool $supportsFiltering = false;
+
     protected bool $supportsSideloading = false;
 
     // Available includes for sideloading (none for accounts)
@@ -39,7 +46,7 @@ class Accounts extends Resource
         'check_projects_version' => [
             'description' => 'Check which Projects version the account is using',
             'code' => '$status = $teamleader->accounts()->projectsV2Status();
-                $version = $status["data"]["status"]; // "projects-v2" or "legacy"'
+                $version = $status["data"]["status"]; // "projects-v2" or "legacy"',
         ],
         'check_auto_switch_date' => [
             'description' => 'Check if account will be automatically switched to Projects v2',
@@ -48,7 +55,7 @@ class Accounts extends Resource
             if (isset($status["data"]["will_be_automatically_switched_on"])) {
                 $switchDate = $status["data"]["will_be_automatically_switched_on"];
                 echo "Account will be switched on: {$switchDate}";
-            }'
+            }',
         ],
         'is_using_projects_v2' => [
             'description' => 'Check if account is using Projects v2',
@@ -58,7 +65,7 @@ class Accounts extends Resource
                 // Use Projects v2 endpoints
             } else {
                 // Use legacy project endpoints
-            }'
+            }',
         ],
         'conditional_logic' => [
             'description' => 'Use different logic based on Projects version',
@@ -69,7 +76,7 @@ class Accounts extends Resource
             } else {
                 // Handle legacy projects
                 $projects = $teamleader->legacyProjects()->list();
-            }'
+            }',
         ],
     ];
 
@@ -88,7 +95,7 @@ class Accounts extends Resource
      */
     public function projectsV2Status(): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.projects-v2-status');
+        return $this->api->request('POST', $this->getBasePath().'.projects-v2-status');
     }
 
     /**
@@ -99,6 +106,7 @@ class Accounts extends Resource
     public function isUsingProjectsV2(): bool
     {
         $status = $this->projectsV2Status();
+
         return $status['data']['status'] === 'projects-v2';
     }
 
@@ -109,7 +117,7 @@ class Accounts extends Resource
      */
     public function isUsingLegacyProjects(): bool
     {
-        return !$this->isUsingProjectsV2();
+        return ! $this->isUsingProjectsV2();
     }
 
     /**
@@ -120,6 +128,7 @@ class Accounts extends Resource
     public function getProjectsVersion(): string
     {
         $status = $this->projectsV2Status();
+
         return $status['data']['status'];
     }
 
@@ -131,6 +140,7 @@ class Accounts extends Resource
     public function getAutoSwitchDate(): ?string
     {
         $status = $this->projectsV2Status();
+
         return $status['data']['will_be_automatically_switched_on'] ?? null;
     }
 
@@ -176,7 +186,7 @@ class Accounts extends Resource
             return null;
         }
 
-        $now = new \DateTime();
+        $now = new \DateTime;
         $switch = new \DateTime($switchDate);
         $diff = $now->diff($switch);
 
@@ -187,7 +197,7 @@ class Accounts extends Resource
     /**
      * Check if auto-switch date is approaching (within specified days)
      *
-     * @param int $days Number of days to consider as "approaching"
+     * @param  int  $days  Number of days to consider as "approaching"
      * @return bool True if switch is within specified days
      */
     public function isAutoSwitchApproaching(int $days = 30): bool
@@ -203,8 +213,6 @@ class Accounts extends Resource
 
     /**
      * Get all valid project version statuses
-     *
-     * @return array
      */
     public function getProjectVersions(): array
     {

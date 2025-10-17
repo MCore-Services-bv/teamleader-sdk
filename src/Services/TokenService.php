@@ -2,6 +2,7 @@
 
 namespace McoreServices\TeamleaderSDK\Services;
 
+use Carbon\Carbon;
 use Exception;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
@@ -9,15 +10,17 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Carbon\Carbon;
 use McoreServices\TeamleaderSDK\Traits\SanitizesLogData;
 
 class TokenService
 {
     use SanitizesLogData;
+
     // Cache keys for performance (with database backup)
     private const ACCESS_TOKEN_KEY = 'teamleader_access_token';
+
     private const REFRESH_TOKEN_KEY = 'teamleader_refresh_token';
+
     private const REFRESH_LOCK_KEY = 'teamleader_refresh_lock';
 
     // Database table for persistent storage
@@ -47,7 +50,7 @@ class TokenService
         // First try to get from cache for performance
         $tokenData = $this->getTokensFromCache();
 
-        if (!$tokenData || !$tokenData['access_token']) {
+        if (! $tokenData || ! $tokenData['access_token']) {
             // Fallback to database
             $tokenData = $this->getTokensFromDatabase();
 
@@ -57,8 +60,9 @@ class TokenService
             }
         }
 
-        if (!$tokenData || !$tokenData['access_token']) {
+        if (! $tokenData || ! $tokenData['access_token']) {
             Log::warning('TokenService: No access token found in cache or database');
+
             return null;
         }
 
@@ -66,6 +70,7 @@ class TokenService
         if ($this->shouldRefreshToken($tokenData)) {
             Log::debug('TokenService: Token needs refreshing');
             $newToken = $this->refreshTokenIfNeeded();
+
             return $newToken;
         }
 
@@ -77,8 +82,9 @@ class TokenService
      */
     private function shouldRefreshToken(array $tokenData): bool
     {
-        if (!isset($tokenData['expires_at'])) {
+        if (! isset($tokenData['expires_at'])) {
             Log::debug('TokenService: No expiration info, assuming refresh needed');
+
             return true;
         }
 
@@ -93,7 +99,7 @@ class TokenService
             Log::debug('TokenService: Token refresh needed', [
                 'expires_at' => $expiresAt->toDateTimeString(),
                 'minutes_left' => $minutesLeft,
-                'threshold_minutes' => self::REFRESH_THRESHOLD / 60
+                'threshold_minutes' => self::REFRESH_THRESHOLD / 60,
             ]);
         }
 
@@ -108,7 +114,7 @@ class TokenService
         // Try to acquire a lock to prevent concurrent refresh attempts
         $lockAcquired = Cache::add(self::REFRESH_LOCK_KEY, true, self::LOCK_TIMEOUT);
 
-        if (!$lockAcquired) {
+        if (! $lockAcquired) {
             Log::debug('TokenService: Another refresh is in progress, waiting...');
 
             // Wait for the other refresh to complete
@@ -120,6 +126,7 @@ class TokenService
 
             // Return the potentially refreshed token from database
             $tokenData = $this->getTokensFromDatabase();
+
             return $tokenData['access_token'] ?? null;
         }
 
@@ -128,8 +135,9 @@ class TokenService
         } catch (Exception $e) {
             Log::error('TokenService: Exception during token refresh', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return null;
         } finally {
             // Always release the lock
@@ -146,15 +154,16 @@ class TokenService
         $tokenData = $this->getTokensFromDatabase();
         $refreshToken = $tokenData['refresh_token'] ?? null;
 
-        if (!$refreshToken) {
+        if (! $refreshToken) {
             Log::error('TokenService: No refresh token available in database');
             $this->clearAllTokens(); // Clean up any stale cache
+
             return null;
         }
 
         try {
             Log::info('TokenService: Attempting to refresh access token', [
-                'refresh_token_preview' => substr($refreshToken, 0, 20) . '...'
+                'refresh_token_preview' => substr($refreshToken, 0, 20).'...',
             ]);
 
             $response = $this->httpClient->post('https://focus.teamleader.eu/oauth2/access_token', [
@@ -167,17 +176,17 @@ class TokenService
                 'headers' => [
                     'Content-Type' => 'application/x-www-form-urlencoded',
                     'Accept' => 'application/json',
-                ]
+                ],
             ]);
 
             if ($response->getStatusCode() !== 200) {
-                throw new Exception('Token refresh failed with status: ' . $response->getStatusCode());
+                throw new Exception('Token refresh failed with status: '.$response->getStatusCode());
             }
 
             $result = json_decode($response->getBody()->getContents(), true);
 
-            if (!isset($result['access_token'])) {
-                throw new Exception('No access token in refresh response: ' . json_encode($result));
+            if (! isset($result['access_token'])) {
+                throw new Exception('No access token in refresh response: '.json_encode($result));
             }
 
             // CRITICAL: Store the new tokens (including new refresh token)
@@ -186,7 +195,7 @@ class TokenService
             Log::info('TokenService: Access token refreshed successfully', [
                 'expires_in' => $result['expires_in'] ?? 'unknown',
                 'token_type' => $result['token_type'] ?? 'unknown',
-                'has_new_refresh_token' => isset($result['refresh_token'])
+                'has_new_refresh_token' => isset($result['refresh_token']),
             ]);
 
             return $result['access_token'];
@@ -200,11 +209,11 @@ class TokenService
                 Log::error('TokenService: HTTP error during token refresh', [
                     'status_code' => $statusCode,
                     'response_body' => $responseBody,
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ]);
             } else {
                 Log::error('TokenService: Network error during token refresh', [
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ]);
             }
 
@@ -218,8 +227,9 @@ class TokenService
         } catch (Exception $e) {
             Log::error('TokenService: Error refreshing token', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return null;
         }
     }
@@ -241,7 +251,7 @@ class TokenService
             $refreshToken = $existingData['refresh_token'] ?? null;
 
             Log::info('TokenService: No refresh token in new data, preserving existing', [
-                'has_existing_refresh_token' => !empty($refreshToken)
+                'has_existing_refresh_token' => ! empty($refreshToken),
             ]);
         }
 
@@ -270,7 +280,7 @@ class TokenService
             }
         } catch (Exception $e) {
             Log::error('TokenService: Failed to store tokens in database', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
             // Don't throw - we can still use cache temporarily
         }
@@ -281,8 +291,8 @@ class TokenService
         Log::info('TokenService: Tokens stored successfully', [
             'expires_in_minutes' => round($expiresIn / 60, 1),
             'expires_at' => $expiresAt->toDateTimeString(),
-            'has_refresh_token' => !empty($refreshToken),
-            'refresh_token_source' => isset($tokenData['refresh_token']) ? 'new' : 'preserved'
+            'has_refresh_token' => ! empty($refreshToken),
+            'refresh_token_source' => isset($tokenData['refresh_token']) ? 'new' : 'preserved',
         ]);
     }
 
@@ -296,19 +306,19 @@ class TokenService
 
         try {
             Cache::put(self::ACCESS_TOKEN_KEY, $tokenData['access_token'], $cacheTtl);
-            Cache::put(self::ACCESS_TOKEN_KEY . '_expires_at', $tokenData['expires_at'], $cacheTtl);
+            Cache::put(self::ACCESS_TOKEN_KEY.'_expires_at', $tokenData['expires_at'], $cacheTtl);
 
-            if (!empty($tokenData['refresh_token'])) {
+            if (! empty($tokenData['refresh_token'])) {
                 // Cache refresh token for longer but still less than database
                 Cache::put(self::REFRESH_TOKEN_KEY, $tokenData['refresh_token'], 60 * 60 * 24 * 7); // 7 days
             }
 
             Log::debug('TokenService: Tokens cached', [
-                'cache_ttl_minutes' => round($cacheTtl / 60, 1)
+                'cache_ttl_minutes' => round($cacheTtl / 60, 1),
             ]);
         } catch (Exception $e) {
             Log::warning('TokenService: Failed to cache tokens', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
             // Don't throw - database storage is more important
         }
@@ -321,10 +331,10 @@ class TokenService
     {
         try {
             $accessToken = Cache::get(self::ACCESS_TOKEN_KEY);
-            $expiresAt = Cache::get(self::ACCESS_TOKEN_KEY . '_expires_at');
+            $expiresAt = Cache::get(self::ACCESS_TOKEN_KEY.'_expires_at');
             $refreshToken = Cache::get(self::REFRESH_TOKEN_KEY);
 
-            if (!$accessToken) {
+            if (! $accessToken) {
                 return null;
             }
 
@@ -332,12 +342,13 @@ class TokenService
                 'access_token' => $accessToken,
                 'refresh_token' => $refreshToken,
                 'expires_at' => $expiresAt,
-                'source' => 'cache'
+                'source' => 'cache',
             ];
         } catch (Exception $e) {
             Log::warning('TokenService: Failed to get tokens from cache', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return null;
         }
     }
@@ -354,8 +365,9 @@ class TokenService
                 ->orderBy('updated_at', 'desc')
                 ->first();
 
-            if (!$tokenRecord) {
+            if (! $tokenRecord) {
                 Log::debug('TokenService: No token record found in database');
+
                 return null;
             }
 
@@ -365,12 +377,13 @@ class TokenService
                 'expires_at' => $tokenRecord->expires_at,
                 'expires_in' => $tokenRecord->expires_in,
                 'token_type' => $tokenRecord->token_type,
-                'source' => 'database'
+                'source' => 'database',
             ];
         } catch (Exception $e) {
             Log::error('TokenService: Failed to get tokens from database', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return null;
         }
     }
@@ -380,7 +393,7 @@ class TokenService
      */
     private function ensureTokensTableExists(): void
     {
-        if (!DB::getSchemaBuilder()->hasTable(self::TOKENS_TABLE)) {
+        if (! DB::getSchemaBuilder()->hasTable(self::TOKENS_TABLE)) {
             DB::getSchemaBuilder()->create(self::TOKENS_TABLE, function ($table) {
                 $table->id();
                 $table->text('access_token');
@@ -414,12 +427,12 @@ class TokenService
         // Clear cache
         try {
             Cache::forget(self::ACCESS_TOKEN_KEY);
-            Cache::forget(self::ACCESS_TOKEN_KEY . '_expires_at');
+            Cache::forget(self::ACCESS_TOKEN_KEY.'_expires_at');
             Cache::forget(self::REFRESH_TOKEN_KEY);
             Log::debug('TokenService: Cleared tokens from cache');
         } catch (Exception $e) {
             Log::warning('TokenService: Failed to clear cache tokens', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
 
@@ -431,7 +444,7 @@ class TokenService
             }
         } catch (Exception $e) {
             Log::warning('TokenService: Failed to clear database tokens', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
 
@@ -445,7 +458,7 @@ class TokenService
     {
         $tokenData = $this->getTokensFromCache() ?? $this->getTokensFromDatabase();
 
-        if (!$tokenData || !$tokenData['access_token'] || !$tokenData['refresh_token']) {
+        if (! $tokenData || ! $tokenData['access_token'] || ! $tokenData['refresh_token']) {
             return false;
         }
 
@@ -456,6 +469,7 @@ class TokenService
 
             if ($isExpired) {
                 Log::debug('TokenService: Tokens exist but are expired');
+
                 return false;
             }
         }
@@ -482,20 +496,20 @@ class TokenService
         }
 
         return [
-            'has_access_token' => !empty($activeData['access_token']),
-            'has_refresh_token' => !empty($activeData['refresh_token']),
+            'has_access_token' => ! empty($activeData['access_token']),
+            'has_refresh_token' => ! empty($activeData['refresh_token']),
             'expires_at' => $expiresAt ? $expiresAt->toDateTimeString() : null,
             'expires_in' => $expiresIn,
             'needs_refresh' => $activeData ? $this->shouldRefreshToken($activeData) : true,
             'token_source' => $activeData['source'] ?? 'none',
-            'cache_has_tokens' => !empty($cacheData),
-            'database_has_tokens' => !empty($dbData),
+            'cache_has_tokens' => ! empty($cacheData),
+            'database_has_tokens' => ! empty($dbData),
             'storage_sync' => [
-                'cache_access_token' => !empty($cacheData['access_token']),
-                'db_access_token' => !empty($dbData['access_token']),
-                'cache_refresh_token' => !empty($cacheData['refresh_token']),
-                'db_refresh_token' => !empty($dbData['refresh_token']),
-            ]
+                'cache_access_token' => ! empty($cacheData['access_token']),
+                'db_access_token' => ! empty($dbData['access_token']),
+                'cache_refresh_token' => ! empty($cacheData['refresh_token']),
+                'db_refresh_token' => ! empty($dbData['refresh_token']),
+            ],
         ];
     }
 
@@ -510,15 +524,18 @@ class TokenService
             if ($dbData && $dbData['access_token']) {
                 $this->cacheTokens($dbData);
                 Log::info('TokenService: Synced tokens from database to cache');
+
                 return true;
             }
 
             Log::warning('TokenService: No valid tokens in database to sync');
+
             return false;
         } catch (Exception $e) {
             Log::error('TokenService: Failed to sync tokens to cache', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return false;
         }
     }

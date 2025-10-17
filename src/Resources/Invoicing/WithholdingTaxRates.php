@@ -2,7 +2,6 @@
 
 namespace McoreServices\TeamleaderSDK\Resources\Invoicing;
 
-use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
 
 class WithholdingTaxRates extends Resource
@@ -11,12 +10,19 @@ class WithholdingTaxRates extends Resource
 
     // Resource capabilities - Withholding tax rates are read-only
     protected bool $supportsCreation = false;
+
     protected bool $supportsUpdate = false;
+
     protected bool $supportsDeletion = false;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = false;
+
     protected bool $supportsSorting = false;
+
     protected bool $supportsFiltering = false;
+
     protected bool $supportsSideloading = false;
 
     // Available includes for sideloading
@@ -32,19 +38,19 @@ class WithholdingTaxRates extends Resource
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all withholding tax rates',
-            'code' => '$rates = $teamleader->withholdingTaxRates()->list();'
+            'code' => '$rates = $teamleader->withholdingTaxRates()->list();',
         ],
         'find_by_rate' => [
             'description' => 'Find withholding tax rate by exact rate value',
-            'code' => '$rate = $teamleader->withholdingTaxRates()->findByRate(0.15);'
+            'code' => '$rate = $teamleader->withholdingTaxRates()->findByRate(0.15);',
         ],
         'find_by_description' => [
             'description' => 'Find withholding tax rate by description',
-            'code' => '$rate = $teamleader->withholdingTaxRates()->findByDescription("15%");'
+            'code' => '$rate = $teamleader->withholdingTaxRates()->findByDescription("15%");',
         ],
         'as_options' => [
             'description' => 'Get withholding tax rates as key-value pairs for dropdowns',
-            'code' => '$options = $teamleader->withholdingTaxRates()->asOptions();'
+            'code' => '$options = $teamleader->withholdingTaxRates()->asOptions();',
         ],
     ];
 
@@ -59,19 +65,18 @@ class WithholdingTaxRates extends Resource
     /**
      * List all withholding tax rates
      *
-     * @param array $filters Not used for withholding tax rates
-     * @param array $options Not used for withholding tax rates
-     * @return array
+     * @param  array  $filters  Not used for withholding tax rates
+     * @param  array  $options  Not used for withholding tax rates
      */
     public function list(array $filters = [], array $options = []): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.list', ['filter' => (object)[]]);
+        return $this->api->request('POST', $this->getBasePath().'.list', ['filter' => (object) []]);
     }
 
     /**
      * Find a withholding tax rate by ID
      *
-     * @param string $id Withholding tax rate UUID
+     * @param  string  $id  Withholding tax rate UUID
      * @return array|null Withholding tax rate data or null if not found
      */
     public function find(string $id): ?array
@@ -94,7 +99,7 @@ class WithholdingTaxRates extends Resource
     /**
      * Find a withholding tax rate by exact rate value
      *
-     * @param float $rate Withholding tax rate (e.g., 0.15 for 15%)
+     * @param  float  $rate  Withholding tax rate (e.g., 0.15 for 15%)
      * @return array|null Withholding tax rate data or null if not found
      */
     public function findByRate(float $rate): ?array
@@ -117,8 +122,8 @@ class WithholdingTaxRates extends Resource
     /**
      * Find withholding tax rates by rate range
      *
-     * @param float $minRate Minimum rate (inclusive)
-     * @param float $maxRate Maximum rate (inclusive)
+     * @param  float  $minRate  Minimum rate (inclusive)
+     * @param  float  $maxRate  Maximum rate (inclusive)
      * @return array Array of matching withholding tax rates
      */
     public function findByRateRange(float $minRate, float $maxRate): array
@@ -142,8 +147,8 @@ class WithholdingTaxRates extends Resource
     /**
      * Find a withholding tax rate by description
      *
-     * @param string $description Withholding tax rate description (e.g., "15%")
-     * @param bool $exactMatch Whether to match exactly or search partial
+     * @param  string  $description  Withholding tax rate description (e.g., "15%")
+     * @param  bool  $exactMatch  Whether to match exactly or search partial
      * @return array|null Withholding tax rate data or null if not found
      */
     public function findByDescription(string $description, bool $exactMatch = true): ?array
@@ -172,8 +177,7 @@ class WithholdingTaxRates extends Resource
     /**
      * Check if a withholding tax rate exists by ID
      *
-     * @param string $id Withholding tax rate UUID
-     * @return bool
+     * @param  string  $id  Withholding tax rate UUID
      */
     public function exists(string $id): bool
     {
@@ -217,10 +221,10 @@ class WithholdingTaxRates extends Resource
 
         foreach ($result['data'] as $rate) {
             $departmentId = $rate['department']['id'];
-            if (!isset($grouped[$departmentId])) {
+            if (! isset($grouped[$departmentId])) {
                 $grouped[$departmentId] = [
                     'department' => $rate['department'],
-                    'withholding_tax_rates' => []
+                    'withholding_tax_rates' => [],
                 ];
             }
             $grouped[$departmentId]['withholding_tax_rates'][] = $rate;
@@ -231,8 +235,6 @@ class WithholdingTaxRates extends Resource
 
     /**
      * Get withholding tax rates sorted by rate ascending
-     *
-     * @return array
      */
     public function sortedByRate(): array
     {
@@ -253,8 +255,7 @@ class WithholdingTaxRates extends Resource
     /**
      * Get withholding tax rates sorted by description
      *
-     * @param string $order Sort order (asc or desc)
-     * @return array
+     * @param  string  $order  Sort order (asc or desc)
      */
     public function sortedByDescription(string $order = 'asc'): array
     {
@@ -267,6 +268,7 @@ class WithholdingTaxRates extends Resource
         $data = $result['data'];
         usort($data, function ($a, $b) use ($order) {
             $comparison = strcasecmp($a['description'], $b['description']);
+
             return $order === 'desc' ? -$comparison : $comparison;
         });
 
@@ -276,12 +278,13 @@ class WithholdingTaxRates extends Resource
     /**
      * Format a withholding tax rate as a human-readable string
      *
-     * @param array $rate Withholding tax rate data
+     * @param  array  $rate  Withholding tax rate data
      * @return string Formatted string
      */
     public function format(array $rate): string
     {
         $percentage = ($rate['rate'] * 100);
+
         return "{$rate['description']} ({$percentage}%)";
     }
 
@@ -301,8 +304,8 @@ class WithholdingTaxRates extends Resource
                     'data[].department' => 'Department reference object',
                     'data[].department.id' => 'Department UUID',
                     'data[].department.type' => 'Resource type ("department")',
-                ]
-            ]
+                ],
+            ],
         ];
     }
 }

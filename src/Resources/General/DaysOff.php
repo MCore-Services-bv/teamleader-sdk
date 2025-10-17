@@ -13,12 +13,19 @@ class DaysOff extends Resource
 
     // Resource capabilities - based on API docs, this resource only supports bulk operations
     protected bool $supportsPagination = false;
+
     protected bool $supportsFiltering = false;
+
     protected bool $supportsSorting = false;
+
     protected bool $supportsSideloading = false;
+
     protected bool $supportsCreation = false;  // Only bulk import supported
+
     protected bool $supportsUpdate = false;
+
     protected bool $supportsDeletion = false;  // Only bulk delete supported
+
     protected bool $supportsBatch = true;      // Main functionality
 
     // Available includes for sideloading - none based on API docs
@@ -31,24 +38,23 @@ class DaysOff extends Resource
     protected array $usageExamples = [
         'bulk_import' => [
             'description' => 'Import multiple days off for a user',
-            'code' => '$result = $teamleader->daysOff()->bulkImport($userId, $leaveTypeId, $days);'
+            'code' => '$result = $teamleader->daysOff()->bulkImport($userId, $leaveTypeId, $days);',
         ],
         'bulk_delete' => [
             'description' => 'Delete multiple days off for a user',
-            'code' => '$result = $teamleader->daysOff()->bulkDelete($userId, $dayOffIds);'
+            'code' => '$result = $teamleader->daysOff()->bulkDelete($userId, $dayOffIds);',
         ],
         'single_day_import' => [
             'description' => 'Import a single day off',
-            'code' => '$result = $teamleader->daysOff()->importSingleDay($userId, $leaveTypeId, $startsAt, $endsAt);'
-        ]
+            'code' => '$result = $teamleader->daysOff()->importSingleDay($userId, $leaveTypeId, $startsAt, $endsAt);',
+        ],
     ];
 
     /**
      * Delete multiple days off for a user
      *
-     * @param string $userId The user ID that owns the days off
-     * @param array $dayOffIds Array of day off IDs to delete
-     * @return array
+     * @param  string  $userId  The user ID that owns the days off
+     * @param  array  $dayOffIds  Array of day off IDs to delete
      */
     public function bulkDelete(string $userId, array $dayOffIds): array
     {
@@ -57,10 +63,10 @@ class DaysOff extends Resource
 
         $data = [
             'user_id' => $userId,
-            'ids' => $dayOffIds
+            'ids' => $dayOffIds,
         ];
 
-        return $this->api->request('POST', $this->getBasePath() . '.bulkDelete', $data);
+        return $this->api->request('POST', $this->getBasePath().'.bulkDelete', $data);
     }
 
     /**
@@ -73,7 +79,7 @@ class DaysOff extends Resource
         }
 
         // Check if it looks like a UUID
-        if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $userId)) {
+        if (! preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $userId)) {
             throw new InvalidArgumentException('User ID must be a valid UUID format');
         }
     }
@@ -88,12 +94,12 @@ class DaysOff extends Resource
         }
 
         foreach ($dayOffIds as $index => $id) {
-            if (!is_string($id) || empty($id)) {
+            if (! is_string($id) || empty($id)) {
                 throw new InvalidArgumentException("Day off ID at index {$index} must be a non-empty string");
             }
 
             // Check if it looks like a UUID
-            if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $id)) {
+            if (! preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $id)) {
                 throw new InvalidArgumentException("Day off ID at index {$index} must be a valid UUID format");
             }
         }
@@ -110,19 +116,18 @@ class DaysOff extends Resource
     /**
      * Import a single day off - convenience method
      *
-     * @param string $userId The user ID
-     * @param string $leaveTypeId The leave type ID
-     * @param string $startsAt Start datetime (ISO 8601 format)
-     * @param string $endsAt End datetime (ISO 8601 format)
-     * @return array
+     * @param  string  $userId  The user ID
+     * @param  string  $leaveTypeId  The leave type ID
+     * @param  string  $startsAt  Start datetime (ISO 8601 format)
+     * @param  string  $endsAt  End datetime (ISO 8601 format)
      */
     public function importSingleDay(string $userId, string $leaveTypeId, string $startsAt, string $endsAt): array
     {
         $days = [
             [
                 'starts_at' => $startsAt,
-                'ends_at' => $endsAt
-            ]
+                'ends_at' => $endsAt,
+            ],
         ];
 
         return $this->bulkImport($userId, $leaveTypeId, $days);
@@ -131,10 +136,9 @@ class DaysOff extends Resource
     /**
      * Import (create) multiple days off for a user
      *
-     * @param string $userId The user ID to create days off for
-     * @param string $leaveTypeId The leave type ID (from dayOffTypes resource)
-     * @param array $days Array of day objects with starts_at and ends_at
-     * @return array
+     * @param  string  $userId  The user ID to create days off for
+     * @param  string  $leaveTypeId  The leave type ID (from dayOffTypes resource)
+     * @param  array  $days  Array of day objects with starts_at and ends_at
      */
     public function bulkImport(string $userId, string $leaveTypeId, array $days): array
     {
@@ -145,10 +149,10 @@ class DaysOff extends Resource
         $data = [
             'user_id' => $userId,
             'leave_type_id' => $leaveTypeId,
-            'days' => $days
+            'days' => $days,
         ];
 
-        return $this->api->request('POST', $this->getBasePath() . '.import', $data);
+        return $this->api->request('POST', $this->getBasePath().'.import', $data);
     }
 
     /**
@@ -161,7 +165,7 @@ class DaysOff extends Resource
         }
 
         // Check if it looks like a UUID
-        if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $leaveTypeId)) {
+        if (! preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $leaveTypeId)) {
             throw new InvalidArgumentException('Leave type ID must be a valid UUID format');
         }
     }
@@ -176,20 +180,20 @@ class DaysOff extends Resource
         }
 
         foreach ($days as $index => $day) {
-            if (!is_array($day)) {
+            if (! is_array($day)) {
                 throw new InvalidArgumentException("Day at index {$index} must be an array");
             }
 
-            if (!isset($day['starts_at']) || !isset($day['ends_at'])) {
+            if (! isset($day['starts_at']) || ! isset($day['ends_at'])) {
                 throw new InvalidArgumentException("Day at index {$index} must have both starts_at and ends_at");
             }
 
             // Validate datetime format
-            if (!$this->isValidDatetime($day['starts_at'])) {
+            if (! $this->isValidDatetime($day['starts_at'])) {
                 throw new InvalidArgumentException("Day at index {$index} has invalid starts_at format. Expected ISO 8601 format.");
             }
 
-            if (!$this->isValidDatetime($day['ends_at'])) {
+            if (! $this->isValidDatetime($day['ends_at'])) {
                 throw new InvalidArgumentException("Day at index {$index} has invalid ends_at format. Expected ISO 8601 format.");
             }
 
@@ -206,7 +210,7 @@ class DaysOff extends Resource
     private function isValidDatetime(string $datetime): bool
     {
         // Check basic ISO 8601 format with timezone
-        if (!preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/', $datetime)) {
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/', $datetime)) {
             return false;
         }
 
@@ -217,15 +221,14 @@ class DaysOff extends Resource
     /**
      * Import a date range of days off
      *
-     * @param string $userId The user ID
-     * @param string $leaveTypeId The leave type ID
-     * @param string $startDate Start date (Y-m-d format)
-     * @param string $endDate End date (Y-m-d format)
-     * @param string $startTime Start time (H:i:s format)
-     * @param string $endTime End time (H:i:s format)
-     * @param string $timezone Timezone (default: +00:00)
-     * @param array $excludeWeekends Whether to exclude weekends (default: true)
-     * @return array
+     * @param  string  $userId  The user ID
+     * @param  string  $leaveTypeId  The leave type ID
+     * @param  string  $startDate  Start date (Y-m-d format)
+     * @param  string  $endDate  End date (Y-m-d format)
+     * @param  string  $startTime  Start time (H:i:s format)
+     * @param  string  $endTime  End time (H:i:s format)
+     * @param  string  $timezone  Timezone (default: +00:00)
+     * @param  array  $excludeWeekends  Whether to exclude weekends (default: true)
      */
     public function importDateRange(
         string $userId,
@@ -235,9 +238,8 @@ class DaysOff extends Resource
         string $startTime = '08:00:00',
         string $endTime = '18:00:00',
         string $timezone = '+00:00',
-        bool   $excludeWeekends = true
-    ): array
-    {
+        bool $excludeWeekends = true
+    ): array {
         $dates = [];
         $currentDate = new DateTime($startDate);
         $endDateTime = new DateTime($endDate);
@@ -246,6 +248,7 @@ class DaysOff extends Resource
             // Skip weekends if requested
             if ($excludeWeekends && in_array($currentDate->format('N'), [6, 7])) {
                 $currentDate->modify('+1 day');
+
                 continue;
             }
 
@@ -259,29 +262,27 @@ class DaysOff extends Resource
     /**
      * Import multiple days off with the same duration pattern
      *
-     * @param string $userId The user ID
-     * @param string $leaveTypeId The leave type ID
-     * @param array $dates Array of date strings (Y-m-d format)
-     * @param string $startTime Start time (H:i:s format, e.g., '08:00:00')
-     * @param string $endTime End time (H:i:s format, e.g., '18:00:00')
-     * @param string $timezone Timezone (default: +00:00)
-     * @return array
+     * @param  string  $userId  The user ID
+     * @param  string  $leaveTypeId  The leave type ID
+     * @param  array  $dates  Array of date strings (Y-m-d format)
+     * @param  string  $startTime  Start time (H:i:s format, e.g., '08:00:00')
+     * @param  string  $endTime  End time (H:i:s format, e.g., '18:00:00')
+     * @param  string  $timezone  Timezone (default: +00:00)
      */
     public function importMultipleDays(
         string $userId,
         string $leaveTypeId,
-        array  $dates,
+        array $dates,
         string $startTime = '08:00:00',
         string $endTime = '18:00:00',
         string $timezone = '+00:00'
-    ): array
-    {
+    ): array {
         $days = [];
 
         foreach ($dates as $date) {
             $days[] = [
                 'starts_at' => "{$date}T{$startTime}{$timezone}",
-                'ends_at' => "{$date}T{$endTime}{$timezone}"
+                'ends_at' => "{$date}T{$endTime}{$timezone}",
             ];
         }
 
@@ -330,14 +331,14 @@ class DaysOff extends Resource
                 'CET' => '+01:00',
                 'CEST' => '+02:00',
                 'EST' => '-05:00',
-                'PST' => '-08:00'
+                'PST' => '-08:00',
             ],
             'common_work_hours' => [
                 'full_day' => ['08:00:00', '18:00:00'],
                 'morning' => ['08:00:00', '12:00:00'],
                 'afternoon' => ['13:00:00', '18:00:00'],
-                'half_day' => ['08:00:00', '12:30:00']
-            ]
+                'half_day' => ['08:00:00', '12:30:00'],
+            ],
         ];
     }
 

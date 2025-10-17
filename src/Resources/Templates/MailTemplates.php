@@ -11,12 +11,19 @@ class MailTemplates extends Resource
 
     // Resource capabilities - Mail templates are read-only
     protected bool $supportsCreation = false;
+
     protected bool $supportsUpdate = false;
+
     protected bool $supportsDeletion = false;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = false;
+
     protected bool $supportsSorting = false;
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSideloading = false;
 
     // Available includes for sideloading
@@ -43,19 +50,19 @@ class MailTemplates extends Resource
     protected array $usageExamples = [
         'list_by_type' => [
             'description' => 'Get all mail templates for invoices',
-            'code' => '$templates = $teamleader->mailTemplates()->forType(\'invoice\');'
+            'code' => '$templates = $teamleader->mailTemplates()->forType(\'invoice\');',
         ],
         'list_by_type_and_department' => [
             'description' => 'Get mail templates for quotations in a specific department',
-            'code' => '$templates = $teamleader->mailTemplates()->forType(\'quotation\', \'department-uuid\');'
+            'code' => '$templates = $teamleader->mailTemplates()->forType(\'quotation\', \'department-uuid\');',
         ],
         'find_by_name' => [
             'description' => 'Find a mail template by name',
-            'code' => '$template = $teamleader->mailTemplates()->findByName(\'Send link in english\', \'invoice\');'
+            'code' => '$template = $teamleader->mailTemplates()->findByName(\'Send link in english\', \'invoice\');',
         ],
         'as_options' => [
             'description' => 'Get mail templates as key-value pairs for dropdowns',
-            'code' => '$options = $teamleader->mailTemplates()->asOptions(\'invoice\');'
+            'code' => '$options = $teamleader->mailTemplates()->asOptions(\'invoice\');',
         ],
     ];
 
@@ -72,9 +79,9 @@ class MailTemplates extends Resource
      *
      * Note: The 'type' parameter is REQUIRED by the API
      *
-     * @param array $filters Filters to apply (type is required)
-     * @param array $options Additional options (not used for this endpoint)
-     * @return array
+     * @param  array  $filters  Filters to apply (type is required)
+     * @param  array  $options  Additional options (not used for this endpoint)
+     *
      * @throws InvalidArgumentException When required type parameter is missing or invalid
      */
     public function list(array $filters = [], array $options = []): array
@@ -82,7 +89,7 @@ class MailTemplates extends Resource
         // Validate required type parameter
         if (empty($filters['type'])) {
             throw new InvalidArgumentException(
-                'type is required for mail templates. Must be one of: ' .
+                'type is required for mail templates. Must be one of: '.
                 implode(', ', $this->validTypes)
             );
         }
@@ -93,19 +100,19 @@ class MailTemplates extends Resource
         $params = [];
 
         // Build filters
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
      * Get mail templates for a specific type
      *
-     * @param string $type Template type (invoice, quotation, work_order, credit_note)
-     * @param string|null $departmentId Optional department UUID
-     * @return array
+     * @param  string  $type  Template type (invoice, quotation, work_order, credit_note)
+     * @param  string|null  $departmentId  Optional department UUID
+     *
      * @throws InvalidArgumentException
      */
     public function forType(string $type, ?string $departmentId = null): array
@@ -124,8 +131,7 @@ class MailTemplates extends Resource
     /**
      * Get mail templates for invoices
      *
-     * @param string|null $departmentId Optional department UUID
-     * @return array
+     * @param  string|null  $departmentId  Optional department UUID
      */
     public function forInvoices(?string $departmentId = null): array
     {
@@ -135,8 +141,7 @@ class MailTemplates extends Resource
     /**
      * Get mail templates for quotations
      *
-     * @param string|null $departmentId Optional department UUID
-     * @return array
+     * @param  string|null  $departmentId  Optional department UUID
      */
     public function forQuotations(?string $departmentId = null): array
     {
@@ -146,8 +151,7 @@ class MailTemplates extends Resource
     /**
      * Get mail templates for work orders
      *
-     * @param string|null $departmentId Optional department UUID
-     * @return array
+     * @param  string|null  $departmentId  Optional department UUID
      */
     public function forWorkOrders(?string $departmentId = null): array
     {
@@ -157,8 +161,7 @@ class MailTemplates extends Resource
     /**
      * Get mail templates for credit notes
      *
-     * @param string|null $departmentId Optional department UUID
-     * @return array
+     * @param  string|null  $departmentId  Optional department UUID
      */
     public function forCreditNotes(?string $departmentId = null): array
     {
@@ -168,10 +171,11 @@ class MailTemplates extends Resource
     /**
      * Find a mail template by name
      *
-     * @param string $name Template name to search for
-     * @param string $type Template type (required)
-     * @param string|null $departmentId Optional department UUID
+     * @param  string  $name  Template name to search for
+     * @param  string  $type  Template type (required)
+     * @param  string|null  $departmentId  Optional department UUID
      * @return array|null Template data or null if not found
+     *
      * @throws InvalidArgumentException
      */
     public function findByName(string $name, string $type, ?string $departmentId = null): ?array
@@ -194,10 +198,11 @@ class MailTemplates extends Resource
     /**
      * Find a mail template by language
      *
-     * @param string $language Language code (e.g., 'en', 'nl', 'fr')
-     * @param string $type Template type (required)
-     * @param string|null $departmentId Optional department UUID
+     * @param  string  $language  Language code (e.g., 'en', 'nl', 'fr')
+     * @param  string  $type  Template type (required)
+     * @param  string|null  $departmentId  Optional department UUID
      * @return array|null Template data or null if not found
+     *
      * @throws InvalidArgumentException
      */
     public function findByLanguage(string $language, string $type, ?string $departmentId = null): ?array
@@ -220,10 +225,11 @@ class MailTemplates extends Resource
     /**
      * Get all mail templates as key-value pairs for dropdown options
      *
-     * @param string $type Template type (required)
-     * @param string|null $departmentId Optional department UUID
-     * @param string $labelField Field to use as label (default: 'name')
+     * @param  string  $type  Template type (required)
+     * @param  string|null  $departmentId  Optional department UUID
+     * @param  string  $labelField  Field to use as label (default: 'name')
      * @return array Associative array with template IDs as keys and labels as values
+     *
      * @throws InvalidArgumentException
      */
     public function asOptions(string $type, ?string $departmentId = null, string $labelField = 'name'): array
@@ -241,9 +247,10 @@ class MailTemplates extends Resource
     /**
      * Get template names grouped by language
      *
-     * @param string $type Template type (required)
-     * @param string|null $departmentId Optional department UUID
+     * @param  string  $type  Template type (required)
+     * @param  string|null  $departmentId  Optional department UUID
      * @return array Templates grouped by language code
+     *
      * @throws InvalidArgumentException
      */
     public function groupedByLanguage(string $type, ?string $departmentId = null): array
@@ -253,7 +260,7 @@ class MailTemplates extends Resource
 
         foreach ($result['data'] as $template) {
             $language = $template['language'] ?? 'unknown';
-            if (!isset($grouped[$language])) {
+            if (! isset($grouped[$language])) {
                 $grouped[$language] = [];
             }
             $grouped[$language][] = $template;
@@ -265,14 +272,13 @@ class MailTemplates extends Resource
     /**
      * Validate template type
      *
-     * @param string $type
      * @throws InvalidArgumentException
      */
     protected function validateType(string $type): void
     {
-        if (!in_array($type, $this->validTypes)) {
+        if (! in_array($type, $this->validTypes)) {
             throw new InvalidArgumentException(
-                "Invalid template type: {$type}. Must be one of: " .
+                "Invalid template type: {$type}. Must be one of: ".
                 implode(', ', $this->validTypes)
             );
         }
@@ -280,9 +286,6 @@ class MailTemplates extends Resource
 
     /**
      * Build filters for the API request
-     *
-     * @param array $filters
-     * @return array
      */
     protected function buildFilters(array $filters): array
     {
@@ -325,8 +328,8 @@ class MailTemplates extends Resource
                     'The type parameter is required for listing mail templates',
                     'Templates contain placeholders like #LINK for dynamic content',
                     'Department can be null for system-wide templates',
-                ]
-            ]
+                ],
+            ],
         ];
     }
 }

@@ -12,12 +12,19 @@ class LegacyMilestones extends Resource
 
     // Resource capabilities based on API documentation
     protected bool $supportsCreation = true;
+
     protected bool $supportsUpdate = true;
+
     protected bool $supportsDeletion = true;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = true;
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSorting = true;
+
     protected bool $supportsSideloading = false;
 
     // Available includes for sideloading
@@ -37,19 +44,19 @@ class LegacyMilestones extends Resource
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all milestones',
-            'code' => '$milestones = $teamleader->legacyMilestones()->list();'
+            'code' => '$milestones = $teamleader->legacyMilestones()->list();',
         ],
         'list_by_project' => [
             'description' => 'Get milestones for a specific project',
-            'code' => '$milestones = $teamleader->legacyMilestones()->forProject(\'project-uuid\');'
+            'code' => '$milestones = $teamleader->legacyMilestones()->forProject(\'project-uuid\');',
         ],
         'list_open' => [
             'description' => 'Get only open milestones',
-            'code' => '$milestones = $teamleader->legacyMilestones()->list([\'status\' => \'open\']);'
+            'code' => '$milestones = $teamleader->legacyMilestones()->list([\'status\' => \'open\']);',
         ],
         'get_single' => [
             'description' => 'Get a single milestone',
-            'code' => '$milestone = $teamleader->legacyMilestones()->info(\'milestone-uuid\');'
+            'code' => '$milestone = $teamleader->legacyMilestones()->info(\'milestone-uuid\');',
         ],
         'create_milestone' => [
             'description' => 'Create a new milestone',
@@ -59,35 +66,34 @@ class LegacyMilestones extends Resource
                 \'due_on\' => \'2024-12-31\',
                 \'responsible_user_id\' => \'user-uuid\',
                 \'billing_method\' => \'time_and_materials\'
-            ]);'
+            ]);',
         ],
         'update_milestone' => [
             'description' => 'Update a milestone',
             'code' => '$result = $teamleader->legacyMilestones()->update(\'milestone-uuid\', [
                 \'name\' => \'Updated name\',
                 \'due_on\' => \'2024-12-31\'
-            ]);'
+            ]);',
         ],
         'close_milestone' => [
             'description' => 'Close a milestone',
-            'code' => '$result = $teamleader->legacyMilestones()->close(\'milestone-uuid\');'
+            'code' => '$result = $teamleader->legacyMilestones()->close(\'milestone-uuid\');',
         ],
         'open_milestone' => [
             'description' => 'Open/reopen a milestone',
-            'code' => '$result = $teamleader->legacyMilestones()->open(\'milestone-uuid\');'
+            'code' => '$result = $teamleader->legacyMilestones()->open(\'milestone-uuid\');',
         ],
         'delete_milestone' => [
             'description' => 'Delete a milestone',
-            'code' => '$result = $teamleader->legacyMilestones()->delete(\'milestone-uuid\');'
-        ]
+            'code' => '$result = $teamleader->legacyMilestones()->delete(\'milestone-uuid\');',
+        ],
     ];
 
     /**
      * Get detailed information about a specific milestone
      *
-     * @param string $id Milestone UUID
-     * @param mixed $includes Not used for milestones
-     * @return array
+     * @param  string  $id  Milestone UUID
+     * @param  mixed  $includes  Not used for milestones
      */
     public function info($id, $includes = null): array
     {
@@ -95,13 +101,12 @@ class LegacyMilestones extends Resource
 
         $params = ['id' => $id];
 
-        return $this->api->request('POST', $this->getBasePath() . '.info', $params);
+        return $this->api->request('POST', $this->getBasePath().'.info', $params);
     }
 
     /**
      * Validate ID format
      *
-     * @param string $id
      * @throws InvalidArgumentException
      */
     private function validateId(string $id): void
@@ -122,21 +127,20 @@ class LegacyMilestones extends Resource
     /**
      * Create a new milestone
      *
-     * @param array $data Milestone data
-     * @return array
+     * @param  array  $data  Milestone data
+     *
      * @throws InvalidArgumentException
      */
     public function create(array $data): array
     {
         $this->validateCreateData($data);
 
-        return $this->api->request('POST', $this->getBasePath() . '.create', $data);
+        return $this->api->request('POST', $this->getBasePath().'.create', $data);
     }
 
     /**
      * Validate create data
      *
-     * @param array $data
      * @throws InvalidArgumentException
      */
     private function validateCreateData(array $data): void
@@ -145,7 +149,7 @@ class LegacyMilestones extends Resource
         $required = ['project_id', 'name', 'due_on', 'responsible_user_id'];
 
         foreach ($required as $field) {
-            if (!isset($data[$field]) || empty($data[$field])) {
+            if (! isset($data[$field]) || empty($data[$field])) {
                 throw new InvalidArgumentException("Field '{$field}' is required for milestone creation");
             }
         }
@@ -153,42 +157,40 @@ class LegacyMilestones extends Resource
         // Validate billing_method if provided
         if (isset($data['billing_method'])) {
             $validMethods = ['non_invoiceable', 'time_and_materials', 'fixed_price'];
-            if (!in_array($data['billing_method'], $validMethods)) {
+            if (! in_array($data['billing_method'], $validMethods)) {
                 throw new InvalidArgumentException(
-                    "Invalid billing_method. Must be one of: " . implode(', ', $validMethods)
+                    'Invalid billing_method. Must be one of: '.implode(', ', $validMethods)
                 );
             }
         }
 
         // Validate date format for starts_on
-        if (isset($data['starts_on']) && !$this->isValidDate($data['starts_on'])) {
-            throw new InvalidArgumentException("Invalid starts_on date format. Use Y-m-d format.");
+        if (isset($data['starts_on']) && ! $this->isValidDate($data['starts_on'])) {
+            throw new InvalidArgumentException('Invalid starts_on date format. Use Y-m-d format.');
         }
 
         // Validate date format for due_on
-        if (!$this->isValidDate($data['due_on'])) {
-            throw new InvalidArgumentException("Invalid due_on date format. Use Y-m-d format.");
+        if (! $this->isValidDate($data['due_on'])) {
+            throw new InvalidArgumentException('Invalid due_on date format. Use Y-m-d format.');
         }
     }
 
     /**
      * Check if date is in valid format (Y-m-d)
-     *
-     * @param string $date
-     * @return bool
      */
     private function isValidDate(string $date): bool
     {
         $d = DateTime::createFromFormat('Y-m-d', $date);
+
         return $d && $d->format('Y-m-d') === $date;
     }
 
     /**
      * Update an existing milestone
      *
-     * @param string $id Milestone UUID
-     * @param array $data Data to update
-     * @return array
+     * @param  string  $id  Milestone UUID
+     * @param  array  $data  Data to update
+     *
      * @throws InvalidArgumentException
      */
     public function update($id, array $data): array
@@ -197,15 +199,14 @@ class LegacyMilestones extends Resource
 
         $data['id'] = $id;
 
-        return $this->api->request('POST', $this->getBasePath() . '.update', $data);
+        return $this->api->request('POST', $this->getBasePath().'.update', $data);
     }
 
     /**
      * Delete a milestone
      *
-     * @param string $id Milestone UUID
-     * @param mixed ...$additionalParams Not used for legacy milestones
-     * @return array
+     * @param  string  $id  Milestone UUID
+     * @param  mixed  ...$additionalParams  Not used for legacy milestones
      */
     public function delete($id, ...$additionalParams): array
     {
@@ -213,7 +214,7 @@ class LegacyMilestones extends Resource
 
         $params = ['id' => $id];
 
-        return $this->api->request('POST', $this->getBasePath() . '.delete', $params);
+        return $this->api->request('POST', $this->getBasePath().'.delete', $params);
     }
 
     /**
@@ -221,8 +222,7 @@ class LegacyMilestones extends Resource
      * All open tasks will be closed, open meetings will remain open
      * Closing the last open milestone will also close the project
      *
-     * @param string $id Milestone UUID
-     * @return array
+     * @param  string  $id  Milestone UUID
      */
     public function close(string $id): array
     {
@@ -230,15 +230,14 @@ class LegacyMilestones extends Resource
 
         $params = ['id' => $id];
 
-        return $this->api->request('POST', $this->getBasePath() . '.close', $params);
+        return $this->api->request('POST', $this->getBasePath().'.close', $params);
     }
 
     /**
      * (Re)open a milestone
      * If the milestone's project is closed, the project will be reopened
      *
-     * @param string $id Milestone UUID
-     * @return array
+     * @param  string  $id  Milestone UUID
      */
     public function open(string $id): array
     {
@@ -246,15 +245,14 @@ class LegacyMilestones extends Resource
 
         $params = ['id' => $id];
 
-        return $this->api->request('POST', $this->getBasePath() . '.open', $params);
+        return $this->api->request('POST', $this->getBasePath().'.open', $params);
     }
 
     /**
      * Get all milestones for a specific project
      *
-     * @param string $projectId Project UUID
-     * @param array $options Additional options (pagination, sorting)
-     * @return array
+     * @param  string  $projectId  Project UUID
+     * @param  array  $options  Additional options (pagination, sorting)
      */
     public function forProject(string $projectId, array $options = []): array
     {
@@ -264,16 +262,15 @@ class LegacyMilestones extends Resource
     /**
      * List milestones with filtering and sorting
      *
-     * @param array $filters Filters to apply
-     * @param array $options Additional options (sorting, pagination)
-     * @return array
+     * @param  array  $filters  Filters to apply
+     * @param  array  $options  Additional options (sorting, pagination)
      */
     public function list(array $filters = [], array $options = []): array
     {
         $params = [];
 
         // Apply filters
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
@@ -281,7 +278,7 @@ class LegacyMilestones extends Resource
         if (isset($options['page_size']) || isset($options['page_number'])) {
             $params['page'] = [
                 'size' => $options['page_size'] ?? 20,
-                'number' => $options['page_number'] ?? 1
+                'number' => $options['page_number'] ?? 1,
             ];
         }
 
@@ -290,14 +287,11 @@ class LegacyMilestones extends Resource
             $params['sort'] = $this->buildSort($options['sort']);
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
      * Build filters array for the API request
-     *
-     * @param array $filters
-     * @return array
      */
     private function buildFilters(array $filters): array
     {
@@ -338,9 +332,6 @@ class LegacyMilestones extends Resource
 
     /**
      * Build sort array for the API request
-     *
-     * @param array $sort
-     * @return array
      */
     private function buildSort(array $sort): array
     {
@@ -351,18 +342,18 @@ class LegacyMilestones extends Resource
             $order = $sortItem['order'] ?? 'asc';
 
             // Validate sort field
-            if (!in_array($field, ['starts_on', 'due_on'])) {
+            if (! in_array($field, ['starts_on', 'due_on'])) {
                 $field = 'due_on';
             }
 
             // Validate sort order
-            if (!in_array($order, ['asc', 'desc'])) {
+            if (! in_array($order, ['asc', 'desc'])) {
                 $order = 'asc';
             }
 
             $apiSort[] = [
                 'field' => $field,
-                'order' => $order
+                'order' => $order,
             ];
         }
 
@@ -372,35 +363,34 @@ class LegacyMilestones extends Resource
     /**
      * Get open milestones
      *
-     * @param array $additionalFilters Additional filters to apply
-     * @param array $options Additional options
-     * @return array
+     * @param  array  $additionalFilters  Additional filters to apply
+     * @param  array  $options  Additional options
      */
     public function getOpen(array $additionalFilters = [], array $options = []): array
     {
         $filters = array_merge(['status' => 'open'], $additionalFilters);
+
         return $this->list($filters, $options);
     }
 
     /**
      * Get closed milestones
      *
-     * @param array $additionalFilters Additional filters to apply
-     * @param array $options Additional options
-     * @return array
+     * @param  array  $additionalFilters  Additional filters to apply
+     * @param  array  $options  Additional options
      */
     public function getClosed(array $additionalFilters = [], array $options = []): array
     {
         $filters = array_merge(['status' => 'closed'], $additionalFilters);
+
         return $this->list($filters, $options);
     }
 
     /**
      * Search milestones by term
      *
-     * @param string $term Search term
-     * @param array $options Additional options
-     * @return array
+     * @param  string  $term  Search term
+     * @param  array  $options  Additional options
      */
     public function search(string $term, array $options = []): array
     {
@@ -410,67 +400,63 @@ class LegacyMilestones extends Resource
     /**
      * Get milestones due before a specific date
      *
-     * @param string $date Date in Y-m-d format
-     * @param array $additionalFilters Additional filters
-     * @param array $options Additional options
-     * @return array
+     * @param  string  $date  Date in Y-m-d format
+     * @param  array  $additionalFilters  Additional filters
+     * @param  array  $options  Additional options
      */
     public function dueBefore(string $date, array $additionalFilters = [], array $options = []): array
     {
         $filters = array_merge(['due_before' => $date], $additionalFilters);
+
         return $this->list($filters, $options);
     }
 
     /**
      * Get milestones due after a specific date
      *
-     * @param string $date Date in Y-m-d format
-     * @param array $additionalFilters Additional filters
-     * @param array $options Additional options
-     * @return array
+     * @param  string  $date  Date in Y-m-d format
+     * @param  array  $additionalFilters  Additional filters
+     * @param  array  $options  Additional options
      */
     public function dueAfter(string $date, array $additionalFilters = [], array $options = []): array
     {
         $filters = array_merge(['due_after' => $date], $additionalFilters);
+
         return $this->list($filters, $options);
     }
 
     /**
      * Get milestones due within a date range
      *
-     * @param string $startDate Start date in Y-m-d format
-     * @param string $endDate End date in Y-m-d format
-     * @param array $additionalFilters Additional filters
-     * @param array $options Additional options
-     * @return array
+     * @param  string  $startDate  Start date in Y-m-d format
+     * @param  string  $endDate  End date in Y-m-d format
+     * @param  array  $additionalFilters  Additional filters
+     * @param  array  $options  Additional options
      */
     public function dueBetween(string $startDate, string $endDate, array $additionalFilters = [], array $options = []): array
     {
         $filters = array_merge([
             'due_after' => $startDate,
-            'due_before' => $endDate
+            'due_before' => $endDate,
         ], $additionalFilters);
+
         return $this->list($filters, $options);
     }
 
     /**
      * Get available billing methods
-     *
-     * @return array
      */
     public function getAvailableBillingMethods(): array
     {
         return [
             'non_invoiceable' => 'Non Invoiceable',
             'time_and_materials' => 'Time and Materials',
-            'fixed_price' => 'Fixed Price'
+            'fixed_price' => 'Fixed Price',
         ];
     }
 
     /**
      * Get available status values
-     *
-     * @return array
      */
     public function getAvailableStatuses(): array
     {
@@ -479,8 +465,6 @@ class LegacyMilestones extends Resource
 
     /**
      * Get available sort fields
-     *
-     * @return array
      */
     public function getAvailableSortFields(): array
     {

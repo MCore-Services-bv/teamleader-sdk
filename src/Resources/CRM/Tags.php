@@ -10,12 +10,19 @@ class Tags extends Resource
 
     // Resource capabilities - Tags appear to be read-only based on API docs
     protected bool $supportsCreation = false;  // No create endpoint shown
+
     protected bool $supportsUpdate = false;    // No update endpoint shown
+
     protected bool $supportsDeletion = false;  // No delete endpoint shown
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = true;
+
     protected bool $supportsSorting = true;
+
     protected bool $supportsFiltering = false; // No filters shown in API docs
+
     protected bool $supportsSideloading = false;
 
     // Available includes (none for tags)
@@ -28,20 +35,20 @@ class Tags extends Resource
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all tags',
-            'code' => '$tags = $teamleader->tags()->list();'
+            'code' => '$tags = $teamleader->tags()->list();',
         ],
         'list_paginated' => [
             'description' => 'Get tags with pagination',
-            'code' => '$tags = $teamleader->tags()->list([], [\'page_size\' => 50, \'page_number\' => 2]);'
+            'code' => '$tags = $teamleader->tags()->list([], [\'page_size\' => 50, \'page_number\' => 2]);',
         ],
         'list_sorted' => [
             'description' => 'Get tags sorted alphabetically',
-            'code' => '$tags = $teamleader->tags()->list([], [\'sort\' => \'tag\', \'sort_order\' => \'asc\']);'
+            'code' => '$tags = $teamleader->tags()->list([], [\'sort\' => \'tag\', \'sort_order\' => \'asc\']);',
         ],
         'search_tags' => [
             'description' => 'Search for specific tags',
-            'code' => '$campaignTags = $teamleader->tags()->search(\'campaign\');'
-        ]
+            'code' => '$campaignTags = $teamleader->tags()->search(\'campaign\');',
+        ],
     ];
 
     /**
@@ -55,9 +62,8 @@ class Tags extends Resource
     /**
      * List tags with enhanced parameter handling
      *
-     * @param array $filters Filters (not supported for tags)
-     * @param array $options Pagination and sorting options
-     * @return array
+     * @param  array  $filters  Filters (not supported for tags)
+     * @param  array  $options  Pagination and sorting options
      */
     public function list(array $filters = [], array $options = []): array
     {
@@ -67,7 +73,7 @@ class Tags extends Resource
         if ($this->supportsPagination) {
             $params['page'] = [
                 'size' => $options['page_size'] ?? 20,
-                'number' => $options['page_number'] ?? 1
+                'number' => $options['page_number'] ?? 1,
             ];
         }
 
@@ -89,12 +95,12 @@ class Tags extends Resource
             $params['sort'] = [
                 [
                     'field' => $sortField,
-                    'order' => $sortOrder
-                ]
+                    'order' => $sortOrder,
+                ],
             ];
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
@@ -111,7 +117,7 @@ class Tags extends Resource
         do {
             $response = $this->list([], [
                 'page_size' => $pageSize,
-                'page_number' => $pageNumber
+                'page_number' => $pageNumber,
             ]);
 
             if (isset($response['data']) && is_array($response['data'])) {
@@ -128,7 +134,7 @@ class Tags extends Resource
 
         return [
             'data' => $allTags,
-            'total_count' => count($allTags)
+            'total_count' => count($allTags),
         ];
     }
 
@@ -136,9 +142,8 @@ class Tags extends Resource
      * Search tags by name (client-side filtering)
      * Note: The API doesn't support server-side filtering, so we fetch all and filter
      *
-     * @param string $query Search query
-     * @param bool $exactMatch Whether to match exactly or use partial matching
-     * @return array
+     * @param  string  $query  Search query
+     * @param  bool  $exactMatch  Whether to match exactly or use partial matching
      */
     public function search(string $query, bool $exactMatch = false): array
     {
@@ -148,8 +153,8 @@ class Tags extends Resource
             return $allTags;
         }
 
-        $filteredTags = array_filter($allTags['data'], function($tag) use ($query, $exactMatch) {
-            if (!isset($tag['tag'])) {
+        $filteredTags = array_filter($allTags['data'], function ($tag) use ($query, $exactMatch) {
+            if (! isset($tag['tag'])) {
                 return false;
             }
 
@@ -164,15 +169,14 @@ class Tags extends Resource
             'data' => array_values($filteredTags), // Reset array keys
             'total_count' => count($filteredTags),
             'query' => $query,
-            'exact_match' => $exactMatch
+            'exact_match' => $exactMatch,
         ];
     }
 
     /**
      * Get tags containing specific text
      *
-     * @param string $text Text to search for
-     * @return array
+     * @param  string  $text  Text to search for
      */
     public function containing(string $text): array
     {
@@ -182,15 +186,14 @@ class Tags extends Resource
     /**
      * Get tags starting with specific text
      *
-     * @param string $prefix Prefix to search for
-     * @return array
+     * @param  string  $prefix  Prefix to search for
      */
     public function startingWith(string $prefix): array
     {
         $allTags = $this->all();
 
-        $filteredTags = array_filter($allTags['data'], function($tag) use ($prefix) {
-            if (!isset($tag['tag'])) {
+        $filteredTags = array_filter($allTags['data'], function ($tag) use ($prefix) {
+            if (! isset($tag['tag'])) {
                 return false;
             }
 
@@ -200,22 +203,21 @@ class Tags extends Resource
         return [
             'data' => array_values($filteredTags),
             'total_count' => count($filteredTags),
-            'prefix' => $prefix
+            'prefix' => $prefix,
         ];
     }
 
     /**
      * Get paginated results with better metadata
      *
-     * @param int $pageSize Items per page
-     * @param int $pageNumber Page number (1-based)
-     * @return array
+     * @param  int  $pageSize  Items per page
+     * @param  int  $pageNumber  Page number (1-based)
      */
     public function paginate(int $pageSize = 20, int $pageNumber = 1): array
     {
         $response = $this->list([], [
             'page_size' => $pageSize,
-            'page_number' => $pageNumber
+            'page_number' => $pageNumber,
         ]);
 
         // Add enhanced pagination metadata
@@ -224,7 +226,7 @@ class Tags extends Resource
                 'current_page' => $pageNumber,
                 'per_page' => $pageSize,
                 'total_on_page' => count($response['data']),
-                'has_more_pages' => count($response['data']) === $pageSize
+                'has_more_pages' => count($response['data']) === $pageSize,
             ];
         }
 
@@ -233,8 +235,6 @@ class Tags extends Resource
 
     /**
      * Get tag statistics
-     *
-     * @return array
      */
     public function getStatistics(): array
     {
@@ -246,7 +246,7 @@ class Tags extends Resource
             'average_length' => 0,
             'shortest_tag' => '',
             'longest_tag' => '',
-            'most_common_prefixes' => []
+            'most_common_prefixes' => [],
         ];
 
         if (empty($tags)) {
@@ -279,7 +279,7 @@ class Tags extends Resource
             }
         }
 
-        $stats['average_length'] = !empty($lengths) ? round(array_sum($lengths) / count($lengths), 2) : 0;
+        $stats['average_length'] = ! empty($lengths) ? round(array_sum($lengths) / count($lengths), 2) : 0;
 
         // Sort prefixes by frequency
         arsort($prefixes);
@@ -290,22 +290,20 @@ class Tags extends Resource
 
     /**
      * Get available sort options
-     *
-     * @return array
      */
     public function getAvailableSortFields(): array
     {
         return [
-            'tag' => 'Sort by tag name (only option available)'
+            'tag' => 'Sort by tag name (only option available)',
         ];
     }
 
     /**
      * Override info method as individual tag info is not supported
      *
-     * @param string $id
-     * @param mixed $includes
-     * @return array
+     * @param  string  $id
+     * @param  mixed  $includes
+     *
      * @throws \InvalidArgumentException
      */
     public function info($id, $includes = null): array
@@ -317,8 +315,6 @@ class Tags extends Resource
 
     /**
      * Override getSuggestedIncludes as tags don't have includes
-     *
-     * @return array
      */
     protected function getSuggestedIncludes(): array
     {
@@ -327,8 +323,6 @@ class Tags extends Resource
 
     /**
      * Get response structure documentation
-     *
-     * @return array
      */
     public function getResponseStructure(): array
     {
@@ -337,22 +331,18 @@ class Tags extends Resource
                 'description' => 'Array of tags',
                 'type' => 'array',
                 'items' => [
-                    'tag' => 'Tag name/label (e.g., "campaign", "priority", "client")'
-                ]
+                    'tag' => 'Tag name/label (e.g., "campaign", "priority", "client")',
+                ],
             ],
             'pagination' => [
                 'description' => 'Pagination metadata (added by SDK)',
-                'type' => 'object'
-            ]
+                'type' => 'object',
+            ],
         ];
     }
 
     /**
      * Override validation since tags don't support create/update
-     *
-     * @param array $data
-     * @param string $operation
-     * @return array
      */
     protected function validateData(array $data, string $operation = 'create'): array
     {

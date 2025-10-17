@@ -11,12 +11,19 @@ class Tasks extends Resource
 
     // Resource capabilities - Tasks support full CRUD operations plus special operations
     protected bool $supportsCreation = true;
+
     protected bool $supportsUpdate = true;
+
     protected bool $supportsDeletion = true;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = true;
+
     protected bool $supportsSorting = true;
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSideloading = false; // No includes mentioned in API docs
 
     // Available includes for sideloading (none based on API docs)
@@ -72,15 +79,15 @@ class Tasks extends Resource
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all tasks',
-            'code' => '$tasks = $teamleader->tasks()->list();'
+            'code' => '$tasks = $teamleader->tasks()->list();',
         ],
         'list_for_user' => [
             'description' => 'Get tasks for a specific user',
-            'code' => '$tasks = $teamleader->tasks()->forUser("user-uuid");'
+            'code' => '$tasks = $teamleader->tasks()->forUser("user-uuid");',
         ],
         'list_incomplete' => [
             'description' => 'Get incomplete tasks',
-            'code' => '$tasks = $teamleader->tasks()->incomplete();'
+            'code' => '$tasks = $teamleader->tasks()->incomplete();',
         ],
         'create_task' => [
             'description' => 'Create a new task',
@@ -88,21 +95,21 @@ class Tasks extends Resource
     "title" => "Review code changes",
     "due_on" => "2025-02-15",
     "work_type_id" => "work-type-uuid"
-]);'
+]);',
         ],
         'update_task' => [
             'description' => 'Update a task',
             'code' => '$task = $teamleader->tasks()->update("task-uuid", [
     "title" => "Updated task title"
-]);'
+]);',
         ],
         'complete_task' => [
             'description' => 'Mark a task as complete',
-            'code' => '$result = $teamleader->tasks()->complete("task-uuid");'
+            'code' => '$result = $teamleader->tasks()->complete("task-uuid");',
         ],
         'reopen_task' => [
             'description' => 'Reopen a completed task',
-            'code' => '$result = $teamleader->tasks()->reopen("task-uuid");'
+            'code' => '$result = $teamleader->tasks()->reopen("task-uuid");',
         ],
         'schedule_task' => [
             'description' => 'Schedule a task in calendar',
@@ -110,7 +117,7 @@ class Tasks extends Resource
     "task-uuid",
     "2025-02-15T09:00:00+00:00",
     "2025-02-15T10:00:00+00:00"
-);'
+);',
         ],
     ];
 
@@ -130,7 +137,7 @@ class Tasks extends Resource
         $params = [];
 
         // Build filter object
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
@@ -147,7 +154,7 @@ class Tasks extends Resource
             $params['sort'] = $this->buildSort($options['sort']);
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
@@ -155,7 +162,7 @@ class Tasks extends Resource
      */
     public function info($id, $includes = null): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.info', [
+        return $this->api->request('POST', $this->getBasePath().'.info', [
             'id' => $id,
         ]);
     }
@@ -168,7 +175,8 @@ class Tasks extends Resource
     public function create(array $data): array
     {
         $this->validateTaskData($data, 'create');
-        return $this->api->request('POST', $this->getBasePath() . '.create', $data);
+
+        return $this->api->request('POST', $this->getBasePath().'.create', $data);
     }
 
     /**
@@ -180,7 +188,8 @@ class Tasks extends Resource
     {
         $data['id'] = $id;
         $this->validateTaskData($data, 'update');
-        return $this->api->request('POST', $this->getBasePath() . '.update', $data);
+
+        return $this->api->request('POST', $this->getBasePath().'.update', $data);
     }
 
     /**
@@ -188,7 +197,7 @@ class Tasks extends Resource
      */
     public function delete($id, ...$additionalParams): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.delete', [
+        return $this->api->request('POST', $this->getBasePath().'.delete', [
             'id' => $id,
         ]);
     }
@@ -196,12 +205,11 @@ class Tasks extends Resource
     /**
      * Mark a task as complete
      *
-     * @param string $id Task UUID
-     * @return array
+     * @param  string  $id  Task UUID
      */
     public function complete(string $id): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.complete', [
+        return $this->api->request('POST', $this->getBasePath().'.complete', [
             'id' => $id,
         ]);
     }
@@ -209,12 +217,11 @@ class Tasks extends Resource
     /**
      * Reopen a task that had been marked as complete
      *
-     * @param string $id Task UUID
-     * @return array
+     * @param  string  $id  Task UUID
      */
     public function reopen(string $id): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.reopen', [
+        return $this->api->request('POST', $this->getBasePath().'.reopen', [
             'id' => $id,
         ]);
     }
@@ -222,17 +229,16 @@ class Tasks extends Resource
     /**
      * Schedule a task in your calendar
      *
-     * @param string $id Task UUID
-     * @param string $startsAt Start datetime in ISO 8601 format
-     * @param string $endsAt End datetime in ISO 8601 format
-     * @return array
+     * @param  string  $id  Task UUID
+     * @param  string  $startsAt  Start datetime in ISO 8601 format
+     * @param  string  $endsAt  End datetime in ISO 8601 format
      */
     public function schedule(string $id, string $startsAt, string $endsAt): array
     {
         $this->validateDateTimeFormat($startsAt, 'starts_at');
         $this->validateDateTimeFormat($endsAt, 'ends_at');
 
-        return $this->api->request('POST', $this->getBasePath() . '.schedule', [
+        return $this->api->request('POST', $this->getBasePath().'.schedule', [
             'id' => $id,
             'starts_at' => $startsAt,
             'ends_at' => $endsAt,
@@ -242,9 +248,8 @@ class Tasks extends Resource
     /**
      * Get tasks for a specific user
      *
-     * @param string $userId User UUID
-     * @param array $options Additional options
-     * @return array
+     * @param  string  $userId  User UUID
+     * @param  array  $options  Additional options
      */
     public function forUser(string $userId, array $options = []): array
     {
@@ -257,8 +262,7 @@ class Tasks extends Resource
     /**
      * Get unassigned tasks
      *
-     * @param array $options Additional options
-     * @return array
+     * @param  array  $options  Additional options
      */
     public function unassigned(array $options = []): array
     {
@@ -271,8 +275,7 @@ class Tasks extends Resource
     /**
      * Get completed tasks
      *
-     * @param array $options Additional options
-     * @return array
+     * @param  array  $options  Additional options
      */
     public function completed(array $options = []): array
     {
@@ -285,8 +288,7 @@ class Tasks extends Resource
     /**
      * Get incomplete tasks
      *
-     * @param array $options Additional options
-     * @return array
+     * @param  array  $options  Additional options
      */
     public function incomplete(array $options = []): array
     {
@@ -299,8 +301,7 @@ class Tasks extends Resource
     /**
      * Get scheduled tasks
      *
-     * @param array $options Additional options
-     * @return array
+     * @param  array  $options  Additional options
      */
     public function scheduled(array $options = []): array
     {
@@ -313,9 +314,8 @@ class Tasks extends Resource
     /**
      * Get tasks for a milestone
      *
-     * @param string $milestoneId Milestone UUID
-     * @param array $options Additional options
-     * @return array
+     * @param  string  $milestoneId  Milestone UUID
+     * @param  array  $options  Additional options
      */
     public function forMilestone(string $milestoneId, array $options = []): array
     {
@@ -328,10 +328,9 @@ class Tasks extends Resource
     /**
      * Get tasks for a customer
      *
-     * @param string $customerType Type of customer ('contact' or 'company')
-     * @param string $customerId UUID of the customer
-     * @param array $options Additional options
-     * @return array
+     * @param  string  $customerType  Type of customer ('contact' or 'company')
+     * @param  string  $customerId  UUID of the customer
+     * @param  array  $options  Additional options
      */
     public function forCustomer(string $customerType, string $customerId, array $options = []): array
     {
@@ -351,10 +350,9 @@ class Tasks extends Resource
     /**
      * Get tasks due within a date range
      *
-     * @param string $dueFrom Start date (YYYY-MM-DD)
-     * @param string $dueBy End date (YYYY-MM-DD)
-     * @param array $options Additional options
-     * @return array
+     * @param  string  $dueFrom  Start date (YYYY-MM-DD)
+     * @param  string  $dueBy  End date (YYYY-MM-DD)
+     * @param  array  $options  Additional options
      */
     public function dueBetween(string $dueFrom, string $dueBy, array $options = []): array
     {
@@ -373,9 +371,8 @@ class Tasks extends Resource
     /**
      * Search tasks by term (searches in description)
      *
-     * @param string $term Search term
-     * @param array $options Additional options
-     * @return array
+     * @param  string  $term  Search term
+     * @param  array  $options  Additional options
      */
     public function search(string $term, array $options = []): array
     {
@@ -388,9 +385,8 @@ class Tasks extends Resource
     /**
      * Get tasks by specific IDs
      *
-     * @param array $ids Array of task UUIDs
-     * @param array $options Additional options
-     * @return array
+     * @param  array  $ids  Array of task UUIDs
+     * @param  array  $options  Additional options
      */
     public function byIds(array $ids, array $options = []): array
     {
@@ -403,8 +399,8 @@ class Tasks extends Resource
     /**
      * Validate task data for create/update operations
      *
-     * @param array $data
-     * @param string $operation 'create' or 'update'
+     * @param  string  $operation  'create' or 'update'
+     *
      * @throws InvalidArgumentException
      */
     protected function validateTaskData(array $data, string $operation = 'create'): void
@@ -440,15 +436,15 @@ class Tasks extends Resource
         // Validate assignee structure if provided
         if (isset($data['assignee'])) {
             if ($data['assignee'] !== null) {
-                if (!is_array($data['assignee'])) {
+                if (! is_array($data['assignee'])) {
                     throw new InvalidArgumentException('assignee must be an array or null');
                 }
-                if (!isset($data['assignee']['type']) || !in_array($data['assignee']['type'], $this->assigneeTypes)) {
+                if (! isset($data['assignee']['type']) || ! in_array($data['assignee']['type'], $this->assigneeTypes)) {
                     throw new InvalidArgumentException(
-                        'Invalid assignee type. Must be one of: ' . implode(', ', $this->assigneeTypes)
+                        'Invalid assignee type. Must be one of: '.implode(', ', $this->assigneeTypes)
                     );
                 }
-                if (!isset($data['assignee']['id']) || empty($data['assignee']['id'])) {
+                if (! isset($data['assignee']['id']) || empty($data['assignee']['id'])) {
                     throw new InvalidArgumentException('Assignee id is required');
                 }
             }
@@ -456,24 +452,24 @@ class Tasks extends Resource
 
         // Validate customer structure if provided
         if (isset($data['customer']) && is_array($data['customer'])) {
-            if (!isset($data['customer']['type']) || !in_array($data['customer']['type'], $this->customerTypes)) {
+            if (! isset($data['customer']['type']) || ! in_array($data['customer']['type'], $this->customerTypes)) {
                 throw new InvalidArgumentException(
-                    'Invalid customer type. Must be one of: ' . implode(', ', $this->customerTypes)
+                    'Invalid customer type. Must be one of: '.implode(', ', $this->customerTypes)
                 );
             }
-            if (!isset($data['customer']['id']) || empty($data['customer']['id'])) {
+            if (! isset($data['customer']['id']) || empty($data['customer']['id'])) {
                 throw new InvalidArgumentException('Customer id is required');
             }
         }
 
         // Validate estimated_duration structure if provided
         if (isset($data['estimated_duration']) && is_array($data['estimated_duration'])) {
-            if (!isset($data['estimated_duration']['unit']) || !in_array($data['estimated_duration']['unit'], $this->timeUnits)) {
+            if (! isset($data['estimated_duration']['unit']) || ! in_array($data['estimated_duration']['unit'], $this->timeUnits)) {
                 throw new InvalidArgumentException(
-                    'Invalid estimated_duration unit. Must be one of: ' . implode(', ', $this->timeUnits)
+                    'Invalid estimated_duration unit. Must be one of: '.implode(', ', $this->timeUnits)
                 );
             }
-            if (!isset($data['estimated_duration']['value']) || !is_numeric($data['estimated_duration']['value'])) {
+            if (! isset($data['estimated_duration']['value']) || ! is_numeric($data['estimated_duration']['value'])) {
                 throw new InvalidArgumentException('estimated_duration value is required and must be numeric');
             }
         }
@@ -482,14 +478,12 @@ class Tasks extends Resource
     /**
      * Validate date format (YYYY-MM-DD)
      *
-     * @param string $date
-     * @param string $fieldName
      * @throws InvalidArgumentException
      */
     protected function validateDateFormat(string $date, string $fieldName): void
     {
         $pattern = '/^\d{4}-\d{2}-\d{2}$/';
-        if (!preg_match($pattern, $date)) {
+        if (! preg_match($pattern, $date)) {
             throw new InvalidArgumentException(
                 "{$fieldName} must be in YYYY-MM-DD format (e.g., 2025-02-15)"
             );
@@ -499,14 +493,12 @@ class Tasks extends Resource
     /**
      * Validate datetime format (ISO 8601)
      *
-     * @param string $datetime
-     * @param string $fieldName
      * @throws InvalidArgumentException
      */
     protected function validateDateTimeFormat(string $datetime, string $fieldName): void
     {
         $pattern = '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/';
-        if (!preg_match($pattern, $datetime)) {
+        if (! preg_match($pattern, $datetime)) {
             throw new InvalidArgumentException(
                 "{$fieldName} must be in ISO 8601 format (e.g., 2025-02-04T16:00:00+00:00)"
             );
@@ -516,23 +508,19 @@ class Tasks extends Resource
     /**
      * Validate customer type
      *
-     * @param string $type
      * @throws InvalidArgumentException
      */
     protected function validateCustomerType(string $type): void
     {
-        if (!in_array($type, $this->customerTypes)) {
+        if (! in_array($type, $this->customerTypes)) {
             throw new InvalidArgumentException(
-                'Invalid customer type. Must be one of: ' . implode(', ', $this->customerTypes)
+                'Invalid customer type. Must be one of: '.implode(', ', $this->customerTypes)
             );
         }
     }
 
     /**
      * Build filters array for the API request
-     *
-     * @param array $filters
-     * @return array
      */
     protected function buildFilters(array $filters): array
     {
@@ -557,9 +545,6 @@ class Tasks extends Resource
 
     /**
      * Build sort array for the API request
-     *
-     * @param array $sort
-     * @return array
      */
     protected function buildSort(array $sort): array
     {

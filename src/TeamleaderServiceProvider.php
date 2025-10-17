@@ -3,8 +3,8 @@
 namespace McoreServices\TeamleaderSDK;
 
 use Exception;
-use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\ServiceProvider;
 use McoreServices\TeamleaderSDK\Services\ConfigurationValidator;
 
 class TeamleaderServiceProvider extends ServiceProvider
@@ -15,11 +15,11 @@ class TeamleaderServiceProvider extends ServiceProvider
     public function register(): void
     {
         // Merge config
-        $this->mergeConfigFrom(__DIR__ . '/../config/teamleader.php', 'teamleader');
+        $this->mergeConfigFrom(__DIR__.'/../config/teamleader.php', 'teamleader');
 
         // Register SDK singleton
         $this->app->singleton(TeamleaderSDK::class, function ($app) {
-            return new TeamleaderSDK();
+            return new TeamleaderSDK;
         });
 
         // Register facade alias
@@ -33,16 +33,16 @@ class TeamleaderServiceProvider extends ServiceProvider
     {
         // Publish config
         $this->publishes([
-            __DIR__ . '/../config/teamleader.php' => config_path('teamleader.php'),
+            __DIR__.'/../config/teamleader.php' => config_path('teamleader.php'),
         ], 'teamleader-config');
 
         // Publish migrations
         $this->publishes([
-            __DIR__ . '/../database/migrations' => database_path('migrations'),
+            __DIR__.'/../database/migrations' => database_path('migrations'),
         ], 'teamleader-migrations');
 
         // Load migrations
-        $this->loadMigrationsFrom(__DIR__ . '/../database/migrations');
+        $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
 
         // Register commands
         if ($this->app->runningInConsole()) {
@@ -75,25 +75,23 @@ class TeamleaderServiceProvider extends ServiceProvider
      * Set in config/teamleader.php or .env:
      *   'validate_on_boot' => env('TEAMLEADER_VALIDATE_ON_BOOT', false)
      *   TEAMLEADER_VALIDATE_ON_BOOT=true
-     *
-     * @return void
      */
     protected function validateConfigurationOnBoot(): void
     {
         // Only validate if explicitly enabled
-        if (!config('teamleader.validate_on_boot', false)) {
+        if (! config('teamleader.validate_on_boot', false)) {
             return;
         }
 
         try {
-            $validator = new ConfigurationValidator();
+            $validator = new ConfigurationValidator;
             $result = $validator->validate();
 
             // Environment-specific validation depth
             $environment = $this->app->environment();
             $isProduction = $environment === 'production';
 
-            if (!$result->isValid()) {
+            if (! $result->isValid()) {
                 // Configuration has errors
                 $errorCount = $result->getErrorCount();
                 $errors = implode(', ', array_slice($result->errors, 0, 3)); // First 3 errors
@@ -104,7 +102,7 @@ class TeamleaderServiceProvider extends ServiceProvider
                         'error_count' => $errorCount,
                         'errors' => $result->errors,
                         'environment' => $environment,
-                        'validation_summary' => $result->getSummary()
+                        'validation_summary' => $result->getSummary(),
                     ]);
                 } else {
                     // In development, be more verbose
@@ -114,7 +112,7 @@ class TeamleaderServiceProvider extends ServiceProvider
                         'errors' => $result->errors,
                         'warnings' => $result->warnings,
                         'environment' => $environment,
-                        'suggestions' => $validator->getSuggestions()
+                        'suggestions' => $validator->getSuggestions(),
                     ]);
 
                     // Optionally show in console during development
@@ -128,20 +126,20 @@ class TeamleaderServiceProvider extends ServiceProvider
                 // Configuration is valid but has warnings
                 $warningCount = $result->getWarningCount();
 
-                if (!$isProduction) {
+                if (! $isProduction) {
                     // Only log warnings in non-production
                     Log::warning('Teamleader SDK configuration has warnings', [
                         'warning_count' => $warningCount,
                         'warnings' => $result->warnings,
                         'environment' => $environment,
-                        'suggestions' => $validator->getSuggestions()
+                        'suggestions' => $validator->getSuggestions(),
                     ]);
                 }
             } else {
                 // Configuration is completely valid
                 Log::debug('Teamleader SDK configuration validated successfully', [
                     'environment' => $environment,
-                    'validated_at' => now()->toIso8601String()
+                    'validated_at' => now()->toIso8601String(),
                 ]);
             }
 
@@ -152,7 +150,7 @@ class TeamleaderServiceProvider extends ServiceProvider
                     [
                         'is_valid' => $result->isValid(),
                         'validated_at' => now()->toIso8601String(),
-                        'summary' => $result->getSummary()
+                        'summary' => $result->getSummary(),
                     ],
                     3600 // Cache for 1 hour
                 );
@@ -163,21 +161,19 @@ class TeamleaderServiceProvider extends ServiceProvider
             Log::error('Teamleader SDK configuration validation encountered an error', [
                 'exception' => get_class($e),
                 'message' => $e->getMessage(),
-                'trace' => config('app.debug') ? $e->getTraceAsString() : null
+                'trace' => config('app.debug') ? $e->getTraceAsString() : null,
             ]);
         }
     }
 
     /**
      * Get the services provided by the provider
-     *
-     * @return array
      */
     public function provides(): array
     {
         return [
             TeamleaderSDK::class,
-            'teamleader'
+            'teamleader',
         ];
     }
 }

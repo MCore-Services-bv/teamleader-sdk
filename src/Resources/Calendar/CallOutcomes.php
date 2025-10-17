@@ -10,12 +10,19 @@ class CallOutcomes extends Resource
 
     // Resource capabilities - CallOutcomes are typically read-only
     protected bool $supportsCreation = false;
+
     protected bool $supportsUpdate = false;
+
     protected bool $supportsDeletion = false;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = true;
+
     protected bool $supportsSorting = false;
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSideloading = false;
 
     // Available includes for sideloading (none for call outcomes)
@@ -26,23 +33,23 @@ class CallOutcomes extends Resource
 
     // Common filters based on API documentation
     protected array $commonFilters = [
-        'ids' => 'Array of call outcome UUIDs'
+        'ids' => 'Array of call outcome UUIDs',
     ];
 
     // Usage examples specific to call outcomes
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all call outcomes',
-            'code' => '$callOutcomes = $teamleader->callOutcomes()->list();'
+            'code' => '$callOutcomes = $teamleader->callOutcomes()->list();',
         ],
         'filter_by_ids' => [
             'description' => 'Get specific call outcomes by IDs',
-            'code' => '$callOutcomes = $teamleader->callOutcomes()->byIds(["uuid1", "uuid2"]);'
+            'code' => '$callOutcomes = $teamleader->callOutcomes()->byIds(["uuid1", "uuid2"]);',
         ],
         'find_by_name' => [
             'description' => 'Find call outcome by name',
-            'code' => '$outcome = $teamleader->callOutcomes()->findByName("Succesvol gesprek");'
-        ]
+            'code' => '$outcome = $teamleader->callOutcomes()->findByName("Succesvol gesprek");',
+        ],
     ];
 
     /**
@@ -68,7 +75,7 @@ class CallOutcomes extends Resource
             $options['include'] ?? null
         );
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
@@ -77,7 +84,7 @@ class CallOutcomes extends Resource
     protected function buildQueryParams(
         array $baseParams = [],
         array $filters = [],
-              $sort = null,
+        $sort = null,
         string $sortOrder = 'asc',
         int $pageSize = 20,
         int $pageNumber = 1,
@@ -86,7 +93,7 @@ class CallOutcomes extends Resource
         $params = $baseParams;
 
         // Build filter object
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = [];
 
             if (isset($filters['ids']) && is_array($filters['ids'])) {
@@ -97,7 +104,7 @@ class CallOutcomes extends Resource
         // Build page object
         $params['page'] = [
             'size' => $pageSize,
-            'number' => $pageNumber
+            'number' => $pageNumber,
         ];
 
         return $params;

@@ -28,25 +28,36 @@ abstract class Resource
 
     // Resource capabilities and configuration
     protected array $defaultIncludes = [];
+
     protected bool $supportsPagination = true;
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSorting = true;
+
     protected bool $supportsSideloading = true;
+
     protected bool $supportsCreation = true;
+
     protected bool $supportsUpdate = true;
+
     protected bool $supportsDeletion = true;
+
     protected bool $supportsBatch = false;
 
     // Documentation properties
     protected array $commonFilters = [];
+
     protected array $availableIncludes = [];
+
     protected array $usageExamples = [];
+
     protected string $description = '';
 
     /**
      * Resource constructor
      *
-     * @param TeamleaderSDK $api The SDK instance
+     * @param  TeamleaderSDK  $api  The SDK instance
      */
     public function __construct(TeamleaderSDK $api)
     {
@@ -74,12 +85,12 @@ abstract class Resource
         $markdown .= "## Capabilities\n\n";
         foreach ($docs['capabilities'] as $capability => $supported) {
             $status = $supported ? '✅ Supported' : '❌ Not Supported';
-            $markdown .= "- **" . ucwords(str_replace('_', ' ', $capability)) . "**: {$status}\n";
+            $markdown .= '- **'.ucwords(str_replace('_', ' ', $capability))."**: {$status}\n";
         }
         $markdown .= "\n";
 
         // Common filters
-        if (!empty($docs['common_filters'])) {
+        if (! empty($docs['common_filters'])) {
             $markdown .= "## Common Filters\n\n";
             foreach ($docs['common_filters'] as $filter => $description) {
                 $markdown .= "- `{$filter}`: {$description}\n";
@@ -88,7 +99,7 @@ abstract class Resource
         }
 
         // Usage examples
-        if (!empty($docs['usage_examples'])) {
+        if (! empty($docs['usage_examples'])) {
             $markdown .= "## Usage Examples\n\n";
             foreach ($docs['usage_examples'] as $example) {
                 $markdown .= "**{$example['description']}**\n\n";
@@ -163,7 +174,7 @@ abstract class Resource
             'supports_batch' => $this->supportsBatch,
             'default_includes' => $this->defaultIncludes,
             'available_includes' => $this->getAvailableIncludes(),
-            'endpoint' => $this->getBasePath()
+            'endpoint' => $this->getBasePath(),
         ];
     }
 
@@ -230,12 +241,12 @@ abstract class Resource
         return [
             'list' => [
                 'description' => 'Get all resources with pagination',
-                'code' => "\$results = \$teamleader->{$methodName}s()->list([], ['page_size' => 50]);"
+                'code' => "\$results = \$teamleader->{$methodName}s()->list([], ['page_size' => 50]);",
             ],
             'info' => [
                 'description' => 'Get a single resource',
-                'code' => "\$resource = \$teamleader->{$methodName}s()->info('uuid-here');"
-            ]
+                'code' => "\$resource = \$teamleader->{$methodName}s()->info('uuid-here');",
+            ],
         ];
     }
 
@@ -257,7 +268,7 @@ abstract class Resource
             'create' => 1,
             'update' => 1,
             'delete' => 1,
-            'batch' => 'varies based on items'
+            'batch' => 'varies based on items',
         ];
     }
 
@@ -276,22 +287,22 @@ abstract class Resource
                 'data' => 'Array of resource objects',
                 'pagination' => 'Pagination metadata (if applicable)',
                 'included' => 'Sideloaded related resources (if requested)',
-                'meta' => 'Additional metadata'
+                'meta' => 'Additional metadata',
             ],
             'info' => [
                 'data' => 'Single resource object',
-                'included' => 'Sideloaded related resources (if requested)'
+                'included' => 'Sideloaded related resources (if requested)',
             ],
             'create' => [
-                'data' => 'Created resource object with generated ID'
+                'data' => 'Created resource object with generated ID',
             ],
             'update' => [
-                'data' => 'Updated resource object'
+                'data' => 'Updated resource object',
             ],
             'delete' => [
                 'success' => 'Boolean indicating success',
-                'message' => 'Confirmation message (if applicable)'
-            ]
+                'message' => 'Confirmation message (if applicable)',
+            ],
         ];
     }
 
@@ -301,13 +312,13 @@ abstract class Resource
      * Ensures the provided ID matches UUID v4 format.
      * Throws InvalidArgumentException if invalid.
      *
-     * @param string $id The UUID to validate
-     * @return void
+     * @param  string  $id  The UUID to validate
+     *
      * @throws InvalidArgumentException If the UUID format is invalid
      */
     protected function validateId(string $id): void
     {
-        if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $id)) {
+        if (! preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i', $id)) {
             throw new InvalidArgumentException("Invalid UUID format: {$id}");
         }
     }
@@ -323,35 +334,34 @@ abstract class Resource
      *
      * Handles validation and formatting of all parameter types.
      *
-     * @param array $includes Include strings for sideloading
-     * @param array $filters Filter criteria
-     * @param string|null $sort Field to sort by
-     * @param string $sortOrder Sort direction ('asc' or 'desc')
-     * @param int $pageSize Number of results per page
-     * @param int $pageNumber Page number to retrieve
-     * @param string|null $include Alternative include parameter
+     * @param  array  $includes  Include strings for sideloading
+     * @param  array  $filters  Filter criteria
+     * @param  string|null  $sort  Field to sort by
+     * @param  string  $sortOrder  Sort direction ('asc' or 'desc')
+     * @param  int  $pageSize  Number of results per page
+     * @param  int  $pageNumber  Page number to retrieve
+     * @param  string|null  $include  Alternative include parameter
      * @return array Formatted query parameters ready for API request
      */
     protected function buildQueryParams(
-        array   $includes = [],
-        array   $filters = [],
+        array $includes = [],
+        array $filters = [],
         ?string $sort = null,
-        string  $sortOrder = 'desc',
-        int     $pageSize = 20,
-        int     $pageNumber = 1,
+        string $sortOrder = 'desc',
+        int $pageSize = 20,
+        int $pageNumber = 1,
         ?string $include = null
-    ): array
-    {
+    ): array {
         $params = [];
 
         // Handle includes (sideloading)
-        if (!empty($includes) || !empty($include)) {
+        if (! empty($includes) || ! empty($include)) {
             $includeString = $include ?? implode(',', $includes);
             $params['include'] = $includeString;
         }
 
         // Handle filters
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
@@ -364,7 +374,7 @@ abstract class Resource
         if ($this->supportsPagination) {
             $params['page'] = [
                 'size' => $pageSize,
-                'number' => $pageNumber
+                'number' => $pageNumber,
             ];
         }
 
@@ -377,8 +387,8 @@ abstract class Resource
      * Formats sort parameters according to Teamleader API requirements.
      * Supports multiple sort fields with different directions.
      *
-     * @param string|array $sort Field name(s) to sort by
-     * @param string $order Sort direction: 'asc' or 'desc'
+     * @param  string|array  $sort  Field name(s) to sort by
+     * @param  string  $order  Sort direction: 'asc' or 'desc'
      * @return array|string Formatted sort parameter
      */
     protected function buildSort($sort, string $order = 'desc')
@@ -387,22 +397,21 @@ abstract class Resource
             return array_map(function ($field) use ($order) {
                 return [
                     'field' => $field,
-                    'order' => $order
+                    'order' => $order,
                 ];
             }, $sort);
         }
 
         return [
             'field' => $sort,
-            'order' => $order
+            'order' => $order,
         ];
     }
 
     /**
      * Invalidate cache after updates
      *
-     * @param string $id Resource ID that was updated
-     * @return void
+     * @param  string  $id  Resource ID that was updated
      */
     protected function invalidateCache(string $id): void
     {
@@ -417,12 +426,11 @@ abstract class Resource
     /**
      * Clear cache for a specific resource
      *
-     * @param string|null $id Resource ID to clear cache for (null = all)
-     * @return void
+     * @param  string|null  $id  Resource ID to clear cache for (null = all)
      */
     protected function clearCache(?string $id = null): void
     {
-        if (!config('teamleader.caching.enabled')) {
+        if (! config('teamleader.caching.enabled')) {
             return; // Caching not enabled, nothing to clear
         }
 
@@ -434,7 +442,7 @@ abstract class Resource
             $this->api->getLogger()->debug('Cache cleared for resource', [
                 'resource' => $this->getBasePath(),
                 'id' => $id,
-                'cache_key' => $cacheKey
+                'cache_key' => $cacheKey,
             ]);
         } else {
             // Clear all cache for this resource type using tags
@@ -442,13 +450,13 @@ abstract class Resource
                 Cache::tags([$this->getBasePath()])->flush();
 
                 $this->api->getLogger()->debug('All cache cleared for resource', [
-                    'resource' => $this->getBasePath()
+                    'resource' => $this->getBasePath(),
                 ]);
             } else {
                 // Fallback for drivers that don't support tags
                 $this->api->getLogger()->warning('Cache tags not supported by cache driver', [
                     'resource' => $this->getBasePath(),
-                    'cache_driver' => config('cache.default')
+                    'cache_driver' => config('cache.default'),
                 ]);
             }
         }
@@ -457,16 +465,15 @@ abstract class Resource
     /**
      * Generate cache key for a resource
      *
-     * @param string $id Resource ID
-     * @param array $params Additional params to include in key
-     * @return string
+     * @param  string  $id  Resource ID
+     * @param  array  $params  Additional params to include in key
      */
     protected function getCacheKey(string $id, array $params = []): string
     {
         $key = "teamleader:{$this->getBasePath()}:{$id}";
 
-        if (!empty($params)) {
-            $key .= ':' . md5(serialize($params));
+        if (! empty($params)) {
+            $key .= ':'.md5(serialize($params));
         }
 
         return $key;

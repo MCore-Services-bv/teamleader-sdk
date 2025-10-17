@@ -10,12 +10,19 @@ class ActivityTypes extends Resource
 
     // Resource capabilities - ActivityTypes are read-only
     protected bool $supportsCreation = false;
+
     protected bool $supportsUpdate = false;
+
     protected bool $supportsDeletion = false;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = true;
+
     protected bool $supportsSorting = false;
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSideloading = false;
 
     // Available includes for sideloading (none for activity types)
@@ -26,23 +33,23 @@ class ActivityTypes extends Resource
 
     // Common filters based on API documentation
     protected array $commonFilters = [
-        'ids' => 'Array of activity type UUIDs'
+        'ids' => 'Array of activity type UUIDs',
     ];
 
     // Usage examples specific to activity types
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all activity types',
-            'code' => '$activityTypes = $teamleader->activityTypes()->list();'
+            'code' => '$activityTypes = $teamleader->activityTypes()->list();',
         ],
         'filter_by_ids' => [
             'description' => 'Get specific activity types by IDs',
-            'code' => '$activityTypes = $teamleader->activityTypes()->byIds(["uuid1", "uuid2"]);'
+            'code' => '$activityTypes = $teamleader->activityTypes()->byIds(["uuid1", "uuid2"]);',
         ],
         'find_by_name' => [
             'description' => 'Find activity type by name',
-            'code' => '$activityType = $teamleader->activityTypes()->findByName("Meeting");'
-        ]
+            'code' => '$activityType = $teamleader->activityTypes()->findByName("Meeting");',
+        ],
     ];
 
     /**
@@ -59,7 +66,7 @@ class ActivityTypes extends Resource
     protected function buildQueryParams(
         array $baseParams = [],
         array $filters = [],
-              $sort = null,
+        $sort = null,
         string $sortOrder = 'asc',
         int $pageSize = 20,
         int $pageNumber = 1,
@@ -68,7 +75,7 @@ class ActivityTypes extends Resource
         $params = $baseParams;
 
         // Build filter object
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = [];
 
             if (isset($filters['ids']) && is_array($filters['ids'])) {
@@ -79,7 +86,7 @@ class ActivityTypes extends Resource
         // Build page object
         $params['page'] = [
             'size' => $pageSize,
-            'number' => $pageNumber
+            'number' => $pageNumber,
         ];
 
         return $params;
@@ -137,7 +144,7 @@ class ActivityTypes extends Resource
     {
         $response = $this->byIds([$id]);
 
-        return !empty($response['data']) && count($response['data']) > 0;
+        return ! empty($response['data']) && count($response['data']) > 0;
     }
 
     /**
@@ -157,7 +164,7 @@ class ActivityTypes extends Resource
         foreach ($activityTypes as $activityType) {
             $selectOptions[] = [
                 'value' => $activityType['id'],
-                'label' => $activityType['name']
+                'label' => $activityType['name'],
             ];
         }
 

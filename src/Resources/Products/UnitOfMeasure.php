@@ -10,12 +10,19 @@ class UnitOfMeasure extends Resource
 
     // Resource capabilities - Units of Measure are read-only based on API docs
     protected bool $supportsCreation = false;
+
     protected bool $supportsUpdate = false;
+
     protected bool $supportsDeletion = false;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = false; // No pagination mentioned in API docs
+
     protected bool $supportsSorting = false;
+
     protected bool $supportsFiltering = false; // No filters mentioned in API docs
+
     protected bool $supportsSideloading = false;
 
     // Available includes for sideloading (none based on API docs)
@@ -31,16 +38,16 @@ class UnitOfMeasure extends Resource
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all units of measure',
-            'code' => '$unitsOfMeasure = $teamleader->unitsOfMeasure()->list();'
+            'code' => '$unitsOfMeasure = $teamleader->unitsOfMeasure()->list();',
         ],
         'get_by_name' => [
             'description' => 'Find unit of measure by name',
-            'code' => '$unit = $teamleader->unitsOfMeasure()->findByName("piece");'
+            'code' => '$unit = $teamleader->unitsOfMeasure()->findByName("piece");',
         ],
         'get_all_as_options' => [
             'description' => 'Get units as key-value pairs for dropdowns',
-            'code' => '$options = $teamleader->unitsOfMeasure()->asOptions();'
-        ]
+            'code' => '$options = $teamleader->unitsOfMeasure()->asOptions();',
+        ],
     ];
 
     /**
@@ -54,19 +61,18 @@ class UnitOfMeasure extends Resource
     /**
      * List all units of measure
      *
-     * @param array $filters Not used for this endpoint
-     * @param array $options Not used for this endpoint
-     * @return array
+     * @param  array  $filters  Not used for this endpoint
+     * @param  array  $options  Not used for this endpoint
      */
     public function list(array $filters = [], array $options = []): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.list', []);
+        return $this->api->request('POST', $this->getBasePath().'.list', []);
     }
 
     /**
      * Find a unit of measure by name (case-insensitive search)
      *
-     * @param string $name The name to search for
+     * @param  string  $name  The name to search for
      * @return array|null The unit of measure or null if not found
      */
     public function findByName(string $name): ?array
@@ -91,7 +97,7 @@ class UnitOfMeasure extends Resource
     /**
      * Find a unit of measure by ID
      *
-     * @param string $id The ID to search for
+     * @param  string  $id  The ID to search for
      * @return array|null The unit of measure or null if not found
      */
     public function findById(string $id): ?array
@@ -113,8 +119,6 @@ class UnitOfMeasure extends Resource
 
     /**
      * Get units of measure as key-value pairs (id => name) for use in dropdowns
-     *
-     * @return array
      */
     public function asOptions(): array
     {
@@ -142,14 +146,12 @@ class UnitOfMeasure extends Resource
     public function asCollection()
     {
         $response = $this->list();
+
         return collect($response['data'] ?? []);
     }
 
     /**
      * Check if a unit exists by name
-     *
-     * @param string $name
-     * @return bool
      */
     public function exists(string $name): bool
     {
@@ -158,12 +160,11 @@ class UnitOfMeasure extends Resource
 
     /**
      * Get the total count of units of measure
-     *
-     * @return int
      */
     public function count(): int
     {
         $response = $this->list();
+
         return count($response['data'] ?? []);
     }
 }

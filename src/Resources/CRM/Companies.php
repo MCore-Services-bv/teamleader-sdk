@@ -11,12 +11,19 @@ class Companies extends Resource
 
     // Resource capabilities - Companies support full CRUD operations
     protected bool $supportsCreation = true;
+
     protected bool $supportsUpdate = true;
+
     protected bool $supportsDeletion = true;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = true;
+
     protected bool $supportsSorting = true;
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSideloading = true;
 
     // Available includes for sideloading
@@ -25,13 +32,13 @@ class Companies extends Resource
         'business_type',
         'responsible_user',
         'added_by',
-        'tags'
+        'tags',
     ];
 
     // Default includes
     protected array $defaultIncludes = [
         'responsible_user',
-        'addresses'
+        'addresses',
     ];
 
     // Common filters based on API documentation - UPDATED WITH CORRECT STRUCTURE
@@ -43,7 +50,7 @@ class Companies extends Resource
         'term' => 'Search term (searches name, VAT, emails, phones)',
         'tags' => 'Array of tag names',
         'updated_since' => 'ISO 8601 datetime',
-        'status' => 'Company status (active, deactivated)'
+        'status' => 'Company status (active, deactivated)',
     ];
 
     /**
@@ -73,7 +80,7 @@ class Companies extends Resource
             $options['include'] ?? null
         );
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
@@ -93,8 +100,8 @@ class Companies extends Resource
             array_merge([
                 'email' => [
                     'type' => 'primary',
-                    'email' => $email
-                ]
+                    'email' => $email,
+                ],
             ], $options['filters'] ?? []),
             $options
         );
@@ -140,14 +147,14 @@ class Companies extends Resource
     {
         $params = ['id' => $id];
 
-        if (!empty($includes)) {
+        if (! empty($includes)) {
             $params = $this->applyIncludes($params, $includes);
         }
 
         // Apply any pending includes from fluent interface
         $params = $this->applyPendingIncludes($params);
 
-        return $this->api->request('POST', $this->getBasePath() . '.info', $params);
+        return $this->api->request('POST', $this->getBasePath().'.info', $params);
     }
 
     // ... (keep all your existing methods like create, update, delete, tag, etc.)
@@ -158,7 +165,8 @@ class Companies extends Resource
     public function create(array $data)
     {
         $validatedData = $this->validateCompanyData($data, 'create');
-        return $this->api->request('POST', $this->getBasePath() . '.add', $validatedData);
+
+        return $this->api->request('POST', $this->getBasePath().'.add', $validatedData);
     }
 
     /**
@@ -181,16 +189,16 @@ class Companies extends Resource
         // Validate email format if provided
         if (isset($data['emails']) && is_array($data['emails'])) {
             foreach ($data['emails'] as $email) {
-                if (isset($email['email']) && !filter_var($email['email'], FILTER_VALIDATE_EMAIL)) {
-                    throw new InvalidArgumentException('Invalid email format: ' . $email['email']);
+                if (isset($email['email']) && ! filter_var($email['email'], FILTER_VALIDATE_EMAIL)) {
+                    throw new InvalidArgumentException('Invalid email format: '.$email['email']);
                 }
             }
         }
 
         // Validate website URL if provided
-        if (isset($data['website']) && !empty($data['website'])) {
-            if (!filter_var($data['website'], FILTER_VALIDATE_URL)) {
-                throw new InvalidArgumentException('Invalid website URL format: ' . $data['website']);
+        if (isset($data['website']) && ! empty($data['website'])) {
+            if (! filter_var($data['website'], FILTER_VALIDATE_URL)) {
+                throw new InvalidArgumentException('Invalid website URL format: '.$data['website']);
             }
         }
 
@@ -204,7 +212,8 @@ class Companies extends Resource
     {
         $data['id'] = $id;
         $validatedData = $this->validateCompanyData($data, 'update');
-        return $this->api->request('POST', $this->getBasePath() . '.update', $validatedData);
+
+        return $this->api->request('POST', $this->getBasePath().'.update', $validatedData);
     }
 
     /**
@@ -212,7 +221,7 @@ class Companies extends Resource
      */
     public function delete($id, ...$additionalParams): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.delete', ['id' => $id]);
+        return $this->api->request('POST', $this->getBasePath().'.delete', ['id' => $id]);
     }
 
     /**
@@ -222,11 +231,11 @@ class Companies extends Resource
     {
         $results = [];
 
-        if (!empty($tagsToAdd)) {
+        if (! empty($tagsToAdd)) {
             $results['tagged'] = $this->tag($id, $tagsToAdd);
         }
 
-        if (!empty($tagsToRemove)) {
+        if (! empty($tagsToRemove)) {
             $results['untagged'] = $this->untag($id, $tagsToRemove);
         }
 
@@ -242,9 +251,9 @@ class Companies extends Resource
             $tags = [$tags];
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.tag', [
+        return $this->api->request('POST', $this->getBasePath().'.tag', [
             'id' => $id,
-            'tags' => $tags
+            'tags' => $tags,
         ]);
     }
 
@@ -257,9 +266,9 @@ class Companies extends Resource
             $tags = [$tags];
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.untag', [
+        return $this->api->request('POST', $this->getBasePath().'.untag', [
             'id' => $id,
-            'tags' => $tags
+            'tags' => $tags,
         ]);
     }
 
@@ -318,7 +327,7 @@ class Companies extends Resource
             'addresses',
             'responsible_user',
             'business_type',
-            'tags'
+            'tags',
         ]);
     }
 
@@ -330,7 +339,7 @@ class Companies extends Resource
         return [
             'added_at' => 'Date company was added',
             'updated_at' => 'Date company was last updated',
-            'name' => 'Company name'
+            'name' => 'Company name',
         ];
     }
 
@@ -362,12 +371,12 @@ class Companies extends Resource
                     if (is_string($value)) {
                         $apiFilters['email'] = [
                             'type' => 'primary', // API only accepts 'primary'
-                            'email' => $value
+                            'email' => $value,
                         ];
                     } elseif (is_array($value) && isset($value['email'])) {
                         $apiFilters['email'] = [
                             'type' => $value['type'] ?? 'primary',
-                            'email' => $value['email']
+                            'email' => $value['email'],
                         ];
                     }
                     break;
@@ -407,7 +416,7 @@ class Companies extends Resource
                     }
                     break;
 
-                // Handle legacy/alternative field names
+                    // Handle legacy/alternative field names
                 case 'search':
                 case 'general_search':
                     // Map general search to 'term' which searches multiple fields
@@ -422,7 +431,7 @@ class Companies extends Resource
             }
         }
 
-        if (!empty($apiFilters)) {
+        if (! empty($apiFilters)) {
             $params['filter'] = $apiFilters;
         }
 

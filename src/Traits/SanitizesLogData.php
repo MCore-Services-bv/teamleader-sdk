@@ -20,8 +20,6 @@ trait SanitizesLogData
 {
     /**
      * List of sensitive keys that should be redacted in logs
-     *
-     * @var array
      */
     protected array $sensitiveKeys = [
         // OAuth & Authentication
@@ -79,8 +77,6 @@ trait SanitizesLogData
 
     /**
      * Patterns for detecting sensitive data in values
-     *
-     * @var array
      */
     protected array $sensitivePatterns = [
         // Credit card numbers (basic pattern)
@@ -99,8 +95,6 @@ trait SanitizesLogData
 
     /**
      * Replacement text for sensitive data
-     *
-     * @var string
      */
     protected string $redactedText = '***REDACTED***';
 
@@ -110,8 +104,8 @@ trait SanitizesLogData
      * Recursively processes arrays and objects to redact sensitive information.
      * Preserves data structure while removing sensitive values.
      *
-     * @param mixed $data The data to sanitize
-     * @param int $depth Current recursion depth (prevents infinite loops)
+     * @param  mixed  $data  The data to sanitize
+     * @param  int  $depth  Current recursion depth (prevents infinite loops)
      * @return mixed Sanitized data
      */
     protected function sanitizeForLog($data, int $depth = 0)
@@ -142,12 +136,12 @@ trait SanitizesLogData
     /**
      * Sanitize scalar values (strings, numbers, booleans)
      *
-     * @param mixed $value
+     * @param  mixed  $value
      * @return mixed
      */
     protected function sanitizeScalar($value)
     {
-        if (!is_string($value)) {
+        if (! is_string($value)) {
             return $value;
         }
 
@@ -163,10 +157,6 @@ trait SanitizesLogData
 
     /**
      * Sanitize array data
-     *
-     * @param array $data
-     * @param int $depth
-     * @return array
      */
     protected function sanitizeArray(array $data, int $depth): array
     {
@@ -176,6 +166,7 @@ trait SanitizesLogData
             // Check if key is sensitive
             if ($this->isSensitiveKey($key)) {
                 $sanitized[$key] = $this->redactedText;
+
                 continue;
             }
 
@@ -189,8 +180,7 @@ trait SanitizesLogData
     /**
      * Sanitize object data
      *
-     * @param object $data
-     * @param int $depth
+     * @param  object  $data
      * @return array|string
      */
     protected function sanitizeObject($data, int $depth)
@@ -202,19 +192,18 @@ trait SanitizesLogData
 
         // Use object_vars for stdClass and similar
         $vars = get_object_vars($data);
-        if (!empty($vars)) {
+        if (! empty($vars)) {
             return $this->sanitizeArray($vars, $depth);
         }
 
         // For other objects, just return class name
-        return '[OBJECT:' . get_class($data) . ']';
+        return '[OBJECT:'.get_class($data).']';
     }
 
     /**
      * Check if a key name is sensitive
      *
-     * @param string $key
-     * @return bool
+     * @param  string  $key
      */
     protected function isSensitiveKey($key): bool
     {
@@ -237,25 +226,23 @@ trait SanitizesLogData
 
     /**
      * Add custom sensitive keys
-     *
-     * @param array $keys
-     * @return self
      */
     protected function addSensitiveKeys(array $keys): self
     {
         $this->sensitiveKeys = array_merge($this->sensitiveKeys, $keys);
+
         return $this;
     }
 
     /**
      * Add custom sensitive patterns
      *
-     * @param array $patterns Regular expression patterns
-     * @return self
+     * @param  array  $patterns  Regular expression patterns
      */
     protected function addSensitivePatterns(array $patterns): self
     {
         $this->sensitivePatterns = array_merge($this->sensitivePatterns, $patterns);
+
         return $this;
     }
 
@@ -263,9 +250,6 @@ trait SanitizesLogData
      * Sanitize headers for logging
      *
      * Special handling for HTTP headers which often contain sensitive data
-     *
-     * @param array $headers
-     * @return array
      */
     protected function sanitizeHeaders(array $headers): array
     {

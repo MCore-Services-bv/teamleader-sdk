@@ -5,12 +5,11 @@ namespace McoreServices\TeamleaderSDK;
 use Exception;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Http\RedirectResponse;
-use McoreServices\TeamleaderSDK\Services\TokenService;
+use McoreServices\TeamleaderSDK\Exceptions\ConfigurationException;
 use McoreServices\TeamleaderSDK\Services\ApiRateLimiterService;
 use McoreServices\TeamleaderSDK\Services\TeamleaderErrorHandler;
-use McoreServices\TeamleaderSDK\Exceptions\ConfigurationException;
+use McoreServices\TeamleaderSDK\Services\TokenService;
 use McoreServices\TeamleaderSDK\Traits\SanitizesLogData;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -18,13 +17,21 @@ use Psr\Log\NullLogger;
 class TeamleaderSDK
 {
     use SanitizesLogData;
+
     protected static $apiCallCount = 0;
+
     protected static $apiCalls = [];
+
     protected $client;
+
     protected $accessToken;
+
     protected $baseUrl = 'https://api.focus.teamleader.eu';
+
     protected $authUrl = 'https://focus.teamleader.eu';
+
     protected string $apiVersion;
+
     protected $resources = [
         // General
         'departments' => Resources\General\Departments::class,
@@ -90,7 +97,7 @@ class TeamleaderSDK
         'legacyMilestones' => Resources\Projects\LegacyMilestones::class,
         'legacyProjects' => Resources\Projects\LegacyProjects::class,
 
-       // New Projects
+        // New Projects
         'external_parties' => Resources\Projects\ExternalParties::class,
         'groups' => Resources\Projects\Groups::class,
         'materials' => Resources\Projects\Materials::class,
@@ -121,22 +128,26 @@ class TeamleaderSDK
         'cloudPlatforms' => Resources\Other\CloudPlatforms::class,
         'accounts' => Resources\Other\Accounts::class,
     ];
+
     protected $resourceInstances = [];
+
     private TokenService $tokenService;
+
     private ApiRateLimiterService $rateLimiter;
+
     private LoggerInterface $logger;
+
     private TeamleaderErrorHandler $errorHandler;
 
     // Add flag to track manual token override
     private bool $manualTokenSet = false;
 
     public function __construct(
-        TokenService           $tokenService = null,
-        ApiRateLimiterService  $rateLimiter = null,
-        LoggerInterface        $logger = null,
-        TeamleaderErrorHandler $errorHandler = null
-    )
-    {
+        ?TokenService $tokenService = null,
+        ?ApiRateLimiterService $rateLimiter = null,
+        ?LoggerInterface $logger = null,
+        ?TeamleaderErrorHandler $errorHandler = null
+    ) {
         $this->validateConfiguration();
 
         $this->client = new Client([
@@ -150,9 +161,9 @@ class TeamleaderSDK
         ]);
 
         // Use dependency injection or create instances
-        $this->tokenService = $tokenService ?: (app()->bound(TokenService::class) ? app(TokenService::class) : new TokenService());
-        $this->rateLimiter = $rateLimiter ?: (app()->bound(ApiRateLimiterService::class) ? app(ApiRateLimiterService::class) : new ApiRateLimiterService());
-        $this->logger = $logger ?: (app()->bound(LoggerInterface::class) ? app(LoggerInterface::class) : new NullLogger());
+        $this->tokenService = $tokenService ?: (app()->bound(TokenService::class) ? app(TokenService::class) : new TokenService);
+        $this->rateLimiter = $rateLimiter ?: (app()->bound(ApiRateLimiterService::class) ? app(ApiRateLimiterService::class) : new ApiRateLimiterService);
+        $this->logger = $logger ?: (app()->bound(LoggerInterface::class) ? app(LoggerInterface::class) : new NullLogger);
         $this->errorHandler = $errorHandler ?: new TeamleaderErrorHandler($this->logger);
 
         // Set API version from config
@@ -161,7 +172,7 @@ class TeamleaderSDK
         // Get initial token from TokenService
         $this->accessToken = $this->tokenService->getValidAccessToken();
 
-        if (!empty($this->accessToken)) {
+        if (! empty($this->accessToken)) {
             $this->logger->debug('TeamleaderSDK initialized with valid access token');
         } else {
             $this->logger->debug('TeamleaderSDK initialized without access token');
@@ -214,7 +225,7 @@ class TeamleaderSDK
         $this->apiVersion = $version;
 
         $this->logger->debug('TeamleaderSDK API version updated', [
-            'version' => $version
+            'version' => $version,
         ]);
 
         return $this;
@@ -223,7 +234,7 @@ class TeamleaderSDK
     /**
      * Redirect to Teamleader authorization page
      */
-    public function authorize(string $state = null): RedirectResponse
+    public function authorize(?string $state = null): RedirectResponse
     {
         return redirect($this->getAuthorizationUrl($state));
     }
@@ -231,7 +242,7 @@ class TeamleaderSDK
     /**
      * Generate authorization URL for OAuth 2 flow
      */
-    public function getAuthorizationUrl(string $state = null): string
+    public function getAuthorizationUrl(?string $state = null): string
     {
         $params = [
             'client_id' => config('teamleader.client_id'),
@@ -243,11 +254,11 @@ class TeamleaderSDK
             $params['state'] = $state;
         }
 
-        $url = $this->authUrl . '/oauth2/authorize?' . http_build_query($params);
+        $url = $this->authUrl.'/oauth2/authorize?'.http_build_query($params);
 
         $this->logger->debug('Generated authorization URL', $this->sanitizeForLog([
             'state' => $state ? 'present' : 'none',
-            'redirect_uri' => config('teamleader.redirect_uri')
+            'redirect_uri' => config('teamleader.redirect_uri'),
         ]));
 
         return $url;
@@ -256,16 +267,16 @@ class TeamleaderSDK
     /**
      * Handle OAuth 2 callback and exchange authorization code for tokens
      */
-    public function handleCallback(string $code, string $state = null): bool
+    public function handleCallback(string $code, ?string $state = null): bool
     {
         return $this->errorHandler->withRetry(function () use ($code, $state) {
             $this->logger->info('Handling OAuth callback', [
-                'has_code' => !empty($code),
-                'has_state' => !empty($state)
+                'has_code' => ! empty($code),
+                'has_state' => ! empty($state),
             ]);
 
             // Exchange authorization code for tokens
-            $response = $this->client->post($this->authUrl . '/oauth2/access_token', [
+            $response = $this->client->post($this->authUrl.'/oauth2/access_token', [
                 'form_params' => [
                     'client_id' => config('teamleader.client_id'),
                     'client_secret' => config('teamleader.client_secret'),
@@ -276,21 +287,21 @@ class TeamleaderSDK
                 'headers' => [
                     'Content-Type' => 'application/x-www-form-urlencoded',
                     'Accept' => 'application/json',
-                ]
+                ],
             ]);
 
             if ($response->getStatusCode() !== 200) {
-                $responseBody = (string)$response->getBody();
+                $responseBody = (string) $response->getBody();
                 $this->logger->error('Token exchange failed', [
                     'status_code' => $response->getStatusCode(),
-                    'response' => $responseBody
+                    'response' => $responseBody,
                 ]);
 
                 $this->errorHandler->handleApiError([
                     'error' => true,
                     'status_code' => $response->getStatusCode(),
                     'message' => 'Token exchange failed',
-                    'response' => json_decode($responseBody, true)
+                    'response' => json_decode($responseBody, true),
                 ], 'OAuth callback');
 
                 return false;
@@ -298,16 +309,16 @@ class TeamleaderSDK
 
             $tokenData = json_decode($response->getBody()->getContents(), true);
 
-            if (!isset($tokenData['access_token'])) {
+            if (! isset($tokenData['access_token'])) {
                 $this->logger->error('No access token in callback response', [
-                    'response_keys' => array_keys($tokenData ?? [])
+                    'response_keys' => array_keys($tokenData ?? []),
                 ]);
 
                 $this->errorHandler->handleApiError([
                     'error' => true,
                     'status_code' => 400,
                     'message' => 'No access token in response',
-                    'response' => $tokenData
+                    'response' => $tokenData,
                 ], 'OAuth callback');
 
                 return false;
@@ -319,6 +330,7 @@ class TeamleaderSDK
             $this->manualTokenSet = false; // Reset since we're using TokenService
 
             $this->logger->info('OAuth callback handled successfully');
+
             return true;
 
         }, 3, 'OAuth callback');
@@ -331,7 +343,7 @@ class TeamleaderSDK
     {
         return $this->errorHandler->withRetry(function () use ($method, $endpoint, $data) {
             // If a manual token was set, use it. Otherwise, get from TokenService
-            if (!$this->manualTokenSet) {
+            if (! $this->manualTokenSet) {
                 $this->accessToken = $this->tokenService->getValidAccessToken();
             }
 
@@ -341,28 +353,29 @@ class TeamleaderSDK
                 $result = [
                     'error' => true,
                     'status_code' => 401,
-                    'message' => 'No access token available. Please connect to Teamleader first.'
+                    'message' => 'No access token available. Please connect to Teamleader first.',
                 ];
 
                 $this->errorHandler->handleApiError($result, "{$method} {$endpoint}");
+
                 return $result;
             }
 
             // Check rate limiting and apply throttling
             $rateLimitCheck = $this->rateLimiter->checkAndThrottle();
 
-            if (!$rateLimitCheck['can_proceed']) {
+            if (! $rateLimitCheck['can_proceed']) {
                 // We need to wait for rate limit reset
                 $waitTimeSeconds = $rateLimitCheck['delay_applied'] / 1000;
 
                 $this->logger->warning('TeamleaderSDK: Rate limit exceeded, waiting for reset', [
                     'wait_time_seconds' => $waitTimeSeconds,
                     'reset_time' => $rateLimitCheck['reset_time'],
-                    'reason' => $rateLimitCheck['reason']
+                    'reason' => $rateLimitCheck['reason'],
                 ]);
 
                 // Sleep for the required time
-                sleep((int)$waitTimeSeconds);
+                sleep((int) $waitTimeSeconds);
 
                 // After waiting, recheck rate limits
                 $rateLimitCheck = $this->rateLimiter->checkAndThrottle();
@@ -376,7 +389,7 @@ class TeamleaderSDK
                     'delay_ms' => $delayMs,
                     'usage_percentage' => $rateLimitCheck['usage_percentage'],
                     'throttle_level' => $rateLimitCheck['throttle_level'],
-                    'reason' => $rateLimitCheck['reason']
+                    'reason' => $rateLimitCheck['reason'],
                 ]);
 
                 usleep($delayMs * 1000); // Convert to microseconds
@@ -388,7 +401,7 @@ class TeamleaderSDK
             $this->errorHandler->handleApiError($result, "{$method} {$endpoint}");
 
             // Record successful request for rate limiting
-            if (!isset($result['error']) || !$result['error']) {
+            if (! isset($result['error']) || ! $result['error']) {
                 $this->rateLimiter->recordRequest();
             }
 
@@ -405,18 +418,18 @@ class TeamleaderSDK
         $this->logger->debug('TeamleaderSDK: Making API request', [
             'method' => $method,
             'endpoint' => $endpoint,
-            'api_version' => $this->apiVersion
+            'api_version' => $this->apiVersion,
         ]);
 
         $options = [
             'headers' => [
-                'Authorization' => 'Bearer ' . $this->accessToken,
+                'Authorization' => 'Bearer '.$this->accessToken,
                 'Content-Type' => 'application/json',
                 'X-Api-Version' => $this->apiVersion, // Add API version header
             ],
         ];
 
-        if (!empty($data)) {
+        if (! empty($data)) {
             $options['json'] = $data;
         }
 
@@ -426,15 +439,15 @@ class TeamleaderSDK
             'endpoint' => $endpoint,
             'api_version' => $this->apiVersion,
             'timestamp' => microtime(true),
-            'request_data' => $data
+            'request_data' => $data,
         ];
 
         try {
-            $fullUrl = $this->baseUrl . '/' . ltrim($endpoint, '/');
+            $fullUrl = $this->baseUrl.'/'.ltrim($endpoint, '/');
             $response = $this->client->request($method, $fullUrl, $options);
 
             $statusCode = $response->getStatusCode();
-            $responseBody = (string)$response->getBody();
+            $responseBody = (string) $response->getBody();
             $responseData = json_decode($responseBody, true);
             $responseHeaders = $response->getHeaders();
 
@@ -450,7 +463,7 @@ class TeamleaderSDK
             $this->logger->debug('TeamleaderSDK: API response', [
                 'status_code' => $statusCode,
                 'response_body_length' => strlen($responseBody),
-                'rate_limit_stats' => $this->rateLimiter->getStatistics()
+                'rate_limit_stats' => $this->rateLimiter->getStatistics(),
             ]);
 
             // Success responses
@@ -460,13 +473,14 @@ class TeamleaderSDK
                         'success' => true,
                         'status_code' => $statusCode,
                         'message' => 'Operation completed successfully',
-                        'headers' => $responseHeaders
+                        'headers' => $responseHeaders,
                     ];
                 }
 
-                if (!empty($responseData)) {
+                if (! empty($responseData)) {
                     // Include headers in successful responses for rate limit tracking
                     $responseData['headers'] = $responseHeaders;
+
                     return $responseData;
                 }
 
@@ -474,13 +488,13 @@ class TeamleaderSDK
                     'success' => true,
                     'status_code' => $statusCode,
                     'data' => null,
-                    'headers' => $responseHeaders
+                    'headers' => $responseHeaders,
                 ];
             }
 
             // Enhanced error handling with Teamleader-specific error parsing
             $errorMessages = $this->parseTeamleaderErrors($responseData);
-            $primaryError = !empty($errorMessages) ? $errorMessages[0] : 'Unknown error';
+            $primaryError = ! empty($errorMessages) ? $errorMessages[0] : 'Unknown error';
 
             return [
                 'error' => true,
@@ -488,7 +502,7 @@ class TeamleaderSDK
                 'message' => $primaryError,
                 'errors' => $errorMessages,
                 'response' => $responseData,
-                'headers' => $responseHeaders
+                'headers' => $responseHeaders,
             ];
 
         } catch (GuzzleException $e) {
@@ -497,8 +511,8 @@ class TeamleaderSDK
             return [
                 'error' => true,
                 'status_code' => 0,
-                'message' => 'HTTP request failed: ' . $e->getMessage(),
-                'exception' => get_class($e)
+                'message' => 'HTTP request failed: '.$e->getMessage(),
+                'exception' => get_class($e),
             ];
         }
     }
@@ -543,6 +557,7 @@ class TeamleaderSDK
     public function throwExceptions(bool $throw = true): self
     {
         $this->errorHandler->setThrowExceptions($throw);
+
         return $this;
     }
 
@@ -565,10 +580,11 @@ class TeamleaderSDK
     public function __call($name, $arguments)
     {
         if (isset($this->resources[$name])) {
-            if (!isset($this->resourceInstances[$name])) {
+            if (! isset($this->resourceInstances[$name])) {
                 $class = $this->resources[$name];
                 $this->resourceInstances[$name] = new $class($this);
             }
+
             return $this->resourceInstances[$name];
         }
         throw new Exception("Method or resource '{$name}' not found");
@@ -577,6 +593,7 @@ class TeamleaderSDK
     public function addResource($name, $class)
     {
         $this->resources[$name] = $class;
+
         return $this;
     }
 
@@ -584,11 +601,11 @@ class TeamleaderSDK
     {
         // If manual token is set, check that. Otherwise check TokenService
         if ($this->manualTokenSet) {
-            return !empty($this->accessToken);
+            return ! empty($this->accessToken);
         }
 
         // Check both the current token and TokenService state
-        $hasCurrentToken = !empty($this->accessToken);
+        $hasCurrentToken = ! empty($this->accessToken);
         $hasValidTokens = $this->tokenService->hasValidTokens();
 
         return $hasCurrentToken && $hasValidTokens;
@@ -600,7 +617,7 @@ class TeamleaderSDK
         $this->manualTokenSet = true; // Mark that token was manually set
 
         $this->logger->debug('TeamleaderSDK: Access token set manually', [
-            'token_preview' => substr($accessToken, 0, 20) . '...'
+            'token_preview' => substr($accessToken, 0, 20).'...',
         ]);
 
         return $this;

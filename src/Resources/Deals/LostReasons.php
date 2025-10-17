@@ -10,39 +10,43 @@ class LostReasons extends Resource
 
     // Resource capabilities - based on API docs, only list endpoint available
     protected bool $supportsCreation = false;
+
     protected bool $supportsUpdate = false;
+
     protected bool $supportsDeletion = false;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsSideloading = false; // No includes mentioned in API docs
 
     // Available sort fields based on API documentation
     protected array $availableSortFields = [
-        'name' => 'Sort by lost reason name'
+        'name' => 'Sort by lost reason name',
     ];
 
     // Common filters based on API documentation
     protected array $commonFilters = [
-        'ids' => 'Array of lost reason UUIDs to filter by'
+        'ids' => 'Array of lost reason UUIDs to filter by',
     ];
 
     // Usage examples specific to lost reasons
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all lost reasons',
-            'code' => '$lostReasons = $teamleader->lostReasons()->list();'
+            'code' => '$lostReasons = $teamleader->lostReasons()->list();',
         ],
         'list_specific' => [
             'description' => 'Get specific lost reasons by ID',
-            'code' => '$lostReasons = $teamleader->lostReasons()->list([\'ids\' => [\'uuid1\', \'uuid2\']]);'
+            'code' => '$lostReasons = $teamleader->lostReasons()->list([\'ids\' => [\'uuid1\', \'uuid2\']]);',
         ],
         'sorted_list' => [
             'description' => 'Get lost reasons sorted by name',
-            'code' => '$lostReasons = $teamleader->lostReasons()->list([], [\'sort\' => [[\'field\' => \'name\', \'order\' => \'asc\']]]);'
+            'code' => '$lostReasons = $teamleader->lostReasons()->list([], [\'sort\' => [[\'field\' => \'name\', \'order\' => \'asc\']]]);',
         ],
         'with_pagination' => [
             'description' => 'Get lost reasons with custom pagination',
-            'code' => '$lostReasons = $teamleader->lostReasons()->list([], [\'page_size\' => 50, \'page_number\' => 2]);'
-        ]
+            'code' => '$lostReasons = $teamleader->lostReasons()->list([], [\'page_size\' => 50, \'page_number\' => 2]);',
+        ],
     ];
 
     /**
@@ -56,16 +60,15 @@ class LostReasons extends Resource
     /**
      * List lost reasons with enhanced filtering and sorting
      *
-     * @param array $filters Filters to apply
-     * @param array $options Additional options (sorting, pagination)
-     * @return array
+     * @param  array  $filters  Filters to apply
+     * @param  array  $options  Additional options (sorting, pagination)
      */
     public function list(array $filters = [], array $options = []): array
     {
         $params = [];
 
         // Apply filters
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
@@ -83,18 +86,17 @@ class LostReasons extends Resource
         if (isset($options['page_size']) || isset($options['page_number'])) {
             $params['page'] = [
                 'size' => (int) ($options['page_size'] ?? 20),
-                'number' => (int) ($options['page_number'] ?? 1)
+                'number' => (int) ($options['page_number'] ?? 1),
             ];
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
      * Get lost reasons by specific IDs
      *
-     * @param array $ids Array of lost reason UUIDs
-     * @return array
+     * @param  array  $ids  Array of lost reason UUIDs
      */
     public function byIds(array $ids): array
     {
@@ -104,8 +106,7 @@ class LostReasons extends Resource
     /**
      * Get all lost reasons (convenience method)
      *
-     * @param string $sortOrder Sort order (asc or desc)
-     * @return array
+     * @param  string  $sortOrder  Sort order (asc or desc)
      */
     public function all(string $sortOrder = 'asc'): array
     {
@@ -113,19 +114,18 @@ class LostReasons extends Resource
             'sort' => [
                 [
                     'field' => 'name',
-                    'order' => $sortOrder
-                ]
+                    'order' => $sortOrder,
+                ],
             ],
-            'page_size' => 100 // Get more results in one go
+            'page_size' => 100, // Get more results in one go
         ]);
     }
 
     /**
      * Search lost reasons by name (using existing filters)
      *
-     * @param string $query Search query (note: actual text search not supported, this gets specific IDs)
-     * @param array $ids Array of IDs to search within
-     * @return array
+     * @param  string  $query  Search query (note: actual text search not supported, this gets specific IDs)
+     * @param  array  $ids  Array of IDs to search within
      */
     public function search(array $ids = []): array
     {
@@ -138,9 +138,6 @@ class LostReasons extends Resource
 
     /**
      * Build filters array for the API request
-     *
-     * @param array $filters
-     * @return array
      */
     private function buildFilters(array $filters): array
     {
@@ -153,16 +150,15 @@ class LostReasons extends Resource
 
         // Remove empty filters
         return array_filter($apiFilters, function ($value) {
-            return !empty($value);
+            return ! empty($value);
         });
     }
 
     /**
      * Build sort array for the API request
      *
-     * @param mixed $sort Sort field or array
-     * @param string $order Sort order (when $sort is string)
-     * @return array
+     * @param  mixed  $sort  Sort field or array
+     * @param  string  $order  Sort order (when $sort is string)
      */
     private function buildSort($sort, string $order = 'asc'): array
     {
@@ -176,8 +172,8 @@ class LostReasons extends Resource
             return [
                 [
                     'field' => $sort === 'name' ? 'name' : 'name', // Only 'name' is supported
-                    'order' => in_array($order, ['asc', 'desc']) ? $order : 'asc'
-                ]
+                    'order' => in_array($order, ['asc', 'desc']) ? $order : 'asc',
+                ],
             ];
         }
 
@@ -191,10 +187,11 @@ class LostReasons extends Resource
                 } else {
                     $sortArray[] = [
                         'field' => 'name', // Only name field is supported
-                        'order' => in_array($sortOrder, ['asc', 'desc']) ? $sortOrder : 'asc'
+                        'order' => in_array($sortOrder, ['asc', 'desc']) ? $sortOrder : 'asc',
                     ];
                 }
             }
+
             return $sortArray;
         }
 
@@ -202,28 +199,23 @@ class LostReasons extends Resource
         return [
             [
                 'field' => 'name',
-                'order' => 'asc'
-            ]
+                'order' => 'asc',
+            ],
         ];
     }
 
     /**
      * Get available sort fields (based on API documentation)
-     *
-     * @return array
      */
     public function getAvailableSortFields(): array
     {
         return [
-            'name' => 'Sort by lost reason name'
+            'name' => 'Sort by lost reason name',
         ];
     }
 
     /**
      * Validate sort field (only 'name' is supported)
-     *
-     * @param string $field
-     * @return bool
      */
     public function isValidSortField(string $field): bool
     {
@@ -238,26 +230,22 @@ class LostReasons extends Resource
         // Since there's no info endpoint, we try to get it from the list
         $result = $this->list(['ids' => [$id]]);
 
-        if (isset($result['data']) && !empty($result['data'])) {
+        if (isset($result['data']) && ! empty($result['data'])) {
             return [
                 'data' => $result['data'][0],
-                'included' => $result['included'] ?? []
+                'included' => $result['included'] ?? [],
             ];
         }
 
         return [
             'error' => true,
             'status_code' => 404,
-            'message' => 'Lost reason not found'
+            'message' => 'Lost reason not found',
         ];
     }
 
     /**
      * Override validation since this resource is read-only
-     *
-     * @param array $data
-     * @param string $operation
-     * @return array
      */
     protected function validateData(array $data, string $operation = 'create'): array
     {
@@ -267,8 +255,6 @@ class LostReasons extends Resource
 
     /**
      * Override getSuggestedIncludes as lost reasons don't have sideloadable relationships
-     *
-     * @return array
      */
     protected function getSuggestedIncludes(): array
     {
@@ -277,8 +263,6 @@ class LostReasons extends Resource
 
     /**
      * Get statistics about available lost reasons (convenience method)
-     *
-     * @return array
      */
     public function getStats(): array
     {
@@ -288,34 +272,29 @@ class LostReasons extends Resource
             return [
                 'total_count' => count($result['data']),
                 'names' => array_column($result['data'], 'name'),
-                'ids' => array_column($result['data'], 'id')
+                'ids' => array_column($result['data'], 'id'),
             ];
         }
 
         return [
             'total_count' => 0,
             'names' => [],
-            'ids' => []
+            'ids' => [],
         ];
     }
 
     /**
      * Check if a lost reason exists by ID
-     *
-     * @param string $id
-     * @return bool
      */
     public function exists(string $id): bool
     {
         $result = $this->list(['ids' => [$id]]);
 
-        return isset($result['data']) && !empty($result['data']);
+        return isset($result['data']) && ! empty($result['data']);
     }
 
     /**
      * Get lost reasons as select options for forms
-     *
-     * @return array
      */
     public function getSelectOptions(): array
     {
@@ -326,7 +305,7 @@ class LostReasons extends Resource
             foreach ($result['data'] as $lostReason) {
                 $options[] = [
                     'value' => $lostReason['id'],
-                    'label' => $lostReason['name']
+                    'label' => $lostReason['name'],
                 ];
             }
         }

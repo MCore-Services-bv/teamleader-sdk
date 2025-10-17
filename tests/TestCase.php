@@ -22,7 +22,7 @@ abstract class TestCase extends Orchestra
     /**
      * Get package providers
      *
-     * @param \Illuminate\Foundation\Application $app
+     * @param  \Illuminate\Foundation\Application  $app
      * @return array<int, class-string>
      */
     protected function getPackageProviders($app): array
@@ -35,7 +35,7 @@ abstract class TestCase extends Orchestra
     /**
      * Define environment setup
      *
-     * @param \Illuminate\Foundation\Application $app
+     * @param  \Illuminate\Foundation\Application  $app
      */
     protected function getEnvironmentSetUp($app): void
     {

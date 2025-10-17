@@ -13,9 +13,13 @@ class DocumentTemplates extends Resource
 
     // Resource capabilities based on API documentation
     protected bool $supportsCreation = false;  // Only list endpoint available
+
     protected bool $supportsUpdate = false;    // Only list endpoint available
+
     protected bool $supportsDeletion = false;  // Only list endpoint available
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = false; // No pagination mentioned in API docs
 
     // Available includes for sideloading
@@ -27,7 +31,7 @@ class DocumentTemplates extends Resource
     protected array $commonFilters = [
         'department_id' => 'Department UUID (required)',
         'document_type' => 'Type of document template (required)',
-        'status' => 'Filter by template status (active, archived)'
+        'status' => 'Filter by template status (active, archived)',
     ];
 
     // Usage examples specific to document templates
@@ -37,7 +41,7 @@ class DocumentTemplates extends Resource
             'code' => '$templates = $teamleader->documentTemplates()->list([
                 \'department_id\' => \'a344c251-2494-0013-b433-ccee8e8435e5\',
                 \'document_type\' => \'invoice\'
-            ]);'
+            ]);',
         ],
         'list_active_templates' => [
             'description' => 'Get only active document templates',
@@ -45,45 +49,43 @@ class DocumentTemplates extends Resource
                 \'department_id\' => \'a344c251-2494-0013-b433-ccee8e8435e5\',
                 \'document_type\' => \'invoice\',
                 \'status\' => [\'active\']
-            ]);'
+            ]);',
         ],
         'by_document_type' => [
             'description' => 'Get templates by document type for a department',
-            'code' => '$invoiceTemplates = $teamleader->documentTemplates()->byType(\'department-id\', \'invoice\');'
+            'code' => '$invoiceTemplates = $teamleader->documentTemplates()->byType(\'department-id\', \'invoice\');',
         ],
         'active_for_department' => [
             'description' => 'Get active templates for a department',
-            'code' => '$activeTemplates = $teamleader->documentTemplates()->activeForDepartment(\'department-id\', \'quotation\');'
-        ]
+            'code' => '$activeTemplates = $teamleader->documentTemplates()->activeForDepartment(\'department-id\', \'quotation\');',
+        ],
     ];
 
     /**
      * Get active document templates for a specific department and type
      *
-     * @param string $departmentId Department UUID
-     * @param string $documentType Document type
-     * @return array
+     * @param  string  $departmentId  Department UUID
+     * @param  string  $documentType  Document type
      */
     public function activeForDepartment(string $departmentId, string $documentType): array
     {
         return $this->byType($departmentId, $documentType, [
-            'status' => ['active']
+            'status' => ['active'],
         ]);
     }
 
     /**
      * Get document templates by document type for a specific department
      *
-     * @param string $departmentId Department UUID
-     * @param string $documentType Document type
-     * @param array $additionalFilters Additional filters (like status)
-     * @return array
+     * @param  string  $departmentId  Department UUID
+     * @param  string  $documentType  Document type
+     * @param  array  $additionalFilters  Additional filters (like status)
      */
     public function byType(string $departmentId, string $documentType, array $additionalFilters = []): array
     {
         $filters = array_merge([
             'department_id' => $departmentId,
-            'document_type' => $documentType
+            'document_type' => $documentType,
         ], $additionalFilters);
 
         return $this->list($filters);
@@ -94,9 +96,9 @@ class DocumentTemplates extends Resource
      *
      * Note: Both department_id and document_type are REQUIRED parameters
      *
-     * @param array $filters Filters to apply (department_id and document_type are required)
-     * @param array $options Additional options (not used for this endpoint)
-     * @return array
+     * @param  array  $filters  Filters to apply (department_id and document_type are required)
+     * @param  array  $options  Additional options (not used for this endpoint)
+     *
      * @throws InvalidArgumentException When required parameters are missing
      */
     public function list(array $filters = [], array $options = []): array
@@ -113,18 +115,15 @@ class DocumentTemplates extends Resource
         $params = [];
 
         // Build filters
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
      * Build filters array for the API request
-     *
-     * @param array $filters
-     * @return array
      */
     private function buildFilters(array $filters): array
     {
@@ -163,14 +162,13 @@ class DocumentTemplates extends Resource
     /**
      * Get archived document templates for a specific department and type
      *
-     * @param string $departmentId Department UUID
-     * @param string $documentType Document type
-     * @return array
+     * @param  string  $departmentId  Department UUID
+     * @param  string  $documentType  Document type
      */
     public function archivedForDepartment(string $departmentId, string $documentType): array
     {
         return $this->byType($departmentId, $documentType, [
-            'status' => ['archived']
+            'status' => ['archived'],
         ]);
     }
 
@@ -178,11 +176,11 @@ class DocumentTemplates extends Resource
      * Get all document templates for a department (across all types)
      * Note: This will make multiple API calls since document_type is required
      *
-     * @param string $departmentId Department UUID
-     * @param array $documentTypes Array of document types to fetch
+     * @param  string  $departmentId  Department UUID
+     * @param  array  $documentTypes  Array of document types to fetch
      * @return array Combined results from all document types
      */
-    public function allForDepartment(string $departmentId, array $documentTypes = null): array
+    public function allForDepartment(string $departmentId, ?array $documentTypes = null): array
     {
         if ($documentTypes === null) {
             $documentTypes = $this->getAvailableDocumentTypes();
@@ -208,15 +206,13 @@ class DocumentTemplates extends Resource
             'meta' => [
                 'department_id' => $departmentId,
                 'document_types_checked' => $documentTypes,
-                'total_templates' => count($allTemplates)
-            ]
+                'total_templates' => count($allTemplates),
+            ],
         ];
     }
 
     /**
      * Get available document types based on API documentation
-     *
-     * @return array
      */
     public function getAvailableDocumentTypes(): array
     {
@@ -227,14 +223,12 @@ class DocumentTemplates extends Resource
             'order_confirmation',
             'quotation',
             'timetracking_report',
-            'workorder'
+            'workorder',
         ];
     }
 
     /**
      * Get available status values for filtering
-     *
-     * @return array
      */
     public function getAvailableStatuses(): array
     {
@@ -243,8 +237,6 @@ class DocumentTemplates extends Resource
 
     /**
      * Get document type display names for UI
-     *
-     * @return array
      */
     public function getDocumentTypeDisplayNames(): array
     {
@@ -255,7 +247,7 @@ class DocumentTemplates extends Resource
             'order_confirmation' => 'Order Confirmation',
             'quotation' => 'Quotation',
             'timetracking_report' => 'Time Tracking Report',
-            'workorder' => 'Work Order'
+            'workorder' => 'Work Order',
         ];
     }
 
@@ -293,10 +285,6 @@ class DocumentTemplates extends Resource
 
     /**
      * Override the default validation since document templates require specific fields
-     *
-     * @param array $data
-     * @param string $operation
-     * @return array
      */
     protected function validateData(array $data, string $operation = 'create'): array
     {
@@ -306,8 +294,6 @@ class DocumentTemplates extends Resource
 
     /**
      * Override getSuggestedIncludes as document templates don't have common includes
-     *
-     * @return array
      */
     protected function getSuggestedIncludes(): array
     {

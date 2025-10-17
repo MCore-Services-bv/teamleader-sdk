@@ -2,9 +2,9 @@
 
 namespace McoreServices\TeamleaderSDK\Tests\Unit\Services;
 
-use McoreServices\TeamleaderSDK\Tests\TestCase;
-use McoreServices\TeamleaderSDK\Services\TokenService;
 use Illuminate\Support\Facades\Cache;
+use McoreServices\TeamleaderSDK\Services\TokenService;
+use McoreServices\TeamleaderSDK\Tests\TestCase;
 
 class TokenServiceTest extends TestCase
 {
@@ -13,11 +13,11 @@ class TokenServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->tokenService = new TokenService();
+        $this->tokenService = new TokenService;
         Cache::flush();
     }
 
-    public function testCanStoreTokens(): void
+    public function test_can_store_tokens(): void
     {
         $tokens = [
             'access_token' => 'test_access_token',
@@ -31,13 +31,13 @@ class TokenServiceTest extends TestCase
         $this->assertEquals('test_access_token', $this->tokenService->getValidAccessToken());
     }
 
-    public function testReturnsNullWhenNoTokensExist(): void
+    public function test_returns_null_when_no_tokens_exist(): void
     {
         $this->assertNull($this->tokenService->getValidAccessToken());
         $this->assertFalse($this->tokenService->hasValidTokens());
     }
 
-    public function testCanClearTokens(): void
+    public function test_can_clear_tokens(): void
     {
         $tokens = [
             'access_token' => 'test_access_token',
@@ -52,7 +52,7 @@ class TokenServiceTest extends TestCase
         $this->assertFalse($this->tokenService->hasValidTokens());
     }
 
-    public function testDetectsExpiredTokens(): void
+    public function test_detects_expired_tokens(): void
     {
         $tokens = [
             'access_token' => 'test_access_token',

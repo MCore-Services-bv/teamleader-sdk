@@ -11,12 +11,19 @@ class Groups extends Resource
 
     // Resource capabilities - Groups support most operations
     protected bool $supportsCreation = true;
+
     protected bool $supportsUpdate = true;
+
     protected bool $supportsDeletion = true;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = false;
+
     protected bool $supportsSorting = false;
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSideloading = false;
 
     // Available includes for sideloading (none based on API docs)
@@ -70,7 +77,7 @@ class Groups extends Resource
     protected array $usageExamples = [
         'list_for_project' => [
             'description' => 'Get all groups for a specific project',
-            'code' => '$groups = $teamleader->groups()->forProject("project-uuid");'
+            'code' => '$groups = $teamleader->groups()->forProject("project-uuid");',
         ],
         'create_group' => [
             'description' => 'Create a new project group',
@@ -81,7 +88,7 @@ class Groups extends Resource
                 "color" => "#00B2B2",
                 "billing_method" => "fixed_price",
                 "fixed_price" => ["amount" => 5000, "currency" => "EUR"]
-            ]);'
+            ]);',
         ],
         'update_group' => [
             'description' => 'Update a project group',
@@ -89,19 +96,19 @@ class Groups extends Resource
                 "title" => "Phase 1: Design & Planning",
                 "start_date" => "2023-01-18",
                 "end_date" => "2023-03-22"
-            ]);'
+            ]);',
         ],
         'assign_user' => [
             'description' => 'Assign a user to a group',
-            'code' => '$result = $teamleader->groups()->assign("group-uuid", "user", "user-uuid");'
+            'code' => '$result = $teamleader->groups()->assign("group-uuid", "user", "user-uuid");',
         ],
         'duplicate_group' => [
             'description' => 'Duplicate a group',
-            'code' => '$newGroup = $teamleader->groups()->duplicate("origin-group-uuid");'
+            'code' => '$newGroup = $teamleader->groups()->duplicate("origin-group-uuid");',
         ],
         'delete_group' => [
             'description' => 'Delete a group',
-            'code' => '$result = $teamleader->groups()->delete("group-uuid", "ungroup_tasks_and_materials");'
+            'code' => '$result = $teamleader->groups()->delete("group-uuid", "ungroup_tasks_and_materials");',
         ],
     ];
 
@@ -116,27 +123,25 @@ class Groups extends Resource
     /**
      * List project groups with filtering
      *
-     * @param array $filters Filters to apply (ids, project_id)
-     * @param array $options Additional options (not used for this endpoint)
-     * @return array
+     * @param  array  $filters  Filters to apply (ids, project_id)
+     * @param  array  $options  Additional options (not used for this endpoint)
      */
     public function list(array $filters = [], array $options = []): array
     {
         $params = [];
 
         // Apply filters
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
      * Get all groups for a specific project
      *
-     * @param string $projectId Project UUID
-     * @return array
+     * @param  string  $projectId  Project UUID
      */
     public function forProject(string $projectId): array
     {
@@ -146,8 +151,7 @@ class Groups extends Resource
     /**
      * Get project groups by IDs
      *
-     * @param array $ids Array of group UUIDs
-     * @return array
+     * @param  array  $ids  Array of group UUIDs
      */
     public function byIds(array $ids): array
     {
@@ -157,126 +161,121 @@ class Groups extends Resource
     /**
      * Get detailed information about a specific group
      *
-     * @param string $id Group UUID
-     * @param mixed $includes Not used for groups (included for parent compatibility)
-     * @return array
+     * @param  string  $id  Group UUID
+     * @param  mixed  $includes  Not used for groups (included for parent compatibility)
      */
     public function info($id, $includes = null): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.info', ['id' => $id]);
+        return $this->api->request('POST', $this->getBasePath().'.info', ['id' => $id]);
     }
 
     /**
      * Create a new project group
      *
-     * @param array $data Group data
-     * @return array
+     * @param  array  $data  Group data
      */
     public function create(array $data): array
     {
         $validatedData = $this->validateCreateData($data);
-        return $this->api->request('POST', $this->getBasePath() . '.create', $validatedData);
+
+        return $this->api->request('POST', $this->getBasePath().'.create', $validatedData);
     }
 
     /**
      * Update a project group
      *
-     * @param string $id Group UUID
-     * @param array $data Data to update
+     * @param  string  $id  Group UUID
+     * @param  array  $data  Data to update
      * @return array
      */
     public function update($id, array $data)
     {
         $data['id'] = $id;
         $validatedData = $this->validateUpdateData($data);
-        return $this->api->request('POST', $this->getBasePath() . '.update', $validatedData);
+
+        return $this->api->request('POST', $this->getBasePath().'.update', $validatedData);
     }
 
     /**
      * Delete a project group
      *
-     * @param string $id Group UUID
-     * @param string ...$additionalParams First param should be delete strategy
-     * @return array
+     * @param  string  $id  Group UUID
+     * @param  string  ...$additionalParams  First param should be delete strategy
      */
     public function delete($id, ...$additionalParams): array
     {
         // Get delete strategy from first additional param, default if not provided
         $deleteStrategy = $additionalParams[0] ?? 'ungroup_tasks_and_materials';
 
-        if (!in_array($deleteStrategy, $this->deleteStrategies)) {
+        if (! in_array($deleteStrategy, $this->deleteStrategies)) {
             throw new InvalidArgumentException(
-                "Invalid delete strategy. Must be one of: " . implode(', ', $this->deleteStrategies)
+                'Invalid delete strategy. Must be one of: '.implode(', ', $this->deleteStrategies)
             );
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.delete', [
+        return $this->api->request('POST', $this->getBasePath().'.delete', [
             'id' => $id,
-            'delete_strategy' => $deleteStrategy
+            'delete_strategy' => $deleteStrategy,
         ]);
     }
 
     /**
      * Duplicate a project group and its entities (without time trackings)
      *
-     * @param string $originId The ID of the group to duplicate
-     * @return array
+     * @param  string  $originId  The ID of the group to duplicate
      */
     public function duplicate(string $originId): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.duplicate', [
-            'origin_id' => $originId
+        return $this->api->request('POST', $this->getBasePath().'.duplicate', [
+            'origin_id' => $originId,
         ]);
     }
 
     /**
      * Assign a user or team to a group
      *
-     * @param string $groupId Group UUID
-     * @param string $assigneeType Type of assignee ('user' or 'team')
-     * @param string $assigneeId UUID of the user or team
-     * @return array
+     * @param  string  $groupId  Group UUID
+     * @param  string  $assigneeType  Type of assignee ('user' or 'team')
+     * @param  string  $assigneeId  UUID of the user or team
      */
     public function assign(string $groupId, string $assigneeType, string $assigneeId): array
     {
         $this->validateAssigneeType($assigneeType);
 
-        return $this->api->request('POST', $this->getBasePath() . '.assign', [
+        return $this->api->request('POST', $this->getBasePath().'.assign', [
             'id' => $groupId,
             'assignee' => [
                 'type' => $assigneeType,
-                'id' => $assigneeId
-            ]
+                'id' => $assigneeId,
+            ],
         ]);
     }
 
     /**
      * Unassign a user or team from a group
      *
-     * @param string $groupId Group UUID
-     * @param string $assigneeType Type of assignee ('user' or 'team')
-     * @param string $assigneeId UUID of the user or team
-     * @return array
+     * @param  string  $groupId  Group UUID
+     * @param  string  $assigneeType  Type of assignee ('user' or 'team')
+     * @param  string  $assigneeId  UUID of the user or team
      */
     public function unassign(string $groupId, string $assigneeType, string $assigneeId): array
     {
         $this->validateAssigneeType($assigneeType);
 
-        return $this->api->request('POST', $this->getBasePath() . '.unassign', [
+        return $this->api->request('POST', $this->getBasePath().'.unassign', [
             'id' => $groupId,
             'assignee' => [
                 'type' => $assigneeType,
-                'id' => $assigneeId
-            ]
+                'id' => $assigneeId,
+            ],
         ]);
     }
 
     /**
      * Convenience method to assign a user to a group
      *
-     * @param string $groupId Group UUID
-     * @param string $userId User UUID
-     * @return array
+     * @param  string  $groupId  Group UUID
+     * @param  string  $userId  User UUID
      */
     public function assignUser(string $groupId, string $userId): array
     {
@@ -286,9 +285,8 @@ class Groups extends Resource
     /**
      * Convenience method to assign a team to a group
      *
-     * @param string $groupId Group UUID
-     * @param string $teamId Team UUID
-     * @return array
+     * @param  string  $groupId  Group UUID
+     * @param  string  $teamId  Team UUID
      */
     public function assignTeam(string $groupId, string $teamId): array
     {
@@ -298,9 +296,8 @@ class Groups extends Resource
     /**
      * Convenience method to unassign a user from a group
      *
-     * @param string $groupId Group UUID
-     * @param string $userId User UUID
-     * @return array
+     * @param  string  $groupId  Group UUID
+     * @param  string  $userId  User UUID
      */
     public function unassignUser(string $groupId, string $userId): array
     {
@@ -310,9 +307,8 @@ class Groups extends Resource
     /**
      * Convenience method to unassign a team from a group
      *
-     * @param string $groupId Group UUID
-     * @param string $teamId Team UUID
-     * @return array
+     * @param  string  $groupId  Group UUID
+     * @param  string  $teamId  Team UUID
      */
     public function unassignTeam(string $groupId, string $teamId): array
     {
@@ -321,9 +317,6 @@ class Groups extends Resource
 
     /**
      * Build filters array for the API request
-     *
-     * @param array $filters
-     * @return array
      */
     protected function buildFilters(array $filters): array
     {
@@ -345,8 +338,6 @@ class Groups extends Resource
     /**
      * Validate data for group creation
      *
-     * @param array $data
-     * @return array
      * @throws InvalidArgumentException
      */
     protected function validateCreateData(array $data): array
@@ -361,9 +352,9 @@ class Groups extends Resource
         }
 
         // Validate billing method if provided
-        if (isset($data['billing_method']) && !in_array($data['billing_method'], $this->billingMethods)) {
+        if (isset($data['billing_method']) && ! in_array($data['billing_method'], $this->billingMethods)) {
             throw new InvalidArgumentException(
-                "Invalid billing_method. Must be one of: " . implode(', ', $this->billingMethods)
+                'Invalid billing_method. Must be one of: '.implode(', ', $this->billingMethods)
             );
         }
 
@@ -387,8 +378,6 @@ class Groups extends Resource
     /**
      * Validate data for group update
      *
-     * @param array $data
-     * @return array
      * @throws InvalidArgumentException
      */
     protected function validateUpdateData(array $data): array
@@ -400,21 +389,21 @@ class Groups extends Resource
 
         // Validate billing method if provided
         if (isset($data['billing_method'])) {
-            if (!is_array($data['billing_method'])) {
+            if (! is_array($data['billing_method'])) {
                 throw new InvalidArgumentException('billing_method must be an object with value and update_strategy');
             }
 
             if (empty($data['billing_method']['value']) ||
-                !in_array($data['billing_method']['value'], $this->billingMethods)) {
+                ! in_array($data['billing_method']['value'], $this->billingMethods)) {
                 throw new InvalidArgumentException(
-                    "Invalid billing_method value. Must be one of: " . implode(', ', $this->billingMethods)
+                    'Invalid billing_method value. Must be one of: '.implode(', ', $this->billingMethods)
                 );
             }
 
             if (empty($data['billing_method']['update_strategy']) ||
-                !in_array($data['billing_method']['update_strategy'], $this->updateStrategies)) {
+                ! in_array($data['billing_method']['update_strategy'], $this->updateStrategies)) {
                 throw new InvalidArgumentException(
-                    "Invalid update_strategy. Must be one of: " . implode(', ', $this->updateStrategies)
+                    'Invalid update_strategy. Must be one of: '.implode(', ', $this->updateStrategies)
                 );
             }
         }
@@ -439,7 +428,6 @@ class Groups extends Resource
     /**
      * Validate color format
      *
-     * @param string $color
      * @throws InvalidArgumentException
      */
     protected function validateColor(string $color): void
@@ -447,12 +435,12 @@ class Groups extends Resource
         $validColors = [
             '#00B2B2', '#008A8C', '#992600', '#ED9E00', '#D157D3',
             '#A400B2', '#0071F2', '#004DA6', '#64788F', '#C0C0C4',
-            '#82828C', '#1A1C20'
+            '#82828C', '#1A1C20',
         ];
 
-        if (!in_array($color, $validColors)) {
+        if (! in_array($color, $validColors)) {
             throw new InvalidArgumentException(
-                "Invalid color. Must be one of: " . implode(', ', $validColors)
+                'Invalid color. Must be one of: '.implode(', ', $validColors)
             );
         }
     }
@@ -460,8 +448,6 @@ class Groups extends Resource
     /**
      * Validate date format
      *
-     * @param string $date
-     * @param string $fieldName
      * @throws InvalidArgumentException
      */
     protected function validateDate(string $date, string $fieldName): void
@@ -478,22 +464,19 @@ class Groups extends Resource
     /**
      * Validate assignee type
      *
-     * @param string $type
      * @throws InvalidArgumentException
      */
     protected function validateAssigneeType(string $type): void
     {
-        if (!in_array($type, $this->assigneeTypes)) {
+        if (! in_array($type, $this->assigneeTypes)) {
             throw new InvalidArgumentException(
-                "Invalid assignee type. Must be one of: " . implode(', ', $this->assigneeTypes)
+                'Invalid assignee type. Must be one of: '.implode(', ', $this->assigneeTypes)
             );
         }
     }
 
     /**
      * Get available billing methods
-     *
-     * @return array
      */
     public function getAvailableBillingMethods(): array
     {
@@ -502,8 +485,6 @@ class Groups extends Resource
 
     /**
      * Get available delete strategies
-     *
-     * @return array
      */
     public function getAvailableDeleteStrategies(): array
     {
@@ -512,8 +493,6 @@ class Groups extends Resource
 
     /**
      * Get available assignee types
-     *
-     * @return array
      */
     public function getAvailableAssigneeTypes(): array
     {

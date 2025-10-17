@@ -11,12 +11,19 @@ class Deals extends Resource
 
     // Resource capabilities
     protected bool $supportsCreation = true;
+
     protected bool $supportsUpdate = true;
+
     protected bool $supportsDeletion = true;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = true;
+
     protected bool $supportsSorting = true;
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSideloading = true;
 
     // Available includes for sideloading
@@ -79,7 +86,7 @@ class Deals extends Resource
     protected array $usageExamples = [
         'list_open_deals' => [
             'description' => 'Get all open deals',
-            'code' => '$deals = $teamleader->deals()->open();'
+            'code' => '$deals = $teamleader->deals()->open();',
         ],
         'create_deal' => [
             'description' => 'Create a new deal',
@@ -87,42 +94,41 @@ class Deals extends Resource
                 "lead" => ["customer" => ["type" => "company", "id" => "company-uuid"]],
                 "title" => "New Business Deal",
                 "estimated_value" => ["amount" => 10000, "currency" => "EUR"]
-            ]);'
+            ]);',
         ],
         'update_deal' => [
             'description' => 'Update a deal',
             'code' => '$deal = $teamleader->deals()->update("deal-uuid", [
                 "title" => "Updated Deal Title",
                 "estimated_probability" => 0.75
-            ]);'
+            ]);',
         ],
         'win_deal' => [
             'description' => 'Mark a deal as won',
-            'code' => '$result = $teamleader->deals()->win("deal-uuid");'
+            'code' => '$result = $teamleader->deals()->win("deal-uuid");',
         ],
         'lose_deal' => [
             'description' => 'Mark a deal as lost with reason',
-            'code' => '$result = $teamleader->deals()->lose("deal-uuid", "reason-uuid", "Price too high");'
+            'code' => '$result = $teamleader->deals()->lose("deal-uuid", "reason-uuid", "Price too high");',
         ],
         'move_deal' => [
             'description' => 'Move a deal to a different phase',
-            'code' => '$result = $teamleader->deals()->move("deal-uuid", "phase-uuid");'
+            'code' => '$result = $teamleader->deals()->move("deal-uuid", "phase-uuid");',
         ],
         'filter_deals' => [
             'description' => 'Get deals with full information',
             'code' => '$deals = $teamleader->deals()
                 ->withCustomer()
                 ->withResponsibleUser()
-                ->list(["status" => ["open"]]);'
+                ->list(["status" => ["open"]]);',
         ],
     ];
 
     /**
      * List deals with enhanced filtering and sorting
      *
-     * @param array $filters Filters to apply
-     * @param array $options Additional options (sorting, pagination, includes)
-     * @return array
+     * @param  array  $filters  Filters to apply
+     * @param  array  $options  Additional options (sorting, pagination, includes)
      */
     public function list(array $filters = [], array $options = []): array
     {
@@ -142,88 +148,86 @@ class Deals extends Resource
         // Apply any pending includes from fluent interface
         $params = $this->applyPendingIncludes($params);
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
      * Get deal information with enhanced include handling
      *
-     * @param string $id Deal UUID
-     * @param mixed $includes Relations to include
-     * @return array
+     * @param  string  $id  Deal UUID
+     * @param  mixed  $includes  Relations to include
      */
     public function info($id, $includes = null): array
     {
         $params = ['id' => $id];
 
-        if (!empty($includes)) {
+        if (! empty($includes)) {
             $params = $this->applyIncludes($params, $includes);
         }
 
         // Apply any pending includes from fluent interface
         $params = $this->applyPendingIncludes($params);
 
-        return $this->api->request('POST', $this->getBasePath() . '.info', $params);
+        return $this->api->request('POST', $this->getBasePath().'.info', $params);
     }
 
     /**
      * Create a new deal
      *
-     * @param array $data Deal data
-     * @return array
+     * @param  array  $data  Deal data
+     *
      * @throws InvalidArgumentException
      */
     public function create(array $data): array
     {
         $this->validateDealData($data, 'create');
-        return $this->api->request('POST', $this->getBasePath() . '.create', $data);
+
+        return $this->api->request('POST', $this->getBasePath().'.create', $data);
     }
 
     /**
      * Update a deal
      *
-     * @param string $id Deal UUID
-     * @param array $data Data to update
-     * @return array
+     * @param  string  $id  Deal UUID
+     * @param  array  $data  Data to update
+     *
      * @throws InvalidArgumentException
      */
     public function update($id, array $data): array
     {
         $data['id'] = $id;
         $this->validateDealData($data, 'update');
-        return $this->api->request('POST', $this->getBasePath() . '.update', $data);
+
+        return $this->api->request('POST', $this->getBasePath().'.update', $data);
     }
 
     /**
      * Delete a deal
      *
-     * @param string $id Deal UUID
-     * @param mixed ...$additionalParams Additional parameters (not used)
-     * @return array
+     * @param  string  $id  Deal UUID
+     * @param  mixed  ...$additionalParams  Additional parameters (not used)
      */
     public function delete($id, ...$additionalParams): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.delete', ['id' => $id]);
+        return $this->api->request('POST', $this->getBasePath().'.delete', ['id' => $id]);
     }
 
     /**
      * Mark a deal as won
      *
-     * @param string $id Deal UUID
-     * @return array
+     * @param  string  $id  Deal UUID
      */
     public function win(string $id): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.win', ['id' => $id]);
+        return $this->api->request('POST', $this->getBasePath().'.win', ['id' => $id]);
     }
 
     /**
      * Mark a deal as lost
      *
-     * @param string $id Deal UUID
-     * @param string|null $reasonId Lost reason UUID (optional)
-     * @param string|null $extraInfo Additional information (optional)
-     * @return array
+     * @param  string  $id  Deal UUID
+     * @param  string|null  $reasonId  Lost reason UUID (optional)
+     * @param  string|null  $extraInfo  Additional information (optional)
      */
     public function lose(string $id, ?string $reasonId = null, ?string $extraInfo = null): array
     {
@@ -237,15 +241,15 @@ class Deals extends Resource
             $params['extra_info'] = $extraInfo;
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.lose', $params);
+        return $this->api->request('POST', $this->getBasePath().'.lose', $params);
     }
 
     /**
      * Move a deal to a different phase
      *
-     * @param string $id Deal UUID
-     * @param string $phaseId Target phase UUID
-     * @return array
+     * @param  string  $id  Deal UUID
+     * @param  string  $phaseId  Target phase UUID
+     *
      * @throws InvalidArgumentException
      */
     public function move(string $id, string $phaseId): array
@@ -254,7 +258,7 @@ class Deals extends Resource
             throw new InvalidArgumentException('Phase ID is required to move a deal');
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.move', [
+        return $this->api->request('POST', $this->getBasePath().'.move', [
             'id' => $id,
             'phase_id' => $phaseId,
         ]);
@@ -263,8 +267,7 @@ class Deals extends Resource
     /**
      * Get only open deals
      *
-     * @param array $additionalFilters Additional filters to apply
-     * @return array
+     * @param  array  $additionalFilters  Additional filters to apply
      */
     public function open(array $additionalFilters = []): array
     {
@@ -274,8 +277,7 @@ class Deals extends Resource
     /**
      * Get only won deals
      *
-     * @param array $additionalFilters Additional filters to apply
-     * @return array
+     * @param  array  $additionalFilters  Additional filters to apply
      */
     public function won(array $additionalFilters = []): array
     {
@@ -285,8 +287,7 @@ class Deals extends Resource
     /**
      * Get only lost deals
      *
-     * @param array $additionalFilters Additional filters to apply
-     * @return array
+     * @param  array  $additionalFilters  Additional filters to apply
      */
     public function lost(array $additionalFilters = []): array
     {
@@ -296,15 +297,15 @@ class Deals extends Resource
     /**
      * Get deals for a specific customer
      *
-     * @param string $customerType Customer type ('contact' or 'company')
-     * @param string $customerId Customer UUID
-     * @param array $additionalFilters Additional filters to apply
-     * @return array
+     * @param  string  $customerType  Customer type ('contact' or 'company')
+     * @param  string  $customerId  Customer UUID
+     * @param  array  $additionalFilters  Additional filters to apply
+     *
      * @throws InvalidArgumentException
      */
     public function forCustomer(string $customerType, string $customerId, array $additionalFilters = []): array
     {
-        if (!in_array($customerType, $this->customerTypes)) {
+        if (! in_array($customerType, $this->customerTypes)) {
             throw new InvalidArgumentException(
                 "Invalid customer type: {$customerType}. Must be 'contact' or 'company'"
             );
@@ -314,7 +315,7 @@ class Deals extends Resource
             'customer' => [
                 'type' => $customerType,
                 'id' => $customerId,
-            ]
+            ],
         ], $additionalFilters);
 
         return $this->list($filters);
@@ -323,9 +324,8 @@ class Deals extends Resource
     /**
      * Get deals in a specific phase
      *
-     * @param string $phaseId Phase UUID
-     * @param array $additionalFilters Additional filters to apply
-     * @return array
+     * @param  string  $phaseId  Phase UUID
+     * @param  array  $additionalFilters  Additional filters to apply
      */
     public function byPhase(string $phaseId, array $additionalFilters = []): array
     {
@@ -335,8 +335,7 @@ class Deals extends Resource
     /**
      * Get deals by specific IDs
      *
-     * @param array $ids Array of deal UUIDs
-     * @return array
+     * @param  array  $ids  Array of deal UUIDs
      */
     public function byIds(array $ids): array
     {
@@ -346,9 +345,8 @@ class Deals extends Resource
     /**
      * Get deals updated since a specific date
      *
-     * @param string $date Date in ISO format
-     * @param array $additionalFilters Additional filters to apply
-     * @return array
+     * @param  string  $date  Date in ISO format
+     * @param  array  $additionalFilters  Additional filters to apply
      */
     public function updatedSince(string $date, array $additionalFilters = []): array
     {
@@ -358,9 +356,8 @@ class Deals extends Resource
     /**
      * Get deals for a specific responsible user
      *
-     * @param string $userId User UUID
-     * @param array $additionalFilters Additional filters to apply
-     * @return array
+     * @param  string  $userId  User UUID
+     * @param  array  $additionalFilters  Additional filters to apply
      */
     public function forUser(string $userId, array $additionalFilters = []): array
     {
@@ -370,9 +367,8 @@ class Deals extends Resource
     /**
      * Search deals by term
      *
-     * @param string $term Search term (searches title, reference, customer name)
-     * @param array $additionalFilters Additional filters to apply
-     * @return array
+     * @param  string  $term  Search term (searches title, reference, customer name)
+     * @param  array  $additionalFilters  Additional filters to apply
      */
     public function search(string $term, array $additionalFilters = []): array
     {
@@ -382,10 +378,9 @@ class Deals extends Resource
     /**
      * Get deals closing in a date range
      *
-     * @param string $from Start date (inclusive)
-     * @param string $until End date (inclusive)
-     * @param array $additionalFilters Additional filters to apply
-     * @return array
+     * @param  string  $from  Start date (inclusive)
+     * @param  string  $until  End date (inclusive)
+     * @param  array  $additionalFilters  Additional filters to apply
      */
     public function closingBetween(string $from, string $until, array $additionalFilters = []): array
     {
@@ -398,8 +393,9 @@ class Deals extends Resource
     /**
      * Validate deal data before create/update
      *
-     * @param array $data Deal data
-     * @param string $operation Operation type ('create' or 'update')
+     * @param  array  $data  Deal data
+     * @param  string  $operation  Operation type ('create' or 'update')
+     *
      * @throws InvalidArgumentException
      */
     protected function validateDealData(array $data, string $operation): void
@@ -414,7 +410,7 @@ class Deals extends Resource
                 throw new InvalidArgumentException('Customer type is required');
             }
 
-            if (!in_array($data['lead']['customer']['type'], $this->customerTypes)) {
+            if (! in_array($data['lead']['customer']['type'], $this->customerTypes)) {
                 throw new InvalidArgumentException(
                     "Invalid customer type: {$data['lead']['customer']['type']}. Must be 'contact' or 'company'"
                 );
@@ -431,15 +427,15 @@ class Deals extends Resource
 
         // Validate estimated value if provided
         if (isset($data['estimated_value'])) {
-            if (!isset($data['estimated_value']['amount'])) {
+            if (! isset($data['estimated_value']['amount'])) {
                 throw new InvalidArgumentException('Estimated value amount is required');
             }
 
-            if (!isset($data['estimated_value']['currency'])) {
+            if (! isset($data['estimated_value']['currency'])) {
                 throw new InvalidArgumentException('Estimated value currency is required');
             }
 
-            if (!in_array($data['estimated_value']['currency'], $this->availableCurrencies)) {
+            if (! in_array($data['estimated_value']['currency'], $this->availableCurrencies)) {
                 throw new InvalidArgumentException(
                     "Invalid currency: {$data['estimated_value']['currency']}"
                 );
@@ -449,7 +445,7 @@ class Deals extends Resource
         // Validate estimated probability if provided
         if (isset($data['estimated_probability'])) {
             $probability = $data['estimated_probability'];
-            if (!is_numeric($probability) || $probability < 0 || $probability > 1) {
+            if (! is_numeric($probability) || $probability < 0 || $probability > 1) {
                 throw new InvalidArgumentException(
                     'Estimated probability must be a number between 0 and 1 (inclusive)'
                 );
@@ -458,13 +454,13 @@ class Deals extends Resource
 
         // Validate currency if provided
         if (isset($data['currency'])) {
-            if (!isset($data['currency']['code']) || !isset($data['currency']['exchange_rate'])) {
+            if (! isset($data['currency']['code']) || ! isset($data['currency']['exchange_rate'])) {
                 throw new InvalidArgumentException(
                     'Currency must include both code and exchange_rate'
                 );
             }
 
-            if (!in_array($data['currency']['code'], $this->availableCurrencies)) {
+            if (! in_array($data['currency']['code'], $this->availableCurrencies)) {
                 throw new InvalidArgumentException(
                     "Invalid currency code: {$data['currency']['code']}"
                 );
@@ -474,10 +470,10 @@ class Deals extends Resource
         // Validate custom fields if provided
         if (isset($data['custom_fields']) && is_array($data['custom_fields'])) {
             foreach ($data['custom_fields'] as $field) {
-                if (!isset($field['id'])) {
+                if (! isset($field['id'])) {
                     throw new InvalidArgumentException('Custom field must include an id');
                 }
-                if (!isset($field['value'])) {
+                if (! isset($field['value'])) {
                     throw new InvalidArgumentException('Custom field must include a value');
                 }
             }
@@ -487,7 +483,7 @@ class Deals extends Resource
     /**
      * Build filters array for the API request
      *
-     * @param array $filters User-provided filters
+     * @param  array  $filters  User-provided filters
      * @return array API-formatted filters
      */
     private function buildFilters(array $filters): array
@@ -563,8 +559,6 @@ class Deals extends Resource
 
     /**
      * Get the base path for the deals resource
-     *
-     * @return string
      */
     protected function getBasePath(): string
     {
@@ -573,8 +567,6 @@ class Deals extends Resource
 
     /**
      * Fluent method to include customer information
-     *
-     * @return self
      */
     public function withCustomer(): self
     {
@@ -583,8 +575,6 @@ class Deals extends Resource
 
     /**
      * Fluent method to include responsible user information
-     *
-     * @return self
      */
     public function withResponsibleUser(): self
     {
@@ -593,8 +583,6 @@ class Deals extends Resource
 
     /**
      * Fluent method to include department information
-     *
-     * @return self
      */
     public function withDepartment(): self
     {
@@ -603,8 +591,6 @@ class Deals extends Resource
 
     /**
      * Fluent method to include current phase information
-     *
-     * @return self
      */
     public function withCurrentPhase(): self
     {
@@ -613,8 +599,6 @@ class Deals extends Resource
 
     /**
      * Fluent method to include source information
-     *
-     * @return self
      */
     public function withSource(): self
     {
@@ -623,8 +607,6 @@ class Deals extends Resource
 
     /**
      * Fluent method to include custom fields
-     *
-     * @return self
      */
     public function withCustomFields(): self
     {
@@ -633,8 +615,6 @@ class Deals extends Resource
 
     /**
      * Fluent method to include all common relationships
-     *
-     * @return self
      */
     public function withAll(): self
     {
@@ -649,8 +629,6 @@ class Deals extends Resource
 
     /**
      * Get suggested includes for this resource
-     *
-     * @return array
      */
     protected function getSuggestedIncludes(): array
     {

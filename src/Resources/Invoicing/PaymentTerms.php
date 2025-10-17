@@ -11,12 +11,19 @@ class PaymentTerms extends Resource
 
     // Resource capabilities - Payment terms are read-only
     protected bool $supportsCreation = false;
+
     protected bool $supportsUpdate = false;
+
     protected bool $supportsDeletion = false;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = false;
+
     protected bool $supportsSorting = false;
+
     protected bool $supportsFiltering = false;
+
     protected bool $supportsSideloading = false;
 
     // Available includes for sideloading
@@ -39,23 +46,23 @@ class PaymentTerms extends Resource
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all payment terms',
-            'code' => '$paymentTerms = $teamleader->paymentTerms()->list();'
+            'code' => '$paymentTerms = $teamleader->paymentTerms()->list();',
         ],
         'get_default' => [
             'description' => 'Get the default payment term',
-            'code' => '$defaultTerm = $teamleader->paymentTerms()->getDefault();'
+            'code' => '$defaultTerm = $teamleader->paymentTerms()->getDefault();',
         ],
         'find_by_type' => [
             'description' => 'Find payment terms by type',
-            'code' => '$cashTerms = $teamleader->paymentTerms()->findByType("cash");'
+            'code' => '$cashTerms = $teamleader->paymentTerms()->findByType("cash");',
         ],
         'find_by_days' => [
             'description' => 'Find payment terms by number of days',
-            'code' => '$term = $teamleader->paymentTerms()->findByDays(30);'
+            'code' => '$term = $teamleader->paymentTerms()->findByDays(30);',
         ],
         'as_options' => [
             'description' => 'Get payment terms as key-value pairs for dropdowns',
-            'code' => '$options = $teamleader->paymentTerms()->asOptions();'
+            'code' => '$options = $teamleader->paymentTerms()->asOptions();',
         ],
     ];
 
@@ -70,13 +77,12 @@ class PaymentTerms extends Resource
     /**
      * List all payment terms
      *
-     * @param array $filters Not used for payment terms
-     * @param array $options Not used for payment terms
-     * @return array
+     * @param  array  $filters  Not used for payment terms
+     * @param  array  $options  Not used for payment terms
      */
     public function list(array $filters = [], array $options = []): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.list', []);
+        return $this->api->request('POST', $this->getBasePath().'.list', []);
     }
 
     /**
@@ -111,20 +117,21 @@ class PaymentTerms extends Resource
     public function getDefaultId(): ?string
     {
         $result = $this->list();
+
         return $result['meta']['default'] ?? null;
     }
 
     /**
      * Find payment terms by type
      *
-     * @param string $type Payment term type (cash, end_of_month, after_invoice_date)
+     * @param  string  $type  Payment term type (cash, end_of_month, after_invoice_date)
      * @return array Array of matching payment terms
      */
     public function findByType(string $type): array
     {
-        if (!in_array($type, $this->validTypes)) {
+        if (! in_array($type, $this->validTypes)) {
             throw new InvalidArgumentException(
-                "Invalid payment term type '{$type}'. Must be one of: " .
+                "Invalid payment term type '{$type}'. Must be one of: ".
                 implode(', ', $this->validTypes)
             );
         }
@@ -144,15 +151,15 @@ class PaymentTerms extends Resource
     /**
      * Find a payment term by number of days
      *
-     * @param int $days Number of days
-     * @param string|null $type Optional payment term type to filter by
+     * @param  int  $days  Number of days
+     * @param  string|null  $type  Optional payment term type to filter by
      * @return array|null Payment term data or null if not found
      */
     public function findByDays(int $days, ?string $type = null): ?array
     {
-        if ($type !== null && !in_array($type, $this->validTypes)) {
+        if ($type !== null && ! in_array($type, $this->validTypes)) {
             throw new InvalidArgumentException(
-                "Invalid payment term type '{$type}'. Must be one of: " .
+                "Invalid payment term type '{$type}'. Must be one of: ".
                 implode(', ', $this->validTypes)
             );
         }
@@ -161,7 +168,7 @@ class PaymentTerms extends Resource
 
         foreach ($result['data'] as $term) {
             // Match days
-            if (!isset($term['days']) || $term['days'] !== $days) {
+            if (! isset($term['days']) || $term['days'] !== $days) {
                 continue;
             }
 
@@ -179,7 +186,7 @@ class PaymentTerms extends Resource
     /**
      * Find a payment term by ID
      *
-     * @param string $id Payment term UUID
+     * @param  string  $id  Payment term UUID
      * @return array|null Payment term data or null if not found
      */
     public function find(string $id): ?array
@@ -198,8 +205,7 @@ class PaymentTerms extends Resource
     /**
      * Check if a payment term exists by ID
      *
-     * @param string $id Payment term UUID
-     * @return bool
+     * @param  string  $id  Payment term UUID
      */
     public function exists(string $id): bool
     {
@@ -226,7 +232,7 @@ class PaymentTerms extends Resource
     /**
      * Format a payment term as a human-readable description
      *
-     * @param array $term Payment term data
+     * @param  array  $term  Payment term data
      * @return string Formatted description
      */
     public function formatPaymentTermDescription(array $term): string
@@ -239,10 +245,12 @@ class PaymentTerms extends Resource
                 if (isset($term['days']) && $term['days'] > 0) {
                     return "End of month + {$term['days']} days";
                 }
+
                 return 'End of month';
 
             case 'after_invoice_date':
                 $days = $term['days'] ?? 0;
+
                 return "{$days} days after invoice date";
 
             default:
@@ -282,9 +290,6 @@ class PaymentTerms extends Resource
 
     /**
      * Validate payment term type
-     *
-     * @param string $type
-     * @return bool
      */
     public function isValidType(string $type): bool
     {
@@ -306,8 +311,8 @@ class PaymentTerms extends Resource
                     'data[].days' => 'Number of days modifier (not required for cash type)',
                     'meta' => 'Metadata object',
                     'meta.default' => 'UUID of the default payment term',
-                ]
-            ]
+                ],
+            ],
         ];
     }
 }

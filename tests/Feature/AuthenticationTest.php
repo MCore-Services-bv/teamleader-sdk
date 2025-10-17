@@ -2,9 +2,9 @@
 
 namespace McoreServices\TeamleaderSDK\Tests\Feature;
 
-use McoreServices\TeamleaderSDK\Tests\TestCase;
-use McoreServices\TeamleaderSDK\TeamleaderSDK;
 use Illuminate\Support\Facades\Cache;
+use McoreServices\TeamleaderSDK\TeamleaderSDK;
+use McoreServices\TeamleaderSDK\Tests\TestCase;
 
 class AuthenticationTest extends TestCase
 {
@@ -13,11 +13,11 @@ class AuthenticationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->sdk = new TeamleaderSDK();
+        $this->sdk = new TeamleaderSDK;
         Cache::flush();
     }
 
-    public function testGeneratesAuthorizationUrl(): void
+    public function test_generates_authorization_url(): void
     {
         $url = $this->sdk->getAuthorizationUrl('test_state');
 
@@ -27,12 +27,12 @@ class AuthenticationTest extends TestCase
         $this->assertStringContainsString('response_type=code', $url);
     }
 
-    public function testChecksAuthenticationStatus(): void
+    public function test_checks_authentication_status(): void
     {
         $this->assertFalse($this->sdk->isAuthenticated());
     }
 
-    public function testCanSetAccessTokenManually(): void
+    public function test_can_set_access_token_manually(): void
     {
         $token = 'test_access_token_12345';
 
@@ -41,7 +41,7 @@ class AuthenticationTest extends TestCase
         $this->assertEquals($token, $this->sdk->getToken());
     }
 
-    public function testCanLogout(): void
+    public function test_can_logout(): void
     {
         $this->sdk->setAccessToken('test_token');
         $this->assertNotNull($this->sdk->getToken());

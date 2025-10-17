@@ -11,18 +11,25 @@ class TimeTracking extends Resource
 
     // Resource capabilities
     protected bool $supportsCreation = true;
+
     protected bool $supportsUpdate = true;
+
     protected bool $supportsDeletion = true;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = true;
+
     protected bool $supportsSorting = true;
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSideloading = true;
 
     // Available includes for sideloading
     protected array $availableIncludes = [
         'materials',
-        'relates_to'
+        'relates_to',
     ];
 
     // Default includes
@@ -36,7 +43,7 @@ class TimeTracking extends Resource
         'milestone',
         'nextgenTask',
         'ticket',
-        'todo'
+        'todo',
     ];
 
     // Common filters based on API documentation
@@ -49,26 +56,26 @@ class TimeTracking extends Resource
         'ended_before' => 'End of period for ended entries (ISO 8601 datetime)',
         'subject' => 'Filter by subject (id and type)',
         'subject_types' => 'Filter by subject types array',
-        'relates_to' => 'Filter by related entity (milestone or project)'
+        'relates_to' => 'Filter by related entity (milestone or project)',
     ];
 
     // Usage examples
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all time tracking entries',
-            'code' => '$entries = $teamleader->timeTracking()->list();'
+            'code' => '$entries = $teamleader->timeTracking()->list();',
         ],
         'filter_by_user' => [
             'description' => 'Get entries for specific user',
-            'code' => '$entries = $teamleader->timeTracking()->forUser("user-uuid");'
+            'code' => '$entries = $teamleader->timeTracking()->forUser("user-uuid");',
         ],
         'filter_by_date_range' => [
             'description' => 'Get entries within date range',
-            'code' => '$entries = $teamleader->timeTracking()->betweenDates("2024-01-01", "2024-01-31");'
+            'code' => '$entries = $teamleader->timeTracking()->betweenDates("2024-01-01", "2024-01-31");',
         ],
         'with_materials' => [
             'description' => 'Get entries with materials',
-            'code' => '$entries = $teamleader->timeTracking()->withMaterials()->list();'
+            'code' => '$entries = $teamleader->timeTracking()->withMaterials()->list();',
         ],
         'create_entry' => [
             'description' => 'Create a time tracking entry',
@@ -79,8 +86,8 @@ class TimeTracking extends Resource
         "id" => "company-uuid",
         "type" => "company"
     ]
-]);'
-        ]
+]);',
+        ],
     ];
 
     /**
@@ -106,7 +113,7 @@ class TimeTracking extends Resource
             $options['include'] ?? null
         );
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
@@ -116,14 +123,14 @@ class TimeTracking extends Resource
     {
         $params = ['id' => $id];
 
-        if (!empty($includes)) {
+        if (! empty($includes)) {
             $params = $this->applyIncludes($params, $includes);
         }
 
         // Apply any pending includes from fluent interface
         $params = $this->applyPendingIncludes($params);
 
-        return $this->api->request('POST', $this->getBasePath() . '.info', $params);
+        return $this->api->request('POST', $this->getBasePath().'.info', $params);
     }
 
     /**
@@ -136,7 +143,8 @@ class TimeTracking extends Resource
     public function create(array $data): array
     {
         $validatedData = $this->validateTimeTrackingData($data, 'create');
-        return $this->api->request('POST', $this->getBasePath() . '.add', $validatedData);
+
+        return $this->api->request('POST', $this->getBasePath().'.add', $validatedData);
     }
 
     /**
@@ -146,7 +154,8 @@ class TimeTracking extends Resource
     {
         $data['id'] = $id;
         $validatedData = $this->validateTimeTrackingData($data, 'update');
-        return $this->api->request('POST', $this->getBasePath() . '.update', $validatedData);
+
+        return $this->api->request('POST', $this->getBasePath().'.update', $validatedData);
     }
 
     /**
@@ -154,7 +163,7 @@ class TimeTracking extends Resource
      */
     public function delete($id, ...$additionalParams): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.delete', ['id' => $id]);
+        return $this->api->request('POST', $this->getBasePath().'.delete', ['id' => $id]);
     }
 
     /**
@@ -168,7 +177,7 @@ class TimeTracking extends Resource
             $params['started_at'] = $startedAt;
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.resume', $params);
+        return $this->api->request('POST', $this->getBasePath().'.resume', $params);
     }
 
     /**
@@ -187,9 +196,9 @@ class TimeTracking extends Resource
      */
     public function forSubject(string $subjectId, string $subjectType, array $options = []): array
     {
-        if (!in_array($subjectType, $this->availableSubjectTypes)) {
+        if (! in_array($subjectType, $this->availableSubjectTypes)) {
             throw new InvalidArgumentException(
-                'Invalid subject type. Must be one of: ' . implode(', ', $this->availableSubjectTypes)
+                'Invalid subject type. Must be one of: '.implode(', ', $this->availableSubjectTypes)
             );
         }
 
@@ -208,9 +217,9 @@ class TimeTracking extends Resource
     public function forSubjectTypes(array $subjectTypes, array $options = []): array
     {
         foreach ($subjectTypes as $type) {
-            if (!in_array($type, $this->availableSubjectTypes)) {
+            if (! in_array($type, $this->availableSubjectTypes)) {
                 throw new InvalidArgumentException(
-                    'Invalid subject type: ' . $type . '. Must be one of: ' . implode(', ', $this->availableSubjectTypes)
+                    'Invalid subject type: '.$type.'. Must be one of: '.implode(', ', $this->availableSubjectTypes)
                 );
             }
         }
@@ -229,7 +238,7 @@ class TimeTracking extends Resource
         return $this->list(
             array_merge([
                 'started_after' => $startDate,
-                'started_before' => $endDate
+                'started_before' => $endDate,
             ], $options['filters'] ?? []),
             $options
         );
@@ -243,7 +252,7 @@ class TimeTracking extends Resource
         return $this->list(
             array_merge([
                 'ended_after' => $startDate,
-                'ended_before' => $endDate
+                'ended_before' => $endDate,
             ], $options['filters'] ?? []),
             $options
         );
@@ -255,9 +264,9 @@ class TimeTracking extends Resource
     public function relatedTo(string $entityId, string $entityType, array $options = []): array
     {
         $validTypes = ['milestone', 'project'];
-        if (!in_array($entityType, $validTypes)) {
+        if (! in_array($entityType, $validTypes)) {
             throw new InvalidArgumentException(
-                'Invalid relates_to type. Must be one of: ' . implode(', ', $validTypes)
+                'Invalid relates_to type. Must be one of: '.implode(', ', $validTypes)
             );
         }
 
@@ -292,7 +301,7 @@ class TimeTracking extends Resource
     protected function validateTimeTrackingData(array $data, string $operation): array
     {
         // ID is required for update
-        if ($operation === 'update' && !isset($data['id'])) {
+        if ($operation === 'update' && ! isset($data['id'])) {
             throw new InvalidArgumentException('ID is required for update operation');
         }
 
@@ -307,22 +316,22 @@ class TimeTracking extends Resource
         }
 
         // Validate work_type_id format if provided
-        if (isset($data['work_type_id']) && !$this->isValidUuid($data['work_type_id'])) {
+        if (isset($data['work_type_id']) && ! $this->isValidUuid($data['work_type_id'])) {
             throw new InvalidArgumentException('Invalid work_type_id format. Must be a valid UUID');
         }
 
         // Validate user_id format if provided
-        if (isset($data['user_id']) && !$this->isValidUuid($data['user_id'])) {
+        if (isset($data['user_id']) && ! $this->isValidUuid($data['user_id'])) {
             throw new InvalidArgumentException('Invalid user_id format. Must be a valid UUID');
         }
 
         // Validate invoiceable if provided
-        if (isset($data['invoiceable']) && !is_bool($data['invoiceable'])) {
+        if (isset($data['invoiceable']) && ! is_bool($data['invoiceable'])) {
             throw new InvalidArgumentException('Invoiceable must be a boolean value');
         }
 
         // Validate duration if provided (must be positive integer)
-        if (isset($data['duration']) && (!is_int($data['duration']) || $data['duration'] <= 0)) {
+        if (isset($data['duration']) && (! is_int($data['duration']) || $data['duration'] <= 0)) {
             throw new InvalidArgumentException('Duration must be a positive integer (seconds)');
         }
 
@@ -343,25 +352,25 @@ class TimeTracking extends Resource
         // Variant 2: started_at + ended_at
         // Variant 3: started_on + duration
 
-        if ($hasStartedAt && $hasEndedAt && !$hasDuration) {
+        if ($hasStartedAt && $hasEndedAt && ! $hasDuration) {
             // Variant 2: started_at + ended_at
             return;
         }
 
-        if ($hasStartedAt && $hasDuration && !$hasEndedAt) {
+        if ($hasStartedAt && $hasDuration && ! $hasEndedAt) {
             // Variant 1: started_at + duration
             return;
         }
 
-        if ($hasStartedOn && $hasDuration && !$hasStartedAt && !$hasEndedAt) {
+        if ($hasStartedOn && $hasDuration && ! $hasStartedAt && ! $hasEndedAt) {
             // Variant 3: started_on + duration
             return;
         }
 
         throw new InvalidArgumentException(
-            'Invalid time tracking variant. Must provide either: ' .
-            '1) started_at + duration, ' .
-            '2) started_at + ended_at, or ' .
+            'Invalid time tracking variant. Must provide either: '.
+            '1) started_at + duration, '.
+            '2) started_at + ended_at, or '.
             '3) started_on + duration'
         );
     }
@@ -371,17 +380,17 @@ class TimeTracking extends Resource
      */
     protected function validateSubject(array $subject): void
     {
-        if (!isset($subject['id']) || !isset($subject['type'])) {
+        if (! isset($subject['id']) || ! isset($subject['type'])) {
             throw new InvalidArgumentException('Subject must contain both id and type');
         }
 
-        if (!$this->isValidUuid($subject['id'])) {
+        if (! $this->isValidUuid($subject['id'])) {
             throw new InvalidArgumentException('Subject id must be a valid UUID');
         }
 
-        if (!in_array($subject['type'], $this->availableSubjectTypes)) {
+        if (! in_array($subject['type'], $this->availableSubjectTypes)) {
             throw new InvalidArgumentException(
-                'Invalid subject type. Must be one of: ' . implode(', ', $this->availableSubjectTypes)
+                'Invalid subject type. Must be one of: '.implode(', ', $this->availableSubjectTypes)
             );
         }
     }
@@ -442,7 +451,7 @@ class TimeTracking extends Resource
             }
         }
 
-        if (!empty($apiFilters)) {
+        if (! empty($apiFilters)) {
             $params['filter'] = $apiFilters;
         }
 
@@ -455,13 +464,14 @@ class TimeTracking extends Resource
     protected function applySorting(array $params = [], $sort = null, $order = 'asc'): array
     {
         // Handle null sort - return params as-is
-        if (!$sort) {
+        if (! $sort) {
             return $params;
         }
 
         // If sort is already an array with proper structure, use it directly
         if (is_array($sort) && isset($sort[0]['field'])) {
             $params['sort'] = $sort;
+
             return $params;
         }
 
@@ -469,8 +479,9 @@ class TimeTracking extends Resource
         if (is_array($sort) && isset($sort['field'])) {
             $params['sort'] = [[
                 'field' => $sort['field'],
-                'order' => $sort['order'] ?? $order
+                'order' => $sort['order'] ?? $order,
             ]];
+
             return $params;
         }
 
@@ -478,8 +489,9 @@ class TimeTracking extends Resource
         if (is_string($sort)) {
             $params['sort'] = [[
                 'field' => $sort,
-                'order' => $order
+                'order' => $order,
             ]];
+
             return $params;
         }
 

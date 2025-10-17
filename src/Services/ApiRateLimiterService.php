@@ -43,9 +43,9 @@ class ApiRateLimiterService
 
     private LoggerInterface $logger;
 
-    public function __construct(LoggerInterface $logger = null)
+    public function __construct(?LoggerInterface $logger = null)
     {
-        $this->logger = $logger ?: new NullLogger();
+        $this->logger = $logger ?: new NullLogger;
     }
 
     /**
@@ -88,6 +88,7 @@ class ApiRateLimiterService
                 $throttleInfo['reason'] = 'Sliding window rate limit exceeded, waiting for slot';
 
                 $this->logThrottling('sliding_window_exceeded', $throttleInfo);
+
                 return $throttleInfo;
             }
         }
@@ -127,7 +128,7 @@ class ApiRateLimiterService
         $this->logger->debug('API request recorded', [
             'current_usage' => $this->getCurrentUsage(),
             'remaining' => self::$rateLimitState['remaining'],
-            'total_requests' => self::$rateLimitState['total_requests']
+            'total_requests' => self::$rateLimitState['total_requests'],
         ]);
     }
 
@@ -154,7 +155,7 @@ class ApiRateLimiterService
             }
         }
 
-        if (!empty($rateLimitData)) {
+        if (! empty($rateLimitData)) {
             if (isset($rateLimitData['remaining'])) {
                 $headerRemaining = (int) $rateLimitData['remaining'];
                 $localUsage = $this->getCurrentUsage();
@@ -180,7 +181,7 @@ class ApiRateLimiterService
             $this->logger->debug('Rate limit headers processed', [
                 'headers' => $rateLimitData,
                 'local_usage' => $this->getCurrentUsage(),
-                'local_remaining' => self::RATE_LIMIT - $this->getCurrentUsage()
+                'local_remaining' => self::RATE_LIMIT - $this->getCurrentUsage(),
             ]);
         }
     }
@@ -204,11 +205,11 @@ class ApiRateLimiterService
         self::$rateLimitState['remaining'] = 0;
         self::$rateLimitState['reset_time'] = Carbon::now()->addSeconds($retryAfter);
 
-        $this->logger->warning("Rate limit exceeded (429 response)", [
+        $this->logger->warning('Rate limit exceeded (429 response)', [
             'retry_after' => $retryAfter,
             'reset_time' => self::$rateLimitState['reset_time']->toISOString(),
             'current_usage' => $this->getCurrentUsage(),
-            'sliding_window_requests' => count(self::$rateLimitState['requests'])
+            'sliding_window_requests' => count(self::$rateLimitState['requests']),
         ]);
 
         return $retryAfter;
@@ -264,6 +265,7 @@ class ApiRateLimiterService
     private function getCurrentUsage(): int
     {
         $this->cleanupOldRequests();
+
         return count(self::$rateLimitState['requests']);
     }
 
@@ -276,7 +278,7 @@ class ApiRateLimiterService
 
         self::$rateLimitState['requests'] = array_filter(
             self::$rateLimitState['requests'],
-            fn($timestamp) => $timestamp > $cutoff
+            fn ($timestamp) => $timestamp > $cutoff
         );
 
         // Re-index array to prevent memory issues
@@ -291,7 +293,8 @@ class ApiRateLimiterService
         foreach (self::THROTTLE_THRESHOLDS as $threshold => $delay) {
             if ($usagePercentage >= $threshold) {
                 // Add some jitter to prevent thundering herd
-                $jitter = rand(0, (int)($delay * 0.1));
+                $jitter = rand(0, (int) ($delay * 0.1));
+
                 return $delay + $jitter;
             }
         }
@@ -304,10 +307,19 @@ class ApiRateLimiterService
      */
     private function getThrottleLevel(float $usagePercentage): string
     {
-        if ($usagePercentage >= 95) return 'critical';
-        if ($usagePercentage >= 90) return 'high';
-        if ($usagePercentage >= 80) return 'moderate';
-        if ($usagePercentage >= 70) return 'low';
+        if ($usagePercentage >= 95) {
+            return 'critical';
+        }
+        if ($usagePercentage >= 90) {
+            return 'high';
+        }
+        if ($usagePercentage >= 80) {
+            return 'moderate';
+        }
+        if ($usagePercentage >= 70) {
+            return 'low';
+        }
+
         return 'none';
     }
 
@@ -316,10 +328,19 @@ class ApiRateLimiterService
      */
     private function getThrottleReason(float $usagePercentage): string
     {
-        if ($usagePercentage >= 95) return 'Sliding window critical - approaching limit';
-        if ($usagePercentage >= 90) return 'Sliding window high usage';
-        if ($usagePercentage >= 80) return 'Sliding window moderate usage';
-        if ($usagePercentage >= 70) return 'Sliding window preventive throttling';
+        if ($usagePercentage >= 95) {
+            return 'Sliding window critical - approaching limit';
+        }
+        if ($usagePercentage >= 90) {
+            return 'Sliding window high usage';
+        }
+        if ($usagePercentage >= 80) {
+            return 'Sliding window moderate usage';
+        }
+        if ($usagePercentage >= 70) {
+            return 'Sliding window preventive throttling';
+        }
+
         return 'Normal operation';
     }
 
@@ -331,7 +352,7 @@ class ApiRateLimiterService
         $this->logger->info("Rate limiting: {$event}", [
             'event' => $event,
             'rate_limit_data' => $data,
-            'sliding_window_requests' => count(self::$rateLimitState['requests'])
+            'sliding_window_requests' => count(self::$rateLimitState['requests']),
         ]);
     }
 
@@ -341,6 +362,7 @@ class ApiRateLimiterService
     public function isThrottled(): bool
     {
         $usage = $this->getCurrentUsage();
+
         return $usage >= (self::RATE_LIMIT * 0.7); // 70% threshold for sliding window
     }
 
@@ -382,11 +404,12 @@ class ApiRateLimiterService
     {
         $oldestTime = $this->getOldestRequestTime();
 
-        if (!$oldestTime) {
+        if (! $oldestTime) {
             return 0;
         }
 
         $expiresAt = $oldestTime + self::WINDOW_DURATION;
+
         return max(0, $expiresAt - time());
     }
 
@@ -397,7 +420,7 @@ class ApiRateLimiterService
     {
         $oldestTime = $this->getOldestRequestTime();
 
-        if (!$oldestTime) {
+        if (! $oldestTime) {
             return 0;
         }
 
@@ -415,7 +438,7 @@ class ApiRateLimiterService
 
         $oldestTime = $this->getOldestRequestTime();
 
-        if (!$oldestTime) {
+        if (! $oldestTime) {
             return Carbon::now()->addMinute(); // Fallback
         }
 

@@ -11,12 +11,19 @@ class TaxRates extends Resource
 
     // Resource capabilities - Tax rates are read-only
     protected bool $supportsCreation = false;
+
     protected bool $supportsUpdate = false;
+
     protected bool $supportsDeletion = false;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = true;
+
     protected bool $supportsSorting = true;
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSideloading = false;
 
     // Available includes for sideloading
@@ -41,27 +48,27 @@ class TaxRates extends Resource
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all tax rates',
-            'code' => '$taxRates = $teamleader->taxRates()->list();'
+            'code' => '$taxRates = $teamleader->taxRates()->list();',
         ],
         'filter_by_department' => [
             'description' => 'Get tax rates for a specific department',
-            'code' => '$taxRates = $teamleader->taxRates()->forDepartment(\'department-uuid\');'
+            'code' => '$taxRates = $teamleader->taxRates()->forDepartment(\'department-uuid\');',
         ],
         'sort_by_rate' => [
             'description' => 'Get tax rates sorted by rate',
-            'code' => '$taxRates = $teamleader->taxRates()->list([], [\'sort\' => [[\'field\' => \'rate\', \'order\' => \'asc\']]]);'
+            'code' => '$taxRates = $teamleader->taxRates()->list([], [\'sort\' => [[\'field\' => \'rate\', \'order\' => \'asc\']]]);',
         ],
         'find_by_rate' => [
             'description' => 'Find tax rate by exact rate value',
-            'code' => '$taxRate = $teamleader->taxRates()->findByRate(0.21);'
+            'code' => '$taxRate = $teamleader->taxRates()->findByRate(0.21);',
         ],
         'find_by_description' => [
             'description' => 'Find tax rate by description',
-            'code' => '$taxRate = $teamleader->taxRates()->findByDescription("21%");'
+            'code' => '$taxRate = $teamleader->taxRates()->findByDescription("21%");',
         ],
         'as_options' => [
             'description' => 'Get tax rates as key-value pairs for dropdowns',
-            'code' => '$options = $teamleader->taxRates()->asOptions();'
+            'code' => '$options = $teamleader->taxRates()->asOptions();',
         ],
     ];
 
@@ -76,16 +83,15 @@ class TaxRates extends Resource
     /**
      * List tax rates with filtering, sorting, and pagination
      *
-     * @param array $filters Filter parameters
-     * @param array $options Pagination and sorting options
-     * @return array
+     * @param  array  $filters  Filter parameters
+     * @param  array  $options  Pagination and sorting options
      */
     public function list(array $filters = [], array $options = []): array
     {
         $params = [];
 
         // Apply filters
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
@@ -93,7 +99,7 @@ class TaxRates extends Resource
         if (isset($options['page_size']) || isset($options['page_number'])) {
             $params['page'] = [
                 'size' => $options['page_size'] ?? 20,
-                'number' => $options['page_number'] ?? 1
+                'number' => $options['page_number'] ?? 1,
             ];
         }
 
@@ -102,15 +108,14 @@ class TaxRates extends Resource
             $params['sort'] = $this->buildSort($options['sort']);
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
      * Get tax rates for a specific department
      *
-     * @param string $departmentId Department UUID
-     * @param array $options Pagination and sorting options
-     * @return array
+     * @param  string  $departmentId  Department UUID
+     * @param  array  $options  Pagination and sorting options
      */
     public function forDepartment(string $departmentId, array $options = []): array
     {
@@ -120,7 +125,7 @@ class TaxRates extends Resource
     /**
      * Find a tax rate by ID
      *
-     * @param string $id Tax rate UUID
+     * @param  string  $id  Tax rate UUID
      * @return array|null Tax rate data or null if not found
      */
     public function find(string $id): ?array
@@ -140,8 +145,8 @@ class TaxRates extends Resource
     /**
      * Find a tax rate by exact rate value
      *
-     * @param float $rate Tax rate (e.g., 0.21 for 21%)
-     * @param string|null $departmentId Optional department filter
+     * @param  float  $rate  Tax rate (e.g., 0.21 for 21%)
+     * @param  string|null  $departmentId  Optional department filter
      * @return array|null Tax rate data or null if not found
      */
     public function findByRate(float $rate, ?string $departmentId = null): ?array
@@ -161,9 +166,9 @@ class TaxRates extends Resource
     /**
      * Find tax rates by rate range
      *
-     * @param float $minRate Minimum rate (inclusive)
-     * @param float $maxRate Maximum rate (inclusive)
-     * @param string|null $departmentId Optional department filter
+     * @param  float  $minRate  Minimum rate (inclusive)
+     * @param  float  $maxRate  Maximum rate (inclusive)
+     * @param  string|null  $departmentId  Optional department filter
      * @return array Array of matching tax rates
      */
     public function findByRateRange(float $minRate, float $maxRate, ?string $departmentId = null): array
@@ -184,9 +189,9 @@ class TaxRates extends Resource
     /**
      * Find a tax rate by description
      *
-     * @param string $description Tax rate description (e.g., "21%")
-     * @param string|null $departmentId Optional department filter
-     * @param bool $exactMatch Whether to match exactly or search partial
+     * @param  string  $description  Tax rate description (e.g., "21%")
+     * @param  string|null  $departmentId  Optional department filter
+     * @param  bool  $exactMatch  Whether to match exactly or search partial
      * @return array|null Tax rate data or null if not found
      */
     public function findByDescription(string $description, ?string $departmentId = null, bool $exactMatch = true): ?array
@@ -212,8 +217,7 @@ class TaxRates extends Resource
     /**
      * Check if a tax rate exists by ID
      *
-     * @param string $id Tax rate UUID
-     * @return bool
+     * @param  string  $id  Tax rate UUID
      */
     public function exists(string $id): bool
     {
@@ -223,8 +227,8 @@ class TaxRates extends Resource
     /**
      * Get all tax rates (handles pagination automatically)
      *
-     * @param array $filters Filters to apply
-     * @param int $maxPages Maximum number of pages to fetch (default: 10)
+     * @param  array  $filters  Filters to apply
+     * @param  int  $maxPages  Maximum number of pages to fetch (default: 10)
      * @return array All tax rates
      */
     public function all(array $filters = [], int $maxPages = 10): array
@@ -235,14 +239,14 @@ class TaxRates extends Resource
         do {
             $result = $this->list($filters, [
                 'page_size' => 100,
-                'page_number' => $page
+                'page_number' => $page,
             ]);
 
-            if (!empty($result['data'])) {
+            if (! empty($result['data'])) {
                 $allRates = array_merge($allRates, $result['data']);
             }
 
-            $hasMore = !empty($result['data']) && count($result['data']) === 100;
+            $hasMore = ! empty($result['data']) && count($result['data']) === 100;
             $page++;
         } while ($hasMore && $page <= $maxPages);
 
@@ -252,7 +256,7 @@ class TaxRates extends Resource
     /**
      * Get tax rates formatted as options for select dropdowns
      *
-     * @param string|null $departmentId Optional department filter
+     * @param  string|null  $departmentId  Optional department filter
      * @return array Array with id => description pairs
      */
     public function asOptions(?string $departmentId = null): array
@@ -280,10 +284,10 @@ class TaxRates extends Resource
 
         foreach ($result['data'] as $taxRate) {
             $departmentId = $taxRate['department']['id'];
-            if (!isset($grouped[$departmentId])) {
+            if (! isset($grouped[$departmentId])) {
                 $grouped[$departmentId] = [
                     'department' => $taxRate['department'],
-                    'tax_rates' => []
+                    'tax_rates' => [],
                 ];
             }
             $grouped[$departmentId]['tax_rates'][] = $taxRate;
@@ -295,39 +299,34 @@ class TaxRates extends Resource
     /**
      * Get tax rates sorted by rate ascending
      *
-     * @param array $filters Additional filters
-     * @return array
+     * @param  array  $filters  Additional filters
      */
     public function sortedByRate(array $filters = []): array
     {
         return $this->list($filters, [
             'sort' => [
-                ['field' => 'rate', 'order' => 'asc']
-            ]
+                ['field' => 'rate', 'order' => 'asc'],
+            ],
         ]);
     }
 
     /**
      * Get tax rates sorted by description
      *
-     * @param array $filters Additional filters
-     * @param string $order Sort order (asc or desc)
-     * @return array
+     * @param  array  $filters  Additional filters
+     * @param  string  $order  Sort order (asc or desc)
      */
     public function sortedByDescription(array $filters = [], string $order = 'asc'): array
     {
         return $this->list($filters, [
             'sort' => [
-                ['field' => 'description', 'order' => $order]
-            ]
+                ['field' => 'description', 'order' => $order],
+            ],
         ]);
     }
 
     /**
      * Build filters for the API request
-     *
-     * @param array $filters
-     * @return array
      */
     protected function buildFilters(array $filters): array
     {
@@ -336,17 +335,14 @@ class TaxRates extends Resource
 
     /**
      * Build sort parameters for the API request
-     *
-     * @param array $sort
-     * @return array
      */
     protected function buildSort(array $sort): array
     {
         // Validate sort fields
         foreach ($sort as $sortItem) {
-            if (isset($sortItem['field']) && !in_array($sortItem['field'], $this->availableSortFields)) {
+            if (isset($sortItem['field']) && ! in_array($sortItem['field'], $this->availableSortFields)) {
                 throw new InvalidArgumentException(
-                    "Invalid sort field '{$sortItem['field']}'. Must be one of: " .
+                    "Invalid sort field '{$sortItem['field']}'. Must be one of: ".
                     implode(', ', $this->availableSortFields)
                 );
             }
@@ -371,8 +367,8 @@ class TaxRates extends Resource
                     'data[].department' => 'Department reference object',
                     'data[].department.id' => 'Department UUID',
                     'data[].department.type' => 'Resource type ("department")',
-                ]
-            ]
+                ],
+            ],
         ];
     }
 }

@@ -91,7 +91,8 @@ class TeamleaderExportUuidsCommand extends Command
             $this->info('✓ Done! Copy the output above into your config/teamleader.php file.');
 
         } catch (\Exception $e) {
-            $this->error('Error: ' . $e->getMessage());
+            $this->error('Error: '.$e->getMessage());
+
             return 1;
         }
 
@@ -111,7 +112,7 @@ class TeamleaderExportUuidsCommand extends Command
         $this->info('=== Users ===');
         $response = Teamleader::users()->list();
         foreach ($response['data'] as $item) {
-            $name = $this->formatName($item['first_name'] . ' ' . $item['last_name']);
+            $name = $this->formatName($item['first_name'].' '.$item['last_name']);
             $this->line("'{$name}' => '{$item['id']}',");
         }
         $this->newLine();
@@ -189,7 +190,7 @@ class TeamleaderExportUuidsCommand extends Command
         $response = Teamleader::taxRates()->list();
 
         foreach ($response['data'] as $item) {
-            $name = 'vat_' . str_replace('.', '_', $item['rate']);
+            $name = 'vat_'.str_replace('.', '_', $item['rate']);
             $this->line("'{$name}' => '{$item['id']}', // {$item['rate']}%");
         }
         $this->newLine();
@@ -257,7 +258,7 @@ class TeamleaderExportUuidsCommand extends Command
         $contexts = [];
         foreach ($response['data'] as $field) {
             $context = $field['context'] ?? 'unknown';
-            if (!isset($contexts[$context])) {
+            if (! isset($contexts[$context])) {
                 $contexts[$context] = [];
             }
             $contexts[$context][] = $field;

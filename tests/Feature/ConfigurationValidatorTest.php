@@ -2,8 +2,8 @@
 
 namespace McoreServices\TeamleaderSDK\Tests\Feature;
 
-use McoreServices\TeamleaderSDK\Tests\TestCase;
 use McoreServices\TeamleaderSDK\Services\ConfigurationValidator;
+use McoreServices\TeamleaderSDK\Tests\TestCase;
 
 class ConfigurationValidatorTest extends TestCase
 {
@@ -12,10 +12,10 @@ class ConfigurationValidatorTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->validator = new ConfigurationValidator();
+        $this->validator = new ConfigurationValidator;
     }
 
-    public function testValidatesConfigurationSuccessfully(): void
+    public function test_validates_configuration_successfully(): void
     {
         $result = $this->validator->validate();
 
@@ -23,7 +23,7 @@ class ConfigurationValidatorTest extends TestCase
         $this->assertTrue($result->isValid());
     }
 
-    public function testProvidesSummary(): void
+    public function test_provides_summary(): void
     {
         $result = $this->validator->validate();
 
@@ -32,7 +32,7 @@ class ConfigurationValidatorTest extends TestCase
         $this->assertNotEmpty($summary);
     }
 
-    public function testGeneratesConfigurationReport(): void
+    public function test_generates_configuration_report(): void
     {
         $report = $this->validator->generateReport();
 
@@ -42,7 +42,7 @@ class ConfigurationValidatorTest extends TestCase
         $this->assertArrayHasKey('configuration_summary', $report);
     }
 
-    public function testProvidesSuggestions(): void
+    public function test_provides_suggestions(): void
     {
         $suggestions = $this->validator->getSuggestions();
 

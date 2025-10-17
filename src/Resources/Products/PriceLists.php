@@ -10,12 +10,19 @@ class PriceLists extends Resource
 
     // Resource capabilities - Price Lists are read-only based on API docs
     protected bool $supportsCreation = false;
+
     protected bool $supportsUpdate = false;
+
     protected bool $supportsDeletion = false;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = false; // No pagination mentioned in API docs
+
     protected bool $supportsSorting = false;
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSideloading = false;
 
     // Available includes for sideloading (none based on API docs)
@@ -33,16 +40,16 @@ class PriceLists extends Resource
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all price lists',
-            'code' => '$priceLists = $teamleader->priceLists()->list();'
+            'code' => '$priceLists = $teamleader->priceLists()->list();',
         ],
         'filter_by_ids' => [
             'description' => 'Get specific price lists by IDs',
-            'code' => '$priceLists = $teamleader->priceLists()->list([\'ids\' => [\'uuid1\', \'uuid2\']]);'
+            'code' => '$priceLists = $teamleader->priceLists()->list([\'ids\' => [\'uuid1\', \'uuid2\']]);',
         ],
         'get_by_ids' => [
             'description' => 'Get specific price lists (alias method)',
-            'code' => '$priceLists = $teamleader->priceLists()->byIds([\'uuid1\', \'uuid2\']);'
-        ]
+            'code' => '$priceLists = $teamleader->priceLists()->byIds([\'uuid1\', \'uuid2\']);',
+        ],
     ];
 
     /**
@@ -56,27 +63,25 @@ class PriceLists extends Resource
     /**
      * List price lists with filtering
      *
-     * @param array $filters Filters to apply
-     * @param array $options Additional options (not used for this endpoint)
-     * @return array
+     * @param  array  $filters  Filters to apply
+     * @param  array  $options  Additional options (not used for this endpoint)
      */
     public function list(array $filters = [], array $options = []): array
     {
         $params = [];
 
         // Apply filters
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
      * Get specific price lists by their UUIDs
      *
-     * @param array $ids Array of price list UUIDs
-     * @return array
+     * @param  array  $ids  Array of price list UUIDs
      */
     public function byIds(array $ids): array
     {
@@ -90,7 +95,7 @@ class PriceLists extends Resource
     /**
      * Build filters array for the API request
      *
-     * @param array $filters Raw filters
+     * @param  array  $filters  Raw filters
      * @return array Processed filters for the API
      */
     private function buildFilters(array $filters): array

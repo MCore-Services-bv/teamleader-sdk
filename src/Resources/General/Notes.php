@@ -12,12 +12,19 @@ class Notes extends Resource
 
     // Resource capabilities - Notes support all major operations
     protected bool $supportsCreation = true;
+
     protected bool $supportsUpdate = true;
+
     protected bool $supportsDeletion = false; // API docs don't show delete endpoint
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = true;
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSorting = false; // No sort mentioned in API docs
+
     protected bool $supportsSideloading = false; // No includes mentioned
 
     // Available subject types for notes (from API docs)
@@ -31,7 +38,7 @@ class Notes extends Resource
         'product',
         'project',
         'quotation',
-        'subscription'
+        'subscription',
     ];
 
     // Common filters based on API documentation
@@ -44,31 +51,31 @@ class Notes extends Resource
     protected array $usageExamples = [
         'list_for_contact' => [
             'description' => 'Get all notes for a specific contact',
-            'code' => '$notes = $teamleader->notes()->list([\'subject\' => [\'type\' => \'contact\', \'id\' => \'contact-uuid\']]);'
+            'code' => '$notes = $teamleader->notes()->list([\'subject\' => [\'type\' => \'contact\', \'id\' => \'contact-uuid\']]);',
         ],
         'list_for_company' => [
             'description' => 'Get all notes for a specific company',
-            'code' => '$notes = $teamleader->notes()->list([\'subject\' => [\'type\' => \'company\', \'id\' => \'company-uuid\']]);'
+            'code' => '$notes = $teamleader->notes()->list([\'subject\' => [\'type\' => \'company\', \'id\' => \'company-uuid\']]);',
         ],
         'create_contact_note' => [
             'description' => 'Create a note for a contact',
-            'code' => '$note = $teamleader->notes()->create([\'subject\' => [\'type\' => \'contact\', \'id\' => \'contact-uuid\'], \'content\' => \'Meeting notes from today\']);'
+            'code' => '$note = $teamleader->notes()->create([\'subject\' => [\'type\' => \'contact\', \'id\' => \'contact-uuid\'], \'content\' => \'Meeting notes from today\']);',
         ],
         'create_with_notification' => [
             'description' => 'Create a note and notify users',
-            'code' => '$note = $teamleader->notes()->create([\'subject\' => [\'type\' => \'deal\', \'id\' => \'deal-uuid\'], \'content\' => \'Important update\', \'notify\' => [[\'type\' => \'user\', \'id\' => \'user-uuid\']]]);'
+            'code' => '$note = $teamleader->notes()->create([\'subject\' => [\'type\' => \'deal\', \'id\' => \'deal-uuid\'], \'content\' => \'Important update\', \'notify\' => [[\'type\' => \'user\', \'id\' => \'user-uuid\']]]);',
         ],
         'update_note' => [
             'description' => 'Update an existing note',
-            'code' => '$note = $teamleader->notes()->update(\'note-uuid\', [\'content\' => \'Updated note content\']);'
-        ]
+            'code' => '$note = $teamleader->notes()->update(\'note-uuid\', [\'content\' => \'Updated note content\']);',
+        ],
     ];
 
     /**
      * Update an existing note
      *
-     * @param mixed $id Note ID
-     * @param array $data Data to update
+     * @param  mixed  $id  Note ID
+     * @param  array  $data  Data to update
      * @return array
      */
     public function update($id, array $data)
@@ -78,19 +85,18 @@ class Notes extends Resource
         // Validate update data
         $this->validateUpdateData($data);
 
-        return $this->api->request('POST', $this->getBasePath() . '.update', $data);
+        return $this->api->request('POST', $this->getBasePath().'.update', $data);
     }
 
     /**
      * Validate data for note update
      *
-     * @param array $data
      * @throws InvalidArgumentException
      */
     private function validateUpdateData(array $data): void
     {
         // Required: id
-        if (!isset($data['id']) || empty($data['id'])) {
+        if (! isset($data['id']) || empty($data['id'])) {
             throw new InvalidArgumentException('Note ID is required for updates');
         }
 
@@ -111,8 +117,8 @@ class Notes extends Resource
     /**
      * Get notes for a company
      *
-     * @param string $companyId Company UUID
-     * @param array $options Additional options
+     * @param  string  $companyId  Company UUID
+     * @param  array  $options  Additional options
      * @return array
      */
     public function forCompany(string $companyId, array $options = [])
@@ -123,9 +129,9 @@ class Notes extends Resource
     /**
      * Get notes for a specific subject
      *
-     * @param string $subjectType Type of subject (company, contact, deal, etc.)
-     * @param string $subjectId UUID of the subject
-     * @param array $options Additional options (pagination)
+     * @param  string  $subjectType  Type of subject (company, contact, deal, etc.)
+     * @param  string  $subjectId  UUID of the subject
+     * @param  array  $options  Additional options (pagination)
      * @return array
      */
     public function forSubject(string $subjectType, string $subjectId, array $options = [])
@@ -135,22 +141,21 @@ class Notes extends Resource
         return $this->list([
             'subject' => [
                 'type' => $subjectType,
-                'id' => $subjectId
-            ]
+                'id' => $subjectId,
+            ],
         ], $options);
     }
 
     /**
      * Validate subject type
      *
-     * @param string $type
      * @throws InvalidArgumentException
      */
     private function validateSubjectType(string $type): void
     {
-        if (!in_array($type, $this->availableSubjectTypes)) {
+        if (! in_array($type, $this->availableSubjectTypes)) {
             throw new InvalidArgumentException(
-                "Invalid subject type '{$type}'. Available types: " .
+                "Invalid subject type '{$type}'. Available types: ".
                 implode(', ', $this->availableSubjectTypes)
             );
         }
@@ -159,8 +164,8 @@ class Notes extends Resource
     /**
      * List notes with filtering support
      *
-     * @param array $filters Filters to apply
-     * @param array $options Additional options (pagination)
+     * @param  array  $filters  Filters to apply
+     * @param  array  $options  Additional options (pagination)
      * @return array
      */
     public function list(array $filters = [], array $options = [])
@@ -168,7 +173,7 @@ class Notes extends Resource
         $params = [];
 
         // Build filter object as required by API
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
@@ -176,18 +181,15 @@ class Notes extends Resource
         if (isset($options['page_size']) || isset($options['page_number'])) {
             $params['page'] = [
                 'size' => $options['page_size'] ?? 20,
-                'number' => $options['page_number'] ?? 1
+                'number' => $options['page_number'] ?? 1,
             ];
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
      * Build filters array for the API request
-     *
-     * @param array $filters
-     * @return array
      */
     private function buildFilters(array $filters): array
     {
@@ -210,9 +212,9 @@ class Notes extends Resource
     /**
      * Create a note for a company
      *
-     * @param string $companyId Company UUID
-     * @param string $content Note content
-     * @param array $notify Users to notify
+     * @param  string  $companyId  Company UUID
+     * @param  string  $content  Note content
+     * @param  array  $notify  Users to notify
      * @return array
      */
     public function createForCompany(string $companyId, string $content, array $notify = [])
@@ -223,10 +225,10 @@ class Notes extends Resource
     /**
      * Create a note for a specific subject
      *
-     * @param string $subjectType Type of subject
-     * @param string $subjectId UUID of the subject
-     * @param string $content Note content
-     * @param array $notify Optional array of users to notify
+     * @param  string  $subjectType  Type of subject
+     * @param  string  $subjectId  UUID of the subject
+     * @param  string  $content  Note content
+     * @param  array  $notify  Optional array of users to notify
      * @return array
      */
     public function createForSubject(string $subjectType, string $subjectId, string $content, array $notify = [])
@@ -236,12 +238,12 @@ class Notes extends Resource
         $data = [
             'subject' => [
                 'type' => $subjectType,
-                'id' => $subjectId
+                'id' => $subjectId,
             ],
-            'content' => $content
+            'content' => $content,
         ];
 
-        if (!empty($notify)) {
+        if (! empty($notify)) {
             $data['notify'] = $notify;
         }
 
@@ -251,7 +253,7 @@ class Notes extends Resource
     /**
      * Create a new note
      *
-     * @param array $data Note data
+     * @param  array  $data  Note data
      * @return array
      */
     public function create(array $data)
@@ -259,43 +261,42 @@ class Notes extends Resource
         // Validate required fields
         $this->validateCreateData($data);
 
-        return $this->api->request('POST', $this->getBasePath() . '.create', $data);
+        return $this->api->request('POST', $this->getBasePath().'.create', $data);
     }
 
     /**
      * Validate data for note creation
      *
-     * @param array $data
      * @throws InvalidArgumentException
      */
     private function validateCreateData(array $data): void
     {
         // Required: subject
-        if (!isset($data['subject']) || !is_array($data['subject'])) {
+        if (! isset($data['subject']) || ! is_array($data['subject'])) {
             throw new InvalidArgumentException('Subject is required and must be an array with type and id');
         }
 
-        if (!isset($data['subject']['type']) || !isset($data['subject']['id'])) {
+        if (! isset($data['subject']['type']) || ! isset($data['subject']['id'])) {
             throw new InvalidArgumentException('Subject must contain both type and id');
         }
 
         $this->validateSubjectType($data['subject']['type']);
 
         // Required: content
-        if (!isset($data['content']) || empty(trim($data['content']))) {
+        if (! isset($data['content']) || empty(trim($data['content']))) {
             throw new InvalidArgumentException('Content is required and cannot be empty');
         }
 
         // Optional: validate notify array structure if provided
         if (isset($data['notify'])) {
-            if (!is_array($data['notify'])) {
+            if (! is_array($data['notify'])) {
                 throw new InvalidArgumentException('Notify must be an array');
             }
 
             foreach ($data['notify'] as $notification) {
-                if (!is_array($notification) ||
-                    !isset($notification['type']) ||
-                    !isset($notification['id'])) {
+                if (! is_array($notification) ||
+                    ! isset($notification['type']) ||
+                    ! isset($notification['id'])) {
                     throw new InvalidArgumentException(
                         'Each notification must be an array with type and id'
                     );
@@ -314,8 +315,8 @@ class Notes extends Resource
     /**
      * Get notes for a contact
      *
-     * @param string $contactId Contact UUID
-     * @param array $options Additional options
+     * @param  string  $contactId  Contact UUID
+     * @param  array  $options  Additional options
      * @return array
      */
     public function forContact(string $contactId, array $options = [])
@@ -326,9 +327,9 @@ class Notes extends Resource
     /**
      * Create a note for a contact
      *
-     * @param string $contactId Contact UUID
-     * @param string $content Note content
-     * @param array $notify Users to notify
+     * @param  string  $contactId  Contact UUID
+     * @param  string  $content  Note content
+     * @param  array  $notify  Users to notify
      * @return array
      */
     public function createForContact(string $contactId, string $content, array $notify = [])
@@ -339,8 +340,8 @@ class Notes extends Resource
     /**
      * Get notes for a deal
      *
-     * @param string $dealId Deal UUID
-     * @param array $options Additional options
+     * @param  string  $dealId  Deal UUID
+     * @param  array  $options  Additional options
      * @return array
      */
     public function forDeal(string $dealId, array $options = [])
@@ -351,9 +352,9 @@ class Notes extends Resource
     /**
      * Create a note for a deal
      *
-     * @param string $dealId Deal UUID
-     * @param string $content Note content
-     * @param array $notify Users to notify
+     * @param  string  $dealId  Deal UUID
+     * @param  string  $content  Note content
+     * @param  array  $notify  Users to notify
      * @return array
      */
     public function createForDeal(string $dealId, string $content, array $notify = [])
@@ -363,8 +364,6 @@ class Notes extends Resource
 
     /**
      * Get available subject types
-     *
-     * @return array
      */
     public function getAvailableSubjectTypes(): array
     {
@@ -393,8 +392,6 @@ class Notes extends Resource
 
     /**
      * Get suggested includes - Notes don't support includes
-     *
-     * @return array
      */
     protected function getSuggestedIncludes(): array
     {

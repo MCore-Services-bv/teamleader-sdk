@@ -11,12 +11,19 @@ class Migrate extends Resource
 
     // Resource capabilities - Migration endpoints don't follow CRUD patterns
     protected bool $supportsCreation = false;
+
     protected bool $supportsUpdate = false;
+
     protected bool $supportsDeletion = false;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = false;
+
     protected bool $supportsSorting = false;
+
     protected bool $supportsFiltering = false;
+
     protected bool $supportsSideloading = false;
 
     // Available includes for sideloading (none for migration endpoints)
@@ -87,23 +94,23 @@ class Migrate extends Resource
         'migrate_activity_type' => [
             'description' => 'Translate meeting, call, or task into activity type UUID',
             'code' => '$result = $teamleader->migrate()->activityType("meeting");
-// Returns: ["data" => ["id" => "uuid", "type" => "meeting"]]'
+// Returns: ["data" => ["id" => "uuid", "type" => "meeting"]]',
         ],
         'migrate_tax_rate' => [
             'description' => 'Translate old tax rate to new UUID tax rate',
             'code' => '$result = $teamleader->migrate()->taxRate(
     "department-uuid",
     "21"
-);'
+);',
         ],
         'migrate_contact_id' => [
             'description' => 'Translate old contact ID to new UUID',
             'code' => '$result = $teamleader->migrate()->id("contact", 123);
-// Returns: ["data" => ["type" => "contact", "id" => "new-uuid"]]'
+// Returns: ["data" => ["type" => "contact", "id" => "new-uuid"]]',
         ],
         'migrate_invoice_id' => [
             'description' => 'Translate old invoice ID to new UUID',
-            'code' => '$result = $teamleader->migrate()->id("invoice", 456);'
+            'code' => '$result = $teamleader->migrate()->id("invoice", 456);',
         ],
         'batch_migrate_ids' => [
             'description' => 'Migrate multiple IDs in a loop',
@@ -113,7 +120,7 @@ $newIds = [];
 foreach ($oldIds as $oldId) {
     $result = $teamleader->migrate()->id("contact", $oldId);
     $newIds[$oldId] = $result["data"]["id"];
-}'
+}',
         ],
     ];
 
@@ -128,29 +135,31 @@ foreach ($oldIds as $oldId) {
     /**
      * Translate activity type (meeting, call, task) into activity type UUID
      *
-     * @param string $type Activity type (meeting, call, or task)
+     * @param  string  $type  Activity type (meeting, call, or task)
      * @return array Response with activity type UUID
+     *
      * @throws InvalidArgumentException
      */
     public function activityType(string $type): array
     {
-        if (!in_array($type, $this->activityTypes)) {
+        if (! in_array($type, $this->activityTypes)) {
             throw new InvalidArgumentException(
-                "Invalid activity type: {$type}. Must be one of: " . implode(', ', $this->activityTypes)
+                "Invalid activity type: {$type}. Must be one of: ".implode(', ', $this->activityTypes)
             );
         }
 
         $data = ['type' => $type];
 
-        return $this->api->request('POST', $this->getBasePath() . '.activityType', $data);
+        return $this->api->request('POST', $this->getBasePath().'.activityType', $data);
     }
 
     /**
      * Translate old tax rate to new UUID tax rate
      *
-     * @param string $departmentId Department UUID
-     * @param string $taxRate Tax rate as string (e.g., "21", "6", "0")
+     * @param  string  $departmentId  Department UUID
+     * @param  string  $taxRate  Tax rate as string (e.g., "21", "6", "0")
      * @return array Response with tax rate UUID
+     *
      * @throws InvalidArgumentException
      */
     public function taxRate(string $departmentId, string $taxRate): array
@@ -164,7 +173,7 @@ foreach ($oldIds as $oldId) {
         }
 
         // Validate tax rate is numeric
-        if (!is_numeric($taxRate)) {
+        if (! is_numeric($taxRate)) {
             throw new InvalidArgumentException('Tax rate must be a numeric value (as string)');
         }
 
@@ -173,22 +182,23 @@ foreach ($oldIds as $oldId) {
             'tax_rate' => $taxRate,
         ];
 
-        return $this->api->request('POST', $this->getBasePath() . '.taxRate', $data);
+        return $this->api->request('POST', $this->getBasePath().'.taxRate', $data);
     }
 
     /**
      * Translate old numeric ID to new UUID
      *
-     * @param string $type Resource type (contact, company, invoice, etc.)
-     * @param int $id Old numeric ID
+     * @param  string  $type  Resource type (contact, company, invoice, etc.)
+     * @param  int  $id  Old numeric ID
      * @return array Response with new UUID
+     *
      * @throws InvalidArgumentException
      */
     public function id(string $type, int $id): array
     {
-        if (!in_array($type, $this->resourceTypes)) {
+        if (! in_array($type, $this->resourceTypes)) {
             throw new InvalidArgumentException(
-                "Invalid resource type: {$type}. Must be one of: " . implode(', ', $this->resourceTypes)
+                "Invalid resource type: {$type}. Must be one of: ".implode(', ', $this->resourceTypes)
             );
         }
 
@@ -201,16 +211,17 @@ foreach ($oldIds as $oldId) {
             'id' => $id,
         ];
 
-        return $this->api->request('POST', $this->getBasePath() . '.id', $data);
+        return $this->api->request('POST', $this->getBasePath().'.id', $data);
     }
 
     /**
      * Batch migrate multiple IDs of the same type
      * This is a convenience method that calls the API multiple times
      *
-     * @param string $type Resource type
-     * @param array $ids Array of old numeric IDs
+     * @param  string  $type  Resource type
+     * @param  array  $ids  Array of old numeric IDs
      * @return array Associative array mapping old IDs to new UUIDs
+     *
      * @throws InvalidArgumentException
      */
     public function batchIds(string $type, array $ids): array
@@ -222,11 +233,11 @@ foreach ($oldIds as $oldId) {
         $mapping = [];
 
         foreach ($ids as $oldId) {
-            if (!is_int($oldId) && !ctype_digit((string)$oldId)) {
+            if (! is_int($oldId) && ! ctype_digit((string) $oldId)) {
                 throw new InvalidArgumentException("All IDs must be integers, got: {$oldId}");
             }
 
-            $result = $this->id($type, (int)$oldId);
+            $result = $this->id($type, (int) $oldId);
             $mapping[$oldId] = $result['data']['id'];
         }
 
@@ -235,8 +246,6 @@ foreach ($oldIds as $oldId) {
 
     /**
      * Get all valid activity types
-     *
-     * @return array
      */
     public function getActivityTypes(): array
     {
@@ -245,8 +254,6 @@ foreach ($oldIds as $oldId) {
 
     /**
      * Get all valid resource types for ID migration
-     *
-     * @return array
      */
     public function getResourceTypes(): array
     {
@@ -255,9 +262,6 @@ foreach ($oldIds as $oldId) {
 
     /**
      * Check if an activity type is valid
-     *
-     * @param string $type
-     * @return bool
      */
     public function isValidActivityType(string $type): bool
     {
@@ -266,9 +270,6 @@ foreach ($oldIds as $oldId) {
 
     /**
      * Check if a resource type is valid for migration
-     *
-     * @param string $type
-     * @return bool
      */
     public function isValidResourceType(string $type): bool
     {

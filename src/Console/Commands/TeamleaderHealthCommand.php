@@ -19,6 +19,7 @@ class TeamleaderHealthCommand extends Command
         if ($this->option('score')) {
             $score = $healthCheck->getHealthScore();
             $this->line("Health Score: {$score}/100");
+
             return $score >= 80 ? 0 : 1;
         }
 
@@ -29,6 +30,7 @@ class TeamleaderHealthCommand extends Command
 
         if ($this->option('json')) {
             $this->line(json_encode($result->toArray(), JSON_PRETTY_PRINT));
+
             return $result->isHealthy() ? 0 : 1;
         }
 
@@ -49,7 +51,7 @@ class TeamleaderHealthCommand extends Command
         $status = $result->getOverallStatus();
         $score = app(HealthCheckService::class)->getHealthScore();
 
-        $statusColor = match($status) {
+        $statusColor = match ($status) {
             'healthy' => 'green',
             'caution' => 'yellow',
             'warning' => 'yellow',
@@ -58,13 +60,13 @@ class TeamleaderHealthCommand extends Command
             default => 'blue'
         };
 
-        $scoreColor = match(true) {
+        $scoreColor = match (true) {
             $score >= 90 => 'green',
             $score >= 70 => 'yellow',
             default => 'red'
         };
 
-        $this->line("Overall Status: <fg={$statusColor}>" . strtoupper($status) . "</>");
+        $this->line("Overall Status: <fg={$statusColor}>".strtoupper($status).'</>');
         $this->line("Health Score: <fg={$scoreColor}>{$score}/100</>");
         $this->newLine();
     }
@@ -86,7 +88,7 @@ class TeamleaderHealthCommand extends Command
         $status = $check['status'];
         $details = $check['details'];
 
-        $icon = match($status) {
+        $icon = match ($status) {
             'healthy' => '✅',
             'caution' => '⚠️',
             'warning' => '⚠️',
@@ -97,7 +99,7 @@ class TeamleaderHealthCommand extends Command
             default => '❓'
         };
 
-        $color = match($status) {
+        $color = match ($status) {
             'healthy' => 'green',
             'caution' => 'yellow',
             'warning' => 'yellow',
@@ -109,7 +111,7 @@ class TeamleaderHealthCommand extends Command
         };
 
         $displayName = ucwords(str_replace('_', ' ', $checkName));
-        $this->line("{$icon} <fg={$color}>{$displayName}: " . strtoupper($status) . "</>");
+        $this->line("{$icon} <fg={$color}>{$displayName}: ".strtoupper($status).'</>');
 
         // Show relevant details
         if (is_array($details)) {
@@ -204,6 +206,7 @@ class TeamleaderHealthCommand extends Command
     {
         try {
             $tokenService = app(\McoreServices\TeamleaderSDK\Services\TokenService::class);
+
             return $tokenService->syncTokensToCache();
         } catch (\Exception $e) {
             return false;
@@ -214,6 +217,7 @@ class TeamleaderHealthCommand extends Command
     {
         try {
             \Illuminate\Support\Facades\Cache::flush();
+
             return true;
         } catch (\Exception $e) {
             return false;

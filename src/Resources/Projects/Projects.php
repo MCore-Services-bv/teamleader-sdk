@@ -11,12 +11,19 @@ class Projects extends Resource
 
     // Resource capabilities
     protected bool $supportsCreation = true;
+
     protected bool $supportsUpdate = true;
+
     protected bool $supportsDeletion = true;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = true;
+
     protected bool $supportsSorting = true;
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSideloading = true;
 
     // Available includes for sideloading
@@ -78,19 +85,19 @@ class Projects extends Resource
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all projects',
-            'code' => '$projects = $teamleader->projects()->list();'
+            'code' => '$projects = $teamleader->projects()->list();',
         ],
         'filter_by_status' => [
             'description' => 'Get open projects',
-            'code' => '$projects = $teamleader->projects()->open();'
+            'code' => '$projects = $teamleader->projects()->open();',
         ],
         'create_project' => [
             'description' => 'Create a new project',
-            'code' => '$project = $teamleader->projects()->create([...]);'
+            'code' => '$project = $teamleader->projects()->create([...]);',
         ],
         'close_project' => [
             'description' => 'Close a project',
-            'code' => '$result = $teamleader->projects()->close("project-uuid");'
+            'code' => '$result = $teamleader->projects()->close("project-uuid");',
         ],
     ];
 
@@ -105,34 +112,32 @@ class Projects extends Resource
     /**
      * Get detailed information about a specific project
      *
-     * @param string $id Project UUID
-     * @param mixed $includes Optional includes (legacy_project, custom_fields)
-     * @return array
+     * @param  string  $id  Project UUID
+     * @param  mixed  $includes  Optional includes (legacy_project, custom_fields)
      */
     public function info($id, $includes = null): array
     {
         $params = ['id' => $id];
 
-        if (!empty($includes)) {
+        if (! empty($includes)) {
             $params = $this->applyIncludes($params, $includes);
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.info', $params);
+        return $this->api->request('POST', $this->getBasePath().'.info', $params);
     }
 
     /**
      * List projects with filtering and sorting
      *
-     * @param array $filters Filters to apply
-     * @param array $options Pagination and sorting options
-     * @return array
+     * @param  array  $filters  Filters to apply
+     * @param  array  $options  Pagination and sorting options
      */
     public function list(array $filters = [], array $options = []): array
     {
         $params = [];
 
         // Build filter object
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
@@ -145,58 +150,56 @@ class Projects extends Resource
         }
 
         // Apply sorting
-        if (!empty($options['sort'])) {
+        if (! empty($options['sort'])) {
             $params['sort'] = $this->buildSort($options['sort']);
         }
 
         // Apply includes
-        if (!empty($options['includes'])) {
+        if (! empty($options['includes'])) {
             $params['includes'] = is_array($options['includes'])
                 ? implode(',', $options['includes'])
                 : $options['includes'];
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
      * Create a new project
      *
-     * @param array $data Project data
-     * @return array
+     * @param  array  $data  Project data
      */
     public function create(array $data): array
     {
         $this->validateCreateData($data);
-        return $this->api->request('POST', $this->getBasePath() . '.create', $data);
+
+        return $this->api->request('POST', $this->getBasePath().'.create', $data);
     }
 
     /**
      * Update an existing project
      *
-     * @param string $id Project UUID
-     * @param array $data Data to update
-     * @return array
+     * @param  string  $id  Project UUID
+     * @param  array  $data  Data to update
      */
     public function update($id, array $data): array
     {
         $data['id'] = $id;
-        return $this->api->request('POST', $this->getBasePath() . '.update', $data);
+
+        return $this->api->request('POST', $this->getBasePath().'.update', $data);
     }
 
     /**
      * Delete a project
      *
-     * @param string $id Project UUID
-     * @param string $deleteStrategy Strategy for handling tasks and time trackings
-     * @return array
+     * @param  string  $id  Project UUID
+     * @param  string  $deleteStrategy  Strategy for handling tasks and time trackings
      */
     /**
      * Delete a project
      *
-     * @param string $id Project UUID
-     * @param mixed ...$additionalParams Additional parameters (deleteStrategy)
-     * @return array
+     * @param  string  $id  Project UUID
+     * @param  mixed  ...$additionalParams  Additional parameters (deleteStrategy)
      */
     public function delete($id, ...$additionalParams): array
     {
@@ -209,11 +212,11 @@ class Projects extends Resource
             'delete_tasks_unlink_time_trackings',
         ];
 
-        if (!in_array($deleteStrategy, $validStrategies)) {
-            throw new InvalidArgumentException("Invalid delete strategy. Must be one of: " . implode(', ', $validStrategies));
+        if (! in_array($deleteStrategy, $validStrategies)) {
+            throw new InvalidArgumentException('Invalid delete strategy. Must be one of: '.implode(', ', $validStrategies));
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.delete', [
+        return $this->api->request('POST', $this->getBasePath().'.delete', [
             'id' => $id,
             'delete_strategy' => $deleteStrategy,
         ]);
@@ -222,13 +225,12 @@ class Projects extends Resource
     /**
      * Duplicate a project
      *
-     * @param string $id Project UUID
-     * @param string $title Title for the new project
-     * @return array
+     * @param  string  $id  Project UUID
+     * @param  string  $title  Title for the new project
      */
     public function duplicate(string $id, string $title): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.duplicate', [
+        return $this->api->request('POST', $this->getBasePath().'.duplicate', [
             'id' => $id,
             'title' => $title,
         ]);
@@ -237,19 +239,18 @@ class Projects extends Resource
     /**
      * Close a project
      *
-     * @param string $id Project UUID
-     * @param string $closingStrategy Strategy for closing (mark_tasks_and_materials_as_done, none)
-     * @return array
+     * @param  string  $id  Project UUID
+     * @param  string  $closingStrategy  Strategy for closing (mark_tasks_and_materials_as_done, none)
      */
     public function close(string $id, string $closingStrategy = 'none'): array
     {
         $validStrategies = ['mark_tasks_and_materials_as_done', 'none'];
 
-        if (!in_array($closingStrategy, $validStrategies)) {
-            throw new InvalidArgumentException("Invalid closing strategy. Must be one of: " . implode(', ', $validStrategies));
+        if (! in_array($closingStrategy, $validStrategies)) {
+            throw new InvalidArgumentException('Invalid closing strategy. Must be one of: '.implode(', ', $validStrategies));
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.close', [
+        return $this->api->request('POST', $this->getBasePath().'.close', [
             'id' => $id,
             'closing_strategy' => $closingStrategy,
         ]);
@@ -258,12 +259,11 @@ class Projects extends Resource
     /**
      * Reopen a closed project
      *
-     * @param string $id Project UUID
-     * @return array
+     * @param  string  $id  Project UUID
      */
     public function reopen(string $id): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.reopen', [
+        return $this->api->request('POST', $this->getBasePath().'.reopen', [
             'id' => $id,
         ]);
     }
@@ -271,16 +271,15 @@ class Projects extends Resource
     /**
      * Add a customer to a project
      *
-     * @param string $id Project UUID
-     * @param string $customerType Customer type (contact, company)
-     * @param string $customerId Customer UUID
-     * @return array
+     * @param  string  $id  Project UUID
+     * @param  string  $customerType  Customer type (contact, company)
+     * @param  string  $customerId  Customer UUID
      */
     public function addCustomer(string $id, string $customerType, string $customerId): array
     {
         $this->validateCustomerType($customerType);
 
-        return $this->api->request('POST', $this->getBasePath() . '.addCustomer', [
+        return $this->api->request('POST', $this->getBasePath().'.addCustomer', [
             'id' => $id,
             'customer' => [
                 'type' => $customerType,
@@ -292,16 +291,15 @@ class Projects extends Resource
     /**
      * Remove a customer from a project
      *
-     * @param string $id Project UUID
-     * @param string $customerType Customer type (contact, company)
-     * @param string $customerId Customer UUID
-     * @return array
+     * @param  string  $id  Project UUID
+     * @param  string  $customerType  Customer type (contact, company)
+     * @param  string  $customerId  Customer UUID
      */
     public function removeCustomer(string $id, string $customerType, string $customerId): array
     {
         $this->validateCustomerType($customerType);
 
-        return $this->api->request('POST', $this->getBasePath() . '.removeCustomer', [
+        return $this->api->request('POST', $this->getBasePath().'.removeCustomer', [
             'id' => $id,
             'customer' => [
                 'type' => $customerType,
@@ -313,13 +311,12 @@ class Projects extends Resource
     /**
      * Add a deal to a project
      *
-     * @param string $id Project UUID
-     * @param string $dealId Deal UUID
-     * @return array
+     * @param  string  $id  Project UUID
+     * @param  string  $dealId  Deal UUID
      */
     public function addDeal(string $id, string $dealId): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.addDeal', [
+        return $this->api->request('POST', $this->getBasePath().'.addDeal', [
             'id' => $id,
             'deal_id' => $dealId,
         ]);
@@ -328,13 +325,12 @@ class Projects extends Resource
     /**
      * Remove a deal from a project
      *
-     * @param string $id Project UUID
-     * @param string $dealId Deal UUID
-     * @return array
+     * @param  string  $id  Project UUID
+     * @param  string  $dealId  Deal UUID
      */
     public function removeDeal(string $id, string $dealId): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.removeDeal', [
+        return $this->api->request('POST', $this->getBasePath().'.removeDeal', [
             'id' => $id,
             'deal_id' => $dealId,
         ]);
@@ -343,13 +339,12 @@ class Projects extends Resource
     /**
      * Add a quotation to a project
      *
-     * @param string $id Project UUID
-     * @param string $quotationId Quotation UUID
-     * @return array
+     * @param  string  $id  Project UUID
+     * @param  string  $quotationId  Quotation UUID
      */
     public function addQuotation(string $id, string $quotationId): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.addQuotation', [
+        return $this->api->request('POST', $this->getBasePath().'.addQuotation', [
             'id' => $id,
             'quotation_id' => $quotationId,
         ]);
@@ -358,13 +353,12 @@ class Projects extends Resource
     /**
      * Remove a quotation from a project
      *
-     * @param string $id Project UUID
-     * @param string $quotationId Quotation UUID
-     * @return array
+     * @param  string  $id  Project UUID
+     * @param  string  $quotationId  Quotation UUID
      */
     public function removeQuotation(string $id, string $quotationId): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.removeQuotation', [
+        return $this->api->request('POST', $this->getBasePath().'.removeQuotation', [
             'id' => $id,
             'quotation_id' => $quotationId,
         ]);
@@ -373,13 +367,12 @@ class Projects extends Resource
     /**
      * Add an owner to a project
      *
-     * @param string $id Project UUID
-     * @param string $userId User UUID
-     * @return array
+     * @param  string  $id  Project UUID
+     * @param  string  $userId  User UUID
      */
     public function addOwner(string $id, string $userId): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.addOwner', [
+        return $this->api->request('POST', $this->getBasePath().'.addOwner', [
             'id' => $id,
             'user_id' => $userId,
         ]);
@@ -388,13 +381,12 @@ class Projects extends Resource
     /**
      * Remove an owner from a project
      *
-     * @param string $id Project UUID
-     * @param string $userId User UUID
-     * @return array
+     * @param  string  $id  Project UUID
+     * @param  string  $userId  User UUID
      */
     public function removeOwner(string $id, string $userId): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.removeOwner', [
+        return $this->api->request('POST', $this->getBasePath().'.removeOwner', [
             'id' => $id,
             'user_id' => $userId,
         ]);
@@ -403,16 +395,15 @@ class Projects extends Resource
     /**
      * Assign a user or team to a project
      *
-     * @param string $id Project UUID
-     * @param string $assigneeType Assignee type (user, team)
-     * @param string $assigneeId Assignee UUID
-     * @return array
+     * @param  string  $id  Project UUID
+     * @param  string  $assigneeType  Assignee type (user, team)
+     * @param  string  $assigneeId  Assignee UUID
      */
     public function assign(string $id, string $assigneeType, string $assigneeId): array
     {
         $this->validateAssigneeType($assigneeType);
 
-        return $this->api->request('POST', $this->getBasePath() . '.assign', [
+        return $this->api->request('POST', $this->getBasePath().'.assign', [
             'id' => $id,
             'assignee' => [
                 'type' => $assigneeType,
@@ -424,16 +415,15 @@ class Projects extends Resource
     /**
      * Unassign a user or team from a project
      *
-     * @param string $id Project UUID
-     * @param string $assigneeType Assignee type (user, team)
-     * @param string $assigneeId Assignee UUID
-     * @return array
+     * @param  string  $id  Project UUID
+     * @param  string  $assigneeType  Assignee type (user, team)
+     * @param  string  $assigneeId  Assignee UUID
      */
     public function unassign(string $id, string $assigneeType, string $assigneeId): array
     {
         $this->validateAssigneeType($assigneeType);
 
-        return $this->api->request('POST', $this->getBasePath() . '.unassign', [
+        return $this->api->request('POST', $this->getBasePath().'.unassign', [
             'id' => $id,
             'assignee' => [
                 'type' => $assigneeType,
@@ -487,9 +477,8 @@ class Projects extends Resource
     /**
      * Search projects by term
      *
-     * @param string $term Search term
-     * @param array $options Additional options
-     * @return array
+     * @param  string  $term  Search term
+     * @param  array  $options  Additional options
      */
     public function search(string $term, array $options = []): array
     {
@@ -499,9 +488,8 @@ class Projects extends Resource
     /**
      * Get projects by IDs
      *
-     * @param array $ids Array of project UUIDs
-     * @param array $options Additional options
-     * @return array
+     * @param  array  $ids  Array of project UUIDs
+     * @param  array  $options  Additional options
      */
     public function byIds(array $ids, array $options = []): array
     {
@@ -511,10 +499,9 @@ class Projects extends Resource
     /**
      * Get projects for a customer
      *
-     * @param string $customerType Customer type (contact, company)
-     * @param string $customerId Customer UUID
-     * @param array $options Additional options
-     * @return array
+     * @param  string  $customerType  Customer type (contact, company)
+     * @param  string  $customerId  Customer UUID
+     * @param  array  $options  Additional options
      */
     public function forCustomer(string $customerType, string $customerId, array $options = []): array
     {
@@ -522,17 +509,16 @@ class Projects extends Resource
 
         return $this->list([
             'customers' => [
-                ['type' => $customerType, 'id' => $customerId]
-            ]
+                ['type' => $customerType, 'id' => $customerId],
+            ],
         ], $options);
     }
 
     /**
      * Get projects linked to a deal
      *
-     * @param string $dealId Deal UUID
-     * @param array $options Additional options
-     * @return array
+     * @param  string  $dealId  Deal UUID
+     * @param  array  $options  Additional options
      */
     public function forDeal(string $dealId, array $options = []): array
     {
@@ -542,9 +528,8 @@ class Projects extends Resource
     /**
      * Get projects linked to a quotation
      *
-     * @param string $quotationId Quotation UUID
-     * @param array $options Additional options
-     * @return array
+     * @param  string  $quotationId  Quotation UUID
+     * @param  array  $options  Additional options
      */
     public function forQuotation(string $quotationId, array $options = []): array
     {
@@ -556,7 +541,6 @@ class Projects extends Resource
     /**
      * Validate project creation data
      *
-     * @param array $data
      * @throws InvalidArgumentException
      */
     protected function validateCreateData(array $data): void
@@ -565,15 +549,15 @@ class Projects extends Resource
             throw new InvalidArgumentException('Title is required for creating a project');
         }
 
-        if (isset($data['billing_method']) && !in_array($data['billing_method'], $this->billingMethods)) {
+        if (isset($data['billing_method']) && ! in_array($data['billing_method'], $this->billingMethods)) {
             throw new InvalidArgumentException(
-                "Invalid billing method. Must be one of: " . implode(', ', $this->billingMethods)
+                'Invalid billing method. Must be one of: '.implode(', ', $this->billingMethods)
             );
         }
 
-        if (isset($data['color']) && !in_array($data['color'], $this->availableColors)) {
+        if (isset($data['color']) && ! in_array($data['color'], $this->availableColors)) {
             throw new InvalidArgumentException(
-                "Invalid color. Must be one of the predefined colors."
+                'Invalid color. Must be one of the predefined colors.'
             );
         }
     }
@@ -581,15 +565,14 @@ class Projects extends Resource
     /**
      * Validate customer type
      *
-     * @param string $type
      * @throws InvalidArgumentException
      */
     protected function validateCustomerType(string $type): void
     {
         $validTypes = ['contact', 'company'];
-        if (!in_array($type, $validTypes)) {
+        if (! in_array($type, $validTypes)) {
             throw new InvalidArgumentException(
-                "Invalid customer type. Must be one of: " . implode(', ', $validTypes)
+                'Invalid customer type. Must be one of: '.implode(', ', $validTypes)
             );
         }
     }
@@ -597,24 +580,20 @@ class Projects extends Resource
     /**
      * Validate assignee type
      *
-     * @param string $type
      * @throws InvalidArgumentException
      */
     protected function validateAssigneeType(string $type): void
     {
         $validTypes = ['user', 'team'];
-        if (!in_array($type, $validTypes)) {
+        if (! in_array($type, $validTypes)) {
             throw new InvalidArgumentException(
-                "Invalid assignee type. Must be one of: " . implode(', ', $validTypes)
+                'Invalid assignee type. Must be one of: '.implode(', ', $validTypes)
             );
         }
     }
 
     /**
      * Build filters array for API request
-     *
-     * @param array $filters
-     * @return array
      */
     protected function buildFilters(array $filters): array
     {
@@ -634,9 +613,6 @@ class Projects extends Resource
 
     /**
      * Build sort array for API request
-     *
-     * @param array $sort
-     * @return array
      */
     protected function buildSort(array $sort): array
     {

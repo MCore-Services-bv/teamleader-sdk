@@ -11,12 +11,19 @@ class Materials extends Resource
 
     // Resource capabilities - Materials support full CRUD operations plus special operations
     protected bool $supportsCreation = true;
+
     protected bool $supportsUpdate = true;
+
     protected bool $supportsDeletion = true;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = false; // No pagination mentioned in API docs
+
     protected bool $supportsSorting = false;
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSideloading = false;
 
     // Available includes for sideloading (none based on API docs)
@@ -27,14 +34,14 @@ class Materials extends Resource
 
     // Common filters based on API documentation
     protected array $commonFilters = [
-        'ids' => 'Array of material UUIDs'
+        'ids' => 'Array of material UUIDs',
     ];
 
     // Valid billing methods
     protected array $billingMethods = [
         'fixed_price',
         'unit_price',
-        'non_billable'
+        'non_billable',
     ];
 
     // Valid status values
@@ -42,13 +49,13 @@ class Materials extends Resource
         'to_do',
         'in_progress',
         'on_hold',
-        'done'
+        'done',
     ];
 
     // Valid assignee types
     protected array $assigneeTypes = [
         'user',
-        'team'
+        'team',
     ];
 
     // Usage examples specific to materials
@@ -65,7 +72,7 @@ class Materials extends Resource
                     "amount" => 25.50,
                     "currency" => "EUR"
                 ]
-            ]);'
+            ]);',
         ],
         'update_material' => [
             'description' => 'Update an existing material',
@@ -76,17 +83,17 @@ class Materials extends Resource
                     "status" => "in_progress",
                     "quantity" => 15
                 ]
-            );'
+            );',
         ],
         'get_material_info' => [
             'description' => 'Get detailed information about a material',
-            'code' => '$material = $teamleader->materials()->info("material-uuid");'
+            'code' => '$material = $teamleader->materials()->info("material-uuid");',
         ],
         'list_materials' => [
             'description' => 'List materials by IDs',
             'code' => '$materials = $teamleader->materials()->list([
                 "ids" => ["uuid1", "uuid2"]
-            ]);'
+            ]);',
         ],
         'assign_user' => [
             'description' => 'Assign a user to a material',
@@ -94,7 +101,7 @@ class Materials extends Resource
                 "material-uuid",
                 "user",
                 "user-uuid"
-            );'
+            );',
         ],
         'unassign_user' => [
             'description' => 'Unassign a user from a material',
@@ -102,16 +109,16 @@ class Materials extends Resource
                 "material-uuid",
                 "user",
                 "user-uuid"
-            );'
+            );',
         ],
         'duplicate_material' => [
             'description' => 'Duplicate an existing material',
-            'code' => '$newMaterial = $teamleader->materials()->duplicate("material-uuid");'
+            'code' => '$newMaterial = $teamleader->materials()->duplicate("material-uuid");',
         ],
         'delete_material' => [
             'description' => 'Delete a material',
-            'code' => '$result = $teamleader->materials()->delete("material-uuid");'
-        ]
+            'code' => '$result = $teamleader->materials()->delete("material-uuid");',
+        ],
     ];
 
     /**
@@ -130,7 +137,7 @@ class Materials extends Resource
         $params = [];
 
         // Build filter object
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = [];
 
             if (isset($filters['ids']) && is_array($filters['ids'])) {
@@ -138,7 +145,7 @@ class Materials extends Resource
             }
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
@@ -146,8 +153,8 @@ class Materials extends Resource
      */
     public function info($id, $includes = null): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.info', [
-            'id' => $id
+        return $this->api->request('POST', $this->getBasePath().'.info', [
+            'id' => $id,
         ]);
     }
 
@@ -159,7 +166,8 @@ class Materials extends Resource
     public function create(array $data): array
     {
         $this->validateMaterialData($data, 'create');
-        return $this->api->request('POST', $this->getBasePath() . '.create', $data);
+
+        return $this->api->request('POST', $this->getBasePath().'.create', $data);
     }
 
     /**
@@ -171,7 +179,8 @@ class Materials extends Resource
     {
         $data['id'] = $id;
         $this->validateMaterialData($data, 'update');
-        return $this->api->request('POST', $this->getBasePath() . '.update', $data);
+
+        return $this->api->request('POST', $this->getBasePath().'.update', $data);
     }
 
     /**
@@ -179,63 +188,60 @@ class Materials extends Resource
      */
     public function delete($id, ...$additionalParams): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.delete', [
-            'id' => $id
+        return $this->api->request('POST', $this->getBasePath().'.delete', [
+            'id' => $id,
         ]);
     }
 
     /**
      * Assign a user or team to a material
      *
-     * @param string $materialId Material UUID
-     * @param string $assigneeType Type of assignee ('user' or 'team')
-     * @param string $assigneeId Assignee UUID
-     * @return array
+     * @param  string  $materialId  Material UUID
+     * @param  string  $assigneeType  Type of assignee ('user' or 'team')
+     * @param  string  $assigneeId  Assignee UUID
      */
     public function assign(string $materialId, string $assigneeType, string $assigneeId): array
     {
         $this->validateAssigneeType($assigneeType);
 
-        return $this->api->request('POST', $this->getBasePath() . '.assign', [
+        return $this->api->request('POST', $this->getBasePath().'.assign', [
             'id' => $materialId,
             'assignee' => [
                 'type' => $assigneeType,
-                'id' => $assigneeId
-            ]
+                'id' => $assigneeId,
+            ],
         ]);
     }
 
     /**
      * Unassign a user or team from a material
      *
-     * @param string $materialId Material UUID
-     * @param string $assigneeType Type of assignee ('user' or 'team')
-     * @param string $assigneeId Assignee UUID
-     * @return array
+     * @param  string  $materialId  Material UUID
+     * @param  string  $assigneeType  Type of assignee ('user' or 'team')
+     * @param  string  $assigneeId  Assignee UUID
      */
     public function unassign(string $materialId, string $assigneeType, string $assigneeId): array
     {
         $this->validateAssigneeType($assigneeType);
 
-        return $this->api->request('POST', $this->getBasePath() . '.unassign', [
+        return $this->api->request('POST', $this->getBasePath().'.unassign', [
             'id' => $materialId,
             'assignee' => [
                 'type' => $assigneeType,
-                'id' => $assigneeId
-            ]
+                'id' => $assigneeId,
+            ],
         ]);
     }
 
     /**
      * Duplicate a material
      *
-     * @param string $originId The UUID of the material to duplicate
-     * @return array
+     * @param  string  $originId  The UUID of the material to duplicate
      */
     public function duplicate(string $originId): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.duplicate', [
-            'origin_id' => $originId
+        return $this->api->request('POST', $this->getBasePath().'.duplicate', [
+            'origin_id' => $originId,
         ]);
     }
 
@@ -250,8 +256,8 @@ class Materials extends Resource
     /**
      * Validate material data for create/update operations
      *
-     * @param array $data
-     * @param string $operation 'create' or 'update'
+     * @param  string  $operation  'create' or 'update'
+     *
      * @throws InvalidArgumentException
      */
     protected function validateMaterialData(array $data, string $operation = 'create'): void
@@ -274,16 +280,16 @@ class Materials extends Resource
         }
 
         // Validate billing_method if provided
-        if (isset($data['billing_method']) && !in_array($data['billing_method'], $this->billingMethods)) {
+        if (isset($data['billing_method']) && ! in_array($data['billing_method'], $this->billingMethods)) {
             throw new InvalidArgumentException(
-                'Invalid billing_method. Must be one of: ' . implode(', ', $this->billingMethods)
+                'Invalid billing_method. Must be one of: '.implode(', ', $this->billingMethods)
             );
         }
 
         // Validate status if provided
-        if (isset($data['status']) && !in_array($data['status'], $this->statusValues)) {
+        if (isset($data['status']) && ! in_array($data['status'], $this->statusValues)) {
             throw new InvalidArgumentException(
-                'Invalid status. Must be one of: ' . implode(', ', $this->statusValues)
+                'Invalid status. Must be one of: '.implode(', ', $this->statusValues)
             );
         }
 
@@ -297,12 +303,12 @@ class Materials extends Resource
         // Validate assignees structure if provided
         if (isset($data['assignees']) && is_array($data['assignees'])) {
             foreach ($data['assignees'] as $assignee) {
-                if (!isset($assignee['type']) || !in_array($assignee['type'], $this->assigneeTypes)) {
+                if (! isset($assignee['type']) || ! in_array($assignee['type'], $this->assigneeTypes)) {
                     throw new InvalidArgumentException(
-                        'Invalid assignee type. Must be one of: ' . implode(', ', $this->assigneeTypes)
+                        'Invalid assignee type. Must be one of: '.implode(', ', $this->assigneeTypes)
                     );
                 }
-                if (!isset($assignee['id'])) {
+                if (! isset($assignee['id'])) {
                     throw new InvalidArgumentException('Assignee must have an id');
                 }
             }
@@ -311,8 +317,8 @@ class Materials extends Resource
         // Validate monetary amounts have proper structure
         $monetaryFields = ['unit_price', 'unit_cost', 'fixed_price', 'external_budget', 'internal_budget'];
         foreach ($monetaryFields as $field) {
-            if (isset($data[$field]) && !is_null($data[$field])) {
-                if (!isset($data[$field]['amount']) || !isset($data[$field]['currency'])) {
+            if (isset($data[$field]) && ! is_null($data[$field])) {
+                if (! isset($data[$field]['amount']) || ! isset($data[$field]['currency'])) {
                     throw new InvalidArgumentException(
                         "{$field} must contain 'amount' and 'currency' fields"
                     );
@@ -324,14 +330,13 @@ class Materials extends Resource
     /**
      * Validate assignee type
      *
-     * @param string $type
      * @throws InvalidArgumentException
      */
     protected function validateAssigneeType(string $type): void
     {
-        if (!in_array($type, $this->assigneeTypes)) {
+        if (! in_array($type, $this->assigneeTypes)) {
             throw new InvalidArgumentException(
-                'Invalid assignee type. Must be one of: ' . implode(', ', $this->assigneeTypes)
+                'Invalid assignee type. Must be one of: '.implode(', ', $this->assigneeTypes)
             );
         }
     }
@@ -346,8 +351,8 @@ class Materials extends Resource
                 'description' => 'Response contains the created material ID and type',
                 'fields' => [
                     'data.id' => 'UUID of the created material',
-                    'data.type' => 'Resource type (always "material")'
-                ]
+                    'data.type' => 'Resource type (always "material")',
+                ],
             ],
             'info' => [
                 'description' => 'Complete material information',
@@ -373,15 +378,15 @@ class Materials extends Resource
                     'data.assignees' => 'Array of assigned users/teams',
                     'data.start_date' => 'Start date (nullable)',
                     'data.end_date' => 'End date (nullable)',
-                    'data.product' => 'Associated product (nullable)'
-                ]
+                    'data.product' => 'Associated product (nullable)',
+                ],
             ],
             'list' => [
                 'description' => 'Array of materials',
                 'fields' => [
-                    'data' => 'Array of material objects with structure similar to info endpoint'
-                ]
-            ]
+                    'data' => 'Array of material objects with structure similar to info endpoint',
+                ],
+            ],
         ];
     }
 }

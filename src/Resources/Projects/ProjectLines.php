@@ -11,12 +11,19 @@ class ProjectLines extends Resource
 
     // Resource capabilities - ProjectLines support listing and group management operations
     protected bool $supportsCreation = false; // Use Tasks or Materials resources for creation
+
     protected bool $supportsUpdate = false;
+
     protected bool $supportsDeletion = false;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = false; // No pagination mentioned in API docs
+
     protected bool $supportsSorting = false;
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSideloading = false;
 
     // Available includes for sideloading (none based on API docs)
@@ -29,20 +36,20 @@ class ProjectLines extends Resource
     protected array $commonFilters = [
         'project_id' => 'UUID of the project (required for list operation)',
         'filter.types' => 'Array of line types to filter (nextgenTask, nextgenMaterial, nextgenProjectGroup)',
-        'filter.assignees' => 'Array of assignee objects to filter by (provide null for unassigned lines)'
+        'filter.assignees' => 'Array of assignee objects to filter by (provide null for unassigned lines)',
     ];
 
     // Valid line types
     protected array $lineTypes = [
         'nextgenTask',
         'nextgenMaterial',
-        'nextgenProjectGroup'
+        'nextgenProjectGroup',
     ];
 
     // Valid assignee types
     protected array $assigneeTypes = [
         'team',
-        'user'
+        'user',
     ];
 
     // Usage examples specific to project lines
@@ -51,7 +58,7 @@ class ProjectLines extends Resource
             'description' => 'Get all lines for a project',
             'code' => '$lines = $teamleader->projectLines()->list([
                 "project_id" => "49b403be-a32e-0901-9b1c-25214f9027c6"
-            ]);'
+            ]);',
         ],
         'filter_by_type' => [
             'description' => 'Get only tasks for a project',
@@ -60,7 +67,7 @@ class ProjectLines extends Resource
                 "filter" => [
                     "types" => ["nextgenTask"]
                 ]
-            ]);'
+            ]);',
         ],
         'filter_by_assignee' => [
             'description' => 'Get lines assigned to specific user',
@@ -74,24 +81,24 @@ class ProjectLines extends Resource
                         ]
                     ]
                 ]
-            ]);'
+            ]);',
         ],
         'get_unassigned' => [
             'description' => 'Get unassigned lines',
-            'code' => '$unassigned = $teamleader->projectLines()->unassigned("project-uuid");'
+            'code' => '$unassigned = $teamleader->projectLines()->unassigned("project-uuid");',
         ],
         'add_to_group' => [
             'description' => 'Add a task or material to a group',
             'code' => '$result = $teamleader->projectLines()->addToGroup(
                 "a14a464d-320a-49bb-b6ee-b510c7f4f66c",
                 "0daf76e6-5141-4fb0-866f-01916a873a38"
-            );'
+            );',
         ],
         'remove_from_group' => [
             'description' => 'Remove a task or material from its current group',
             'code' => '$result = $teamleader->projectLines()->removeFromGroup(
                 "a14a464d-320a-49bb-b6ee-b510c7f4f66c"
-            );'
+            );',
         ],
         'fluent_interface' => [
             'description' => 'Use fluent methods for filtering',
@@ -99,9 +106,10 @@ class ProjectLines extends Resource
                 ->forProject("project-uuid")
                 ->ofType(["nextgenTask"])
                 ->assignedTo("user", "user-uuid")
-                ->get();'
-        ]
+                ->get();',
+        ],
     ];
+
     /**
      * Property to store pending filters for fluent interface
      */
@@ -110,18 +118,17 @@ class ProjectLines extends Resource
     /**
      * Add an existing task or material to a group
      *
-     * @param string $lineId The ID of the task or material (may not be a group)
-     * @param string $groupId The ID of the group
-     * @return array
+     * @param  string  $lineId  The ID of the task or material (may not be a group)
+     * @param  string  $groupId  The ID of the group
      */
     public function addToGroup(string $lineId, string $groupId): array
     {
         $params = [
             'line_id' => $lineId,
-            'group_id' => $groupId
+            'group_id' => $groupId,
         ];
 
-        return $this->api->request('POST', $this->getBasePath() . '.addToGroup', $params);
+        return $this->api->request('POST', $this->getBasePath().'.addToGroup', $params);
     }
 
     /**
@@ -135,27 +142,27 @@ class ProjectLines extends Resource
     /**
      * Remove a task or material from the group it is currently in
      *
-     * @param string $lineId The ID of the task or material (may not be a group)
-     * @return array
+     * @param  string  $lineId  The ID of the task or material (may not be a group)
      */
     public function removeFromGroup(string $lineId): array
     {
         $params = [
-            'line_id' => $lineId
+            'line_id' => $lineId,
         ];
 
-        return $this->api->request('POST', $this->getBasePath() . '.removeFromGroup', $params);
+        return $this->api->request('POST', $this->getBasePath().'.removeFromGroup', $params);
     }
 
     /**
      * Get lines for a specific project (fluent interface starting point)
      *
-     * @param string $projectId The project UUID
+     * @param  string  $projectId  The project UUID
      * @return static
      */
     public function forProject(string $projectId)
     {
         $this->pendingFilters['project_id'] = $projectId;
+
         return $this;
     }
 
@@ -172,15 +179,16 @@ class ProjectLines extends Resource
     /**
      * Filter by line types (fluent interface)
      *
-     * @param array $types Array of line types
+     * @param  array  $types  Array of line types
      * @return static
      */
     public function ofType(array $types)
     {
-        if (!isset($this->pendingFilters['filter'])) {
+        if (! isset($this->pendingFilters['filter'])) {
             $this->pendingFilters['filter'] = [];
         }
         $this->pendingFilters['filter']['types'] = $types;
+
         return $this;
     }
 
@@ -207,22 +215,22 @@ class ProjectLines extends Resource
     /**
      * Filter by assignee (fluent interface)
      *
-     * @param string $type Assignee type (user or team)
-     * @param string $id Assignee UUID
+     * @param  string  $type  Assignee type (user or team)
+     * @param  string  $id  Assignee UUID
      * @return static
      */
     public function assignedTo(string $type, string $id)
     {
-        if (!isset($this->pendingFilters['filter'])) {
+        if (! isset($this->pendingFilters['filter'])) {
             $this->pendingFilters['filter'] = [];
         }
-        if (!isset($this->pendingFilters['filter']['assignees'])) {
+        if (! isset($this->pendingFilters['filter']['assignees'])) {
             $this->pendingFilters['filter']['assignees'] = [];
         }
 
         $this->pendingFilters['filter']['assignees'][] = [
             'type' => $type,
-            'id' => $id
+            'id' => $id,
         ];
 
         return $this;
@@ -231,14 +239,13 @@ class ProjectLines extends Resource
     /**
      * Get unassigned lines (fluent interface)
      *
-     * @param string|null $projectId Optional project ID if not already set
-     * @return array
+     * @param  string|null  $projectId  Optional project ID if not already set
      */
     public function unassigned(?string $projectId = null): array
     {
         $filters = $projectId ? ['project_id' => $projectId] : $this->pendingFilters;
 
-        if (!isset($filters['filter'])) {
+        if (! isset($filters['filter'])) {
             $filters['filter'] = [];
         }
         $filters['filter']['assignees'] = null;
@@ -250,8 +257,6 @@ class ProjectLines extends Resource
 
     /**
      * Clear pending filters
-     *
-     * @return void
      */
     protected function clearPendingFilters(): void
     {
@@ -261,9 +266,9 @@ class ProjectLines extends Resource
     /**
      * List project lines with filtering
      *
-     * @param array $filters Filters containing project_id and optional filter object
-     * @param array $options Not used for this endpoint
-     * @return array
+     * @param  array  $filters  Filters containing project_id and optional filter object
+     * @param  array  $options  Not used for this endpoint
+     *
      * @throws InvalidArgumentException
      */
     public function list(array $filters = [], array $options = []): array
@@ -275,21 +280,21 @@ class ProjectLines extends Resource
         }
 
         $requestParams = [
-            'project_id' => $filters['project_id']
+            'project_id' => $filters['project_id'],
         ];
 
         // Build filter object if provided
-        if (!empty($filters['filter'])) {
+        if (! empty($filters['filter'])) {
             $requestParams['filter'] = $this->buildFilter($filters['filter']);
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $requestParams);
+        return $this->api->request('POST', $this->getBasePath().'.list', $requestParams);
     }
 
     /**
      * Build filter object from provided filters
      *
-     * @param array $filter Raw filter data
+     * @param  array  $filter  Raw filter data
      * @return array Formatted filter object
      */
     protected function buildFilter(array $filter): array
@@ -298,15 +303,15 @@ class ProjectLines extends Resource
 
         // Handle types filter
         if (isset($filter['types'])) {
-            if (!is_array($filter['types'])) {
+            if (! is_array($filter['types'])) {
                 throw new InvalidArgumentException('types must be an array');
             }
 
             // Validate line types
             foreach ($filter['types'] as $type) {
-                if (!in_array($type, $this->lineTypes)) {
+                if (! in_array($type, $this->lineTypes)) {
                     throw new InvalidArgumentException(
-                        "Invalid line type: {$type}. Must be one of: " . implode(', ', $this->lineTypes)
+                        "Invalid line type: {$type}. Must be one of: ".implode(', ', $this->lineTypes)
                     );
                 }
             }
@@ -322,15 +327,15 @@ class ProjectLines extends Resource
             } elseif (is_array($filter['assignees'])) {
                 // Validate assignee structure
                 foreach ($filter['assignees'] as $assignee) {
-                    if (!isset($assignee['type']) || !isset($assignee['id'])) {
+                    if (! isset($assignee['type']) || ! isset($assignee['id'])) {
                         throw new InvalidArgumentException(
                             'Each assignee must have type and id fields'
                         );
                     }
 
-                    if (!in_array($assignee['type'], $this->assigneeTypes)) {
+                    if (! in_array($assignee['type'], $this->assigneeTypes)) {
                         throw new InvalidArgumentException(
-                            "Invalid assignee type: {$assignee['type']}. Must be one of: " . implode(', ', $this->assigneeTypes)
+                            "Invalid assignee type: {$assignee['type']}. Must be one of: ".implode(', ', $this->assigneeTypes)
                         );
                     }
                 }
@@ -346,8 +351,6 @@ class ProjectLines extends Resource
 
     /**
      * Execute the query with pending filters (fluent interface terminator)
-     *
-     * @return array
      */
     public function get(): array
     {
@@ -371,17 +374,17 @@ class ProjectLines extends Resource
                     'data[].line.id' => 'Line UUID',
                     'data[].group' => 'Group reference (nullable - null if not part of a group)',
                     'data[].group.id' => 'Group UUID',
-                    'data[].group.type' => 'Group type (nextgenProjectGroup)'
-                ]
+                    'data[].group.type' => 'Group type (nextgenProjectGroup)',
+                ],
             ],
             'addToGroup' => [
                 'description' => '204 No Content on success',
-                'fields' => []
+                'fields' => [],
             ],
             'removeFromGroup' => [
                 'description' => '204 No Content on success',
-                'fields' => []
-            ]
+                'fields' => [],
+            ],
         ];
     }
 }

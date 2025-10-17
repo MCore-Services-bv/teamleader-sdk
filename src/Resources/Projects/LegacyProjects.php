@@ -11,12 +11,19 @@ class LegacyProjects extends Resource
 
     // Resource capabilities
     protected bool $supportsCreation = true;
+
     protected bool $supportsUpdate = true;
+
     protected bool $supportsDeletion = true;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = true;
+
     protected bool $supportsSorting = true;
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSideloading = false;
 
     // Available includes for sideloading
@@ -32,47 +39,47 @@ class LegacyProjects extends Resource
         'status' => 'Project status (active, on_hold, done, cancelled)',
         'participant_id' => 'Filter by participant UUID',
         'term' => 'Search term (searches title or description)',
-        'updated_since' => 'ISO 8601 datetime'
+        'updated_since' => 'ISO 8601 datetime',
     ];
 
     // Available sort fields
     protected array $availableSortFields = [
         'due_on',
         'title',
-        'created_at'
+        'created_at',
     ];
 
     // Usage examples specific to legacy projects
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all projects',
-            'code' => '$projects = $teamleader->legacyProjects()->list();'
+            'code' => '$projects = $teamleader->legacyProjects()->list();',
         ],
         'filter_by_status' => [
             'description' => 'Get active projects',
-            'code' => '$projects = $teamleader->legacyProjects()->active();'
+            'code' => '$projects = $teamleader->legacyProjects()->active();',
         ],
         'create_project' => [
             'description' => 'Create a new project',
-            'code' => '$project = $teamleader->legacyProjects()->create([...]);'
+            'code' => '$project = $teamleader->legacyProjects()->create([...]);',
         ],
         'close_project' => [
             'description' => 'Close a project',
-            'code' => '$result = $teamleader->legacyProjects()->close("project-uuid");'
-        ]
+            'code' => '$result = $teamleader->legacyProjects()->close("project-uuid");',
+        ],
     ];
 
     /**
      * Get detailed information about a specific project
      *
-     * @param string $id Project UUID
-     * @param mixed $includes Not used for legacy projects
+     * @param  string  $id  Project UUID
+     * @param  mixed  $includes  Not used for legacy projects
      * @return array
      */
     public function info($id, $includes = null)
     {
-        return $this->api->request('POST', $this->getBasePath() . '.info', [
-            'id' => $id
+        return $this->api->request('POST', $this->getBasePath().'.info', [
+            'id' => $id,
         ]);
     }
 
@@ -87,20 +94,18 @@ class LegacyProjects extends Resource
     /**
      * Create a new project
      *
-     * @param array $data Project data
-     * @return array
+     * @param  array  $data  Project data
      */
     public function create(array $data): array
     {
         $this->validateCreateData($data);
 
-        return $this->api->request('POST', $this->getBasePath() . '.create', $data);
+        return $this->api->request('POST', $this->getBasePath().'.create', $data);
     }
 
     /**
      * Validate create data
      *
-     * @param array $data
      * @throws InvalidArgumentException
      */
     protected function validateCreateData(array $data): void
@@ -109,18 +114,18 @@ class LegacyProjects extends Resource
         $required = ['title', 'starts_on', 'milestones', 'participants'];
 
         foreach ($required as $field) {
-            if (!isset($data[$field])) {
+            if (! isset($data[$field])) {
                 throw new InvalidArgumentException("Field '{$field}' is required for creating a project");
             }
         }
 
         // Validate milestones (at least one required)
-        if (empty($data['milestones']) || !is_array($data['milestones'])) {
+        if (empty($data['milestones']) || ! is_array($data['milestones'])) {
             throw new InvalidArgumentException('At least one milestone is required');
         }
 
         // Validate participants (at least one decision maker required)
-        if (empty($data['participants']) || !is_array($data['participants'])) {
+        if (empty($data['participants']) || ! is_array($data['participants'])) {
             throw new InvalidArgumentException('At least one participant is required');
         }
     }
@@ -128,93 +133,87 @@ class LegacyProjects extends Resource
     /**
      * Update an existing project
      *
-     * @param string $id Project UUID
-     * @param array $data Project data to update
-     * @return array
+     * @param  string  $id  Project UUID
+     * @param  array  $data  Project data to update
      */
     public function update($id, array $data): array
     {
         $data['id'] = $id;
 
-        return $this->api->request('POST', $this->getBasePath() . '.update', $data);
+        return $this->api->request('POST', $this->getBasePath().'.update', $data);
     }
 
     /**
      * Delete a project
      *
-     * @param string $id Project UUID
-     * @param mixed ...$additionalParams Not used for legacy projects
-     * @return array
+     * @param  string  $id  Project UUID
+     * @param  mixed  ...$additionalParams  Not used for legacy projects
      */
     public function delete($id, ...$additionalParams): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.delete', [
-            'id' => $id
+        return $this->api->request('POST', $this->getBasePath().'.delete', [
+            'id' => $id,
         ]);
     }
 
     /**
      * Close a project (also closes all phases and tasks)
      *
-     * @param string $id Project UUID
-     * @return array
+     * @param  string  $id  Project UUID
      */
     public function close(string $id): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.close', [
-            'id' => $id
+        return $this->api->request('POST', $this->getBasePath().'.close', [
+            'id' => $id,
         ]);
     }
 
     /**
      * Reopen a closed project
      *
-     * @param string $id Project UUID
-     * @return array
+     * @param  string  $id  Project UUID
      */
     public function reopen(string $id): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.reopen', [
-            'id' => $id
+        return $this->api->request('POST', $this->getBasePath().'.reopen', [
+            'id' => $id,
         ]);
     }
 
     /**
      * Add a participant to a project
      *
-     * @param string $id Project UUID
-     * @param array $participant Participant data
-     * @param string|null $role Participant role (decision_maker, member)
-     * @return array
+     * @param  string  $id  Project UUID
+     * @param  array  $participant  Participant data
+     * @param  string|null  $role  Participant role (decision_maker, member)
      */
     public function addParticipant(string $id, array $participant, ?string $role = 'member'): array
     {
         $data = [
             'id' => $id,
-            'participant' => $participant
+            'participant' => $participant,
         ];
 
         if ($role) {
             $data['role'] = $role;
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.addParticipant', $data);
+        return $this->api->request('POST', $this->getBasePath().'.addParticipant', $data);
     }
 
     /**
      * Update a participant's role in a project
      *
-     * @param string $id Project UUID
-     * @param array $participant Participant data
-     * @param string $role New role (decision_maker, member)
-     * @return array
+     * @param  string  $id  Project UUID
+     * @param  array  $participant  Participant data
+     * @param  string  $role  New role (decision_maker, member)
      */
     public function updateParticipant(string $id, array $participant, string $role): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.updateParticipant', [
+        return $this->api->request('POST', $this->getBasePath().'.updateParticipant', [
             'id' => $id,
             'participant' => $participant,
-            'role' => $role
+            'role' => $role,
         ]);
     }
 
@@ -223,8 +222,7 @@ class LegacyProjects extends Resource
     /**
      * Get active projects
      *
-     * @param array $options Additional options
-     * @return array
+     * @param  array  $options  Additional options
      */
     public function active(array $options = []): array
     {
@@ -234,16 +232,15 @@ class LegacyProjects extends Resource
     /**
      * List projects with filtering and sorting
      *
-     * @param array $filters Filter parameters
-     * @param array $options Pagination and sorting options
-     * @return array
+     * @param  array  $filters  Filter parameters
+     * @param  array  $options  Pagination and sorting options
      */
     public function list(array $filters = [], array $options = []): array
     {
         $params = [];
 
         // Apply filters
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = [];
 
             // Customer filter (nested object)
@@ -252,7 +249,7 @@ class LegacyProjects extends Resource
             } elseif (isset($filters['customer.type']) && isset($filters['customer.id'])) {
                 $params['filter']['customer'] = [
                     'type' => $filters['customer.type'],
-                    'id' => $filters['customer.id']
+                    'id' => $filters['customer.id'],
                 ];
             }
 
@@ -280,7 +277,7 @@ class LegacyProjects extends Resource
         // Apply pagination
         $params['page'] = [
             'size' => $options['page_size'] ?? 20,
-            'number' => $options['page_number'] ?? 1
+            'number' => $options['page_number'] ?? 1,
         ];
 
         // Apply sorting
@@ -289,19 +286,18 @@ class LegacyProjects extends Resource
         } elseif (isset($options['sort_field'])) {
             $params['sort'] = [[
                 'field' => $options['sort_field'],
-                'order' => $options['sort_order'] ?? 'asc'
+                'order' => $options['sort_order'] ?? 'asc',
             ]];
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
      * Get projects by status
      *
-     * @param string $status Status (active, on_hold, done, cancelled)
-     * @param array $options Additional options
-     * @return array
+     * @param  string  $status  Status (active, on_hold, done, cancelled)
+     * @param  array  $options  Additional options
      */
     public function byStatus(string $status, array $options = []): array
     {
@@ -311,27 +307,25 @@ class LegacyProjects extends Resource
     /**
      * Get projects for a specific customer
      *
-     * @param string $customerId Customer UUID
-     * @param string $customerType Customer type (contact, company)
-     * @param array $options Additional options
-     * @return array
+     * @param  string  $customerId  Customer UUID
+     * @param  string  $customerType  Customer type (contact, company)
+     * @param  array  $options  Additional options
      */
     public function forCustomer(string $customerId, string $customerType = 'company', array $options = []): array
     {
         return $this->list([
             'customer' => [
                 'type' => $customerType,
-                'id' => $customerId
-            ]
+                'id' => $customerId,
+            ],
         ], $options);
     }
 
     /**
      * Get projects for a specific participant
      *
-     * @param string $participantId Participant UUID
-     * @param array $options Additional options
-     * @return array
+     * @param  string  $participantId  Participant UUID
+     * @param  array  $options  Additional options
      */
     public function forParticipant(string $participantId, array $options = []): array
     {
@@ -341,9 +335,8 @@ class LegacyProjects extends Resource
     /**
      * Search projects by term
      *
-     * @param string $term Search term
-     * @param array $options Additional options
-     * @return array
+     * @param  string  $term  Search term
+     * @param  array  $options  Additional options
      */
     public function search(string $term, array $options = []): array
     {
@@ -353,9 +346,8 @@ class LegacyProjects extends Resource
     /**
      * Get projects updated since a specific date
      *
-     * @param string $datetime ISO 8601 datetime
-     * @param array $options Additional options
-     * @return array
+     * @param  string  $datetime  ISO 8601 datetime
+     * @param  array  $options  Additional options
      */
     public function updatedSince(string $datetime, array $options = []): array
     {

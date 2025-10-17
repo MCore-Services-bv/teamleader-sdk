@@ -2,29 +2,30 @@
 
 namespace McoreServices\TeamleaderSDK\Tests\Feature;
 
-use McoreServices\TeamleaderSDK\Tests\TestCase;
-use McoreServices\TeamleaderSDK\TeamleaderSDK;
 use McoreServices\TeamleaderSDK\Resources\CRM\Companies;
+use McoreServices\TeamleaderSDK\TeamleaderSDK;
+use McoreServices\TeamleaderSDK\Tests\TestCase;
 
 class CompaniesResourceTest extends TestCase
 {
     private TeamleaderSDK $sdk;
+
     private Companies $companies;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->sdk = new TeamleaderSDK();
+        $this->sdk = new TeamleaderSDK;
         $this->sdk->setAccessToken('test_token');
         $this->companies = $this->sdk->companies();
     }
 
-    public function testCanAccessCompaniesResource(): void
+    public function test_can_access_companies_resource(): void
     {
         $this->assertInstanceOf(Companies::class, $this->companies);
     }
 
-    public function testHasCorrectBasePath(): void
+    public function test_has_correct_base_path(): void
     {
         $reflection = new \ReflectionClass($this->companies);
         $method = $reflection->getMethod('getBasePath');
@@ -34,7 +35,7 @@ class CompaniesResourceTest extends TestCase
         $this->assertEquals('companies', $basePath);
     }
 
-    public function testSupportsRequiredCapabilities(): void
+    public function test_supports_required_capabilities(): void
     {
         $capabilities = $this->companies->getCapabilities();
 
@@ -45,7 +46,7 @@ class CompaniesResourceTest extends TestCase
         $this->assertTrue($capabilities['supports_update']);
     }
 
-    public function testHasSideloadingOptions(): void
+    public function test_has_sideloading_options(): void
     {
         $capabilities = $this->companies->getCapabilities();
 

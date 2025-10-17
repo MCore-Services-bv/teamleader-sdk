@@ -11,12 +11,19 @@ class Creditnotes extends Resource
 
     // Resource capabilities - Credit notes are read-only (created via invoice credit operations)
     protected bool $supportsCreation = false;
+
     protected bool $supportsUpdate = false;
+
     protected bool $supportsDeletion = false;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = true;
+
     protected bool $supportsSorting = false; // No sorting mentioned in API docs
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSideloading = false;
 
     // Available includes for sideloading
@@ -60,51 +67,51 @@ class Creditnotes extends Resource
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all credit notes',
-            'code' => '$creditNotes = $teamleader->creditnotes()->list();'
+            'code' => '$creditNotes = $teamleader->creditnotes()->list();',
         ],
         'filter_by_invoice' => [
             'description' => 'Get credit notes for a specific invoice',
-            'code' => '$creditNotes = $teamleader->creditnotes()->forInvoice(\'invoice-uuid\');'
+            'code' => '$creditNotes = $teamleader->creditnotes()->forInvoice(\'invoice-uuid\');',
         ],
         'filter_by_customer' => [
             'description' => 'Get credit notes for a specific customer',
-            'code' => '$creditNotes = $teamleader->creditnotes()->forCustomer(\'company\', \'customer-uuid\');'
+            'code' => '$creditNotes = $teamleader->creditnotes()->forCustomer(\'company\', \'customer-uuid\');',
         ],
         'filter_by_project' => [
             'description' => 'Get credit notes for a specific project',
-            'code' => '$creditNotes = $teamleader->creditnotes()->forProject(\'project-uuid\');'
+            'code' => '$creditNotes = $teamleader->creditnotes()->forProject(\'project-uuid\');',
         ],
         'filter_by_date_range' => [
             'description' => 'Get credit notes within a date range',
-            'code' => '$creditNotes = $teamleader->creditnotes()->betweenDates(\'2022-01-01\', \'2023-01-01\');'
+            'code' => '$creditNotes = $teamleader->creditnotes()->betweenDates(\'2022-01-01\', \'2023-01-01\');',
         ],
         'get_info' => [
             'description' => 'Get detailed credit note information',
-            'code' => '$creditNote = $teamleader->creditnotes()->info(\'credit-note-uuid\');'
+            'code' => '$creditNote = $teamleader->creditnotes()->info(\'credit-note-uuid\');',
         ],
         'download_pdf' => [
             'description' => 'Download credit note as PDF',
-            'code' => '$download = $teamleader->creditnotes()->download(\'credit-note-uuid\', \'pdf\');'
+            'code' => '$download = $teamleader->creditnotes()->download(\'credit-note-uuid\', \'pdf\');',
         ],
         'download_ubl' => [
             'description' => 'Download credit note as UBL e-fff format',
-            'code' => '$download = $teamleader->creditnotes()->download(\'credit-note-uuid\', \'ubl/e-fff\');'
+            'code' => '$download = $teamleader->creditnotes()->download(\'credit-note-uuid\', \'ubl/e-fff\');',
         ],
         'send_peppol' => [
             'description' => 'Send credit note via Peppol network',
-            'code' => '$result = $teamleader->creditnotes()->sendViaPeppol(\'credit-note-uuid\');'
+            'code' => '$result = $teamleader->creditnotes()->sendViaPeppol(\'credit-note-uuid\');',
         ],
         'get_booked' => [
             'description' => 'Get only booked credit notes',
-            'code' => '$creditNotes = $teamleader->creditnotes()->booked();'
+            'code' => '$creditNotes = $teamleader->creditnotes()->booked();',
         ],
         'get_paid' => [
             'description' => 'Get paid credit notes',
-            'code' => '$creditNotes = $teamleader->creditnotes()->paid();'
+            'code' => '$creditNotes = $teamleader->creditnotes()->paid();',
         ],
         'get_unpaid' => [
             'description' => 'Get unpaid credit notes',
-            'code' => '$creditNotes = $teamleader->creditnotes()->unpaid();'
+            'code' => '$creditNotes = $teamleader->creditnotes()->unpaid();',
         ],
     ];
 
@@ -119,16 +126,15 @@ class Creditnotes extends Resource
     /**
      * List credit notes with filtering and pagination
      *
-     * @param array $filters Filter parameters
-     * @param array $options Pagination options
-     * @return array
+     * @param  array  $filters  Filter parameters
+     * @param  array  $options  Pagination options
      */
     public function list(array $filters = [], array $options = []): array
     {
         $params = [];
 
         // Apply filters
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
@@ -136,67 +142,64 @@ class Creditnotes extends Resource
         if (isset($options['page_size']) || isset($options['page_number'])) {
             $params['page'] = [
                 'size' => $options['page_size'] ?? 20,
-                'number' => $options['page_number'] ?? 1
+                'number' => $options['page_number'] ?? 1,
             ];
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
      * Get detailed information about a specific credit note
      *
-     * @param string $id Credit note UUID
-     * @param mixed $includes Optional includes (not used for credit notes)
-     * @return array
+     * @param  string  $id  Credit note UUID
+     * @param  mixed  $includes  Optional includes (not used for credit notes)
      */
     public function info($id, $includes = null): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.info', [
-            'id' => $id
+        return $this->api->request('POST', $this->getBasePath().'.info', [
+            'id' => $id,
         ]);
     }
 
     /**
      * Download a credit note in a specific format
      *
-     * @param string $id Credit note UUID
-     * @param string $format Format (pdf, ubl/e-fff)
+     * @param  string  $id  Credit note UUID
+     * @param  string  $format  Format (pdf, ubl/e-fff)
      * @return array Returns temporary download URL and expiration
      */
     public function download(string $id, string $format = 'pdf'): array
     {
-        if (!in_array($format, $this->validDownloadFormats)) {
+        if (! in_array($format, $this->validDownloadFormats)) {
             throw new InvalidArgumentException(
-                "Invalid format '{$format}'. Must be one of: " . implode(', ', $this->validDownloadFormats)
+                "Invalid format '{$format}'. Must be one of: ".implode(', ', $this->validDownloadFormats)
             );
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.download', [
+        return $this->api->request('POST', $this->getBasePath().'.download', [
             'id' => $id,
-            'format' => $format
+            'format' => $format,
         ]);
     }
 
     /**
      * Send a credit note via the Peppol network
      *
-     * @param string $id Credit note UUID
-     * @return array
+     * @param  string  $id  Credit note UUID
      */
     public function sendViaPeppol(string $id): array
     {
-        return $this->api->request('POST', $this->getBasePath() . '.sendViaPeppol', [
-            'id' => $id
+        return $this->api->request('POST', $this->getBasePath().'.sendViaPeppol', [
+            'id' => $id,
         ]);
     }
 
     /**
      * Get booked credit notes (convenience method)
      *
-     * @param array $additionalFilters Additional filters to apply
-     * @param array $options Pagination options
-     * @return array
+     * @param  array  $additionalFilters  Additional filters to apply
+     * @param  array  $options  Pagination options
      */
     public function booked(array $additionalFilters = [], array $options = []): array
     {
@@ -206,9 +209,8 @@ class Creditnotes extends Resource
     /**
      * Get paid credit notes
      *
-     * @param array $additionalFilters Additional filters to apply
-     * @param array $options Pagination options
-     * @return array
+     * @param  array  $additionalFilters  Additional filters to apply
+     * @param  array  $options  Pagination options
      */
     public function paid(array $additionalFilters = [], array $options = []): array
     {
@@ -221,9 +223,8 @@ class Creditnotes extends Resource
     /**
      * Get unpaid credit notes
      *
-     * @param array $additionalFilters Additional filters to apply
-     * @param array $options Pagination options
-     * @return array
+     * @param  array  $additionalFilters  Additional filters to apply
+     * @param  array  $options  Pagination options
      */
     public function unpaid(array $additionalFilters = [], array $options = []): array
     {
@@ -236,10 +237,9 @@ class Creditnotes extends Resource
     /**
      * Get credit notes for a specific invoice
      *
-     * @param string $invoiceId Invoice UUID
-     * @param array $additionalFilters Additional filters to apply
-     * @param array $options Pagination options
-     * @return array
+     * @param  string  $invoiceId  Invoice UUID
+     * @param  array  $additionalFilters  Additional filters to apply
+     * @param  array  $options  Pagination options
      */
     public function forInvoice(string $invoiceId, array $additionalFilters = [], array $options = []): array
     {
@@ -252,11 +252,10 @@ class Creditnotes extends Resource
     /**
      * Get credit notes for a specific customer
      *
-     * @param string $customerType Customer type (contact or company)
-     * @param string $customerId Customer UUID
-     * @param array $additionalFilters Additional filters to apply
-     * @param array $options Pagination options
-     * @return array
+     * @param  string  $customerType  Customer type (contact or company)
+     * @param  string  $customerId  Customer UUID
+     * @param  array  $additionalFilters  Additional filters to apply
+     * @param  array  $options  Pagination options
      */
     public function forCustomer(string $customerType, string $customerId, array $additionalFilters = [], array $options = []): array
     {
@@ -266,8 +265,8 @@ class Creditnotes extends Resource
             array_merge([
                 'customer' => [
                     'type' => $customerType,
-                    'id' => $customerId
-                ]
+                    'id' => $customerId,
+                ],
             ], $additionalFilters),
             $options
         );
@@ -276,10 +275,9 @@ class Creditnotes extends Resource
     /**
      * Get credit notes for a specific project
      *
-     * @param string $projectId Project UUID
-     * @param array $additionalFilters Additional filters to apply
-     * @param array $options Pagination options
-     * @return array
+     * @param  string  $projectId  Project UUID
+     * @param  array  $additionalFilters  Additional filters to apply
+     * @param  array  $options  Pagination options
      */
     public function forProject(string $projectId, array $additionalFilters = [], array $options = []): array
     {
@@ -292,10 +290,9 @@ class Creditnotes extends Resource
     /**
      * Get credit notes for a specific department
      *
-     * @param string $departmentId Department UUID
-     * @param array $additionalFilters Additional filters to apply
-     * @param array $options Pagination options
-     * @return array
+     * @param  string  $departmentId  Department UUID
+     * @param  array  $additionalFilters  Additional filters to apply
+     * @param  array  $options  Pagination options
      */
     public function forDepartment(string $departmentId, array $additionalFilters = [], array $options = []): array
     {
@@ -308,18 +305,17 @@ class Creditnotes extends Resource
     /**
      * Get credit notes between specific dates
      *
-     * @param string $dateAfter Start date (inclusive, YYYY-MM-DD)
-     * @param string $dateBefore End date (exclusive, YYYY-MM-DD)
-     * @param array $additionalFilters Additional filters to apply
-     * @param array $options Pagination options
-     * @return array
+     * @param  string  $dateAfter  Start date (inclusive, YYYY-MM-DD)
+     * @param  string  $dateBefore  End date (exclusive, YYYY-MM-DD)
+     * @param  array  $additionalFilters  Additional filters to apply
+     * @param  array  $options  Pagination options
      */
     public function betweenDates(string $dateAfter, string $dateBefore, array $additionalFilters = [], array $options = []): array
     {
         return $this->list(
             array_merge([
                 'credit_note_date_after' => $dateAfter,
-                'credit_note_date_before' => $dateBefore
+                'credit_note_date_before' => $dateBefore,
             ], $additionalFilters),
             $options
         );
@@ -328,10 +324,9 @@ class Creditnotes extends Resource
     /**
      * Get credit notes created/updated since a specific date
      *
-     * @param string $since ISO 8601 datetime
-     * @param array $additionalFilters Additional filters to apply
-     * @param array $options Pagination options
-     * @return array
+     * @param  string  $since  ISO 8601 datetime
+     * @param  array  $additionalFilters  Additional filters to apply
+     * @param  array  $options  Pagination options
      */
     public function updatedSince(string $since, array $additionalFilters = [], array $options = []): array
     {
@@ -343,9 +338,6 @@ class Creditnotes extends Resource
 
     /**
      * Build filters for the API request
-     *
-     * @param array $filters
-     * @return array
      */
     protected function buildFilters(array $filters): array
     {
@@ -366,14 +358,13 @@ class Creditnotes extends Resource
     /**
      * Validate customer type
      *
-     * @param string $type
      * @throws InvalidArgumentException
      */
     private function validateCustomerType(string $type): void
     {
-        if (!in_array($type, $this->validCustomerTypes)) {
+        if (! in_array($type, $this->validCustomerTypes)) {
             throw new InvalidArgumentException(
-                "Invalid customer type '{$type}'. Must be one of: " .
+                "Invalid customer type '{$type}'. Must be one of: ".
                 implode(', ', $this->validCustomerTypes)
             );
         }
@@ -402,8 +393,8 @@ class Creditnotes extends Resource
                     'data[].total' => 'Total amounts (tax_exclusive, tax_inclusive, payable)',
                     'data[].taxes' => 'Tax breakdown',
                     'data[].created_at' => 'Creation timestamp',
-                    'data[].updated_at' => 'Last update timestamp'
-                ]
+                    'data[].updated_at' => 'Last update timestamp',
+                ],
             ],
             'info' => [
                 'description' => 'Complete credit note information',
@@ -426,16 +417,16 @@ class Creditnotes extends Resource
                     'data.currency_exchange_rate' => 'Exchange rate information (nullable)',
                     'data.created_at' => 'Creation timestamp',
                     'data.updated_at' => 'Last update timestamp',
-                    'data.document_template' => 'Document template reference'
-                ]
+                    'data.document_template' => 'Document template reference',
+                ],
             ],
             'download' => [
                 'description' => 'Temporary download URL',
                 'fields' => [
                     'data.location' => 'Temporary URL where file can be downloaded',
-                    'data.expires' => 'Expiration time of the download link'
-                ]
-            ]
+                    'data.expires' => 'Expiration time of the download link',
+                ],
+            ],
         ];
     }
 }

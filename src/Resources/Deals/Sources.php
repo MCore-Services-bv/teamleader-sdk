@@ -11,12 +11,19 @@ class Sources extends Resource
 
     // Resource capabilities based on API documentation
     protected bool $supportsCreation = false;   // No create endpoint available
+
     protected bool $supportsUpdate = false;     // No update endpoint available
+
     protected bool $supportsDeletion = false;   // No delete endpoint available
+
     protected bool $supportsBatch = false;      // No batch operations available
+
     protected bool $supportsPagination = true;  // Has pagination support
+
     protected bool $supportsFiltering = true;   // Has filtering by IDs
+
     protected bool $supportsSorting = true;     // Has sorting support
+
     protected bool $supportsSideloading = false; // No includes available
 
     // Available includes for sideloading (none for deal sources)
@@ -24,41 +31,40 @@ class Sources extends Resource
 
     // Common filters based on API documentation
     protected array $commonFilters = [
-        'ids' => 'Array of deal source UUIDs to filter by'
+        'ids' => 'Array of deal source UUIDs to filter by',
     ];
 
     // Usage examples specific to deal sources
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all deal sources',
-            'code' => '$sources = $teamleader->dealSources()->list();'
+            'code' => '$sources = $teamleader->dealSources()->list();',
         ],
         'list_specific' => [
             'description' => 'Get specific deal sources by ID',
-            'code' => '$sources = $teamleader->dealSources()->list([\'ids\' => [\'uuid1\', \'uuid2\']]);'
+            'code' => '$sources = $teamleader->dealSources()->list([\'ids\' => [\'uuid1\', \'uuid2\']]);',
         ],
         'sorted_list' => [
             'description' => 'Get deal sources sorted by name (default)',
-            'code' => '$sources = $teamleader->dealSources()->list([], [\'sort\' => [[\'field\' => \'name\', \'order\' => \'asc\']]]);'
+            'code' => '$sources = $teamleader->dealSources()->list([], [\'sort\' => [[\'field\' => \'name\', \'order\' => \'asc\']]]);',
         ],
         'paginated_list' => [
             'description' => 'Get deal sources with pagination',
-            'code' => '$sources = $teamleader->dealSources()->list([], [\'page_size\' => 50, \'page_number\' => 1]);'
-        ]
+            'code' => '$sources = $teamleader->dealSources()->list([], [\'page_size\' => 50, \'page_number\' => 1]);',
+        ],
     ];
 
     /**
      * Search deal sources by name (client-side filtering)
      * Note: The API doesn't support text search, so we fetch all and filter
      *
-     * @param string $query Search query
-     * @return array
+     * @param  string  $query  Search query
      */
     public function search(string $query): array
     {
         $response = $this->all();
 
-        if (isset($response['error']) || !isset($response['data'])) {
+        if (isset($response['error']) || ! isset($response['data'])) {
             return $response;
         }
 
@@ -75,8 +81,6 @@ class Sources extends Resource
 
     /**
      * Get all deal sources (convenience method)
-     *
-     * @return array
      */
     public function all(): array
     {
@@ -86,16 +90,15 @@ class Sources extends Resource
     /**
      * List deal sources with enhanced filtering and sorting
      *
-     * @param array $filters Filters to apply
-     * @param array $options Additional options (sorting, pagination)
-     * @return array
+     * @param  array  $filters  Filters to apply
+     * @param  array  $options  Additional options (sorting, pagination)
      */
     public function list(array $filters = [], array $options = []): array
     {
         $params = [];
 
         // Apply filters
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
@@ -103,7 +106,7 @@ class Sources extends Resource
         if (isset($options['page_size']) || isset($options['page_number'])) {
             $params['page'] = [
                 'size' => $options['page_size'] ?? 20,
-                'number' => $options['page_number'] ?? 1
+                'number' => $options['page_number'] ?? 1,
             ];
         }
 
@@ -115,19 +118,16 @@ class Sources extends Resource
             $params['sort'] = [
                 [
                     'field' => 'name',
-                    'order' => 'asc'
-                ]
+                    'order' => 'asc',
+                ],
             ];
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
      * Build filters array for the API request
-     *
-     * @param array $filters
-     * @return array
      */
     private function buildFilters(array $filters): array
     {
@@ -144,8 +144,7 @@ class Sources extends Resource
     /**
      * Build sort array for the API request
      *
-     * @param mixed $sort
-     * @return array
+     * @param  mixed  $sort
      */
     private function buildSort($sort): array
     {
@@ -159,8 +158,8 @@ class Sources extends Resource
             return [
                 [
                     'field' => 'name',
-                    'order' => 'asc'
-                ]
+                    'order' => 'asc',
+                ],
             ];
         }
 
@@ -171,13 +170,14 @@ class Sources extends Resource
                 if (is_numeric($field) && is_array($order)) {
                     // Already in correct format
                     $sortArray[] = $order;
-                } else if ($field === 'name') {
+                } elseif ($field === 'name') {
                     $sortArray[] = [
                         'field' => 'name',
-                        'order' => strtolower($order) === 'desc' ? 'asc' : 'asc' // API only supports asc
+                        'order' => strtolower($order) === 'desc' ? 'asc' : 'asc', // API only supports asc
                     ];
                 }
             }
+
             return $sortArray;
         }
 
@@ -185,8 +185,8 @@ class Sources extends Resource
         return [
             [
                 'field' => 'name',
-                'order' => 'asc'
-            ]
+                'order' => 'asc',
+            ],
         ];
     }
 
@@ -200,14 +200,12 @@ class Sources extends Resource
 
     /**
      * Get deal sources in select option format for forms
-     *
-     * @return array
      */
     public function selectOptions(): array
     {
         $response = $this->all();
 
-        if (isset($response['error']) || !isset($response['data'])) {
+        if (isset($response['error']) || ! isset($response['data'])) {
             return [];
         }
 
@@ -221,22 +219,19 @@ class Sources extends Resource
 
     /**
      * Get available sort fields for deal sources (based on API documentation)
-     *
-     * @return array
      */
     public function getAvailableSortFields(): array
     {
         return [
-            'name' => 'Sorts by deal source name (ascending only)'
+            'name' => 'Sorts by deal source name (ascending only)',
         ];
     }
 
     /**
      * Override info method to clarify it's not available
      *
-     * @param string $id
-     * @param mixed $includes
-     * @return array
+     * @param  string  $id
+     * @param  mixed  $includes
      */
     public function info($id, $includes = null): array
     {
@@ -247,17 +242,15 @@ class Sources extends Resource
 
     /**
      * Get statistics about deal sources
-     *
-     * @return array
      */
     public function getStatistics(): array
     {
         $response = $this->all();
 
-        if (isset($response['error']) || !isset($response['data'])) {
+        if (isset($response['error']) || ! isset($response['data'])) {
             return [
                 'total_sources' => 0,
-                'error' => $response['message'] ?? 'Failed to fetch statistics'
+                'error' => $response['message'] ?? 'Failed to fetch statistics',
             ];
         }
 
@@ -267,23 +260,20 @@ class Sources extends Resource
                 return [
                     'id' => $source['id'],
                     'name' => $source['name'],
-                    'name_length' => strlen($source['name'] ?? '')
+                    'name_length' => strlen($source['name'] ?? ''),
                 ];
-            }, $response['data'])
+            }, $response['data']),
         ];
     }
 
     /**
      * Validate if a deal source ID exists
-     *
-     * @param string $sourceId
-     * @return bool
      */
     public function exists(string $sourceId): bool
     {
         $response = $this->byIds([$sourceId]);
 
-        if (isset($response['error']) || !isset($response['data'])) {
+        if (isset($response['error']) || ! isset($response['data'])) {
             return false;
         }
 
@@ -293,8 +283,7 @@ class Sources extends Resource
     /**
      * Get deal sources by specific IDs
      *
-     * @param array $ids Array of deal source UUIDs
-     * @return array
+     * @param  array  $ids  Array of deal source UUIDs
      */
     public function byIds(array $ids): array
     {
@@ -303,15 +292,12 @@ class Sources extends Resource
 
     /**
      * Get deal source name by ID
-     *
-     * @param string $sourceId
-     * @return string|null
      */
     public function getName(string $sourceId): ?string
     {
         $response = $this->byIds([$sourceId]);
 
-        if (isset($response['error']) || !isset($response['data']) || empty($response['data'])) {
+        if (isset($response['error']) || ! isset($response['data']) || empty($response['data'])) {
             return null;
         }
 
@@ -320,8 +306,6 @@ class Sources extends Resource
 
     /**
      * Override getSuggestedIncludes as deal sources don't have includes
-     *
-     * @return array
      */
     protected function getSuggestedIncludes(): array
     {

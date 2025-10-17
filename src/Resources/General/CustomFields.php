@@ -10,9 +10,13 @@ class CustomFields extends Resource
 
     // Resource capabilities
     protected bool $supportsCreation = false;  // Based on API docs, no create endpoint
+
     protected bool $supportsUpdate = false;    // Based on API docs, no update endpoint
+
     protected bool $supportsDeletion = false;  // Based on API docs, no delete endpoint
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = false; // Custom fields don't support pagination
 
     // Available includes for sideloading
@@ -31,24 +35,24 @@ class CustomFields extends Resource
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all custom fields',
-            'code' => '$customFields = $teamleader->customFields()->list();'
+            'code' => '$customFields = $teamleader->customFields()->list();',
         ],
         'list_by_context' => [
             'description' => 'Get custom fields for specific context',
-            'code' => '$contactFields = $teamleader->customFields()->list([\'context\' => \'contact\']);'
+            'code' => '$contactFields = $teamleader->customFields()->list([\'context\' => \'contact\']);',
         ],
         'list_by_type' => [
             'description' => 'Get custom fields by type',
-            'code' => '$selectFields = $teamleader->customFields()->list([\'type\' => \'single_select\']);'
+            'code' => '$selectFields = $teamleader->customFields()->list([\'type\' => \'single_select\']);',
         ],
         'list_specific' => [
             'description' => 'Get specific custom fields by ID',
-            'code' => '$fields = $teamleader->customFields()->list([\'ids\' => [\'uuid1\', \'uuid2\']]);'
+            'code' => '$fields = $teamleader->customFields()->list([\'ids\' => [\'uuid1\', \'uuid2\']]);',
         ],
         'get_single' => [
             'description' => 'Get a single custom field',
-            'code' => '$field = $teamleader->customFields()->info(\'field-uuid-here\');'
-        ]
+            'code' => '$field = $teamleader->customFields()->info(\'field-uuid-here\');',
+        ],
     ];
 
     /**
@@ -62,49 +66,46 @@ class CustomFields extends Resource
     /**
      * List custom fields with enhanced filtering
      *
-     * @param array $filters Filters to apply
-     * @param array $options Additional options (not used for custom fields)
-     * @return array
+     * @param  array  $filters  Filters to apply
+     * @param  array  $options  Additional options (not used for custom fields)
      */
     public function list(array $filters = [], array $options = []): array
     {
         $params = [];
 
         // Apply filters
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
      * Get custom field information
      *
-     * @param string $id Custom field UUID
-     * @param mixed $includes Includes (not used for custom fields)
-     * @return array
+     * @param  string  $id  Custom field UUID
+     * @param  mixed  $includes  Includes (not used for custom fields)
      */
     public function info($id, $includes = null): array
     {
         $params = ['id' => $id];
 
         // Custom fields don't support includes, but we maintain compatibility
-        if (!empty($includes)) {
+        if (! empty($includes)) {
             $params = $this->applyIncludes($params, $includes);
         }
 
         // Apply any pending includes from fluent interface
         $params = $this->applyPendingIncludes($params);
 
-        return $this->api->request('POST', $this->getBasePath() . '.info', $params);
+        return $this->api->request('POST', $this->getBasePath().'.info', $params);
     }
 
     /**
      * Get custom fields for a specific context
      *
-     * @param string $context The context to filter by
-     * @return array
+     * @param  string  $context  The context to filter by
      */
     public function forContext(string $context): array
     {
@@ -113,8 +114,6 @@ class CustomFields extends Resource
 
     /**
      * Get contact custom fields
-     *
-     * @return array
      */
     public function forContacts(): array
     {
@@ -123,8 +122,6 @@ class CustomFields extends Resource
 
     /**
      * Get company custom fields
-     *
-     * @return array
      */
     public function forCompanies(): array
     {
@@ -133,8 +130,6 @@ class CustomFields extends Resource
 
     /**
      * Get deal/sale custom fields (API uses 'sale' context, not 'deal')
-     *
-     * @return array
      */
     public function forDeals(): array
     {
@@ -143,8 +138,6 @@ class CustomFields extends Resource
 
     /**
      * Get sale custom fields (direct API context name)
-     *
-     * @return array
      */
     public function forSales(): array
     {
@@ -153,8 +146,6 @@ class CustomFields extends Resource
 
     /**
      * Get subscription custom fields
-     *
-     * @return array
      */
     public function forSubscriptions(): array
     {
@@ -163,8 +154,6 @@ class CustomFields extends Resource
 
     /**
      * Get external cost/order custom fields
-     *
-     * @return array
      */
     public function forExternalCosts(): array
     {
@@ -173,8 +162,6 @@ class CustomFields extends Resource
 
     /**
      * Get quotation custom fields
-     *
-     * @return array
      */
     public function forQuotations(): array
     {
@@ -183,8 +170,6 @@ class CustomFields extends Resource
 
     /**
      * Get credit note custom fields
-     *
-     * @return array
      */
     public function forCreditnotes(): array
     {
@@ -193,8 +178,6 @@ class CustomFields extends Resource
 
     /**
      * Get project custom fields
-     *
-     * @return array
      */
     public function forProjects(): array
     {
@@ -203,8 +186,6 @@ class CustomFields extends Resource
 
     /**
      * Get invoice custom fields
-     *
-     * @return array
      */
     public function forInvoices(): array
     {
@@ -213,8 +194,6 @@ class CustomFields extends Resource
 
     /**
      * Get product custom fields
-     *
-     * @return array
      */
     public function forProducts(): array
     {
@@ -223,8 +202,6 @@ class CustomFields extends Resource
 
     /**
      * Get milestone custom fields
-     *
-     * @return array
      */
     public function forMilestones(): array
     {
@@ -233,8 +210,6 @@ class CustomFields extends Resource
 
     /**
      * Get ticket custom fields
-     *
-     * @return array
      */
     public function forTickets(): array
     {
@@ -244,8 +219,7 @@ class CustomFields extends Resource
     /**
      * Get custom fields by type
      *
-     * @param string $type The field type
-     * @return array
+     * @param  string  $type  The field type
      */
     public function byType(string $type): array
     {
@@ -255,8 +229,7 @@ class CustomFields extends Resource
     /**
      * Get custom fields by specific IDs
      *
-     * @param array $ids Array of custom field UUIDs
-     * @return array
+     * @param  array  $ids  Array of custom field UUIDs
      */
     public function byIds(array $ids): array
     {
@@ -265,9 +238,6 @@ class CustomFields extends Resource
 
     /**
      * Build filters array for the API request
-     *
-     * @param array $filters
-     * @return array
      */
     private function buildFilters(array $filters): array
     {
@@ -297,8 +267,6 @@ class CustomFields extends Resource
 
     /**
      * Get available contexts for custom fields
-     *
-     * @return array
      */
     public function getAvailableContexts(): array
     {
@@ -310,14 +278,12 @@ class CustomFields extends Resource
             'invoice' => 'Invoice custom fields',
             'product' => 'Product custom fields',
             'milestone' => 'Milestone custom fields',
-            'ticket' => 'Ticket custom fields'
+            'ticket' => 'Ticket custom fields',
         ];
     }
 
     /**
      * Get available field types
-     *
-     * @return array
      */
     public function getAvailableTypes(): array
     {
@@ -329,15 +295,14 @@ class CustomFields extends Resource
             'checkbox' => 'Checkbox field',
             'date' => 'Date field',
             'number' => 'Number field',
-            'auto_number' => 'Auto-incrementing number field'
+            'auto_number' => 'Auto-incrementing number field',
         ];
     }
 
     /**
      * Check if a field type supports options
      *
-     * @param string $type Field type
-     * @return bool
+     * @param  string  $type  Field type
      */
     public function typeHasOptions(string $type): bool
     {
@@ -347,8 +312,7 @@ class CustomFields extends Resource
     /**
      * Check if a field type is a reference type
      *
-     * @param string $type Field type
-     * @return bool
+     * @param  string  $type  Field type
      */
     public function typeIsReference(string $type): bool
     {
@@ -358,7 +322,7 @@ class CustomFields extends Resource
     /**
      * Get the actual context name used by the API (handles deal/sale discrepancy)
      *
-     * @param string $context Requested context
+     * @param  string  $context  Requested context
      * @return string Actual API context
      */
     public function getApiContext(string $context): string
@@ -374,8 +338,6 @@ class CustomFields extends Resource
 
     /**
      * Get all supported contexts (both documented and actual)
-     *
-     * @return array
      */
     public function getAllSupportedContexts(): array
     {
@@ -384,8 +346,6 @@ class CustomFields extends Resource
 
     /**
      * Get all supported field types
-     *
-     * @return array
      */
     public function getAllSupportedTypes(): array
     {
@@ -394,10 +354,6 @@ class CustomFields extends Resource
 
     /**
      * Override the default validation since custom fields have limited operations
-     *
-     * @param array $data
-     * @param string $operation
-     * @return array
      */
     protected function validateData(array $data, string $operation = 'create'): array
     {
@@ -407,8 +363,6 @@ class CustomFields extends Resource
 
     /**
      * Override getSuggestedIncludes as custom fields don't have common includes
-     *
-     * @return array
      */
     protected function getSuggestedIncludes(): array
     {

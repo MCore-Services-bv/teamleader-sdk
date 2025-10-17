@@ -11,12 +11,19 @@ class BookkeepingSubmissions extends Resource
 
     // Resource capabilities
     protected bool $supportsCreation = false;
+
     protected bool $supportsUpdate = false;
+
     protected bool $supportsDeletion = false;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = false;
+
     protected bool $supportsSorting = false;
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSideloading = false;
 
     // Available includes for sideloading
@@ -34,20 +41,20 @@ class BookkeepingSubmissions extends Resource
     protected array $usageExamples = [
         'list_for_document' => [
             'description' => 'Get all bookkeeping submissions for a specific document',
-            'code' => '$submissions = $teamleader->bookkeepingSubmissions()->forDocument("document-uuid", "incoming_invoice");'
+            'code' => '$submissions = $teamleader->bookkeepingSubmissions()->forDocument("document-uuid", "incoming_invoice");',
         ],
         'list_for_invoice' => [
             'description' => 'Get submissions for an incoming invoice',
-            'code' => '$submissions = $teamleader->bookkeepingSubmissions()->forInvoice("invoice-uuid");'
+            'code' => '$submissions = $teamleader->bookkeepingSubmissions()->forInvoice("invoice-uuid");',
         ],
         'list_for_credit_note' => [
             'description' => 'Get submissions for an incoming credit note',
-            'code' => '$submissions = $teamleader->bookkeepingSubmissions()->forCreditNote("credit-note-uuid");'
+            'code' => '$submissions = $teamleader->bookkeepingSubmissions()->forCreditNote("credit-note-uuid");',
         ],
         'list_for_receipt' => [
             'description' => 'Get submissions for a receipt',
-            'code' => '$submissions = $teamleader->bookkeepingSubmissions()->forReceipt("receipt-uuid");'
-        ]
+            'code' => '$submissions = $teamleader->bookkeepingSubmissions()->forReceipt("receipt-uuid");',
+        ],
     ];
 
     /**
@@ -63,9 +70,9 @@ class BookkeepingSubmissions extends Resource
      *
      * Note: The subject filter (document id and type) is REQUIRED by the API
      *
-     * @param array $filters Filters to apply (must include subject with id and type)
-     * @param array $options Additional options (not used for this endpoint)
-     * @return array
+     * @param  array  $filters  Filters to apply (must include subject with id and type)
+     * @param  array  $options  Additional options (not used for this endpoint)
+     *
      * @throws InvalidArgumentException When subject filter is missing or invalid
      */
     public function list(array $filters = [], array $options = []): array
@@ -73,8 +80,8 @@ class BookkeepingSubmissions extends Resource
         // Validate that subject filter is provided
         if (empty($filters['subject'])) {
             throw new InvalidArgumentException(
-                'The subject filter is required for bookkeeping submissions. ' .
-                'It must include both "id" and "type" fields. ' .
+                'The subject filter is required for bookkeeping submissions. '.
+                'It must include both "id" and "type" fields. '.
                 'Use forDocument(), forInvoice(), forCreditNote(), or forReceipt() methods instead.'
             );
         }
@@ -89,53 +96,52 @@ class BookkeepingSubmissions extends Resource
 
         // Validate subject type
         $validTypes = ['incoming_invoice', 'incoming_credit_note', 'receipt'];
-        if (!in_array($filters['subject']['type'], $validTypes)) {
+        if (! in_array($filters['subject']['type'], $validTypes)) {
             throw new InvalidArgumentException(
-                'Invalid subject.type. Must be one of: ' . implode(', ', $validTypes)
+                'Invalid subject.type. Must be one of: '.implode(', ', $validTypes)
             );
         }
 
         $params = [];
 
         // Build filters
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
      * Get bookkeeping submissions for a specific financial document
      *
-     * @param string $documentId UUID of the financial document
-     * @param string $documentType Type of document: incoming_invoice, incoming_credit_note, or receipt
-     * @return array
+     * @param  string  $documentId  UUID of the financial document
+     * @param  string  $documentType  Type of document: incoming_invoice, incoming_credit_note, or receipt
+     *
      * @throws InvalidArgumentException When document type is invalid
      */
     public function forDocument(string $documentId, string $documentType): array
     {
         $validTypes = ['incoming_invoice', 'incoming_credit_note', 'receipt'];
 
-        if (!in_array($documentType, $validTypes)) {
+        if (! in_array($documentType, $validTypes)) {
             throw new InvalidArgumentException(
-                "Invalid document type '{$documentType}'. Must be one of: " . implode(', ', $validTypes)
+                "Invalid document type '{$documentType}'. Must be one of: ".implode(', ', $validTypes)
             );
         }
 
         return $this->list([
             'subject' => [
                 'id' => $documentId,
-                'type' => $documentType
-            ]
+                'type' => $documentType,
+            ],
         ]);
     }
 
     /**
      * Get bookkeeping submissions for an incoming invoice
      *
-     * @param string $invoiceId UUID of the incoming invoice
-     * @return array
+     * @param  string  $invoiceId  UUID of the incoming invoice
      */
     public function forInvoice(string $invoiceId): array
     {
@@ -145,8 +151,7 @@ class BookkeepingSubmissions extends Resource
     /**
      * Get bookkeeping submissions for an incoming credit note
      *
-     * @param string $creditNoteId UUID of the incoming credit note
-     * @return array
+     * @param  string  $creditNoteId  UUID of the incoming credit note
      */
     public function forCreditNote(string $creditNoteId): array
     {
@@ -156,8 +161,7 @@ class BookkeepingSubmissions extends Resource
     /**
      * Get bookkeeping submissions for a receipt
      *
-     * @param string $receiptId UUID of the receipt
-     * @return array
+     * @param  string  $receiptId  UUID of the receipt
      */
     public function forReceipt(string $receiptId): array
     {
@@ -167,19 +171,19 @@ class BookkeepingSubmissions extends Resource
     /**
      * Filter submissions by status
      *
-     * @param string $documentId UUID of the financial document
-     * @param string $documentType Type of document
-     * @param string $status Status to filter by: sending, confirmed, or failed
-     * @return array
+     * @param  string  $documentId  UUID of the financial document
+     * @param  string  $documentType  Type of document
+     * @param  string  $status  Status to filter by: sending, confirmed, or failed
+     *
      * @throws InvalidArgumentException When status is invalid
      */
     public function byStatus(string $documentId, string $documentType, string $status): array
     {
         $validStatuses = ['sending', 'confirmed', 'failed'];
 
-        if (!in_array($status, $validStatuses)) {
+        if (! in_array($status, $validStatuses)) {
             throw new InvalidArgumentException(
-                "Invalid status '{$status}'. Must be one of: " . implode(', ', $validStatuses)
+                "Invalid status '{$status}'. Must be one of: ".implode(', ', $validStatuses)
             );
         }
 
@@ -187,7 +191,7 @@ class BookkeepingSubmissions extends Resource
 
         // Filter client-side since API doesn't support status filtering
         if (isset($result['data']) && is_array($result['data'])) {
-            $result['data'] = array_filter($result['data'], function($submission) use ($status) {
+            $result['data'] = array_filter($result['data'], function ($submission) use ($status) {
                 return isset($submission['status']) && $submission['status'] === $status;
             });
             $result['data'] = array_values($result['data']); // Re-index array
@@ -199,9 +203,8 @@ class BookkeepingSubmissions extends Resource
     /**
      * Get confirmed submissions for a document
      *
-     * @param string $documentId UUID of the financial document
-     * @param string $documentType Type of document
-     * @return array
+     * @param  string  $documentId  UUID of the financial document
+     * @param  string  $documentType  Type of document
      */
     public function confirmed(string $documentId, string $documentType): array
     {
@@ -211,9 +214,8 @@ class BookkeepingSubmissions extends Resource
     /**
      * Get failed submissions for a document
      *
-     * @param string $documentId UUID of the financial document
-     * @param string $documentType Type of document
-     * @return array
+     * @param  string  $documentId  UUID of the financial document
+     * @param  string  $documentType  Type of document
      */
     public function failed(string $documentId, string $documentType): array
     {
@@ -223,9 +225,8 @@ class BookkeepingSubmissions extends Resource
     /**
      * Get sending submissions for a document
      *
-     * @param string $documentId UUID of the financial document
-     * @param string $documentType Type of document
-     * @return array
+     * @param  string  $documentId  UUID of the financial document
+     * @param  string  $documentType  Type of document
      */
     public function sending(string $documentId, string $documentType): array
     {
@@ -235,23 +236,24 @@ class BookkeepingSubmissions extends Resource
     /**
      * Get the latest submission for a document
      *
-     * @param string $documentId UUID of the financial document
-     * @param string $documentType Type of document
+     * @param  string  $documentId  UUID of the financial document
+     * @param  string  $documentType  Type of document
      * @return array|null Returns the latest submission or null if none exist
      */
     public function latest(string $documentId, string $documentType): ?array
     {
         $result = $this->forDocument($documentId, $documentType);
 
-        if (empty($result['data']) || !is_array($result['data'])) {
+        if (empty($result['data']) || ! is_array($result['data'])) {
             return null;
         }
 
         // Sort by created_at descending (newest first)
         $submissions = $result['data'];
-        usort($submissions, function($a, $b) {
+        usort($submissions, function ($a, $b) {
             $timeA = strtotime($a['created_at'] ?? '1970-01-01');
             $timeB = strtotime($b['created_at'] ?? '1970-01-01');
+
             return $timeB - $timeA;
         });
 
@@ -261,34 +263,34 @@ class BookkeepingSubmissions extends Resource
     /**
      * Check if a document has any confirmed submissions
      *
-     * @param string $documentId UUID of the financial document
-     * @param string $documentType Type of document
-     * @return bool
+     * @param  string  $documentId  UUID of the financial document
+     * @param  string  $documentType  Type of document
      */
     public function hasConfirmed(string $documentId, string $documentType): bool
     {
         $result = $this->confirmed($documentId, $documentType);
-        return !empty($result['data']);
+
+        return ! empty($result['data']);
     }
 
     /**
      * Check if a document has any failed submissions
      *
-     * @param string $documentId UUID of the financial document
-     * @param string $documentType Type of document
-     * @return bool
+     * @param  string  $documentId  UUID of the financial document
+     * @param  string  $documentType  Type of document
      */
     public function hasFailed(string $documentId, string $documentType): bool
     {
         $result = $this->failed($documentId, $documentType);
-        return !empty($result['data']);
+
+        return ! empty($result['data']);
     }
 
     /**
      * Get submission statistics for a document
      *
-     * @param string $documentId UUID of the financial document
-     * @param string $documentType Type of document
+     * @param  string  $documentId  UUID of the financial document
+     * @param  string  $documentType  Type of document
      * @return array Statistics including total, by status, and email addresses
      */
     public function statistics(string $documentId, string $documentType): array
@@ -301,11 +303,11 @@ class BookkeepingSubmissions extends Resource
             'by_status' => [
                 'sending' => 0,
                 'confirmed' => 0,
-                'failed' => 0
+                'failed' => 0,
             ],
             'email_addresses' => [],
             'latest_submission' => null,
-            'first_submission' => null
+            'first_submission' => null,
         ];
 
         if (empty($submissions)) {
@@ -319,15 +321,16 @@ class BookkeepingSubmissions extends Resource
                     ($stats['by_status'][$submission['status']] ?? 0) + 1;
             }
 
-            if (isset($submission['email_address']) && !in_array($submission['email_address'], $stats['email_addresses'])) {
+            if (isset($submission['email_address']) && ! in_array($submission['email_address'], $stats['email_addresses'])) {
                 $stats['email_addresses'][] = $submission['email_address'];
             }
         }
 
         // Sort by created_at to get latest and first
-        usort($submissions, function($a, $b) {
+        usort($submissions, function ($a, $b) {
             $timeA = strtotime($a['created_at'] ?? '1970-01-01');
             $timeB = strtotime($b['created_at'] ?? '1970-01-01');
+
             return $timeB - $timeA;
         });
 
@@ -339,9 +342,6 @@ class BookkeepingSubmissions extends Resource
 
     /**
      * Build filters array for the API request
-     *
-     * @param array $filters
-     * @return array
      */
     private function buildFilters(array $filters): array
     {
@@ -351,7 +351,7 @@ class BookkeepingSubmissions extends Resource
         if (isset($filters['subject']) && is_array($filters['subject'])) {
             $apiFilters['subject'] = [
                 'id' => $filters['subject']['id'],
-                'type' => $filters['subject']['type']
+                'type' => $filters['subject']['type'],
             ];
         }
 
@@ -361,15 +361,15 @@ class BookkeepingSubmissions extends Resource
     /**
      * Override info method as individual submission info is not supported
      *
-     * @param string $id
-     * @param mixed $includes
-     * @return array
+     * @param  string  $id
+     * @param  mixed  $includes
+     *
      * @throws InvalidArgumentException
      */
     public function info($id, $includes = null): array
     {
         throw new InvalidArgumentException(
-            'Bookkeeping submissions do not support individual info requests. ' .
+            'Bookkeeping submissions do not support individual info requests. '.
             'Use forDocument(), forInvoice(), forCreditNote(), or forReceipt() to get submissions for a specific document.'
         );
     }

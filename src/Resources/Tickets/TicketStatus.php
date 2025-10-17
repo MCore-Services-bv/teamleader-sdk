@@ -11,12 +11,19 @@ class TicketStatus extends Resource
 
     // Resource capabilities - Ticket statuses are read-only
     protected bool $supportsCreation = false;
+
     protected bool $supportsUpdate = false;
+
     protected bool $supportsDeletion = false;
+
     protected bool $supportsBatch = false;
+
     protected bool $supportsPagination = false; // No pagination mentioned in API docs
+
     protected bool $supportsSorting = false;
+
     protected bool $supportsFiltering = true;
+
     protected bool $supportsSideloading = false;
 
     // Available includes for sideloading
@@ -44,23 +51,23 @@ class TicketStatus extends Resource
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all ticket statuses',
-            'code' => '$statuses = $teamleader->ticketStatus()->list();'
+            'code' => '$statuses = $teamleader->ticketStatus()->list();',
         ],
         'filter_by_ids' => [
             'description' => 'Get specific ticket statuses by IDs',
-            'code' => '$statuses = $teamleader->ticketStatus()->byIds([\'uuid1\', \'uuid2\']);'
+            'code' => '$statuses = $teamleader->ticketStatus()->byIds([\'uuid1\', \'uuid2\']);',
         ],
         'find_by_type' => [
             'description' => 'Find statuses by type',
-            'code' => '$openStatuses = $teamleader->ticketStatus()->findByType("open");'
+            'code' => '$openStatuses = $teamleader->ticketStatus()->findByType("open");',
         ],
         'get_custom_statuses' => [
             'description' => 'Get only custom statuses',
-            'code' => '$customStatuses = $teamleader->ticketStatus()->customStatuses();'
+            'code' => '$customStatuses = $teamleader->ticketStatus()->customStatuses();',
         ],
         'as_options' => [
             'description' => 'Get statuses as key-value pairs for dropdowns',
-            'code' => '$options = $teamleader->ticketStatus()->asOptions();'
+            'code' => '$options = $teamleader->ticketStatus()->asOptions();',
         ],
     ];
 
@@ -75,27 +82,25 @@ class TicketStatus extends Resource
     /**
      * List ticket statuses with optional filtering
      *
-     * @param array $filters Filter parameters
-     * @param array $options Not used for ticket statuses
-     * @return array
+     * @param  array  $filters  Filter parameters
+     * @param  array  $options  Not used for ticket statuses
      */
     public function list(array $filters = [], array $options = []): array
     {
         $params = [];
 
         // Apply filters
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
      * Get ticket statuses by specific IDs
      *
-     * @param array $ids Array of ticket status UUIDs
-     * @return array
+     * @param  array  $ids  Array of ticket status UUIDs
      */
     public function byIds(array $ids): array
     {
@@ -109,14 +114,14 @@ class TicketStatus extends Resource
     /**
      * Find ticket statuses by type
      *
-     * @param string $type Status type (new, open, waiting_for_client, escalated_thirdparty, closed, custom)
+     * @param  string  $type  Status type (new, open, waiting_for_client, escalated_thirdparty, closed, custom)
      * @return array|null Matching statuses or null if not found
      */
     public function findByType(string $type): ?array
     {
-        if (!in_array($type, $this->statusTypes)) {
+        if (! in_array($type, $this->statusTypes)) {
             throw new InvalidArgumentException(
-                'Invalid status type. Must be one of: ' . implode(', ', $this->statusTypes)
+                'Invalid status type. Must be one of: '.implode(', ', $this->statusTypes)
             );
         }
 
@@ -130,7 +135,7 @@ class TicketStatus extends Resource
             return isset($status['status']) && $status['status'] === $type;
         });
 
-        return !empty($matches) ? array_values($matches) : null;
+        return ! empty($matches) ? array_values($matches) : null;
     }
 
     /**
@@ -185,7 +190,7 @@ class TicketStatus extends Resource
     /**
      * Find a status by its label (for custom statuses)
      *
-     * @param string $label Status label to search for
+     * @param  string  $label  Status label to search for
      * @return array|null Status data or null if not found
      */
     public function findByLabel(string $label): ?array
@@ -203,7 +208,7 @@ class TicketStatus extends Resource
             }
 
             // Check standard statuses by formatted label
-            if (!isset($status['label'])) {
+            if (! isset($status['label'])) {
                 $formattedLabel = $this->formatStatusLabel($status['status']);
                 if (strcasecmp($formattedLabel, $label) === 0) {
                     return $status;
@@ -216,9 +221,6 @@ class TicketStatus extends Resource
 
     /**
      * Check if a status type is valid
-     *
-     * @param string $type
-     * @return bool
      */
     public function isValidStatusType(string $type): bool
     {
@@ -227,8 +229,6 @@ class TicketStatus extends Resource
 
     /**
      * Get all valid status types
-     *
-     * @return array
      */
     public function getValidStatusTypes(): array
     {
@@ -238,7 +238,7 @@ class TicketStatus extends Resource
     /**
      * Format a status type into a human-readable label
      *
-     * @param string $status Status type
+     * @param  string  $status  Status type
      * @return string Formatted label
      */
     protected function formatStatusLabel(string $status): string
@@ -248,9 +248,6 @@ class TicketStatus extends Resource
 
     /**
      * Build filters for the API request
-     *
-     * @param array $filters
-     * @return array
      */
     protected function buildFilters(array $filters): array
     {
@@ -276,8 +273,8 @@ class TicketStatus extends Resource
                     'data[].id' => 'Status UUID',
                     'data[].status' => 'Status type (new, open, waiting_for_client, escalated_thirdparty, closed, custom)',
                     'data[].label' => 'Custom label (only available for custom status type)',
-                ]
-            ]
+                ],
+            ],
         ];
     }
 }
