@@ -1,6 +1,30 @@
 # Events
 
-Manage calendar events in Teamleader Focus. This resource provides complete CRUD operations for managing calendar events, including attendees, links to other entities, and activity types.
+Manage calendar events in Teamleader Focus.
+
+## Overview
+
+The Events resource provides comprehensive management of calendar events in your Teamleader account. Events represent scheduled activities with start and end times, attendees, and can be linked to various entities like contacts, companies, and deals.
+
+## Navigation
+
+- [Endpoint](#endpoint)
+- [Capabilities](#capabilities)
+- [Available Methods](#available-methods)
+    - [list()](#list)
+    - [info()](#info)
+    - [create()](#create)
+    - [update()](#update)
+    - [cancel()](#cancel)
+- [Helper Methods](#helper-methods)
+- [Filtering](#filtering)
+- [Sorting](#sorting)
+- [Response Structure](#response-structure)
+- [Usage Examples](#usage-examples)
+- [Common Use Cases](#common-use-cases)
+- [Best Practices](#best-practices)
+- [Error Handling](#error-handling)
+- [Related Resources](#related-resources)
 
 ## Endpoint
 
@@ -8,76 +32,89 @@ Manage calendar events in Teamleader Focus. This resource provides complete CRUD
 
 ## Capabilities
 
-- **Supports Pagination**: ✅ Supported
-- **Supports Filtering**: ✅ Supported
-- **Supports Sorting**: ✅ Supported
-- **Supports Sideloading**: ❌ Not Supported
-- **Supports Creation**: ✅ Supported
-- **Supports Update**: ✅ Supported
-- **Supports Deletion**: ✅ Supported (via cancel)
-- **Supports Batch**: ❌ Not Supported
+- **Pagination**: ✅ Supported
+- **Filtering**: ✅ Supported
+- **Sorting**: ✅ Supported
+- **Sideloading**: ❌ Not Supported
+- **Creation**: ✅ Supported
+- **Update**: ✅ Supported
+- **Deletion**: ✅ Supported (via cancel())
 
 ## Available Methods
 
 ### `list()`
 
-Get a paginated list of calendar events with filtering and sorting options.
+Get a list of calendar events with optional filtering, sorting, and pagination.
 
 **Parameters:**
-- `filters` (array): Array of filters to apply
-- `options` (array): Pagination, sorting, and include options
+- `filters` (array): Optional filters to apply
+- `options` (array): Additional options for pagination and sorting
 
 **Example:**
 ```php
-$events = $teamleader->events()->list([
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
+// Get all events
+$events = Teamleader::events()->list();
+
+// Get events with filters
+$events = Teamleader::events()->list([
+    'user_id' => 'user-uuid',
     'ends_after' => '2025-01-01T00:00:00+00:00',
     'starts_before' => '2025-12-31T23:59:59+00:00'
+]);
+
+// With pagination
+$events = Teamleader::events()->list([], [
+    'page_size' => 50,
+    'page_number' => 2
 ]);
 ```
 
 ### `info()`
 
-Get detailed information about a specific calendar event.
+Get detailed information about a specific event.
 
 **Parameters:**
-- `id` (string): Event UUID
-- `includes` (array|string): Relations to include (not used for events)
+- `id` (string): The event UUID
 
 **Example:**
 ```php
-$event = $teamleader->events()->info('event-uuid-here');
+$event = Teamleader::events()->info('event-uuid');
 ```
 
 ### `create()`
 
 Create a new calendar event.
 
-**Required Parameters:**
+**Required fields:**
 - `title` (string): Event title
 - `activity_type_id` (string): Activity type UUID
 - `starts_at` (string): Start datetime in ISO 8601 format
 - `ends_at` (string): End datetime in ISO 8601 format
 
-**Optional Parameters:**
+**Optional fields:**
 - `description` (string): Event description
 - `location` (string): Event location
-- `work_type_id` (string): Work type UUID
-- `attendees` (array): Array of attendee objects
-- `links` (array): Array of link objects
+- `attendees` (array): Array of attendees
+- `links` (array): Array of linked entities
+- `task_id` (string): Associated task UUID
 
 **Example:**
 ```php
-$event = $teamleader->events()->create([
-    'title' => 'Meeting with stakeholders',
-    'activity_type_id' => 'b0a9ace5-fe82-4827-9d90-fc52f2c93050',
-    'starts_at' => '2025-02-04T16:00:00+00:00',
-    'ends_at' => '2025-02-04T18:00:00+00:00',
+$event = Teamleader::events()->create([
+    'title' => 'Client Meeting',
+    'activity_type_id' => 'activity-type-uuid',
+    'starts_at' => '2025-02-15T14:00:00+00:00',
+    'ends_at' => '2025-02-15T15:30:00+00:00',
+    'description' => 'Quarterly review meeting',
     'location' => 'Conference Room A',
     'attendees' => [
-        ['type' => 'user', 'id' => '6ddd2666-65a0-497f-9f01-54c4343ec1a6']
+        ['type' => 'user', 'id' => 'user-uuid'],
+        ['type' => 'contact', 'id' => 'contact-uuid']
     ],
     'links' => [
-        ['type' => 'company', 'id' => 'c9258836-f9a5-40cb-aa2a-d55c22991b93']
+        ['type' => 'company', 'id' => 'company-uuid']
     ]
 ]);
 ```
@@ -87,100 +124,96 @@ $event = $teamleader->events()->create([
 Update an existing calendar event.
 
 **Parameters:**
-- `id` (string): Event UUID
-- `data` (array): Array of data to update
+- `id` (string): The event UUID
+- `data` (array): Fields to update (all optional except id)
 
 **Example:**
 ```php
-$event = $teamleader->events()->update('event-uuid', [
-    'title' => 'Updated meeting title',
-    'starts_at' => '2025-02-04T17:00:00+00:00'
+$event = Teamleader::events()->update('event-uuid', [
+    'title' => 'Updated Meeting Title',
+    'starts_at' => '2025-02-15T15:00:00+00:00',
+    'ends_at' => '2025-02-15T16:00:00+00:00'
 ]);
 ```
 
-### `cancel()` / `delete()`
+### `cancel()`
 
-Cancel a calendar event (for all attendees). Note that `delete()` is an alias for `cancel()`.
+Cancel an event (for all attendees). This is the delete operation for events.
 
 **Parameters:**
-- `id` (string): Event UUID
+- `id` (string): The event UUID
 
 **Example:**
 ```php
-$result = $teamleader->events()->cancel('event-uuid');
-// or
-$result = $teamleader->events()->delete('event-uuid');
+$result = Teamleader::events()->cancel('event-uuid');
 ```
+
+## Helper Methods
 
 ### `forUser()`
 
-Get all events for a specific user.
+Get events for a specific user.
 
-**Parameters:**
-- `userId` (string): User UUID
-- `options` (array): Additional options
-
-**Example:**
 ```php
-$events = $teamleader->events()->forUser('user-uuid');
+$events = Teamleader::events()->forUser('user-uuid');
+
+// With additional options
+$events = Teamleader::events()->forUser('user-uuid', [
+    'filters' => ['done' => false],
+    'page_size' => 25
+]);
 ```
 
 ### `forActivityType()`
 
-Get events filtered by activity type.
+Get events of a specific activity type.
 
-**Parameters:**
-- `activityTypeId` (string): Activity type UUID
-- `options` (array): Additional options
-
-**Example:**
 ```php
-$events = $teamleader->events()->forActivityType('activity-type-uuid');
+$events = Teamleader::events()->forActivityType('activity-type-uuid');
 ```
 
 ### `search()`
 
 Search events by term (searches title and description).
 
-**Parameters:**
-- `term` (string): Search term
-- `options` (array): Additional options
-
-**Example:**
 ```php
-$events = $teamleader->events()->search('coffee');
+$events = Teamleader::events()->search('project meeting');
+
+// With date range
+$events = Teamleader::events()->search('client', [
+    'filters' => [
+        'ends_after' => '2025-01-01T00:00:00+00:00'
+    ]
+]);
 ```
 
 ### `betweenDates()`
 
 Get events within a specific date range.
 
-**Parameters:**
-- `startsAfter` (string): ISO 8601 datetime
-- `endsBefore` (string): ISO 8601 datetime
-- `options` (array): Additional options
-
-**Example:**
 ```php
-$events = $teamleader->events()->betweenDates(
+$events = Teamleader::events()->betweenDates(
     '2025-02-01T00:00:00+00:00',
     '2025-02-28T23:59:59+00:00'
+);
+
+// With pagination
+$events = Teamleader::events()->betweenDates(
+    '2025-02-01T00:00:00+00:00',
+    '2025-02-28T23:59:59+00:00',
+    ['page_size' => 50]
 );
 ```
 
 ### `byIds()`
 
-Get events by specific IDs.
+Get specific events by their UUIDs.
 
-**Parameters:**
-- `ids` (array): Array of event UUIDs
-- `options` (array): Additional options
-
-**Example:**
 ```php
-$events = $teamleader->events()->byIds([
+$events = Teamleader::events()->byIds([
     'event-uuid-1',
-    'event-uuid-2'
+    'event-uuid-2',
+    'event-uuid-3'
 ]);
 ```
 
@@ -188,114 +221,433 @@ $events = $teamleader->events()->byIds([
 
 Get events for a specific attendee.
 
-**Parameters:**
-- `attendeeType` (string): Type of attendee ('user' or 'contact')
-- `attendeeId` (string): UUID of the attendee
-- `options` (array): Additional options
-
-**Example:**
 ```php
-// Get events where a specific user is an attendee
-$events = $teamleader->events()->forAttendee('user', 'user-uuid');
-
-// Get events where a specific contact is an attendee
-$events = $teamleader->events()->forAttendee('contact', 'contact-uuid');
+$events = Teamleader::events()->forAttendee('user', 'user-uuid');
+$events = Teamleader::events()->forAttendee('contact', 'contact-uuid');
 ```
 
-### `forLink()`
+### `linkedTo()`
 
 Get events linked to a specific entity.
 
-**Parameters:**
-- `linkType` (string): Type of link ('contact', 'company', or 'deal')
-- `linkId` (string): UUID of the linked entity
-- `options` (array): Additional options
-
-**Example:**
 ```php
-// Get events linked to a company
-$events = $teamleader->events()->forLink('company', 'company-uuid');
-
-// Get events linked to a deal
-$events = $teamleader->events()->forLink('deal', 'deal-uuid');
+$events = Teamleader::events()->linkedTo('company', 'company-uuid');
+$events = Teamleader::events()->linkedTo('deal', 'deal-uuid');
+$events = Teamleader::events()->linkedTo('contact', 'contact-uuid');
 ```
 
-## Available Filters
+### `forTask()`
 
-When using the `list()` method, you can apply the following filters:
+Get events associated with a specific task.
 
-- **ids**: Array of event UUIDs
-- **user_id**: Filter events by user UUID
-- **activity_type_id**: Filter by activity type UUID
-- **ends_after**: Start of the period for which to return events (ISO 8601 format)
-- **starts_before**: End of the period for which to return events (ISO 8601 format)
-- **term**: Searches for a term in title or description
-- **attendee**: Filter by attendee (object with `type` and `id`)
-- **link**: Filter by linked entity (object with `id` and `type`)
-- **task_id**: Filter events by task UUID
-- **done**: Filter by completion status (boolean)
+```php
+$events = Teamleader::events()->forTask('task-uuid');
+```
+
+### `completed()`
+
+Get completed events.
+
+```php
+$events = Teamleader::events()->completed();
+
+// For a specific user
+$events = Teamleader::events()->completed('user-uuid');
+```
+
+### `pending()`
+
+Get pending (not completed) events.
+
+```php
+$events = Teamleader::events()->pending();
+
+// For a specific user
+$events = Teamleader::events()->pending('user-uuid');
+```
+
+## Filtering
+
+Available filters:
+
+- `ids` (array): Array of event UUIDs
+- `user_id` (string): Filter events by user UUID
+- `activity_type_id` (string): Filter by activity type UUID
+- `ends_after` (string): Start of period (ISO 8601 format)
+- `starts_before` (string): End of period (ISO 8601 format)
+- `term` (string): Search term for title or description
+- `attendee` (object): Filter by attendee
+    - `type` (string): 'user' or 'contact'
+    - `id` (string): Attendee UUID
+- `link` (object): Filter by linked entity
+    - `type` (string): 'contact', 'company', or 'deal'
+    - `id` (string): Entity UUID
+- `task_id` (string): Filter events by task UUID
+- `done` (boolean): Filter by completion status
+
+**Filter Examples:**
+```php
+// Filter by date range
+$events = Teamleader::events()->list([
+    'ends_after' => '2025-02-01T00:00:00+00:00',
+    'starts_before' => '2025-02-28T23:59:59+00:00'
+]);
+
+// Filter by attendee
+$events = Teamleader::events()->list([
+    'attendee' => [
+        'type' => 'user',
+        'id' => 'user-uuid'
+    ]
+]);
+
+// Filter by linked company
+$events = Teamleader::events()->list([
+    'link' => [
+        'type' => 'company',
+        'id' => 'company-uuid'
+    ]
+]);
+
+// Search and filter
+$events = Teamleader::events()->list([
+    'term' => 'client',
+    'done' => false,
+    'user_id' => 'user-uuid'
+]);
+```
 
 ## Sorting
 
-Events can be sorted by the following field:
+Events can be sorted by:
+- `starts_at`: Sort by event start date/time
 
-- **starts_at**: Sort by event start date/time (default field)
-
-**Example:**
+**Sorting Examples:**
 ```php
-$events = $teamleader->events()->list([], [
+// Sort by start date ascending
+$events = Teamleader::events()->list([], [
     'sort' => [
-        'field' => 'starts_at',
-        'order' => 'asc'
+        ['field' => 'starts_at', 'order' => 'asc']
+    ]
+]);
+
+// Sort by start date descending
+$events = Teamleader::events()->list([], [
+    'sort' => [
+        ['field' => 'starts_at', 'order' => 'desc']
     ]
 ]);
 ```
 
-## Pagination
+## Response Structure
 
-Events support pagination through the standard pagination options:
+### Event Object
 
-**Example:**
 ```php
-$events = $teamleader->events()->list([], [
-    'page_size' => 50,
-    'page_number' => 2
+[
+    'id' => 'event-uuid',
+    'title' => 'Client Meeting',
+    'description' => 'Quarterly business review',
+    'starts_at' => '2025-02-15T14:00:00+00:00',
+    'ends_at' => '2025-02-15T15:30:00+00:00',
+    'location' => 'Conference Room A',
+    'activity_type' => [
+        'type' => 'activityType',
+        'id' => 'activity-type-uuid'
+    ],
+    'attendees' => [
+        [
+            'type' => 'user',
+            'id' => 'user-uuid'
+        ],
+        [
+            'type' => 'contact',
+            'id' => 'contact-uuid'
+        ]
+    ],
+    'links' => [
+        [
+            'type' => 'company',
+            'id' => 'company-uuid'
+        ]
+    ],
+    'task' => [
+        'type' => 'task',
+        'id' => 'task-uuid'
+    ],
+    'done' => false,
+    'created_at' => '2025-01-15T10:30:00+00:00',
+    'updated_at' => '2025-01-20T14:15:00+00:00'
+]
+```
+
+## Usage Examples
+
+### Create Team Meeting
+
+```php
+$meeting = Teamleader::events()->create([
+    'title' => 'Weekly Team Standup',
+    'activity_type_id' => 'meeting-type-uuid',
+    'starts_at' => '2025-02-17T09:00:00+00:00',
+    'ends_at' => '2025-02-17T09:30:00+00:00',
+    'description' => 'Weekly sync meeting',
+    'location' => 'Main Conference Room',
+    'attendees' => [
+        ['type' => 'user', 'id' => 'user1-uuid'],
+        ['type' => 'user', 'id' => 'user2-uuid'],
+        ['type' => 'user', 'id' => 'user3-uuid']
+    ]
+]);
+
+echo "Created meeting: {$meeting['data']['id']}";
+```
+
+### Get User's Weekly Schedule
+
+```php
+$startOfWeek = now()->startOfWeek()->toIso8601String();
+$endOfWeek = now()->endOfWeek()->toIso8601String();
+
+$weekEvents = Teamleader::events()->list([
+    'user_id' => 'user-uuid',
+    'ends_after' => $startOfWeek,
+    'starts_before' => $endOfWeek
+], [
+    'sort' => [
+        ['field' => 'starts_at', 'order' => 'asc']
+    ]
+]);
+
+foreach ($weekEvents['data'] as $event) {
+    echo "{$event['title']} - {$event['starts_at']}\n";
+}
+```
+
+### Create Client Meeting with Follow-up
+
+```php
+// Create the meeting
+$meeting = Teamleader::events()->create([
+    'title' => 'Q1 Business Review',
+    'activity_type_id' => 'client-meeting-type-uuid',
+    'starts_at' => '2025-02-20T14:00:00+00:00',
+    'ends_at' => '2025-02-20T16:00:00+00:00',
+    'description' => 'Review Q1 performance and discuss Q2 goals',
+    'attendees' => [
+        ['type' => 'user', 'id' => 'account-manager-uuid'],
+        ['type' => 'contact', 'id' => 'client-contact-uuid']
+    ],
+    'links' => [
+        ['type' => 'company', 'id' => 'client-company-uuid'],
+        ['type' => 'deal', 'id' => 'deal-uuid']
+    ]
+]);
+
+// Create follow-up task
+$followUp = Teamleader::events()->create([
+    'title' => 'Send Q1 Report to Client',
+    'activity_type_id' => 'task-type-uuid',
+    'starts_at' => '2025-02-21T09:00:00+00:00',
+    'ends_at' => '2025-02-21T10:00:00+00:00',
+    'attendees' => [
+        ['type' => 'user', 'id' => 'account-manager-uuid']
+    ],
+    'links' => [
+        ['type' => 'company', 'id' => 'client-company-uuid']
+    ]
 ]);
 ```
 
-## Attendee Types
-
-When adding attendees to events, use one of the following types:
-
-- `user` - A Teamleader user
-- `contact` - A contact from your CRM
-
-## Link Types
-
-When linking events to other entities, use one of the following types:
-
-- `contact` - Link to a contact
-- `company` - Link to a company
-- `deal` - Link to a deal
-
-## Complete Examples
-
-### Creating a Full Event
+### Update Event Time
 
 ```php
-$event = $teamleader->events()->create([
-    'title' => 'Quarterly Business Review',
-    'description' => 'Review Q1 performance and plan for Q2',
-    'activity_type_id' => 'b0a9ace5-fe82-4827-9d90-fc52f2c93050',
-    'starts_at' => '2025-04-15T09:00:00+00:00',
-    'ends_at' => '2025-04-15T11:00:00+00:00',
-    'location' => 'Main Office, Conference Room 1',
-    'work_type_id' => 'b37e2bc7-dea0-4fda-88e9-c092fb65667d',
+$event = Teamleader::events()->update('event-uuid', [
+    'starts_at' => '2025-02-15T15:00:00+00:00',
+    'ends_at' => '2025-02-15T16:30:00+00:00'
+]);
+
+echo "Event rescheduled to {$event['data']['starts_at']}";
+```
+
+### Find All Events for a Deal
+
+```php
+$dealEvents = Teamleader::events()->linkedTo('deal', 'deal-uuid');
+
+echo "Found " . count($dealEvents['data']) . " events for this deal:\n";
+foreach ($dealEvents['data'] as $event) {
+    echo "- {$event['title']} on {$event['starts_at']}\n";
+}
+```
+
+## Common Use Cases
+
+### Calendar Dashboard
+
+```php
+class CalendarDashboard
+{
+    public function getTodaySchedule($userId)
+    {
+        $today = now()->startOfDay()->toIso8601String();
+        $tomorrow = now()->addDay()->startOfDay()->toIso8601String();
+        
+        return Teamleader::events()->list([
+            'user_id' => $userId,
+            'ends_after' => $today,
+            'starts_before' => $tomorrow
+        ], [
+            'sort' => [
+                ['field' => 'starts_at', 'order' => 'asc']
+            ]
+        ]);
+    }
+    
+    public function getUpcomingEvents($userId, $days = 7)
+    {
+        $start = now()->toIso8601String();
+        $end = now()->addDays($days)->toIso8601String();
+        
+        return Teamleader::events()->betweenDates($start, $end, [
+            'filters' => ['user_id' => $userId],
+            'sort' => [
+                ['field' => 'starts_at', 'order' => 'asc']
+            ]
+        ]);
+    }
+    
+    public function getPendingEvents($userId)
+    {
+        return Teamleader::events()->list([
+            'user_id' => $userId,
+            'done' => false,
+            'ends_after' => now()->toIso8601String()
+        ]);
+    }
+}
+```
+
+### Meeting Scheduler
+
+```php
+class MeetingScheduler
+{
+    public function scheduleClientMeeting($clientCompanyId, $contactId, $data)
+    {
+        return Teamleader::events()->create([
+            'title' => $data['title'],
+            'activity_type_id' => $data['activity_type_id'],
+            'starts_at' => $data['starts_at'],
+            'ends_at' => $data['ends_at'],
+            'description' => $data['description'] ?? '',
+            'location' => $data['location'] ?? '',
+            'attendees' => array_merge(
+                [['type' => 'contact', 'id' => $contactId]],
+                $data['attendees'] ?? []
+            ),
+            'links' => [
+                ['type' => 'company', 'id' => $clientCompanyId]
+            ]
+        ]);
+    }
+    
+    public function rescheduleMeeting($eventId, $newStartTime, $newEndTime)
+    {
+        return Teamleader::events()->update($eventId, [
+            'starts_at' => $newStartTime,
+            'ends_at' => $newEndTime
+        ]);
+    }
+    
+    public function cancelMeeting($eventId)
+    {
+        return Teamleader::events()->cancel($eventId);
+    }
+}
+```
+
+### Event Reporting
+
+```php
+class EventReporting
+{
+    public function getMonthlyEventStats($userId, $year, $month)
+    {
+        $start = "{$year}-{$month}-01T00:00:00+00:00";
+        $end = date('Y-m-t', strtotime($start)) . 'T23:59:59+00:00';
+        
+        $events = Teamleader::events()->list([
+            'user_id' => $userId,
+            'ends_after' => $start,
+            'starts_before' => $end
+        ]);
+        
+        $total = count($events['data']);
+        $completed = count(array_filter($events['data'], fn($e) => $e['done']));
+        $pending = $total - $completed;
+        
+        // Group by activity type
+        $byType = [];
+        foreach ($events['data'] as $event) {
+            $typeId = $event['activity_type']['id'];
+            $byType[$typeId] = ($byType[$typeId] ?? 0) + 1;
+        }
+        
+        return [
+            'total' => $total,
+            'completed' => $completed,
+            'pending' => $pending,
+            'by_type' => $byType
+        ];
+    }
+}
+```
+
+## Best Practices
+
+### 1. Use ISO 8601 Format for Dates
+
+Always use ISO 8601 format for datetime values with timezone information:
+
+```php
+// Good
+$event = Teamleader::events()->create([
+    'starts_at' => '2025-02-15T14:00:00+00:00',
+    'ends_at' => '2025-02-15T15:30:00+00:00'
+]);
+
+// Using Carbon
+$event = Teamleader::events()->create([
+    'starts_at' => now()->addDays(5)->toIso8601String(),
+    'ends_at' => now()->addDays(5)->addHours(2)->toIso8601String()
+]);
+```
+
+### 2. Always Include Required Attendees
+
+Ensure events have at least one user attendee:
+
+```php
+$event = Teamleader::events()->create([
+    'title' => 'Client Meeting',
+    'activity_type_id' => 'meeting-type-uuid',
+    'starts_at' => '2025-02-15T14:00:00+00:00',
+    'ends_at' => '2025-02-15T15:30:00+00:00',
     'attendees' => [
-        ['type' => 'user', 'id' => 'user-uuid-1'],
-        ['type' => 'user', 'id' => 'user-uuid-2'],
-        ['type' => 'contact', 'id' => 'contact-uuid-1']
-    ],
+        ['type' => 'user', 'id' => 'user-uuid'], // At least one user required
+        ['type' => 'contact', 'id' => 'contact-uuid']
+    ]
+]);
+```
+
+### 3. Link Events to Relevant Entities
+
+Always link events to relevant entities for better context and tracking:
+
+```php
+$event = Teamleader::events()->create([
+    // ... other fields
     'links' => [
         ['type' => 'company', 'id' => 'company-uuid'],
         ['type' => 'deal', 'id' => 'deal-uuid']
@@ -303,100 +655,199 @@ $event = $teamleader->events()->create([
 ]);
 ```
 
-### Getting This Week's Events
+### 4. Use Helper Methods for Readability
+
+Prefer helper methods for cleaner, more readable code:
 
 ```php
-$startOfWeek = now()->startOfWeek()->toIso8601String();
-$endOfWeek = now()->endOfWeek()->toIso8601String();
+// Good
+$events = Teamleader::events()->forUser('user-uuid');
+$events = Teamleader::events()->betweenDates($start, $end);
 
-$events = $teamleader->events()->betweenDates($startOfWeek, $endOfWeek);
-```
-
-### Finding Events for a User This Month
-
-```php
-$startOfMonth = now()->startOfMonth()->toIso8601String();
-$endOfMonth = now()->endOfMonth()->toIso8601String();
-
-$events = $teamleader->events()->forUser('user-uuid', [
-    'filters' => [
-        'ends_after' => $startOfMonth,
-        'starts_before' => $endOfMonth
-    ]
+// Less readable
+$events = Teamleader::events()->list(['user_id' => 'user-uuid']);
+$events = Teamleader::events()->list([
+    'ends_after' => $start,
+    'starts_before' => $end
 ]);
 ```
 
-### Searching and Filtering Events
+### 5. Handle Event Cancellations Properly
+
+Use the `cancel()` method instead of trying to delete:
 
 ```php
-// Search for events with "meeting" in title or description
-$events = $teamleader->events()->search('meeting');
+// Correct
+$result = Teamleader::events()->cancel('event-uuid');
 
-// Get events for a specific activity type within a date range
-$events = $teamleader->events()->list([
-    'activity_type_id' => 'activity-type-uuid',
-    'ends_after' => '2025-01-01T00:00:00+00:00',
-    'starts_before' => '2025-03-31T23:59:59+00:00'
+// This also works (internally calls cancel)
+$result = Teamleader::events()->delete('event-uuid');
+```
+
+### 6. Validate Date Ranges
+
+Ensure end time is after start time:
+
+```php
+$startTime = '2025-02-15T14:00:00+00:00';
+$endTime = '2025-02-15T15:30:00+00:00';
+
+if (strtotime($endTime) <= strtotime($startTime)) {
+    throw new InvalidArgumentException('End time must be after start time');
+}
+
+$event = Teamleader::events()->create([
+    'starts_at' => $startTime,
+    'ends_at' => $endTime,
+    // ... other fields
 ]);
 ```
 
-## Response Structure
+### 7. Use Pagination for Large Result Sets
 
-### Create Response
+When retrieving many events, use pagination to avoid performance issues:
 
-```json
-{
-    "data": {
-        "id": "eab232c6-49b2-4b7e-a977-5e1148dad471",
-        "type": "event"
-    }
+```php
+$pageSize = 50;
+$pageNumber = 1;
+$allEvents = [];
+
+do {
+    $result = Teamleader::events()->list([], [
+        'page_size' => $pageSize,
+        'page_number' => $pageNumber
+    ]);
+    
+    $allEvents = array_merge($allEvents, $result['data']);
+    $pageNumber++;
+} while (count($result['data']) === $pageSize);
+```
+
+## Error Handling
+
+### Common Errors and Solutions
+
+**Missing Required Fields:**
+```php
+try {
+    $event = Teamleader::events()->create([
+        'title' => 'Meeting'
+        // Missing required fields
+    ]);
+} catch (\Exception $e) {
+    // Handle: "activity_type_id is required"
+    // Handle: "starts_at is required"
 }
 ```
 
-### Info Response
+**Invalid Date Format:**
+```php
+try {
+    $event = Teamleader::events()->create([
+        'starts_at' => '2025-02-15 14:00:00' // Wrong format
+    ]);
+} catch (\Exception $e) {
+    // Handle: "Invalid datetime format. Use ISO 8601"
+}
+```
 
-```json
-{
-    "data": {
-        "id": "9a5a3984-abfc-40cd-a880-f97683c6a99c",
-        "title": "Meeting with stakeholders",
-        "description": "Discuss project timeline",
-        "creator": {
-            "id": "eab232c6-49b2-4b7e-a977-5e1148dad471",
-            "type": "user"
-        },
-        "task": {
-            "id": "eab232c6-49b2-4b7e-a977-5e1148dad471",
-            "type": "task"
-        },
-        "activity_type": {
-            "id": "eab232c6-49b2-4b7e-a977-5e1148dad471",
-            "type": "activityType"
-        },
-        "starts_at": "2016-02-04T16:00:00+00:00",
-        "ends_at": "2016-02-04T18:00:00+00:00",
-        "location": "Office",
-        "attendees": [
-            {
-                "type": "user",
-                "id": "6ddd2666-65a0-497f-9f01-54c4343ec1a6"
-            }
-        ],
-        "links": [
-            {
-                "id": "eab232c6-49b2-4b7e-a977-5e1148dad471",
-                "type": "company"
-            }
+**Invalid Attendee Type:**
+```php
+try {
+    $event = Teamleader::events()->create([
+        'attendees' => [
+            ['type' => 'invalid', 'id' => 'uuid'] // Invalid type
         ]
+    ]);
+} catch (\Exception $e) {
+    // Handle: "Attendee type must be 'user' or 'contact'"
+}
+```
+
+**Event Not Found:**
+```php
+try {
+    $event = Teamleader::events()->info('non-existent-uuid');
+} catch (\Exception $e) {
+    // Handle: Event not found error
+}
+```
+
+### Robust Error Handling Example
+
+```php
+class EventManager
+{
+    public function createEventSafely(array $data)
+    {
+        try {
+            // Validate required fields
+            $this->validateEventData($data);
+            
+            // Create event
+            $event = Teamleader::events()->create($data);
+            
+            return [
+                'success' => true,
+                'event' => $event['data']
+            ];
+        } catch (\InvalidArgumentException $e) {
+            return [
+                'success' => false,
+                'error' => 'Validation error: ' . $e->getMessage()
+            ];
+        } catch (\Exception $e) {
+            Log::error('Failed to create event', [
+                'data' => $data,
+                'error' => $e->getMessage()
+            ]);
+            
+            return [
+                'success' => false,
+                'error' => 'Failed to create event. Please try again.'
+            ];
+        }
+    }
+    
+    private function validateEventData(array $data)
+    {
+        if (empty($data['title'])) {
+            throw new \InvalidArgumentException('Event title is required');
+        }
+        
+        if (empty($data['activity_type_id'])) {
+            throw new \InvalidArgumentException('Activity type is required');
+        }
+        
+        if (empty($data['starts_at']) || empty($data['ends_at'])) {
+            throw new \InvalidArgumentException('Start and end times are required');
+        }
+        
+        if (strtotime($data['ends_at']) <= strtotime($data['starts_at'])) {
+            throw new \InvalidArgumentException('End time must be after start time');
+        }
     }
 }
 ```
 
-## Notes
+## Related Resources
 
-- All datetime fields must be in ISO 8601 format with timezone offset (e.g., `2025-02-04T16:00:00+00:00`)
-- Canceling an event affects all attendees
-- The `cancel()` method returns a 204 No Content response on success
-- Events can be linked to contacts, companies, and deals
-- Attendees can be users or contacts
-- Each event must have an associated activity type
+- [Activity Types](activity-types.md) - Define types of events
+- [Meetings](meetings.md) - Specialized meeting management
+- [Calls](calls.md) - Call-specific event handling
+- [Users](../users/users.md) - Event attendees and owners
+- [Contacts](../crm/contacts.md) - Contact attendees
+- [Companies](../crm/companies.md) - Linked companies
+- [Deals](../deals/deals.md) - Linked deals
+
+## Rate Limiting
+
+All event operations consume 1 API credit per request:
+
+- `list()`: 1 credit
+- `info()`: 1 credit
+- `create()`: 1 credit
+- `update()`: 1 credit
+- `cancel()`: 1 credit
+
+Monitor your API usage to stay within rate limits.
