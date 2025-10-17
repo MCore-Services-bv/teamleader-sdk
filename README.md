@@ -17,10 +17,6 @@ A comprehensive, production-ready Laravel package for integrating with the Teaml
 
 ## ⚠️ Alpha Release
 
-[... rest of your existing README stays the same ...]
-
-## ⚠️ Alpha Release
-
 This is an **alpha release** (v1.0.0-alpha). While the codebase is production-ready and feature-complete, we're gathering community feedback before the stable 1.0.0 release.
 
 ### What "Alpha" Means
