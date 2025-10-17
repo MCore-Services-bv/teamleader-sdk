@@ -1,379 +1,145 @@
 # Invoices
 
-Manage invoices in Teamleader Focus, including creating drafts, booking, updating, crediting, sending, and tracking invoice statuses.
+Manage invoices in Teamleader Focus.
 
-## Table of Contents
+## Overview
 
-- [Basic Usage](#basic-usage)
-- [Creating Invoices](#creating-invoices)
-- [Listing Invoices](#listing-invoices)
-- [Getting Invoice Details](#getting-invoice-details)
-- [Updating Invoices](#updating-invoices)
-- [Credit Operations](#credit-operations)
-- [Download Operations](#download-operations)
-- [Sending Operations](#sending-operations)
-- [Payment Operations](#payment-operations)
-- [Special Operations](#special-operations)
+The Invoices resource provides comprehensive management of invoices in your Teamleader account. You can create draft invoices, book them, update both draft and booked invoices, credit them (fully or partially), register payments, and download invoices in various formats.
+
+## Navigation
+
+- [Endpoint](#endpoint)
+- [Capabilities](#capabilities)
+- [Available Methods](#available-methods)
+    - [list()](#list)
+    - [info()](#info)
+    - [create() / draft()](#create--draft)
+    - [update()](#update)
+    - [updateBooked()](#updatebooked)
+    - [book()](#book)
+    - [copy()](#copy)
+    - [credit()](#credit)
+    - [creditPartially()](#creditpartially)
+    - [registerPayment()](#registerpayment)
+    - [download()](#download)
+    - [sendViaPeppol()](#sendviapeppol)
+- [Helper Methods](#helper-methods)
 - [Filtering](#filtering)
 - [Sorting](#sorting)
-- [Data Fields](#data-fields)
+- [Response Structure](#response-structure)
+- [Usage Examples](#usage-examples)
+- [Common Use Cases](#common-use-cases)
+- [Best Practices](#best-practices)
+- [Error Handling](#error-handling)
+- [Related Resources](#related-resources)
 
-## Basic Usage
+## Endpoint
 
+`invoices`
+
+## Capabilities
+
+- **Pagination**: ✅ Supported
+- **Filtering**: ✅ Supported
+- **Sorting**: ✅ Supported
+- **Sideloading**: ✅ Supported
+- **Creation**: ✅ Supported (draft)
+- **Update**: ✅ Supported (draft and booked)
+- **Deletion**: ❌ Not Supported
+
+## Available Methods
+
+### `list()`
+
+Get a list of invoices with optional filtering, sorting, and pagination.
+
+**Parameters:**
+- `filters` (array): Optional filters to apply
+- `options` (array): Additional options for sorting and pagination
+
+**Example:**
 ```php
-// Get the invoices resource
-$invoices = $teamleader->invoices();
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
 
-// List all invoices
-$allInvoices = $invoices->list();
+// Get all invoices
+$invoices = Teamleader::invoices()->list();
 
-// Get specific invoice
-$invoice = $invoices->info('invoice-uuid');
-
-// Get draft invoices
-$drafts = $invoices->draft();
-
-// Get outstanding invoices
-$outstanding = $invoices->outstanding();
-```
-
-## Creating Invoices
-
-### Draft a New Invoice
-
-```php
-// Create a new draft invoice
-$invoice = $teamleader->invoices()->create([
-    'invoicee' => [
-        'customer' => [
-            'type' => 'company',
-            'id' => 'company-uuid'
-        ],
-        'for_attention_of' => [
-            'name' => 'Finance Department'
-        ]
-    ],
-    'department_id' => 'department-uuid',
-    'payment_term' => [
-        'type' => 'after_invoice_date',
-        'days' => 30
-    ],
-    'grouped_lines' => [
-        [
-            'section' => [
-                'title' => 'Services'
-            ],
-            'line_items' => [
-                [
-                    'quantity' => 10,
-                    'description' => 'Consulting hours',
-                    'unit_price' => [
-                        'amount' => 100.00,
-                        'tax' => 'excluding'
-                    ],
-                    'tax_rate_id' => 'tax-rate-uuid'
-                ]
-            ]
-        ]
-    ]
-]);
-```
-
-### With Optional Fields
-
-```php
-// Create invoice with additional options
-$invoice = $teamleader->invoices()->create([
-    'invoicee' => [...],
-    'department_id' => 'department-uuid',
-    'payment_term' => [...],
-    'grouped_lines' => [...],
-    'currency' => [
-        'code' => 'EUR',
-        'exchange_rate' => 1.0
-    ],
-    'project_id' => 'project-uuid',
-    'purchase_order_number' => 'PO-2024-001',
-    'invoice_date' => '2024-01-15',
-    'discounts' => [
-        [
-            'type' => 'percentage',
-            'value' => 5,
-            'description' => 'Early payment discount'
-        ]
-    ],
-    'note' => 'Thank you for your business',
-    'expected_payment_method' => [
-        'method' => 'sepa_direct_debit',
-        'reference' => 'AB1234'
-    ],
-    'custom_fields' => [
-        [
-            'id' => 'custom-field-uuid',
-            'value' => 'Custom value'
-        ]
-    ],
-    'document_template_id' => 'template-uuid'
-]);
-```
-
-## Listing Invoices
-
-### Basic Listing
-
-```php
-// List all invoices
-$invoices = $teamleader->invoices()->list();
-
-// List with pagination
-$invoices = $teamleader->invoices()->list([], [
-    'page_size' => 50,
-    'page_number' => 1
-]);
-
-// List with sorting
-$invoices = $teamleader->invoices()->list([], [
-    'sort' => [
-        [
-            'field' => 'invoice_date',
-            'order' => 'desc'
-        ]
-    ]
-]);
-```
-
-### Filtering by Status
-
-```php
-// Draft invoices only
-$drafts = $teamleader->invoices()->draft();
-
-// Outstanding invoices only
-$outstanding = $teamleader->invoices()->outstanding();
-
-// Matched invoices only
-$matched = $teamleader->invoices()->matched();
-
-// Multiple statuses
-$invoices = $teamleader->invoices()->list([
-    'status' => ['draft', 'outstanding']
-]);
-```
-
-### Filtering by Customer
-
-```php
-// Invoices for a specific company
-$invoices = $teamleader->invoices()->forCustomer(
-    'company', 
-    'company-uuid'
-);
-
-// Invoices for a specific contact
-$invoices = $teamleader->invoices()->forCustomer(
-    'contact', 
-    'contact-uuid'
-);
-
-// With additional filters
-$invoices = $teamleader->invoices()->forCustomer(
-    'company',
-    'company-uuid',
-    ['status' => ['outstanding']]
-);
-```
-
-### Filtering by Related Records
-
-```php
-// Invoices for a specific project
-$invoices = $teamleader->invoices()->forProject('project-uuid');
-
-// Invoices for a specific deal
-$invoices = $teamleader->invoices()->forDeal('deal-uuid');
-
-// Invoices for a specific department
-$invoices = $teamleader->invoices()->forDepartment('department-uuid');
-```
-
-### Search and Date Filtering
-
-```php
-// Search invoices
-$invoices = $teamleader->invoices()->search('Invoice 2024');
-
-// Updated since date
-$invoices = $teamleader->invoices()->updatedSince('2024-01-01T00:00:00+00:00');
-
-// Invoice date range
-$invoices = $teamleader->invoices()->list([
+// Get invoices with filters
+$invoices = Teamleader::invoices()->list([
     'invoice_date_after' => '2024-01-01',
     'invoice_date_before' => '2024-12-31'
 ]);
 
-// Filter by purchase order number
-$invoices = $teamleader->invoices()->list([
-    'purchase_order_number' => 'PO-2024-001'
-]);
-
-// Filter by payment reference
-$invoices = $teamleader->invoices()->list([
-    'payment_reference' => '+++084/2613/66074+++'
+// With sorting and pagination
+$invoices = Teamleader::invoices()->list([], [
+    'sort' => 'invoice_date',
+    'sort_order' => 'desc',
+    'page_size' => 50,
+    'page_number' => 2
 ]);
 ```
 
-## Getting Invoice Details
+### `info()`
 
-### Basic Info
+Get detailed information about a specific invoice.
 
+**Parameters:**
+- `id` (string): The invoice UUID
+- `includes` (string|array, optional): Related resources to include
+
+**Available includes:**
+- `late_fees` - Include late fee calculations
+
+**Example:**
 ```php
-// Get invoice details
-$invoice = $teamleader->invoices()->info('invoice-uuid');
+// Basic invoice information
+$invoice = Teamleader::invoices()->info('invoice-uuid');
 
-// Access invoice data
-$invoiceNumber = $invoice['data']['invoice_number'];
-$status = $invoice['data']['status'];
-$total = $invoice['data']['total']['tax_inclusive']['amount'];
+// With late fees
+$invoice = Teamleader::invoices()->info('invoice-uuid', 'late_fees');
 ```
 
-### Including Late Fees
+### `create()` / `draft()`
 
+Create a new draft invoice. The `draft()` method is an alias for `create()`.
+
+**Required fields:**
+- `invoicee` (object): Invoice recipient information
+- `grouped_lines` (array): Invoice line items
+- `invoice_date` (string): Invoice date (YYYY-MM-DD)
+
+**Optional fields:**
+- `department_id` (string): Department UUID
+- `payment_term` (object): Payment terms
+- `discounts` (array): Discounts to apply
+- `note` (string): Internal note
+- `purchase_order_number` (string): PO number
+- Additional invoice configuration fields
+
+**Example:**
 ```php
-// Get invoice with late fee calculations
-$invoice = $teamleader->invoices()->info('invoice-uuid', 'late_fees');
-
-// Access late fee data
-$dueIncassoInclusive = $invoice['data']['total']['due_incasso_inclusive'];
-$fixedLateFee = $invoice['data']['total']['fixed_late_fee'];
-$interest = $invoice['data']['total']['interest'];
-```
-
-## Updating Invoices
-
-### Update Draft Invoice
-
-```php
-// Update a draft invoice
-$result = $teamleader->invoices()->update('invoice-uuid', [
-    'invoice_date' => '2024-01-15',
-    'note' => 'Updated invoice note',
-    'purchase_order_number' => 'PO-2024-001',
-    'grouped_lines' => [
-        [
-            'section' => [
-                'title' => 'Services'
-            ],
-            'line_items' => [
-                [
-                    'quantity' => 10,
-                    'description' => 'Consulting hours',
-                    'unit_price' => [
-                        'amount' => 100.00,
-                        'tax' => 'excluding'
-                    ],
-                    'tax_rate_id' => 'tax-rate-uuid',
-                    'discount' => [
-                        'value' => 10,
-                        'type' => 'percentage'
-                    ]
-                ]
-            ]
-        ]
-    ]
-]);
-```
-
-### Update Booked Invoice
-
-Only available when editing booked invoices is allowed through settings:
-
-```php
-// Update a booked invoice
-$result = $teamleader->invoices()->updateBooked('invoice-uuid', [
+$invoice = Teamleader::invoices()->create([
+    'department_id' => 'dept-uuid',
+    'invoice_date' => '2024-02-01',
     'invoicee' => [
         'customer' => [
             'type' => 'company',
             'id' => 'company-uuid'
-        ]
-    ],
-    'payment_term' => [
-        'type' => 'after_invoice_date',
-        'days' => 30
-    ],
-    'invoice_date' => '2024-01-15',
-    'note' => 'Updated note'
-]);
-```
-
-### Update Customer Information
-
-```php
-$result = $teamleader->invoices()->update('invoice-uuid', [
-    'invoicee' => [
-        'customer' => [
-            'type' => 'company',
-            'id' => 'new-company-uuid'
         ],
         'for_attention_of' => [
+            'name' => 'John Doe',
             'contact_id' => 'contact-uuid'
         ]
-    ]
-]);
-```
-
-### Update Payment Terms
-
-```php
-$result = $teamleader->invoices()->update('invoice-uuid', [
-    'payment_term' => [
-        'type' => 'after_invoice_date', // or 'cash', 'end_of_month'
-        'days' => 30 // Not required when type is 'cash'
-    ]
-]);
-```
-
-### Update Currency
-
-```php
-$result = $teamleader->invoices()->update('invoice-uuid', [
-    'currency' => [
-        'code' => 'USD',
-        'exchange_rate' => 1.1234
-    ]
-]);
-```
-
-## Credit Operations
-
-### Credit Invoice Completely
-
-```php
-// Credit the entire invoice
-$creditNote = $teamleader->invoices()->credit(
-    'invoice-uuid',
-    '2024-02-04' // Credit note date
-);
-
-// Get the credit note ID
-$creditNoteId = $creditNote['data']['id'];
-```
-
-### Credit Invoice Partially
-
-```php
-// Credit specific line items
-$creditNote = $teamleader->invoices()->creditPartially(
-    'invoice-uuid',
-    '2024-02-04', // Credit note date
-    [
+    ],
+    'grouped_lines' => [
         [
             'section' => [
-                'title' => 'Credited Items'
+                'title' => 'Products'
             ],
             'line_items' => [
                 [
                     'quantity' => 2,
-                    'description' => 'Returned product',
+                    'description' => 'Product A',
                     'unit_price' => [
                         'amount' => 50.00,
                         'tax' => 'excluding'
@@ -383,622 +149,613 @@ $creditNote = $teamleader->invoices()->creditPartially(
             ]
         ]
     ],
-    [ // Optional discounts
+    'payment_term' => [
+        'type' => 'after_invoice_date',
+        'days' => 30
+    ]
+]);
+```
+
+### `update()`
+
+Update a draft invoice.
+
+**Parameters:**
+- `id` (string): Invoice UUID
+- `data` (array): Fields to update
+
+**Example:**
+```php
+$result = Teamleader::invoices()->update('invoice-uuid', [
+    'note' => 'Updated internal note',
+    'purchase_order_number' => 'PO-12345'
+]);
+```
+
+### `updateBooked()`
+
+Update a booked invoice (if allowed in your Teamleader settings).
+
+**Parameters:**
+- `id` (string): Invoice UUID
+- `data` (array): Fields to update (limited to specific fields)
+
+**Example:**
+```php
+$result = Teamleader::invoices()->updateBooked('invoice-uuid', [
+    'note' => 'Updated note for booked invoice'
+]);
+```
+
+### `book()`
+
+Book a draft invoice, making it official and immutable.
+
+**Parameters:**
+- `id` (string): Invoice UUID
+- `on` (string): Booking date (YYYY-MM-DD format)
+
+**Example:**
+```php
+$result = Teamleader::invoices()->book('invoice-uuid', '2024-02-01');
+```
+
+### `copy()`
+
+Create a new draft invoice based on an existing invoice.
+
+**Parameters:**
+- `id` (string): Invoice UUID to copy
+
+**Example:**
+```php
+$newInvoice = Teamleader::invoices()->copy('invoice-uuid');
+```
+
+### `credit()`
+
+Credit an invoice completely, creating a credit note.
+
+**Parameters:**
+- `id` (string): Invoice UUID
+- `creditNoteDate` (string): Credit note date (YYYY-MM-DD format)
+
+**Example:**
+```php
+$creditNote = Teamleader::invoices()->credit('invoice-uuid', '2024-02-15');
+```
+
+### `creditPartially()`
+
+Credit an invoice partially, creating a credit note for specific lines.
+
+**Parameters:**
+- `id` (string): Invoice UUID
+- `creditNoteDate` (string): Credit note date (YYYY-MM-DD format)
+- `groupedLines` (array): Lines to credit
+- `discounts` (array, optional): Discounts to apply to credit note
+
+**Example:**
+```php
+$creditNote = Teamleader::invoices()->creditPartially(
+    'invoice-uuid',
+    '2024-02-15',
+    [
         [
-            'type' => 'percentage',
-            'value' => 10,
-            'description' => 'Adjustment'
+            'line_items' => [
+                [
+                    'quantity' => 1,
+                    'description' => 'Product A - Return',
+                    'unit_price' => [
+                        'amount' => 50.00,
+                        'tax' => 'excluding'
+                    ],
+                    'tax_rate_id' => 'tax-rate-uuid'
+                ]
+            ]
         ]
     ]
 );
 ```
 
-## Download Operations
+### `registerPayment()`
 
-### Download as PDF
+Register a payment for an invoice.
 
+**Parameters:**
+- `id` (string): Invoice UUID
+- `amount` (float): Payment amount
+- `paidAt` (string): Payment date (YYYY-MM-DD format)
+- `paymentMethodId` (string, optional): Payment method UUID
+
+**Example:**
 ```php
-// Download invoice as PDF
-$download = $teamleader->invoices()->download('invoice-uuid', 'pdf');
-
-// Get download URL and expiration
-$downloadUrl = $download['data']['location'];
-$expiresAt = $download['data']['expires'];
-```
-
-### Download as UBL
-
-```php
-// Download as E-FFF format
-$download = $teamleader->invoices()->download('invoice-uuid', 'ubl/e-fff');
-
-// Download as Peppol BIS 3 format
-$download = $teamleader->invoices()->download('invoice-uuid', 'ubl/peppol_bis_3');
-```
-
-## Sending Operations
-
-### Send via Email
-
-```php
-// Send invoice via email
-$result = $teamleader->invoices()->send(
+$result = Teamleader::invoices()->registerPayment(
     'invoice-uuid',
-    [
-        'subject' => 'Your Invoice',
-        'body' => 'Please find your invoice attached.',
-        'mail_template_id' => 'template-uuid' // Optional
-    ],
-    [
-        'to' => [
-            [
-                'customer' => [
-                    'type' => 'company',
-                    'id' => 'company-uuid'
-                ],
-                'email' => 'billing@company.com'
-            ]
-        ],
-        'cc' => [
-            [
-                'email' => 'manager@company.com'
-            ]
-        ],
-        'bcc' => [
-            [
-                'email' => 'archive@mycompany.com'
-            ]
-        ]
-    ],
-    ['file-uuid-1', 'file-uuid-2'] // Optional attachments
+    250.00,
+    '2024-02-10',
+    'payment-method-uuid'
 );
 ```
 
-### Send via Peppol
+### `download()`
 
+Download an invoice in a specific format.
+
+**Parameters:**
+- `id` (string): Invoice UUID
+- `format` (string, optional): Format type (default: 'pdf')
+    - `pdf` - PDF document
+    - `ubl/e-fff` - UBL E-FFF format
+    - `ubl/peppol_bis_3` - UBL Peppol BIS 3.0 format
+
+**Returns:** Array with `location` (download URL) and `expires` (expiration timestamp)
+
+**Example:**
 ```php
-// Send invoice via Peppol network
-$result = $teamleader->invoices()->sendViaPeppol('invoice-uuid');
+// Download as PDF
+$download = Teamleader::invoices()->download('invoice-uuid');
+$pdfUrl = $download['location'];
+
+// Download as UBL
+$download = Teamleader::invoices()->download('invoice-uuid', 'ubl/e-fff');
 ```
 
-## Payment Operations
+### `sendViaPeppol()`
 
-### Register a Payment
+Send an invoice via the Peppol network.
 
+**Parameters:**
+- `id` (string): Invoice UUID
+
+**Example:**
 ```php
-// Register a payment for an invoice
-$result = $teamleader->invoices()->registerPayment(
-    'invoice-uuid',
-    [
-        'amount' => 1210.00,
-        'currency' => 'EUR'
-    ],
-    '2024-02-10T10:00:00+00:00', // Payment date
-    'payment-method-uuid' // Optional payment method
-);
+$result = Teamleader::invoices()->sendViaPeppol('invoice-uuid');
 ```
 
-### Remove All Payments
+## Helper Methods
+
+The Invoices resource provides convenient helper methods:
+
+### Status-based Methods
 
 ```php
-// Mark invoice as unpaid and remove all payments
-$result = $teamleader->invoices()->removePayments('invoice-uuid');
+// Get draft invoices
+$drafts = Teamleader::invoices()->drafts();
+
+// Get outstanding (unpaid) invoices
+$outstanding = Teamleader::invoices()->outstanding();
+
+// Get matched (paid) invoices
+$matched = Teamleader::invoices()->matched();
+
+// Get overdue invoices
+$overdue = Teamleader::invoices()->overdue();
 ```
 
-## Special Operations
-
-### Book a Draft Invoice
+### Customer-based Methods
 
 ```php
-// Book an invoice on a specific date
-$result = $teamleader->invoices()->book(
-    'invoice-uuid',
-    '2024-01-15' // Booking date (YYYY-MM-DD)
-);
+// Get invoices for a specific company
+$invoices = Teamleader::invoices()->forCompany('company-uuid');
+
+// Get invoices for a specific contact
+$invoices = Teamleader::invoices()->forContact('contact-uuid');
+
+// Get invoices for any customer type
+$invoices = Teamleader::invoices()->forCustomer('company', 'company-uuid');
 ```
 
-### Copy an Invoice
+### Department and Project Methods
 
 ```php
-// Create a new draft based on existing invoice
-$newInvoice = $teamleader->invoices()->copy('invoice-uuid');
+// Get invoices for a department
+$invoices = Teamleader::invoices()->forDepartment('dept-uuid');
 
-// Get the new invoice ID
-$newInvoiceId = $newInvoice['data']['id'];
+// Get invoices for a project
+$invoices = Teamleader::invoices()->forProject('project-uuid');
 ```
 
-### Delete an Invoice
-
-Only possible for draft invoices or the last booked invoice:
+### Date Range Methods
 
 ```php
-// Delete an invoice
-$result = $teamleader->invoices()->delete('invoice-uuid');
+// Get invoices within a date range
+$invoices = Teamleader::invoices()->forDateRange('2024-01-01', '2024-12-31');
+
+// Get invoices for a specific month
+$invoices = Teamleader::invoices()->forMonth('2024-02');
+
+// Get invoices for a specific year
+$invoices = Teamleader::invoices()->forYear(2024);
 ```
 
 ## Filtering
 
-### Available Filters
+Available filters for invoices:
 
-- **`ids`**: Array of invoice UUIDs
-- **`term`**: Search on invoice number, purchase order number, payment reference, and invoicee
-- **`invoice_number`**: Full invoice number (fiscal year / number)
-- **`department_id`**: Filter on department (company entity)
-- **`deal_id`**: Filter on deal UUID
-- **`project_id`**: Filter on project UUID
-- **`subscription_id`**: Filter on subscription UUID
-- **`status`**: Array of statuses (draft, outstanding, matched)
-- **`updated_since`**: ISO 8601 datetime
-- **`purchase_order_number`**: Purchase order number
-- **`payment_reference`**: Payment reference
-- **`invoice_date_after`**: Date (inclusive, YYYY-MM-DD)
-- **`invoice_date_before`**: Date (inclusive, YYYY-MM-DD)
-- **`customer`**: Customer object with type and id
+- `ids` - Array of invoice UUIDs
+- `department_id` - Filter by department UUID
+- `purchase_order_number` - Filter by PO number
+- `invoice_number` - Filter by invoice number
+- `status` - Filter by status (draft, outstanding, matched)
+- `customer` - Filter by customer (object with type and id)
+- `invoice_date_after` - Date (inclusive, YYYY-MM-DD)
+- `invoice_date_before` - Date (exclusive, YYYY-MM-DD)
+- `project_id` - Filter by project UUID
+- `updated_since` - ISO 8601 datetime
 
-### Filtering Examples
-
+**Example:**
 ```php
-// Filter by multiple criteria
-$invoices = $teamleader->invoices()->list([
+$invoices = Teamleader::invoices()->list([
     'status' => ['outstanding'],
-    'department_id' => 'department-uuid',
     'invoice_date_after' => '2024-01-01',
-    'invoice_date_before' => '2024-12-31'
-]);
-
-// Filter by specific IDs
-$invoices = $teamleader->invoices()->list([
-    'ids' => ['invoice-uuid-1', 'invoice-uuid-2']
-]);
-
-// Complex customer filter
-$invoices = $teamleader->invoices()->list([
-    'customer' => [
-        'type' => 'company',
-        'id' => 'company-uuid'
-    ],
-    'status' => ['outstanding', 'matched']
+    'department_id' => 'dept-uuid'
 ]);
 ```
 
 ## Sorting
 
-### Available Sort Fields
+Available sort fields:
 
-- `invoice_number`
-- `invoice_date`
+- `invoice_number` - Sort by invoice number
+- `invoice_date` - Sort by invoice date
 
-### Sorting Examples
-
+**Example:**
 ```php
-// Sort by invoice number ascending
-$invoices = $teamleader->invoices()->list([], [
-    'sort' => [
-        [
-            'field' => 'invoice_number',
-            'order' => 'asc'
-        ]
-    ]
+$invoices = Teamleader::invoices()->list([], [
+    'sort' => 'invoice_date',
+    'sort_order' => 'desc'
 ]);
-
-// Sort by invoice date descending (most recent first)
-$invoices = $teamleader->invoices()->list([], [
-    'sort' => [
-        [
-            'field' => 'invoice_date',
-            'order' => 'desc'
-        ]
-    ]
-]);
-
-// Multiple sort criteria
-$invoices = $teamleader->invoices()->list([], [
-    'sort' => [
-        [
-            'field' => 'invoice_date',
-            'order' => 'desc'
-        ],
-        [
-            'field' => 'invoice_number',
-            'order' => 'asc'
-        ]
-    ]
-]);
-```
-
-## Data Fields
-
-### Invoice Statuses
-
-- **`draft`**: Invoice is in draft state
-- **`outstanding`**: Invoice is booked and awaiting payment
-- **`matched`**: Invoice has been paid
-
-### Payment Term Types
-
-- **`cash`**: Payment due immediately
-- **`end_of_month`**: Payment due at end of month + X days
-- **`after_invoice_date`**: Payment due X days after invoice date
-
-### Customer Types
-
-- **`contact`**: Individual contact
-- **`company`**: Company
-
-### Payment Methods
-
-- **`sepa_direct_debit`**: SEPA Direct Debit
-- **`direct_debit`**: Direct Debit
-- **`credit_card`**: Credit Card
-
-### Download Formats
-
-- **`pdf`**: PDF format
-- **`ubl/e-fff`**: UBL E-FFF format
-- **`ubl/peppol_bis_3`**: UBL Peppol BIS 3 format
-
-### Supported Currencies
-
-BAM, CAD, CHF, CLP, CNY, COP, CZK, DKK, EUR, GBP, INR, ISK, JPY, MAD, MXN, NOK, PEN, PLN, RON, SEK, TRY, USD, ZAR
-
-### Invoice Line Item Structure
-
-```php
-[
-    'quantity' => 10, // Required: numeric
-    'description' => 'Item description', // Required: string
-    'extended_description' => 'Additional details (Markdown)', // Optional: string
-    'unit_of_measure_id' => 'unit-uuid', // Optional: UUID
-    'unit_price' => [ // Required: object
-        'amount' => 100.00, // Required: numeric
-        'tax' => 'excluding' // Required: must be 'excluding'
-    ],
-    'tax_rate_id' => 'tax-rate-uuid', // Required: UUID
-    'discount' => [ // Optional: object
-        'value' => 10, // Required: numeric (0-100)
-        'type' => 'percentage' // Required: must be 'percentage'
-    ],
-    'product_id' => 'product-uuid', // Optional: UUID
-    'withholding_tax_rate_id' => 'withholding-tax-uuid', // Optional: UUID
-    'product_category_id' => 'category-uuid' // Optional: UUID
-]
-```
-
-### Grouped Lines Structure
-
-```php
-'grouped_lines' => [
-    [
-        'section' => [
-            'title' => 'Section Title' // Required: string
-        ],
-        'line_items' => [ // Required: array of line items
-            // ... line items array
-        ]
-    ]
-]
-```
-
-### Customer/Invoicee Structure
-
-```php
-'invoicee' => [
-    'customer' => [ // Required
-        'type' => 'company', // Required: 'contact' or 'company'
-        'id' => 'customer-uuid' // Required: UUID
-    ],
-    'for_attention_of' => [ // Optional
-        'contact_id' => 'contact-uuid' // When using contact ID
-        // OR
-        'name' => 'Person Name' // When using name
-    ]
-]
-```
-
-### Payment Term Structure
-
-```php
-'payment_term' => [
-    'type' => 'after_invoice_date', // Required: 'cash', 'end_of_month', 'after_invoice_date'
-    'days' => 30 // Required when type is not 'cash'
-]
-```
-
-### Currency Structure
-
-```php
-'currency' => [
-    'code' => 'EUR', // Required: valid currency code
-    'exchange_rate' => 1.0 // Optional: numeric
-]
-```
-
-### Expected Payment Method Structure
-
-```php
-'expected_payment_method' => [
-    'method' => 'sepa_direct_debit', // Required: valid payment method
-    'reference' => 'AB1234' // Optional: reference number
-]
-```
-
-### Email Content Structure
-
-```php
-'content' => [
-    'subject' => 'Invoice Subject', // Required: string
-    'body' => 'Email body text', // Required: string
-    'mail_template_id' => 'template-uuid' // Optional: UUID
-]
-```
-
-### Email Recipients Structure
-
-```php
-'recipients' => [
-    'to' => [ // Required: at least one recipient
-        [
-            'customer' => [ // Optional
-                'type' => 'company',
-                'id' => 'customer-uuid'
-            ],
-            'email' => 'recipient@example.com' // Required
-        ]
-    ],
-    'cc' => [ // Optional
-        [
-            'email' => 'cc@example.com'
-        ]
-    ],
-    'bcc' => [ // Optional
-        [
-            'email' => 'bcc@example.com'
-        ]
-    ]
-]
-```
-
-### Payment Structure
-
-```php
-'payment' => [
-    'amount' => 123.45, // Required: numeric
-    'currency' => 'EUR' // Required: valid currency code
-]
 ```
 
 ## Response Structure
 
 ### List Response
 
-```php
-[
-    'data' => [
-        [
-            'id' => 'invoice-uuid',
-            'invoice_number' => '2024/001',
-            'invoice_date' => '2024-01-15',
-            'status' => 'outstanding',
-            'due_on' => '2024-02-15',
-            'paid' => false,
-            'sent' => true,
-            'invoicee' => [
-                'name' => 'Company Name',
-                'customer' => [
-                    'id' => 'customer-uuid',
-                    'type' => 'company'
-                ]
-            ],
-            'total' => [
-                'tax_exclusive' => [
-                    'amount' => 1000.00,
-                    'currency' => 'EUR'
-                ],
-                'tax_inclusive' => [
-                    'amount' => 1210.00,
-                    'currency' => 'EUR'
-                ],
-                'payable' => [
-                    'amount' => 1210.00,
-                    'currency' => 'EUR'
-                ],
-                'due' => [
-                    'amount' => 1210.00,
-                    'currency' => 'EUR'
-                ]
-            ],
-            // ... more fields
-        ]
-    ]
-]
+```json
+{
+  "data": [
+    {
+      "id": "uuid",
+      "department": {
+        "type": "department",
+        "id": "uuid"
+      },
+      "invoice_number": "2024/001",
+      "invoice_date": "2024-02-01",
+      "status": "outstanding",
+      "paid": false,
+      "paid_at": null,
+      "invoicee": {
+        "name": "Company Name",
+        "vat_number": "BE0123456789",
+        "customer": {
+          "type": "company",
+          "id": "uuid"
+        }
+      },
+      "total": {
+        "tax_exclusive": {
+          "amount": 100.00,
+          "currency": "EUR"
+        },
+        "tax_inclusive": {
+          "amount": 121.00,
+          "currency": "EUR"
+        },
+        "payable": {
+          "amount": 121.00,
+          "currency": "EUR"
+        }
+      },
+      "created_at": "2024-02-01T10:00:00+00:00",
+      "updated_at": "2024-02-01T10:00:00+00:00"
+    }
+  ]
+}
 ```
 
 ### Info Response
 
+```json
+{
+  "data": {
+    "id": "uuid",
+    "department": {...},
+    "invoice_number": "2024/001",
+    "invoice_date": "2024-02-01",
+    "status": "outstanding",
+    "paid": false,
+    "invoicee": {...},
+    "payment_term": {
+      "type": "after_invoice_date",
+      "days": 30
+    },
+    "grouped_lines": [
+      {
+        "section": {
+          "title": "Products"
+        },
+        "line_items": [
+          {
+            "product": null,
+            "quantity": 2,
+            "description": "Product A",
+            "extended_description": null,
+            "unit_price": {
+              "amount": 50.00,
+              "tax": "excluding"
+            },
+            "tax": {
+              "type": "tax_rate",
+              "id": "uuid"
+            },
+            "total": {
+              "amount": 100.00,
+              "currency": "EUR"
+            }
+          }
+        ]
+      }
+    ],
+    "total": {...},
+    "taxes": [...],
+    "created_at": "2024-02-01T10:00:00+00:00",
+    "updated_at": "2024-02-01T10:00:00+00:00"
+  }
+}
+```
+
+## Usage Examples
+
+### Create and Book an Invoice
+
 ```php
-[
-    'data' => [
-        'id' => 'invoice-uuid',
-        'department' => [
-            'id' => 'department-uuid',
-            'type' => 'department'
-        ],
-        'invoice_number' => '2024/001',
-        'invoice_date' => '2024-01-15',
-        'status' => 'outstanding',
-        'due_on' => '2024-02-15',
-        'paid' => false,
-        'paid_at' => null,
-        'sent' => true,
-        'purchase_order_number' => 'PO-2024-001',
-        'payment_reference' => '+++084/2613/66074+++',
-        'invoicee' => [
-            'name' => 'Company Name',
-            'vat_number' => 'BE0123456789',
-            'customer' => [
-                'id' => 'customer-uuid',
-                'type' => 'company'
-            ],
-            'for_attention_of' => [
-                'name' => 'Contact Name',
-                'contact' => [
-                    'id' => 'contact-uuid',
-                    'type' => 'contact'
-                ]
-            ],
-            'email' => 'contact@company.com'
-        ],
-        'discounts' => [
-            [
-                'type' => 'percentage',
-                'value' => 10,
-                'description' => 'Early payment discount'
-            ]
-        ],
-        'grouped_lines' => [
-            [
-                'section' => [
-                    'title' => 'Services'
-                ],
-                'line_items' => [
-                    [
-                        'product' => [
-                            'id' => 'product-uuid',
-                            'type' => 'product'
-                        ],
-                        'quantity' => 10,
-                        'description' => 'Consulting hours',
-                        'unit_price' => [
-                            'amount' => 100.00,
-                            'tax' => 'excluding'
-                        ],
-                        'tax' => [
-                            'id' => 'tax-rate-uuid',
-                            'type' => 'taxRate'
-                        ],
-                        'discount' => [
-                            'value' => 10,
-                            'type' => 'percentage'
-                        ],
-                        'total' => [
-                            'tax_exclusive' => [
-                                'amount' => 900.00,
-                                'currency' => 'EUR'
-                            ],
-                            'tax_inclusive' => [
-                                'amount' => 1089.00,
-                                'currency' => 'EUR'
-                            ]
-                        ]
-                    ]
-                ]
-            ]
-        ],
-        'total' => [
-            'tax_exclusive' => [
-                'amount' => 1000.00,
-                'currency' => 'EUR'
-            ],
-            'tax_inclusive' => [
-                'amount' => 1210.00,
-                'currency' => 'EUR'
-            ],
-            'payable' => [
-                'amount' => 1210.00,
-                'currency' => 'EUR'
-            ],
-            'due' => [
-                'amount' => 1210.00,
-                'currency' => 'EUR'
-            ],
-            'taxes' => [
+// Step 1: Create draft
+$invoice = Teamleader::invoices()->draft([
+    'department_id' => 'dept-uuid',
+    'invoice_date' => '2024-02-01',
+    'invoicee' => [
+        'customer' => [
+            'type' => 'company',
+            'id' => 'company-uuid'
+        ]
+    ],
+    'grouped_lines' => [
+        [
+            'line_items' => [
                 [
-                    'rate' => 0.21,
-                    'taxable' => [
-                        'amount' => 1000.00,
-                        'currency' => 'EUR'
+                    'quantity' => 5,
+                    'description' => 'Consulting Services',
+                    'unit_price' => [
+                        'amount' => 100.00,
+                        'tax' => 'excluding'
                     ],
-                    'tax' => [
-                        'amount' => 210.00,
-                        'currency' => 'EUR'
-                    ]
+                    'tax_rate_id' => 'tax-rate-uuid'
                 ]
             ]
-        ],
-        'payment_term' => [
-            'type' => 'after_invoice_date',
-            'days' => 30
-        ],
-        'payments' => [
-            [
-                'paid_at' => '2024-02-10T10:00:00+00:00',
-                'payment' => [
-                    'amount' => 1210.00,
-                    'currency' => 'EUR'
+        ]
+    ]
+]);
+
+// Step 2: Book the invoice
+$result = Teamleader::invoices()->book($invoice['data']['id'], '2024-02-01');
+```
+
+### Handle Partial Payment
+
+```php
+$invoiceId = 'invoice-uuid';
+$totalAmount = 1000.00;
+
+// Register first payment
+Teamleader::invoices()->registerPayment($invoiceId, 500.00, '2024-02-10');
+
+// Register second payment
+Teamleader::invoices()->registerPayment($invoiceId, 500.00, '2024-02-20');
+```
+
+### Create Credit Note for Returns
+
+```php
+// Full credit
+$creditNote = Teamleader::invoices()->credit('invoice-uuid', '2024-02-15');
+
+// Partial credit for specific items
+$creditNote = Teamleader::invoices()->creditPartially(
+    'invoice-uuid',
+    '2024-02-15',
+    [
+        [
+            'line_items' => [
+                [
+                    'quantity' => 2,
+                    'description' => 'Product A - Returned',
+                    'unit_price' => [
+                        'amount' => 50.00,
+                        'tax' => 'excluding'
+                    ],
+                    'tax_rate_id' => 'tax-rate-uuid'
                 ]
             ]
-        ],
-        'note' => 'Thank you for your business',
-        'currency' => 'EUR',
-        'currency_exchange_rate' => [
-            'from' => 'EUR',
-            'to' => 'EUR',
-            'rate' => 1.0
-        ],
-        'file' => [
-            'id' => 'file-uuid',
-            'type' => 'file'
-        ],
-        'deal' => [
-            'id' => 'deal-uuid',
-            'type' => 'deal'
-        ],
-        'project' => [
-            'id' => 'project-uuid',
-            'type' => 'project'
-        ],
-        'created_at' => '2024-01-10T12:00:00+00:00',
-        'updated_at' => '2024-01-15T14:30:00+00:00',
-        'web_url' => 'https://focus.teamleader.eu/invoice_detail.php?id=...'
+        ]
     ]
-]
+);
 ```
 
-### Download Response
+### Generate Monthly Invoice Report
 
 ```php
-[
-    'data' => [
-        'location' => 'https://cdn.teamleader.eu/file', // Temporary download URL
-        'expires' => '2024-02-05T16:44:33+00:00' // URL expiration time
-    ]
-]
+$monthlyInvoices = Teamleader::invoices()->forMonth('2024-02');
+
+$totalRevenue = 0;
+foreach ($monthlyInvoices['data'] as $invoice) {
+    if ($invoice['status'] !== 'draft') {
+        $totalRevenue += $invoice['total']['tax_exclusive']['amount'];
+    }
+}
+
+echo "Total Revenue for February 2024: €" . number_format($totalRevenue, 2);
 ```
 
-### Credit Response
+## Common Use Cases
+
+### 1. Invoice Creation Workflow
 
 ```php
-[
-    'data' => [
-        'id' => 'credit-note-uuid', // UUID of created credit note
-        'type' => 'invoice'
-    ]
-]
+// Create draft
+$draft = Teamleader::invoices()->draft($invoiceData);
+
+// Review and update if needed
+Teamleader::invoices()->update($draft['data']['id'], [
+    'note' => 'Additional internal note'
+]);
+
+// Book when ready
+Teamleader::invoices()->book($draft['data']['id'], date('Y-m-d'));
+
+// Download for sending
+$download = Teamleader::invoices()->download($draft['data']['id']);
 ```
 
-## Notes
+### 2. Payment Tracking
 
-- **Draft Creation**: Use the `create()` method to draft new invoices
-- **Draft Deletion**: Only draft invoices or the last booked invoice can be deleted
-- **Booked Updates**: Updating booked invoices requires this feature to be enabled in Teamleader settings
-- **Late Fees**: Include `late_fees` in the includes parameter to get late fee calculations
-- **Credit Notes**: Creating credit notes generates a new invoice with negative amounts
-- **Payment Registration**: Registering payments updates the invoice's paid status automatically
-- **Email Sending**: Sending via email requires at least one recipient in the "to" field
-- **Peppol**: Sending via Peppol requires proper Peppol configuration in Teamleader
-- **Downloads**: Download URLs are temporary and expire after the time specified in the response
-- **Date Format**: All dates should be in YYYY-MM-DD format
-- **DateTime Format**: All datetimes should be in ISO 8601 format
-- **Currency**: Prices are always tax-exclusive in the `unit_price` field
-- **Discount**: Discounts are percentage-based and must be between 0 and 100
-- **Markdown**: The `note` and `extended_description` fields support Markdown formatting
+```php
+// Get all outstanding invoices
+$outstanding = Teamleader::invoices()->outstanding();
+
+foreach ($outstanding['data'] as $invoice) {
+    $dueDate = date('Y-m-d', strtotime($invoice['invoice_date'] . ' +30 days'));
+    
+    if ($dueDate < date('Y-m-d')) {
+        echo "Overdue: " . $invoice['invoice_number'] . "\n";
+    }
+}
+```
+
+### 3. Customer Invoice History
+
+```php
+$customerInvoices = Teamleader::invoices()
+    ->forCompany('company-uuid')
+    ->list([], [
+        'sort' => 'invoice_date',
+        'sort_order' => 'desc'
+    ]);
+
+$totalBilled = 0;
+$totalPaid = 0;
+
+foreach ($customerInvoices['data'] as $invoice) {
+    if ($invoice['status'] !== 'draft') {
+        $totalBilled += $invoice['total']['tax_inclusive']['amount'];
+        
+        if ($invoice['paid']) {
+            $totalPaid += $invoice['total']['tax_inclusive']['amount'];
+        }
+    }
+}
+
+$outstanding = $totalBilled - $totalPaid;
+```
+
+## Best Practices
+
+### 1. Always Validate Before Booking
+
+```php
+// Create draft first
+$invoice = Teamleader::invoices()->draft($data);
+
+// Review
+$review = Teamleader::invoices()->info($invoice['data']['id']);
+
+// Book only after validation
+if ($this->validateInvoice($review['data'])) {
+    Teamleader::invoices()->book($invoice['data']['id'], date('Y-m-d'));
+}
+```
+
+### 2. Handle Payment Methods Correctly
+
+```php
+// Get available payment methods first
+$paymentMethods = Teamleader::paymentMethods()->list();
+
+// Use correct payment method ID when registering
+Teamleader::invoices()->registerPayment(
+    'invoice-uuid',
+    $amount,
+    $paymentDate,
+    $paymentMethods['data'][0]['id']
+);
+```
+
+### 3. Use Grouped Lines Effectively
+
+```php
+$invoice = Teamleader::invoices()->create([
+    'grouped_lines' => [
+        [
+            'section' => [
+                'title' => 'Hardware'
+            ],
+            'line_items' => [
+                // Hardware items
+            ]
+        ],
+        [
+            'section' => [
+                'title' => 'Services'
+            ],
+            'line_items' => [
+                // Service items
+            ]
+        ]
+    ]
+]);
+```
+
+### 4. Track Credit Notes
+
+```php
+// Always associate credit notes with original invoice
+$creditNote = Teamleader::invoices()->credit($invoiceId, $creditDate);
+
+// Store relationship in your system
+$this->storeCreditNoteRelation(
+    $invoiceId,
+    $creditNote['data']['id']
+);
+```
+
+## Error Handling
+
+```php
+use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
+
+try {
+    $invoice = Teamleader::invoices()->book('invoice-uuid', '2024-02-01');
+} catch (TeamleaderException $e) {
+    if ($e->getCode() === 422) {
+        // Validation error
+        Log::error('Invalid invoice data', $e->getErrors());
+    } elseif ($e->getCode() === 404) {
+        // Invoice not found
+        Log::error('Invoice does not exist');
+    } else {
+        // Other error
+        Log::error('Failed to book invoice', ['error' => $e->getMessage()]);
+    }
+}
+```
+
+## Related Resources
+
+- [Credit Notes](credit-notes.md) - Manage credit notes
+- [Payment Methods](payment-methods.md) - Payment method information
+- [Payment Terms](payment-terms.md) - Payment term configuration
+- [Tax Rates](tax-rates.md) - Tax rate information
+- [Companies](../crm/companies.md) - Customer management
+- [Contacts](../crm/contacts.md) - Contact management
+- [Projects](../projects/projects.md) - Project management

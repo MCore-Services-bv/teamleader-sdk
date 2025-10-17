@@ -880,7 +880,6 @@ The MIT License (MIT). Please see [LICENSE.md](LICENSE.md) for more information.
 
 ## 🗺️ Roadmap
 
-- [ ] GraphQL support (when available from Teamleader)
 - [ ] Bulk operations helper
 - [ ] Enhanced caching strategies
 - [ ] WebSocket support for real-time updates

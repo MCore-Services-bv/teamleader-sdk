@@ -1,443 +1,356 @@
 # Payment Terms
 
-The Payment Terms resource allows you to retrieve available payment terms in Teamleader Focus. Payment terms define when an invoice should be paid (immediately, after X days, end of month, etc.). This is a read-only resource managed through the Teamleader application settings.
+Access payment term information in Teamleader Focus.
 
-## Table of Contents
+## Overview
 
-- [Basic Usage](#basic-usage)
-- [Listing Payment Terms](#listing-payment-terms)
-- [Finding Payment Terms](#finding-payment-terms)
-- [Default Payment Term](#default-payment-term)
+The Payment Terms resource provides read-only access to payment terms configured in your Teamleader account. Payment terms define when invoices are due and are used when creating invoices and subscriptions.
+
+**Important:** This resource is read-only. Payment terms are configured in Teamleader Focus settings and cannot be created or modified through the API.
+
+## Navigation
+
+- [Endpoint](#endpoint)
+- [Capabilities](#capabilities)
+- [Available Methods](#available-methods)
+    - [list()](#list)
+- [Helper Methods](#helper-methods)
 - [Payment Term Types](#payment-term-types)
-- [Convenience Methods](#convenience-methods)
-- [Data Fields](#data-fields)
+- [Response Structure](#response-structure)
+- [Usage Examples](#usage-examples)
+- [Common Use Cases](#common-use-cases)
+- [Best Practices](#best-practices)
+- [Related Resources](#related-resources)
 
-## Basic Usage
+## Endpoint
 
+`paymentTerms`
+
+## Capabilities
+
+- **Pagination**: ❌ Not Supported
+- **Filtering**: ❌ Not Supported
+- **Sorting**: ❌ Not Supported
+- **Sideloading**: ❌ Not Supported
+- **Creation**: ❌ Not Supported
+- **Update**: ❌ Not Supported
+- **Deletion**: ❌ Not Supported
+
+## Available Methods
+
+### `list()`
+
+Get all available payment terms.
+
+**Parameters:** None
+
+**Example:**
 ```php
-// Get the payment terms resource
-$paymentTerms = $teamleader->paymentTerms();
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
 
-// List all payment terms
-$allTerms = $paymentTerms->list();
-
-// Get the default payment term
-$defaultTerm = $paymentTerms->getDefault();
-```
-
-## Listing Payment Terms
-
-```php
 // Get all payment terms
-$paymentTerms = $teamleader->paymentTerms()->list();
-
-// Access the data
-$terms = $paymentTerms['data'];
-$defaultId = $paymentTerms['meta']['default'];
+$paymentTerms = Teamleader::paymentTerms()->list();
 ```
 
-**Note:** Payment terms do not support filtering, pagination, or sorting. The `list()` method returns all available payment terms.
+## Helper Methods
 
-## Finding Payment Terms
+The Payment Terms resource provides convenient helper methods:
 
-### Find by ID
+### `getDefault()`
+
+Get the default payment term.
 
 ```php
-// Find a specific payment term by ID
-$term = $teamleader->paymentTerms()->find('payment-term-uuid');
-
-if ($term) {
-    echo "Found: {$term['type']} - {$term['days']} days";
-}
+$defaultTerm = Teamleader::paymentTerms()->getDefault();
 ```
 
-### Find by Type
+### `getDefaultId()`
+
+Get the UUID of the default payment term.
 
 ```php
-// Find all cash payment terms
-$cashTerms = $teamleader->paymentTerms()->findByType('cash');
-
-// Find all end of month payment terms
-$endOfMonthTerms = $teamleader->paymentTerms()->findByType('end_of_month');
-
-// Find all after invoice date payment terms
-$afterInvoiceTerms = $teamleader->paymentTerms()->findByType('after_invoice_date');
+$defaultTermId = Teamleader::paymentTerms()->getDefaultId();
 ```
 
-### Find by Days
+### `findByType()`
+
+Find payment terms by type.
+
+```php
+// Find all "cash" type payment terms
+$cashTerms = Teamleader::paymentTerms()->findByType('cash');
+
+// Find "after_invoice_date" terms
+$standardTerms = Teamleader::paymentTerms()->findByType('after_invoice_date');
+```
+
+### `findByDays()`
+
+Find a payment term by number of days.
 
 ```php
 // Find payment term with 30 days
-$term = $teamleader->paymentTerms()->findByDays(30);
+$term30 = Teamleader::paymentTerms()->findByDays(30);
 
-// Find 30 days payment term of specific type
-$term = $teamleader->paymentTerms()->findByDays(30, 'after_invoice_date');
-
-// Find 15 days end of month term
-$term = $teamleader->paymentTerms()->findByDays(15, 'end_of_month');
+// Find with specific type
+$term30AfterInvoice = Teamleader::paymentTerms()->findByDays(30, 'after_invoice_date');
 ```
 
-### Check if Payment Term Exists
+### `asOptions()`
+
+Get payment terms formatted as key-value pairs for dropdowns.
 
 ```php
-// Check if a payment term ID is valid
-$exists = $teamleader->paymentTerms()->exists('payment-term-uuid');
-
-if ($exists) {
-    // Payment term exists
-}
-```
-
-## Default Payment Term
-
-Teamleader allows you to set a default payment term that is automatically selected for new invoices.
-
-```php
-// Get the default payment term
-$defaultTerm = $teamleader->paymentTerms()->getDefault();
-
-if ($defaultTerm) {
-    echo "Default payment term: {$defaultTerm['type']}";
-    if (isset($defaultTerm['days'])) {
-        echo " - {$defaultTerm['days']} days";
-    }
-}
-
-// Get just the default payment term ID
-$defaultId = $teamleader->paymentTerms()->getDefaultId();
+$options = Teamleader::paymentTerms()->asOptions();
+// Returns: ['uuid-1' => 'Cash', 'uuid-2' => '30 days', ...]
 ```
 
 ## Payment Term Types
 
-Payment terms have three types, each with different behavior:
+Payment terms can be one of three types:
 
-### Cash
+1. **cash** - Payment due immediately
+2. **end_of_month** - Payment due at the end of the month
+3. **after_invoice_date** - Payment due X days after invoice date
 
-- **Type:** `cash`
-- **Description:** Direct/immediate payment
-- **Days field:** Not required (not used)
-- **Example:** Payment due immediately upon receipt
-
-```php
-// Get all cash payment terms
-$cashTerms = $teamleader->paymentTerms()->cash();
-
-foreach ($cashTerms as $term) {
-    echo "Cash payment term ID: {$term['id']}\n";
-}
-```
-
-### End of Month
-
-- **Type:** `end_of_month`
-- **Description:** End of the month + X days after the invoice date
-- **Days field:** Modifier X (e.g., 15 means end of month + 15 days)
-- **Example:** If invoice date is January 15th and days is 15, payment is due February 15th (end of January + 15 days)
-
-```php
-// Get all end of month payment terms
-$endOfMonthTerms = $teamleader->paymentTerms()->endOfMonth();
-
-foreach ($endOfMonthTerms as $term) {
-    $days = $term['days'] ?? 0;
-    echo "End of month + {$days} days\n";
-}
-```
-
-### After Invoice Date
-
-- **Type:** `after_invoice_date`
-- **Description:** X days after the invoice date
-- **Days field:** Number of days after invoice date
-- **Example:** If days is 30, payment is due 30 days after the invoice date
-
-```php
-// Get all after invoice date payment terms
-$afterInvoiceTerms = $teamleader->paymentTerms()->afterInvoiceDate();
-
-foreach ($afterInvoiceTerms as $term) {
-    $days = $term['days'] ?? 0;
-    echo "{$days} days after invoice date\n";
-}
-```
-
-## Convenience Methods
-
-### Get by Type Shortcuts
-
-```php
-// Shortcut methods for each type
-$cashTerms = $teamleader->paymentTerms()->cash();
-$endOfMonthTerms = $teamleader->paymentTerms()->endOfMonth();
-$afterInvoiceTerms = $teamleader->paymentTerms()->afterInvoiceDate();
-```
-
-### Format as Human-Readable Description
-
-```php
-// Get a payment term
-$term = $teamleader->paymentTerms()->findByDays(30, 'after_invoice_date');
-
-// Format as human-readable description
-$description = $teamleader->paymentTerms()->formatPaymentTermDescription($term);
-// Returns: "30 days after invoice date"
-
-// Example for end of month
-$term = $teamleader->paymentTerms()->findByDays(15, 'end_of_month');
-$description = $teamleader->paymentTerms()->formatPaymentTermDescription($term);
-// Returns: "End of month + 15 days"
-
-// Example for cash
-$term = $teamleader->paymentTerms()->cash()[0];
-$description = $teamleader->paymentTerms()->formatPaymentTermDescription($term);
-// Returns: "Cash (immediate payment)"
-```
-
-### Get as Select Options
-
-```php
-// Get payment terms as key-value pairs for dropdowns
-$options = $teamleader->paymentTerms()->asOptions();
-// Returns: ['uuid1' => '30 days after invoice date', 'uuid2' => 'Cash (immediate payment)', ...]
-
-// Use in a form
-echo '<select name="payment_term_id">';
-foreach ($options as $id => $description) {
-    echo "<option value=\"{$id}\">{$description}</option>";
-}
-echo '</select>';
-
-// Pre-select the default
-$defaultId = $teamleader->paymentTerms()->getDefaultId();
-foreach ($options as $id => $description) {
-    $selected = ($id === $defaultId) ? 'selected' : '';
-    echo "<option value=\"{$id}\" {$selected}>{$description}</option>";
-}
-```
-
-### Validate Payment Term Type
-
-```php
-// Check if a type is valid
-$isValid = $teamleader->paymentTerms()->isValidType('cash'); // true
-$isValid = $teamleader->paymentTerms()->isValidType('invalid'); // false
-```
-
-## Data Fields
-
-### Payment Term Fields
-
-Each payment term contains:
-
-- **`id`**: Payment term UUID (string)
-    - Example: `"c93ddb52-0af8-47d9-8551-441435be66a7"`
-    - Unique identifier for the payment term
-
-- **`type`**: Payment term type (string)
-    - **Possible values:**
-        - `"cash"` - Direct payment, often cash/immediate
-        - `"end_of_month"` - End of the month + X days after invoice date
-        - `"after_invoice_date"` - X days after invoice date
-    - Example: `"after_invoice_date"`
-
-- **`days`**: Number of days modifier (number)
-    - Not required when type is `"cash"`
-    - For `"end_of_month"`: days added to end of month
-    - For `"after_invoice_date"`: days after invoice date
-    - Example: `30`
-
-### Response Metadata
-
-The response includes metadata with the default payment term:
-
-- **`meta.default`**: UUID of the default payment term (string)
-    - Example: `"c93ddb52-0af8-47d9-8551-441435be66a7"`
-    - This payment term is automatically selected for new invoices
-
-## Response Examples
+## Response Structure
 
 ### List Response
 
-```php
-[
-    'data' => [
-        [
-            'id' => 'c93ddb52-0af8-47d9-8551-441435be66a7',
-            'type' => 'cash'
-        ],
-        [
-            'id' => 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
-            'type' => 'after_invoice_date',
-            'days' => 15
-        ],
-        [
-            'id' => 'f0e9d8c7-b6a5-4321-9876-543210fedcba',
-            'type' => 'after_invoice_date',
-            'days' => 30
-        ],
-        [
-            'id' => '11223344-5566-7788-99aa-bbccddeeff00',
-            'type' => 'end_of_month',
-            'days' => 15
-        ]
-    ],
-    'meta' => [
-        'default' => 'f0e9d8c7-b6a5-4321-9876-543210fedcba'
-    ]
-]
-```
-
-### Find Response
-
-```php
-// Found
-[
-    'id' => 'f0e9d8c7-b6a5-4321-9876-543210fedcba',
-    'type' => 'after_invoice_date',
-    'days' => 30
-]
-
-// Not found
-null
-```
-
-### As Options Response
-
-```php
-[
-    'c93ddb52-0af8-47d9-8551-441435be66a7' => 'Cash (immediate payment)',
-    'a1b2c3d4-e5f6-7890-abcd-ef1234567890' => '15 days after invoice date',
-    'f0e9d8c7-b6a5-4321-9876-543210fedcba' => '30 days after invoice date',
-    '11223344-5566-7788-99aa-bbccddeeff00' => 'End of month + 15 days'
-]
-```
-
-## Common Use Cases
-
-### Display Payment Terms in Invoice Form
-
-```php
-// Get payment terms as options
-$options = $teamleader->paymentTerms()->asOptions();
-$defaultId = $teamleader->paymentTerms()->getDefaultId();
-
-// Generate HTML select
-echo '<select name="payment_term_id">';
-foreach ($options as $id => $description) {
-    $selected = ($id === $defaultId) ? 'selected' : '';
-    echo "<option value=\"{$id}\" {$selected}>{$description}</option>";
-}
-echo '</select>';
-```
-
-### Find Common Payment Terms
-
-```php
-// Find the 30-day payment term
-$thirtyDays = $teamleader->paymentTerms()->findByDays(30, 'after_invoice_date');
-
-if ($thirtyDays) {
-    echo "30-day payment term ID: {$thirtyDays['id']}";
-} else {
-    // Use default or create a fallback
-    $defaultId = $teamleader->paymentTerms()->getDefaultId();
-}
-```
-
-### Validate Invoice Payment Term
-
-```php
-// Validate that a payment term ID from user input is valid
-$paymentTermId = $_POST['payment_term_id'];
-
-if ($teamleader->paymentTerms()->exists($paymentTermId)) {
-    // Valid payment term
-    $term = $teamleader->paymentTerms()->find($paymentTermId);
-    echo "Using payment term: " . 
-         $teamleader->paymentTerms()->formatPaymentTermDescription($term);
-} else {
-    // Invalid payment term - use default
-    $defaultId = $teamleader->paymentTerms()->getDefaultId();
-}
-```
-
-### Calculate Due Date from Payment Term
-
-```php
-use DateTime;
-
-function calculateDueDate(string $invoiceDate, array $paymentTerm): DateTime
+```json
 {
+  "data": [
+    {
+      "id": "uuid",
+      "type": "cash",
+      "days": 0,
+      "description": "Cash"
+    },
+    {
+      "id": "uuid",
+      "type": "after_invoice_date",
+      "days": 30,
+      "description": "30 days"
+    },
+    {
+      "id": "uuid",
+      "type": "end_of_month",
+      "days": 0,
+      "description": "End of month"
+    }
+  ],
+  "meta": {
+    "default": "uuid-of-default-term"
+  }
+}
+```
+
+## Usage Examples
+
+### Get Available Payment Terms
+
+```php
+$paymentTerms = Teamleader::paymentTerms()->list();
+
+echo "Available payment terms:\n";
+foreach ($paymentTerms['data'] as $term) {
+    $default = ($term['id'] === $paymentTerms['meta']['default']) ? ' (default)' : '';
+    echo "- {$term['description']}{$default}\n";
+}
+```
+
+### Use in Invoice Creation
+
+```php
+// Get default payment term
+$defaultTerm = Teamleader::paymentTerms()->getDefault();
+
+// Create invoice with payment term
+$invoice = Teamleader::invoices()->create([
+    'invoice_date' => '2024-02-01',
+    'invoicee' => [...],
+    'grouped_lines' => [...],
+    'payment_term' => [
+        'type' => $defaultTerm['type'],
+        'days' => $defaultTerm['days']
+    ]
+]);
+```
+
+### Create Invoice with Custom Payment Term
+
+```php
+// Find 30-day payment term
+$term30 = Teamleader::paymentTerms()->findByDays(30);
+
+$invoice = Teamleader::invoices()->create([
+    'invoice_date' => '2024-02-01',
+    'invoicee' => [...],
+    'grouped_lines' => [...],
+    'payment_term' => [
+        'type' => $term30['type'],
+        'days' => $term30['days']
+    ]
+]);
+```
+
+### Calculate Due Date
+
+```php
+function calculateDueDate($invoiceDate, $paymentTerm) {
     $date = new DateTime($invoiceDate);
     
     switch ($paymentTerm['type']) {
         case 'cash':
-            // Due immediately
-            return $date;
+            return $date->format('Y-m-d');
             
         case 'after_invoice_date':
-            // Add days to invoice date
-            $days = $paymentTerm['days'] ?? 0;
-            $date->modify("+{$days} days");
-            return $date;
+            $date->modify("+{$paymentTerm['days']} days");
+            return $date->format('Y-m-d');
             
         case 'end_of_month':
-            // Go to end of invoice month
             $date->modify('last day of this month');
-            // Then add additional days
-            $days = $paymentTerm['days'] ?? 0;
-            if ($days > 0) {
-                $date->modify("+{$days} days");
-            }
-            return $date;
+            return $date->format('Y-m-d');
             
         default:
-            return $date;
+            return $date->format('Y-m-d');
     }
 }
 
-// Example usage
-$paymentTerm = $teamleader->paymentTerms()->findByDays(30, 'after_invoice_date');
-$invoiceDate = '2024-01-15';
-$dueDate = calculateDueDate($invoiceDate, $paymentTerm);
-echo "Invoice date: {$invoiceDate}\n";
-echo "Due date: " . $dueDate->format('Y-m-d') . "\n";
-// Output: Due date: 2024-02-14
+$term = Teamleader::paymentTerms()->findByDays(30);
+$dueDate = calculateDueDate('2024-02-01', $term);
+echo "Due date: {$dueDate}"; // 2024-03-02
 ```
 
-### Display Payment Terms Summary
+## Common Use Cases
+
+### 1. Invoice Form Population
 
 ```php
-// Generate a summary of all available payment terms
-$paymentTerms = $teamleader->paymentTerms()->list();
-$defaultId = $paymentTerms['meta']['default'];
+$paymentTerms = Teamleader::paymentTerms()->list();
+$defaultTermId = $paymentTerms['meta']['default'] ?? null;
 
-echo "Available Payment Terms:\n\n";
+return view('invoices.create', [
+    'payment_terms' => $paymentTerms['data'],
+    'default_payment_term' => $defaultTermId
+]);
+```
 
-foreach ($paymentTerms['data'] as $term) {
-    $description = $teamleader->paymentTerms()->formatPaymentTermDescription($term);
-    $isDefault = ($term['id'] === $defaultId) ? ' (Default)' : '';
+### 2. Customer-Specific Terms
+
+```php
+// Get customer's preferred payment term
+$customer = Teamleader::companies()->info('company-uuid');
+$preferredDays = $customer['data']['payment_term_days'] ?? 30;
+
+// Find matching payment term
+$paymentTerm = Teamleader::paymentTerms()->findByDays($preferredDays);
+
+// Use in invoice
+$invoice = Teamleader::invoices()->create([
+    'payment_term' => [
+        'type' => $paymentTerm['type'],
+        'days' => $paymentTerm['days']
+    ],
+    // ... other fields
+]);
+```
+
+### 3. Overdue Invoice Detection
+
+```php
+$invoices = Teamleader::invoices()->outstanding();
+$paymentTerms = Teamleader::paymentTerms()->list();
+
+foreach ($invoices['data'] as $invoice) {
+    $paymentTerm = $this->findPaymentTerm(
+        $invoice['payment_term'],
+        $paymentTerms['data']
+    );
     
-    echo "- {$description}{$isDefault}\n";
-    echo "  ID: {$term['id']}\n";
-    echo "  Type: {$term['type']}\n";
+    $dueDate = $this->calculateDueDate(
+        $invoice['invoice_date'],
+        $paymentTerm
+    );
     
-    if (isset($term['days'])) {
-        echo "  Days: {$term['days']}\n";
+    if ($dueDate < date('Y-m-d')) {
+        echo "Invoice {$invoice['invoice_number']} is overdue!\n";
     }
-    
-    echo "\n";
 }
 ```
 
-## Notes
+### 4. Cache Payment Terms
 
-- Payment terms are managed in Teamleader Focus settings and cannot be created, updated, or deleted via the API
-- The `list()` method returns all payment terms at once - no pagination or filtering is available
-- The `days` field is not present for `cash` type payment terms
-- The `meta.default` field indicates which payment term is used as the default for new invoices
-- Payment term descriptions can vary based on configuration in your Teamleader account
-- Use the `formatPaymentTermDescription()` method to generate consistent, human-readable descriptions
-- When calculating due dates, remember that `end_of_month` goes to the last day of the invoice month first, then adds the specified days
-- The payment terms returned reflect the configuration in your Teamleader Focus account
-- All three types (cash, end_of_month, after_invoice_date) are standard Teamleader payment term types
+```php
+use Illuminate\Support\Facades\Cache;
+
+function getPaymentTerms() {
+    return Cache::remember('payment_terms', 3600, function () {
+        return Teamleader::paymentTerms()->list();
+    });
+}
+```
+
+## Best Practices
+
+### 1. Cache the Results
+
+Payment terms rarely change, so cache them:
+
+```php
+$paymentTerms = Cache::remember('payment_terms', 86400, function () {
+    return Teamleader::paymentTerms()->list();
+});
+```
+
+### 2. Always Have a Fallback
+
+```php
+$defaultTerm = Teamleader::paymentTerms()->getDefault();
+
+if (!$defaultTerm) {
+    // Fallback to first available term
+    $terms = Teamleader::paymentTerms()->list();
+    $defaultTerm = $terms['data'][0] ?? null;
+}
+```
+
+### 3. Use Helper Methods
+
+```php
+// Good: Clear and concise
+$term = Teamleader::paymentTerms()->findByDays(30);
+
+// Less ideal: Manual searching
+$terms = Teamleader::paymentTerms()->list();
+$term = null;
+foreach ($terms['data'] as $t) {
+    if ($t['days'] === 30 && $t['type'] === 'after_invoice_date') {
+        $term = $t;
+        break;
+    }
+}
+```
+
+### 4. Store Term Details in Invoice Data
+
+```php
+// Store full payment term details
+$paymentTerm = Teamleader::paymentTerms()->findByDays(30);
+
+$invoiceData = [
+    'payment_term' => [
+        'type' => $paymentTerm['type'],
+        'days' => $paymentTerm['days']
+    ],
+    // Store for reference
+    '_payment_term_description' => $paymentTerm['description']
+];
+```
+
+## Related Resources
+
+- [Invoices](invoices.md) - Invoice management
+- [Payment Methods](payment-methods.md) - Payment method information
+- [Subscriptions](subscriptions.md) - Subscription management
+- [Companies](../crm/companies.md) - Customer management
