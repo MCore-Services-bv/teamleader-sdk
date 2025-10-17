@@ -1,6 +1,36 @@
 # Projects
 
-Manage projects in Teamleader Focus using the new Projects API v2. This resource provides complete CRUD operations for managing projects, including advanced features like budget tracking, team assignments, customer linking, and deal/quotation associations.
+Manage projects in Teamleader Focus (New Projects API v2).
+
+## Overview
+
+The Projects resource provides full CRUD operations for managing modern projects in Teamleader. This is the new Projects API (v2) that replaces the legacy projects system. Projects can contain tasks, materials, and groups, with flexible billing methods and comprehensive project management features.
+
+**Note:** This is the new Projects API. For legacy projects, see [Legacy Projects](legacy/projects.md).
+
+## Navigation
+
+- [Endpoint](#endpoint)
+- [Capabilities](#capabilities)
+- [Available Methods](#available-methods)
+    - [list()](#list)
+    - [info()](#info)
+    - [create()](#create)
+    - [update()](#update)
+    - [delete()](#delete)
+    - [duplicate()](#duplicate)
+    - [close()](#close)
+    - [reopen()](#reopen)
+- [Helper Methods](#helper-methods)
+- [Filtering](#filtering)
+- [Sorting](#sorting)
+- [Sideloading](#sideloading)
+- [Response Structure](#response-structure)
+- [Usage Examples](#usage-examples)
+- [Common Use Cases](#common-use-cases)
+- [Best Practices](#best-practices)
+- [Error Handling](#error-handling)
+- [Related Resources](#related-resources)
 
 ## Endpoint
 
@@ -8,28 +38,48 @@ Manage projects in Teamleader Focus using the new Projects API v2. This resource
 
 ## Capabilities
 
-- **Supports Pagination**: ✅ Supported
-- **Supports Filtering**: ✅ Supported
-- **Supports Sorting**: ✅ Supported
-- **Supports Sideloading**: ✅ Supported (legacy_project, custom_fields)
-- **Supports Creation**: ✅ Supported
-- **Supports Update**: ✅ Supported
-- **Supports Deletion**: ✅ Supported
-- **Supports Batch**: ❌ Not Supported
+- **Pagination**: ✅ Supported
+- **Filtering**: ✅ Supported
+- **Sorting**: ✅ Supported
+- **Sideloading**: ✅ Supported
+- **Creation**: ✅ Supported
+- **Update**: ✅ Supported
+- **Deletion**: ✅ Supported
 
 ## Available Methods
 
 ### `list()`
 
-Get a paginated list of projects with filtering and sorting options.
+Get all projects with optional filtering, sorting, and pagination.
 
 **Parameters:**
-- `filters` (array): Array of filters to apply
-- `options` (array): Pagination, sorting, and include options
+- `filters` (array): Filters to apply
+- `options` (array): Additional options (page_size, page_number, sort, includes)
 
 **Example:**
 ```php
-$projects = $teamleader->projects()->list(['status' => 'open']);
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
+// Get all projects
+$projects = Teamleader::projects()->list();
+
+// Filter by status
+$projects = Teamleader::projects()->list([
+    'status' => ['open']
+]);
+
+// With pagination
+$projects = Teamleader::projects()->list([], [
+    'page_size' => 50,
+    'page_number' => 1
+]);
+
+// With sorting
+$projects = Teamleader::projects()->list([], [
+    'sort' => [
+        ['field' => 'title', 'order' => 'asc']
+    ]
+]);
 ```
 
 ### `info()`
@@ -38,29 +88,70 @@ Get detailed information about a specific project.
 
 **Parameters:**
 - `id` (string): Project UUID
-- `includes` (array|string): Relations to include (legacy_project, custom_fields)
+- `includes` (string|array): Optional sideloaded relationships
 
 **Example:**
 ```php
-$project = $teamleader->projects()->info('project-uuid-here');
-$projectWithLegacy = $teamleader->projects()->info('project-uuid', 'legacy_project');
+// Basic info
+$project = Teamleader::projects()->info('project-uuid');
+
+// With includes
+$project = Teamleader::projects()->info('project-uuid', 'legacy_project,custom_fields');
+
+// Using fluent interface
+$project = Teamleader::projects()
+    ->with(['legacy_project', 'custom_fields'])
+    ->info('project-uuid');
 ```
 
 ### `create()`
 
 Create a new project.
 
-**Parameters:**
-- `data` (array): Array of project data
+**Required fields:**
+- `title` (string): Project title
+- `customer` (object): Customer information
+    - `type` (string): `contact` or `company`
+    - `id` (string): Customer UUID
+
+**Optional fields:**
+- `description` (string): Project description
+- `starts_on` (string): Start date (YYYY-MM-DD)
+- `due_on` (string): Due date (YYYY-MM-DD)
+- `budget` (object): Budget information
+    - `amount` (decimal): Budget amount
+    - `currency` (string): Currency code
+- `department_id` (string): Department UUID
+- `purchase_order_number` (string): PO number
+- `custom_fields` (array): Custom field values
 
 **Example:**
 ```php
-$project = $teamleader->projects()->create([
-    'title' => 'My New Project',
-    'description' => 'Project description',
-    'billing_method' => 'time_and_materials',
-    'start_date' => '2024-01-01',
-    'end_date' => '2024-12-31',
+// Basic project
+$project = Teamleader::projects()->create([
+    'title' => 'Website Redesign',
+    'customer' => [
+        'type' => 'company',
+        'id' => 'company-uuid'
+    ]
+]);
+
+// Complete project
+$project = Teamleader::projects()->create([
+    'title' => 'Website Redesign & Development',
+    'description' => 'Complete website overhaul with new design and features',
+    'customer' => [
+        'type' => 'company',
+        'id' => 'company-uuid'
+    ],
+    'starts_on' => '2024-02-01',
+    'due_on' => '2024-06-30',
+    'budget' => [
+        'amount' => 50000.00,
+        'currency' => 'EUR'
+    ],
+    'department_id' => 'dept-uuid',
+    'purchase_order_number' => 'PO-2024-001'
 ]);
 ```
 
@@ -70,60 +161,70 @@ Update an existing project.
 
 **Parameters:**
 - `id` (string): Project UUID
-- `data` (array): Array of data to update
+- `data` (array): Fields to update
 
 **Example:**
 ```php
-$project = $teamleader->projects()->update('project-uuid', [
+Teamleader::projects()->update('project-uuid', [
     'title' => 'Updated Project Title',
-    'status' => 'running',
+    'due_on' => '2024-08-31',
+    'description' => 'Updated project scope'
 ]);
 ```
 
 ### `delete()`
 
-Delete a project with a specific strategy for handling tasks and time trackings.
+Delete a project.
 
 **Parameters:**
 - `id` (string): Project UUID
-- `deleteStrategy` (string): Strategy for deletion (default: 'unlink_tasks_and_time_trackings')
-    - `unlink_tasks_and_time_trackings`
+- `deleteStrategy` (string, optional): How to handle tasks and time trackings
+    - `unlink_tasks_and_time_trackings` (default)
     - `delete_tasks_and_time_trackings`
     - `delete_tasks_unlink_time_trackings`
 
 **Example:**
 ```php
-$result = $teamleader->projects()->delete('project-uuid');
-$result = $teamleader->projects()->delete('project-uuid', 'delete_tasks_and_time_trackings');
+// Delete with default strategy
+Teamleader::projects()->delete('project-uuid');
+
+// Delete and remove all tasks
+Teamleader::projects()->delete('project-uuid', 'delete_tasks_and_time_trackings');
 ```
 
 ### `duplicate()`
 
-Duplicate an existing project.
+Duplicate a project with all its structure.
 
 **Parameters:**
-- `id` (string): Project UUID
+- `id` (string): Project UUID to duplicate
 - `title` (string): Title for the new project
 
 **Example:**
 ```php
-$newProject = $teamleader->projects()->duplicate('project-uuid', 'Copy of My Project');
+$newProject = Teamleader::projects()->duplicate(
+    'original-project-uuid',
+    'Website Redesign - Phase 2'
+);
 ```
 
 ### `close()`
 
-Mark a project as closed.
+Close a project.
 
 **Parameters:**
 - `id` (string): Project UUID
-- `closingStrategy` (string): Strategy for closing (default: 'none')
+- `closingStrategy` (string, optional): How to handle tasks and materials
     - `mark_tasks_and_materials_as_done`
-    - `none`
+    - `none` (default)
 
 **Example:**
 ```php
-$result = $teamleader->projects()->close('project-uuid');
-$result = $teamleader->projects()->close('project-uuid', 'mark_tasks_and_materials_as_done');
+// Close without marking tasks as done
+Teamleader::projects()->close('project-uuid');
+
+// Close and mark all tasks as done
+Teamleader::projects()->close('project-uuid', 'mark_tasks_and_materials_as_done');
 ```
 
 ### `reopen()`
@@ -135,535 +236,393 @@ Reopen a closed project.
 
 **Example:**
 ```php
-$result = $teamleader->projects()->reopen('project-uuid');
+Teamleader::projects()->reopen('project-uuid');
 ```
 
-### Customer Management
+## Helper Methods
 
-#### `addCustomer()` / `removeCustomer()`
-
-Add or remove customers from a project.
-
-**Parameters:**
-- `id` (string): Project UUID
-- `customerType` (string): 'contact' or 'company'
-- `customerId` (string): Customer UUID
-
-**Example:**
-```php
-$teamleader->projects()->addCustomer('project-uuid', 'company', 'company-uuid');
-$teamleader->projects()->removeCustomer('project-uuid', 'company', 'company-uuid');
-```
-
-### Deal Management
-
-#### `addDeal()` / `removeDeal()`
-
-Add or remove deals from a project.
-
-**Parameters:**
-- `id` (string): Project UUID
-- `dealId` (string): Deal UUID
-
-**Example:**
-```php
-$teamleader->projects()->addDeal('project-uuid', 'deal-uuid');
-$teamleader->projects()->removeDeal('project-uuid', 'deal-uuid');
-```
-
-### Quotation Management
-
-#### `addQuotation()` / `removeQuotation()`
-
-Add or remove quotations from a project.
-
-**Parameters:**
-- `id` (string): Project UUID
-- `quotationId` (string): Quotation UUID
-
-**Example:**
-```php
-$teamleader->projects()->addQuotation('project-uuid', 'quotation-uuid');
-$teamleader->projects()->removeQuotation('project-uuid', 'quotation-uuid');
-```
-
-### Owner Management
-
-#### `addOwner()` / `removeOwner()`
-
-Add or remove owners from a project.
-
-**Parameters:**
-- `id` (string): Project UUID
-- `userId` (string): User UUID
-
-**Example:**
-```php
-$teamleader->projects()->addOwner('project-uuid', 'user-uuid');
-$teamleader->projects()->removeOwner('project-uuid', 'user-uuid');
-```
-
-### Assignee Management
-
-#### `assign()` / `unassign()`
-
-Assign or unassign users or teams to/from a project.
-
-**Parameters:**
-- `id` (string): Project UUID
-- `assigneeType` (string): 'user' or 'team'
-- `assigneeId` (string): Assignee UUID
-
-**Example:**
-```php
-$teamleader->projects()->assign('project-uuid', 'user', 'user-uuid');
-$teamleader->projects()->assign('project-uuid', 'team', 'team-uuid');
-$teamleader->projects()->unassign('project-uuid', 'user', 'user-uuid');
-```
-
-### Convenience Methods
-
-#### Status-based Queries
+### Status-based Methods
 
 ```php
 // Get open projects
-$openProjects = $teamleader->projects()->open();
+$open = Teamleader::projects()->open();
 
 // Get closed projects
-$closedProjects = $teamleader->projects()->closed();
+$closed = Teamleader::projects()->closed();
 
-// Get running projects
-$runningProjects = $teamleader->projects()->running();
+// Get on-hold projects
+$onHold = Teamleader::projects()->onHold();
+```
+
+### Customer-based Methods
+
+```php
+// Get projects for a company
+$projects = Teamleader::projects()->forCompany('company-uuid');
+
+// Get projects for a contact
+$projects = Teamleader::projects()->forContact('contact-uuid');
+
+// Generic customer method
+$projects = Teamleader::projects()->forCustomer('customer-uuid', 'company');
+```
+
+### Search and Filter Methods
+
+```php
+// Search by term
+$projects = Teamleader::projects()->search('website');
+
+// Get updated projects
+$projects = Teamleader::projects()->updatedSince('2024-01-01T00:00:00+00:00');
 
 // Get overdue projects
-$overdueProjects = $teamleader->projects()->overdue();
-
-// Get over budget projects
-$overBudgetProjects = $teamleader->projects()->overBudget();
-```
-
-#### `search()`
-
-Search projects by term (searches project number, title, customer names, assignee names, owner names).
-
-**Parameters:**
-- `term` (string): Search term
-- `options` (array): Additional options
-
-**Example:**
-```php
-$projects = $teamleader->projects()->search('Website Redesign');
-```
-
-#### `byIds()`
-
-Get projects by IDs.
-
-**Parameters:**
-- `ids` (array): Array of project UUIDs
-- `options` (array): Additional options
-
-**Example:**
-```php
-$projects = $teamleader->projects()->byIds(['uuid1', 'uuid2']);
-```
-
-#### `forCustomer()`
-
-Get projects for a specific customer.
-
-**Parameters:**
-- `customerType` (string): 'contact' or 'company'
-- `customerId` (string): Customer UUID
-- `options` (array): Additional options
-
-**Example:**
-```php
-$projects = $teamleader->projects()->forCustomer('company', 'company-uuid');
-```
-
-#### `forDeal()`
-
-Get projects linked to a specific deal.
-
-**Parameters:**
-- `dealId` (string): Deal UUID
-- `options` (array): Additional options
-
-**Example:**
-```php
-$projects = $teamleader->projects()->forDeal('deal-uuid');
-```
-
-#### `forQuotation()`
-
-Get projects linked to a specific quotation.
-
-**Parameters:**
-- `quotationId` (string): Quotation UUID
-- `options` (array): Additional options
-
-**Example:**
-```php
-$projects = $teamleader->projects()->forQuotation('quotation-uuid');
+$projects = Teamleader::projects()->overdue();
 ```
 
 ## Filtering
 
-### Available Filters
+Available filters:
 
-- **`ids`**: Array of project UUIDs to filter by
-- **`status`**: Project status
-    - `open`
-    - `planned`
-    - `running`
-    - `overdue`
-    - `over_budget`
-    - `closed`
-- **`quotation_ids`**: Array of quotation UUIDs
-- **`deal_ids`**: Array of deal UUIDs
-- **`term`**: Search term (searches project number, title, customer names, assignee names, owner names)
-- **`customers`**: Array of customer objects with `type` and `id`
+- `ids` - Array of project UUIDs
+- `status` - Array of statuses: `open`, `closed`, `on_hold`
+- `customer` - Customer object with `type` and `id`
+- `term` - Search in title and description
+- `updated_since` - ISO 8601 datetime
+- `due_before` - Date filter (YYYY-MM-DD)
+- `due_after` - Date filter (YYYY-MM-DD)
 
-### Filter Examples
-
+**Example:**
 ```php
-// Filter by status
-$openProjects = $teamleader->projects()->list([
-    'status' => 'open'
-]);
-
-// Search by term
-$projects = $teamleader->projects()->list([
-    'term' => 'Website'
-]);
-
-// Filter by customers
-$projects = $teamleader->projects()->list([
-    'customers' => [
-        ['type' => 'company', 'id' => 'company-uuid']
-    ]
-]);
-
-// Filter by deals
-$projects = $teamleader->projects()->list([
-    'deal_ids' => ['deal-uuid-1', 'deal-uuid-2']
-]);
-
-// Filter by quotations
-$projects = $teamleader->projects()->list([
-    'quotation_ids' => ['quotation-uuid']
-]);
-
-// Filter by multiple IDs
-$projects = $teamleader->projects()->list([
-    'ids' => ['project-uuid-1', 'project-uuid-2']
+$projects = Teamleader::projects()->list([
+    'status' => ['open', 'on_hold'],
+    'customer' => [
+        'type' => 'company',
+        'id' => 'company-uuid'
+    ],
+    'due_after' => '2024-01-01'
 ]);
 ```
 
 ## Sorting
 
-### Available Sort Fields
+Available sort fields:
 
-- **`amount_billed`**: Amount billed
-- **`amount_paid`**: Amount paid
-- **`amount_unbilled`**: Amount unbilled
-- **`cost`**: Project cost (requires "Costs on projects" permission)
-- **`customer`**: Customer name
-- **`end_date`**: End date
-- **`external_budget_spent`**: External budget spent
-- **`external_budget`**: External budget
-- **`internal_budget`**: Internal budget
-- **`margin`**: Margin (requires "Costs on projects" permission)
-- **`price`**: Project price
-- **`project_key`**: Project number (default sort)
-- **`start_date`**: Start date
-- **`status`**: Project status
-- **`time_budget`**: Time budget
-- **`time_estimated`**: Time estimated
-- **`time_tracked`**: Time tracked
-- **`title`**: Project title
+- `title`
+- `starts_on`
+- `due_on`
+- `created_at`
+- `updated_at`
 
-### Sort Examples
-
+**Example:**
 ```php
-// Sort by project key (default)
-$projects = $teamleader->projects()->list([], [
-    'sort' => [['field' => 'project_key', 'order' => 'desc']]
-]);
-
-// Sort by title
-$projects = $teamleader->projects()->list([], [
-    'sort' => [['field' => 'title', 'order' => 'asc']]
-]);
-
-// Sort by amount billed
-$projects = $teamleader->projects()->list([], [
-    'sort' => [['field' => 'amount_billed', 'order' => 'desc']]
-]);
-
-// Multiple sort fields
-$projects = $teamleader->projects()->list([], [
+$projects = Teamleader::projects()->list([], [
     'sort' => [
-        ['field' => 'status', 'order' => 'asc'],
+        ['field' => 'due_on', 'order' => 'asc'],
         ['field' => 'title', 'order' => 'asc']
     ]
 ]);
 ```
 
-## Pagination
-
-```php
-// Get first page with 50 items
-$projects = $teamleader->projects()->list([], [
-    'page_size' => 50,
-    'page_number' => 1
-]);
-
-// Get second page
-$projects = $teamleader->projects()->list([], [
-    'page_size' => 50,
-    'page_number' => 2
-]);
-```
-
 ## Sideloading
 
+Available includes:
+
+- `legacy_project` - Legacy project information (if migrated)
+- `custom_fields` - Custom field values
+
+**Example:**
 ```php
-// Include legacy project data
-$project = $teamleader->projects()->info('project-uuid', 'legacy_project');
-
-// Include custom fields
-$project = $teamleader->projects()->info('project-uuid', 'custom_fields');
-
-// Include multiple
-$project = $teamleader->projects()->info('project-uuid', ['legacy_project', 'custom_fields']);
-
-// Include in list operations
-$projects = $teamleader->projects()->list([], [
+$projects = Teamleader::projects()->list([], [
     'includes' => 'legacy_project,custom_fields'
 ]);
 ```
 
-## Complete Examples
+## Response Structure
 
-### Creating a Project
+### Project Object
+
+```json
+{
+  "id": "project-uuid",
+  "title": "Website Redesign",
+  "description": "Complete website overhaul",
+  "status": "open",
+  "customer": {
+    "type": "company",
+    "id": "company-uuid"
+  },
+  "starts_on": "2024-02-01",
+  "due_on": "2024-06-30",
+  "budget": {
+    "amount": 50000.00,
+    "currency": "EUR"
+  },
+  "department": {
+    "type": "department",
+    "id": "dept-uuid"
+  },
+  "purchase_order_number": "PO-2024-001",
+  "created_at": "2024-01-15T10:00:00+00:00",
+  "updated_at": "2024-01-20T14:30:00+00:00"
+}
+```
+
+## Usage Examples
+
+### Create Project with Budget
 
 ```php
-$project = $teamleader->projects()->create([
-    'title' => 'Website Redesign 2024',
-    'description' => 'Complete website overhaul including new design and functionality',
-    'billing_method' => 'time_and_materials',
-    'time_budget' => [
-        'value' => 120,
-        'unit' => 'hours'
+$project = Teamleader::projects()->create([
+    'title' => 'Mobile App Development',
+    'customer' => [
+        'type' => 'company',
+        'id' => 'company-uuid'
     ],
-    'external_budget' => [
-        'amount' => 25000.00,
+    'starts_on' => date('Y-m-d'),
+    'due_on' => date('Y-m-d', strtotime('+6 months')),
+    'budget' => [
+        'amount' => 75000.00,
         'currency' => 'EUR'
     ],
-    'internal_budget' => [
-        'amount' => 15000.00,
-        'currency' => 'EUR'
+    'description' => 'Native iOS and Android app development'
+]);
+
+echo "Project created: {$project['data']['title']}\n";
+```
+
+### Get Overdue Projects
+
+```php
+$overdue = Teamleader::projects()->list([
+    'status' => ['open'],
+    'due_before' => date('Y-m-d')
+]);
+
+foreach ($overdue['data'] as $project) {
+    echo "Overdue: {$project['title']} (Due: {$project['due_on']})\n";
+}
+```
+
+### Complete Project Workflow
+
+```php
+// 1. Create project
+$project = Teamleader::projects()->create([
+    'title' => 'Q1 Marketing Campaign',
+    'customer' => [
+        'type' => 'company',
+        'id' => 'company-uuid'
     ],
-    'start_date' => '2024-01-01',
-    'end_date' => '2024-06-30',
-    'company_entity_id' => 'company-entity-uuid',
-    'color' => '#00B2B2',
-    'customers' => [
-        [
-            'type' => 'company',
-            'id' => 'company-uuid'
-        ]
-    ],
-    'assignees' => [
-        [
-            'type' => 'user',
-            'id' => 'user-uuid'
-        ]
-    ],
-    'owner_ids' => [
-        'owner-user-uuid-1',
-        'owner-user-uuid-2'
-    ]
+    'starts_on' => '2024-01-01',
+    'due_on' => '2024-03-31'
+]);
+
+$projectId = $project['data']['id'];
+
+// 2. Add tasks (see ProjectTasks documentation)
+// 3. Add materials (see Materials documentation)
+// 4. Track time
+// 5. Close when complete
+
+Teamleader::projects()->close($projectId, 'mark_tasks_and_materials_as_done');
+```
+
+### Duplicate for New Phase
+
+```php
+$originalProject = Teamleader::projects()->info('project-uuid');
+
+$newProject = Teamleader::projects()->duplicate(
+    $originalProject['data']['id'],
+    $originalProject['data']['title'] . ' - Phase 2'
+);
+
+// Update dates for new phase
+Teamleader::projects()->update($newProject['data']['id'], [
+    'starts_on' => date('Y-m-d'),
+    'due_on' => date('Y-m-d', strtotime('+3 months'))
 ]);
 ```
 
-### Updating a Project
+### Monthly Project Report
 
 ```php
-$project = $teamleader->projects()->update('project-uuid', [
-    'title' => 'Updated Project Title',
-    'description' => 'Updated description',
-    'time_budget' => [
-        'value' => 150,
-        'unit' => 'hours'
-    ],
-    'billing_method' => [
-        'value' => 'fixed_price',
-        'update_strategy' => 'cascade'
-    ],
-    'fixed_price' => [
-        'amount' => 30000.00,
-        'currency' => 'EUR'
-    ]
+$startOfMonth = date('Y-m-01');
+$endOfMonth = date('Y-m-t');
+
+$projects = Teamleader::projects()->list([
+    'updated_since' => $startOfMonth . 'T00:00:00+00:00'
+]);
+
+$stats = [
+    'total' => count($projects['data']),
+    'open' => 0,
+    'closed' => 0,
+    'overdue' => 0
+];
+
+foreach ($projects['data'] as $project) {
+    $stats[$project['status']]++;
+    
+    if ($project['status'] === 'open' && 
+        isset($project['due_on']) && 
+        $project['due_on'] < date('Y-m-d')) {
+        $stats['overdue']++;
+    }
+}
+
+echo "Project Statistics for " . date('F Y') . ":\n";
+foreach ($stats as $key => $value) {
+    echo "  " . ucfirst($key) . ": {$value}\n";
+}
+```
+
+## Common Use Cases
+
+### Project Dashboard
+
+```php
+$openProjects = Teamleader::projects()->open();
+$today = date('Y-m-d');
+
+$dashboard = [
+    'total_open' => count($openProjects['data']),
+    'due_this_week' => 0,
+    'overdue' => 0,
+    'on_track' => 0
+];
+
+$nextWeek = date('Y-m-d', strtotime('+7 days'));
+
+foreach ($openProjects['data'] as $project) {
+    if (!isset($project['due_on'])) continue;
+    
+    if ($project['due_on'] < $today) {
+        $dashboard['overdue']++;
+    } elseif ($project['due_on'] <= $nextWeek) {
+        $dashboard['due_this_week']++;
+    } else {
+        $dashboard['on_track']++;
+    }
+}
+
+print_r($dashboard);
+```
+
+### Bulk Update Projects
+
+```php
+$projects = Teamleader::projects()->forCompany('company-uuid');
+
+foreach ($projects['data'] as $project) {
+    if ($project['status'] === 'open') {
+        // Extend due date by 2 weeks
+        $newDueDate = date('Y-m-d', strtotime($project['due_on'] . ' +2 weeks'));
+        
+        Teamleader::projects()->update($project['id'], [
+            'due_on' => $newDueDate
+        ]);
+        
+        echo "Extended: {$project['title']}\n";
+    }
+}
+```
+
+## Best Practices
+
+1. **Always Set Due Dates**: Projects with due dates are easier to track
+```php
+$project = Teamleader::projects()->create([
+    'title' => 'Project Name',
+    'customer' => ['type' => 'company', 'id' => 'uuid'],
+    'starts_on' => date('Y-m-d'),
+    'due_on' => date('Y-m-d', strtotime('+30 days'))  // Always set
 ]);
 ```
 
-### Complex Query
-
+2. **Use Descriptive Titles**: Make projects easy to identify
 ```php
-// Find overdue projects with specific criteria
-$projects = $teamleader->projects()->list([
-    'status' => 'overdue',
-    'customers' => [
-        ['type' => 'company', 'id' => 'company-uuid']
-    ]
-], [
-    'sort' => [
-        ['field' => 'end_date', 'order' => 'asc']
-    ],
-    'page_size' => 25,
-    'includes' => 'custom_fields'
+// Good
+'title' => 'Website Redesign - Acme Corp - Q1 2024'
+
+// Avoid
+'title' => 'Project 1'
+```
+
+3. **Close Projects Properly**: Use the appropriate closing strategy
+```php
+// Mark tasks as done when closing
+Teamleader::projects()->close($projectId, 'mark_tasks_and_materials_as_done');
+```
+
+4. **Use Pagination**: Don't load all projects at once
+```php
+$page = 1;
+do {
+    $projects = Teamleader::projects()->list([], [
+        'page_size' => 50,
+        'page_number' => $page
+    ]);
+    
+    // Process projects...
+    
+    $page++;
+} while (count($projects['data']) === 50);
+```
+
+5. **Filter Before Loading**: Use filters to reduce data transfer
+```php
+// Good - only get what you need
+$projects = Teamleader::projects()->list([
+    'status' => ['open'],
+    'customer' => ['type' => 'company', 'id' => 'uuid']
 ]);
+
+// Avoid - filtering in PHP
+$all = Teamleader::projects()->list();
 ```
-
-### Managing Project Relationships
-
-```php
-$projectId = 'project-uuid';
-
-// Add relationships
-$teamleader->projects()->addCustomer($projectId, 'company', 'company-uuid');
-$teamleader->projects()->addDeal($projectId, 'deal-uuid');
-$teamleader->projects()->addQuotation($projectId, 'quotation-uuid');
-$teamleader->projects()->addOwner($projectId, 'user-uuid');
-$teamleader->projects()->assign($projectId, 'team', 'team-uuid');
-
-// Remove relationships
-$teamleader->projects()->removeCustomer($projectId, 'company', 'company-uuid');
-$teamleader->projects()->removeDeal($projectId, 'deal-uuid');
-$teamleader->projects()->removeQuotation($projectId, 'quotation-uuid');
-$teamleader->projects()->removeOwner($projectId, 'user-uuid');
-$teamleader->projects()->unassign($projectId, 'team', 'team-uuid');
-```
-
-### Project Lifecycle Management
-
-```php
-$projectId = 'project-uuid';
-
-// Close project
-$teamleader->projects()->close($projectId, 'mark_tasks_and_materials_as_done');
-
-// Reopen project
-$teamleader->projects()->reopen($projectId);
-
-// Duplicate project
-$newProject = $teamleader->projects()->duplicate($projectId, 'Q2 2024 Version');
-
-// Delete project
-$teamleader->projects()->delete($projectId, 'unlink_tasks_and_time_trackings');
-```
-
-## Billing Methods
-
-Projects support three billing methods:
-
-- **`time_and_materials`**: Bill based on actual time tracked and materials used
-- **`fixed_price`**: Bill a fixed amount regardless of time tracked
-- **`non_billable`**: Project is not billed
-
-When updating billing method with the `cascade` strategy, all project lines will be updated to match the new billing method.
-
-## Project Colors
-
-Available project colors:
-- `#00B2B2` (Teal)
-- `#008A8C` (Dark Teal)
-- `#992600` (Brown)
-- `#ED9E00` (Orange)
-- `#D157D3` (Purple)
-- `#A400B2` (Dark Purple)
-- `#0071F2` (Blue)
-- `#004DA6` (Dark Blue)
-- `#64788F` (Gray Blue)
-- `#C0C0C4` (Light Gray)
-- `#82828C` (Gray)
-- `#1A1C20` (Dark Gray)
 
 ## Error Handling
 
-The projects resource follows standard SDK error handling:
-
 ```php
-$result = $teamleader->projects()->create($projectData);
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
 
-if (isset($result['error']) && $result['error']) {
-    $errorMessage = $result['message'] ?? 'Unknown error';
-    $statusCode = $result['status_code'] ?? 0;
-    
-    Log::error("Projects API error: {$errorMessage}", [
-        'status_code' => $statusCode,
-        'errors' => $result['errors'] ?? []
+try {
+    $project = Teamleader::projects()->create([
+        'title' => 'New Project',
+        'customer' => [
+            'type' => 'company',
+            'id' => 'company-uuid'
+        ]
     ]);
+    
+} catch (\InvalidArgumentException $e) {
+    // Validation error
+    Log::error('Invalid project data: ' . $e->getMessage());
+    
+} catch (\Exception $e) {
+    // API error
+    Log::error('Failed to create project: ' . $e->getMessage());
+}
+
+// Handle delete with validation
+try {
+    Teamleader::projects()->delete('project-uuid', 'invalid_strategy');
+    
+} catch (\InvalidArgumentException $e) {
+    // Invalid delete strategy
+    echo "Error: " . $e->getMessage();
 }
 ```
 
-## Rate Limiting
+## Related Resources
 
-Project API calls count towards your overall Teamleader API rate limit:
-
-- **List operations**: 1 request per call
-- **Info operations**: 1 request per call
-- **CRUD operations**: 1 request per call
-- **Relationship operations**: 1 request per call (add/remove customer, deal, quotation, owner, assignee)
-- **Status operations**: 1 request per call (close, reopen, duplicate, delete)
-
-## Laravel Integration
-
-```php
-use McoreServices\TeamleaderSDK\TeamleaderSDK;
-
-class ProjectController extends Controller
-{
-    public function index(TeamleaderSDK $teamleader)
-    {
-        $projects = $teamleader->projects()->open();
-        return view('projects.index', compact('projects'));
-    }
-    
-    public function store(Request $request, TeamleaderSDK $teamleader)
-    {
-        $project = $teamleader->projects()->create($request->validated());
-        return redirect()->route('projects.show', $project['data']['id']);
-    }
-    
-    public function close($id, TeamleaderSDK $teamleader)
-    {
-        $teamleader->projects()->close($id, 'mark_tasks_and_materials_as_done');
-        return redirect()->back()->with('success', 'Project closed successfully');
-    }
-}
-```
-
-## Differences from Legacy Projects
-
-The new Projects API v2 differs from the legacy projects API:
-
-- **Endpoint**: Uses `projects-v2/projects` instead of `projects`
-- **Enhanced features**: Better budget tracking, custom fields support
-- **Relationship management**: Dedicated endpoints for managing customers, deals, quotations
-- **Improved filtering**: More granular filtering options
-- **Status management**: Specific endpoints for closing/reopening projects
-
-## Notes
-
-- Sorting on `cost` or `margin` is only available to administrators and users with "Costs on projects" permission
-- Custom fields can be included using the `custom_fields` include parameter
-- The `legacy_project` include provides backward compatibility with the old projects API
-- Projects can have multiple customers, owners, and assignees
-- Time budget is stored in seconds but can be specified in hours, minutes, or seconds
-- All monetary values use the format `{amount, currency}` where currency is a 3-letter ISO code
-
-For more information, refer to the [Teamleader API Documentation](https://developer.focus.teamleader.eu/).
+- **[Project Tasks](project-tasks.md)** - Manage tasks within projects
+- **[Materials](materials.md)** - Manage project materials
+- **[Groups](groups.md)** - Organize tasks and materials into groups
+- **[Project Lines](project-lines.md)** - View all project lines
+- **[External Parties](external-parties.md)** - Manage external stakeholders
+- **[Time Tracking](../time-tracking/time-tracking.md)** - Track time on projects
+- **[Legacy Projects](legacy/projects.md)** - Old projects API
+- **[Companies](../crm/companies.md)** - Project customers

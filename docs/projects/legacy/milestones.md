@@ -1,6 +1,23 @@
 # Legacy Milestones
 
-Manage project milestones in Teamleader Focus Legacy Projects. This resource provides complete CRUD operations for managing milestones, including closing, opening, and advanced filtering capabilities.
+Manage legacy project milestones in Teamleader Focus.
+
+## Overview
+
+Legacy Milestones are project phases in the old Teamleader Projects API. Each milestone represents a phase of work with its own timeline, billing method, and tasks.
+
+**Note:** This is part of the legacy Projects API. For new projects, use [Project Groups](../groups.md) in the new API.
+
+## Navigation
+
+- [Endpoint](#endpoint)
+- [Capabilities](#capabilities)
+- [Available Methods](#available-methods)
+- [Helper Methods](#helper-methods)
+- [Filtering](#filtering)
+- [Sorting](#sorting)
+- [Usage Examples](#usage-examples)
+- [Related Resources](#related-resources)
 
 ## Endpoint
 
@@ -8,461 +25,125 @@ Manage project milestones in Teamleader Focus Legacy Projects. This resource pro
 
 ## Capabilities
 
-- **Supports Pagination**: ✅ Supported
-- **Supports Filtering**: ✅ Supported
-- **Supports Sorting**: ✅ Supported
-- **Supports Sideloading**: ❌ Not Supported
-- **Supports Creation**: ✅ Supported
-- **Supports Update**: ✅ Supported
-- **Supports Deletion**: ✅ Supported
-- **Supports Batch**: ❌ Not Supported
+- **Pagination**: ✅ Supported
+- **Filtering**: ✅ Supported
+- **Sorting**: ✅ Supported
+- **Sideloading**: ❌ Not Supported
+- **Creation**: ✅ Supported
+- **Update**: ✅ Supported
+- **Deletion**: ✅ Supported
 
 ## Available Methods
 
-### `list()`
+### `list()`, `info()`, `create()`, `update()`, `delete()`
 
-Get a paginated list of milestones with filtering and sorting options.
+Standard CRUD operations.
 
-**Parameters:**
-- `filters` (array): Array of filters to apply
-- `options` (array): Pagination and sorting options
+### `close()`
 
-**Example:**
+Close a milestone (closes all open tasks, keeps meetings open). Closing the last milestone closes the project.
+
 ```php
-$milestones = $teamleader->legacyMilestones()->list(['status' => 'open']);
+Teamleader::legacyMilestones()->close('milestone-uuid');
 ```
 
-### `info()`
+### `open()`
 
-Get detailed information about a specific milestone.
+Open or reopen a milestone. If the project is closed, it will be reopened.
 
-**Parameters:**
-- `id` (string): Milestone UUID
-
-**Example:**
 ```php
-$milestone = $teamleader->legacyMilestones()->info('milestone-uuid-here');
+Teamleader::legacyMilestones()->open('milestone-uuid');
 ```
 
-### `create()`
+## Helper Methods
 
-Create a new milestone.
-
-**Parameters:**
-- `data` (array): Array of milestone data
-
-**Example:**
 ```php
-$milestone = $teamleader->legacyMilestones()->create([
-    'project_id' => '1c159f98-4b07-438a-9f42-fb4206b9530d',
-    'name' => 'Initial setup',
-    'due_on' => '2024-12-31',
+// Get milestones for a project
+$milestones = Teamleader::legacyMilestones()->forProject('project-uuid');
+```
+
+## Filtering
+
+- `ids` - Array of milestone UUIDs
+- `project_id` - Project UUID
+- `status` - open, closed
+- `due_before` - Date (YYYY-MM-DD)
+- `due_after` - Date (YYYY-MM-DD)
+- `term` - Search milestone title
+
+## Sorting
+
+- `due_on`
+- `name`
+- `created_at`
+
+```php
+$milestones = Teamleader::legacyMilestones()->list([], [
+    'sort' => [
+        ['field' => 'due_on', 'order' => 'asc']
+    ]
+]);
+```
+
+## Usage Examples
+
+### Create Milestone
+
+**Required fields:**
+- `project_id`
+- `name`
+- `due_on`
+- `responsible_user_id`
+- `billing_method`
+
+```php
+$milestone = Teamleader::legacyMilestones()->create([
+    'project_id' => 'project-uuid',
+    'name' => 'Phase 1: Discovery',
     'starts_on' => '2024-01-01',
-    'responsible_user_id' => 'e1240972-6cfc-4549-b49c-edda7568cc48',
-    'billing_method' => 'time_and_materials',
-    'budget' => [
-        'amount' => 5000.00,
+    'due_on' => '2024-02-28',
+    'responsible_user_id' => 'user-uuid',
+    'billing_method' => 'time_and_materials'
+]);
+```
+
+**Billing Methods:**
+- `time_and_materials`
+- `fixed_price` (requires `estimated_duration` and `estimated_value`)
+- `non_billable`
+
+### Create Milestone with Fixed Price
+
+```php
+$milestone = Teamleader::legacyMilestones()->create([
+    'project_id' => 'project-uuid',
+    'name' => 'Phase 2: Design',
+    'due_on' => '2024-03-31',
+    'responsible_user_id' => 'user-uuid',
+    'billing_method' => 'fixed_price',
+    'estimated_duration' => [
+        'value' => 80,
+        'unit' => 'hours'
+    ],
+    'estimated_value' => [
+        'amount' => 8000.00,
         'currency' => 'EUR'
     ]
 ]);
 ```
 
-### `update()`
-
-Update an existing milestone.
-
-**Parameters:**
-- `id` (string): Milestone UUID
-- `data` (array): Array of data to update
-
-**Example:**
-```php
-$milestone = $teamleader->legacyMilestones()->update('milestone-uuid', [
-    'name' => 'Updated milestone name',
-    'due_on' => '2024-12-31',
-    'propagate_date_changes' => false
-]);
-```
-
-### `delete()`
-
-Delete a milestone.
-
-**Parameters:**
-- `id` (string): Milestone UUID
-
-**Example:**
-```php
-$result = $teamleader->legacyMilestones()->delete('milestone-uuid');
-```
-
-### `close()`
-
-Close a milestone. All open tasks will be closed, open meetings will remain open. Closing the last open milestone will also close the project.
-
-**Parameters:**
-- `id` (string): Milestone UUID
-
-**Example:**
-```php
-$result = $teamleader->legacyMilestones()->close('milestone-uuid');
-```
-
-### `open()`
-
-(Re)open a milestone. If the milestone's project is closed, the project will be reopened.
-
-**Parameters:**
-- `id` (string): Milestone UUID
-
-**Example:**
-```php
-$result = $teamleader->legacyMilestones()->open('milestone-uuid');
-```
-
-### `forProject()`
-
-Get all milestones for a specific project.
-
-**Parameters:**
-- `projectId` (string): Project UUID
-- `options` (array): Additional options
-
-**Example:**
-```php
-$milestones = $teamleader->legacyMilestones()->forProject('project-uuid');
-```
-
-### `getOpen()` / `getClosed()`
-
-Get open or closed milestones.
-
-**Parameters:**
-- `additionalFilters` (array): Additional filters to apply
-- `options` (array): Additional options
-
-**Example:**
-```php
-$openMilestones = $teamleader->legacyMilestones()->getOpen();
-$closedMilestones = $teamleader->legacyMilestones()->getClosed();
-```
-
-### `search()`
-
-Search milestones by term (searches in milestone title).
-
-**Parameters:**
-- `term` (string): Search term
-- `options` (array): Additional options
-
-**Example:**
-```php
-$milestones = $teamleader->legacyMilestones()->search('setup');
-```
-
-### `dueBefore()` / `dueAfter()` / `dueBetween()`
-
-Filter milestones by due date.
-
-**Parameters:**
-- `date` (string): Date in Y-m-d format
-- `additionalFilters` (array): Additional filters
-- `options` (array): Additional options
-
-**Example:**
-```php
-// Milestones due before a date
-$milestones = $teamleader->legacyMilestones()->dueBefore('2024-12-31');
-
-// Milestones due after a date
-$milestones = $teamleader->legacyMilestones()->dueAfter('2024-01-01');
-
-// Milestones due within a date range
-$milestones = $teamleader->legacyMilestones()->dueBetween('2024-01-01', '2024-12-31');
-```
-
-## Filtering
-
-### Available Filters
-
-- **`ids`**: Array of milestone UUIDs to filter by
-- **`project_id`**: Filter milestones by project UUID
-- **`status`**: Filter by milestone status (`open`, `closed`)
-- **`due_before`**: Filter milestones due before date (Y-m-d format)
-- **`due_after`**: Filter milestones due after date (Y-m-d format)
-- **`term`**: Search term - searches in milestone title
-
-### Filtering Examples
+### Get Project Milestones
 
 ```php
-// Filter by project
-$milestones = $teamleader->legacyMilestones()->list([
-    'project_id' => '082e6289-30c5-45ad-bcd0-190b02d21e81'
-]);
+$projectId = 'project-uuid';
+$milestones = Teamleader::legacyMilestones()->forProject($projectId);
 
-// Filter by status
-$milestones = $teamleader->legacyMilestones()->list([
-    'status' => 'open'
-]);
-
-// Filter by due date range
-$milestones = $teamleader->legacyMilestones()->list([
-    'due_after' => '2024-01-01',
-    'due_before' => '2024-12-31'
-]);
-
-// Search by term
-$milestones = $teamleader->legacyMilestones()->list([
-    'term' => 'coffee'
-]);
-
-// Filter specific milestones
-$milestones = $teamleader->legacyMilestones()->list([
-    'ids' => [
-        'bbbfe0da-e692-4ee3-9d3d-0716808d6523',
-        '722e1eb9-53d5-4b8c-9d17-154dcc65c610'
-    ]
-]);
-
-// Combine multiple filters
-$milestones = $teamleader->legacyMilestones()->list([
-    'project_id' => '082e6289-30c5-45ad-bcd0-190b02d21e81',
-    'status' => 'open',
-    'due_before' => '2024-12-31'
-]);
-```
-
-## Sorting
-
-### Available Sort Fields
-
-- **`starts_on`**: Sort by milestone start date
-- **`due_on`**: Sort by milestone due date (default)
-
-### Sorting Examples
-
-```php
-// Sort by due date ascending (default)
-$milestones = $teamleader->legacyMilestones()->list([], [
-    'sort' => [
-        [
-            'field' => 'due_on',
-            'order' => 'asc'
-        ]
-    ]
-]);
-
-// Sort by start date descending
-$milestones = $teamleader->legacyMilestones()->list([], [
-    'sort' => [
-        [
-            'field' => 'starts_on',
-            'order' => 'desc'
-        ]
-    ]
-]);
-```
-
-## Pagination
-
-### Pagination Examples
-
-```php
-// Get first page with 20 items (default)
-$milestones = $teamleader->legacyMilestones()->list([], [
-    'page_size' => 20,
-    'page_number' => 1
-]);
-
-// Get second page with 50 items
-$milestones = $teamleader->legacyMilestones()->list([], [
-    'page_size' => 50,
-    'page_number' => 2
-]);
-
-// Combine pagination with filters and sorting
-$milestones = $teamleader->legacyMilestones()->list(
-    ['status' => 'open'],
-    [
-        'page_size' => 25,
-        'page_number' => 1,
-        'sort' => [
-            ['field' => 'due_on', 'order' => 'asc']
-        ]
-    ]
-);
-```
-
-## Data Fields
-
-### Milestone Creation Fields
-
-**Required:**
-- `project_id` (string): UUID of the project this milestone belongs to
-- `name` (string): Name of the milestone (e.g., "Initial setup")
-- `due_on` (string): Due date in Y-m-d format (e.g., "2024-12-31")
-- `responsible_user_id` (string): UUID of the user responsible for this milestone
-
-**Optional:**
-- `starts_on` (string): Start date in Y-m-d format (e.g., "2024-01-01")
-- `description` (string): Description of the milestone
-- `depends_on` (string): UUID of another milestone this one depends on
-- `billing_method` (string): Billing method (`non_invoiceable`, `time_and_materials`, `fixed_price`)
-- `budget` (object): Budget information with `amount` (number) and `currency` (string)
-- `custom_fields` (array): Array of custom field objects with `id` and `value`
-
-### Milestone Update Fields
-
-**Required:**
-- `id` (string): UUID of the milestone to update
-
-**Optional (all milestone creation fields are optional for updates):**
-- `starts_on` (string): Start date in Y-m-d format
-- `due_on` (string): Due date in Y-m-d format
-- `name` (string): Name of the milestone
-- `description` (string): Description of the milestone
-- `responsible_user_id` (string): UUID of the responsible user
-- `depends_on` (string): UUID of the milestone this depends on (can be null to remove dependency)
-- `propagate_date_changes` (boolean): Whether to propagate date changes to dependent milestones
-- `custom_fields` (array): Array of custom field objects
-
-### Response Structure
-
-```php
-[
-    'data' => [
-        'id' => 'cfb4146d-06be-41f1-bb39-aa3c929c71dc',
-        'project' => [
-            'id' => 'eab232c6-49b2-4b7e-a977-5e1148dad471',
-            'type' => 'project'
-        ],
-        'starts_on' => '2024-01-01',
-        'due_on' => '2024-12-31',
-        'name' => 'Initial setup',
-        'description' => 'Setup project infrastructure',
-        'responsible_user' => [
-            'id' => 'eab232c6-49b2-4b7e-a977-5e1148dad471',
-            'type' => 'user'
-        ],
-        'status' => 'open', // or 'closed'
-        'invoicing_method' => 'time_and_materials',
-        'depends_on' => [
-            'id' => 'eab232c6-49b2-4b7e-a977-5e1148dad471',
-            'type' => 'milestone'
-        ],
-        'dependency_for' => [
-            [
-                'id' => 'eab232c6-49b2-4b7e-a977-5e1148dad471',
-                'type' => 'milestone'
-            ]
-        ],
-        'actuals' => [
-            'billable_amount' => [
-                'amount' => 123.3,
-                'currency' => 'EUR'
-            ],
-            'costs' => [
-                'amount' => 123.3,
-                'currency' => 'EUR'
-            ],
-            'result' => [
-                'amount' => 123.3,
-                'currency' => 'EUR'
-            ]
-        ],
-        'budget' => [
-            'provided' => [
-                'amount' => 5000.00,
-                'currency' => 'EUR'
-            ],
-            'spent' => [
-                'amount' => 2500.00,
-                'currency' => 'EUR'
-            ],
-            'remaining' => [
-                'amount' => 2500.00,
-                'currency' => 'EUR'
-            ],
-            'allocated' => [
-                'amount' => 3000.00,
-                'currency' => 'EUR'
-            ],
-            'forecasted' => [
-                'amount' => 4800.00,
-                'currency' => 'EUR'
-            ]
-        ],
-        'custom_fields' => [
-            [
-                'definition' => [
-                    'type' => 'customFieldDefinition',
-                    'id' => 'bf6765de-56eb-40ec-ad14-9096c5dc5fe1'
-                ],
-                'value' => '092980616'
-            ]
-        ]
-    ]
-]
-```
-
-## Important Notes
-
-### Milestone Closure Behavior
-
-- Closing a milestone will close all open tasks associated with it
-- Open meetings will remain open when a milestone is closed
-- Closing the last open milestone will also close the project
-
-### Milestone Reopening Behavior
-
-- Reopening a milestone that belongs to a closed project will reopen the project
-
-### Budget Information
-
-- Budget information in the `actuals` and `budget` sections is only accessible for administrators of the project the milestone belongs to
-- Budget fields include `provided`, `spent`, `remaining`, `allocated`, and `forecasted` amounts
-- `allocated` is null if there isn't enough data to calculate
-- `forecasted` is null if there isn't enough data to calculate a prediction
-
-### Dependencies
-
-- Milestones can depend on other milestones using the `depends_on` field
-- The `dependency_for` array shows which milestones depend on the current milestone
-- Setting `propagate_date_changes` to `true` when updating will propagate date changes to dependent milestones
-
-### Billing Methods
-
-- **`non_invoiceable`**: Milestone work is not invoiceable
-- **`time_and_materials`**: Billing based on time and materials (default)
-- **`fixed_price`**: Fixed price billing for the milestone
-
-## Utility Methods
-
-### Get Available Options
-
-```php
-// Get available billing methods
-$billingMethods = $teamleader->legacyMilestones()->getAvailableBillingMethods();
-// Returns: ['non_invoiceable' => 'Non Invoiceable', 'time_and_materials' => 'Time and Materials', 'fixed_price' => 'Fixed Price']
-
-// Get available statuses
-$statuses = $teamleader->legacyMilestones()->getAvailableStatuses();
-// Returns: ['open', 'closed']
-
-// Get available sort fields
-$sortFields = $teamleader->legacyMilestones()->getAvailableSortFields();
-// Returns: ['starts_on', 'due_on']
-```
-
-## Common Use Cases
-
-### Close Multiple Milestones
-
-```php
-$milestonesToClose = ['uuid1', 'uuid2', 'uuid3'];
-
-foreach ($milestonesToClose as $milestoneId) {
-    $teamleader->legacyMilestones()->close($milestoneId);
+echo "Milestones for project:\n";
+foreach ($milestones['data'] as $milestone) {
+    $status = $milestone['status'];
+    $dueDate = $milestone['due_on'];
+    
+    echo "- {$milestone['name']} ({$status}) - Due: {$dueDate}\n";
 }
 ```
 
@@ -470,66 +151,132 @@ foreach ($milestonesToClose as $milestoneId) {
 
 ```php
 $today = date('Y-m-d');
-$overdueMilestones = $teamleader->legacyMilestones()->list([
+
+$overdue = Teamleader::legacyMilestones()->list([
     'status' => 'open',
     'due_before' => $today
 ]);
+
+if (!empty($overdue['data'])) {
+    echo "Overdue Milestones:\n";
+    foreach ($overdue['data'] as $milestone) {
+        echo "- {$milestone['name']} (Due: {$milestone['due_on']})\n";
+    }
+}
+```
+
+### Complete Milestone Workflow
+
+```php
+$milestoneId = 'milestone-uuid';
+
+// Update milestone
+Teamleader::legacyMilestones()->update($milestoneId, [
+    'name' => 'Updated Milestone Name',
+    'due_on' => '2024-04-30'
+]);
+
+// Close when complete
+Teamleader::legacyMilestones()->close($milestoneId);
+
+// Reopen if needed
+Teamleader::legacyMilestones()->open($milestoneId);
 ```
 
 ### Get Upcoming Milestones
 
 ```php
 $today = date('Y-m-d');
-$nextMonth = date('Y-m-d', strtotime('+1 month'));
+$nextMonth = date('Y-m-d', strtotime('+30 days'));
 
-$upcomingMilestones = $teamleader->legacyMilestones()->dueBetween($today, $nextMonth, [
-    'status' => 'open'
+$upcoming = Teamleader::legacyMilestones()->list([
+    'status' => 'open',
+    'due_after' => $today,
+    'due_before' => $nextMonth
+], [
+    'sort' => [
+        ['field' => 'due_on', 'order' => 'asc']
+    ]
 ]);
-```
 
-### Create Milestone with Budget
-
-```php
-$milestone = $teamleader->legacyMilestones()->create([
-    'project_id' => 'project-uuid',
-    'name' => 'Phase 1',
-    'starts_on' => '2024-01-01',
-    'due_on' => '2024-03-31',
-    'responsible_user_id' => 'user-uuid',
-    'billing_method' => 'time_and_materials',
-    'budget' => [
-        'amount' => 10000.00,
-        'currency' => 'EUR'
-    ],
-    'description' => 'First phase of the project'
-]);
-```
-
-### Update Milestone Dates with Propagation
-
-```php
-$result = $teamleader->legacyMilestones()->update('milestone-uuid', [
-    'starts_on' => '2024-02-01',
-    'due_on' => '2024-04-30',
-    'propagate_date_changes' => true // Propagate to dependent milestones
-]);
-```
-
-## Error Handling
-
-```php
-try {
-    $milestone = $teamleader->legacyMilestones()->create([
-        'project_id' => 'project-uuid',
-        'name' => 'New Milestone',
-        'due_on' => '2024-12-31',
-        'responsible_user_id' => 'user-uuid'
-    ]);
-} catch (\InvalidArgumentException $e) {
-    // Handle validation errors
-    echo "Validation error: " . $e->getMessage();
-} catch (\Exception $e) {
-    // Handle API errors
-    echo "API error: " . $e->getMessage();
+echo "Upcoming Milestones (Next 30 Days):\n";
+foreach ($upcoming['data'] as $milestone) {
+    $daysUntilDue = ceil((strtotime($milestone['due_on']) - time()) / 86400);
+    echo "- {$milestone['name']}: {$daysUntilDue} days\n";
 }
 ```
+
+### Milestone Progress Report
+
+```php
+$projectId = 'project-uuid';
+$milestones = Teamleader::legacyMilestones()->forProject($projectId);
+
+$stats = [
+    'total' => count($milestones['data']),
+    'open' => 0,
+    'closed' => 0,
+    'overdue' => 0
+];
+
+$today = date('Y-m-d');
+
+foreach ($milestones['data'] as $milestone) {
+    if ($milestone['status'] === 'open') {
+        $stats['open']++;
+        
+        if ($milestone['due_on'] < $today) {
+            $stats['overdue']++;
+        }
+    } else {
+        $stats['closed']++;
+    }
+}
+
+echo "Project Progress:\n";
+echo "Total Milestones: {$stats['total']}\n";
+echo "Open: {$stats['open']}\n";
+echo "Closed: {$stats['closed']}\n";
+echo "Overdue: {$stats['overdue']}\n";
+
+$progress = $stats['total'] > 0 
+    ? round(($stats['closed'] / $stats['total']) * 100) 
+    : 0;
+echo "Completion: {$progress}%\n";
+```
+
+## Best Practices
+
+1. **Set realistic due dates**: Help with project planning
+2. **Choose appropriate billing method**: Matches project contract
+3. **Use descriptive names**: Phase 1, Phase 2 is less clear than "Discovery", "Design"
+4. **Track milestone status**: Close milestones when complete
+5. **Monitor overdue milestones**: Regular status checks
+
+## Validation
+
+```php
+// Ensure required fields
+$milestoneData = [
+    'project_id' => 'project-uuid',
+    'name' => 'Phase 1',
+    'due_on' => '2024-12-31',
+    'responsible_user_id' => 'user-uuid',
+    'billing_method' => 'time_and_materials'
+];
+
+// Validate date format
+if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $milestoneData['due_on'])) {
+    throw new Exception('Invalid date format. Use YYYY-MM-DD');
+}
+
+// Create milestone
+$milestone = Teamleader::legacyMilestones()->create($milestoneData);
+```
+
+## Related Resources
+
+- **[Legacy Projects](projects.md)** - Parent projects
+- **[New Projects](../projects.md)** - Modern API alternative
+- **[Groups](../groups.md)** - Equivalent in new API
+- **[Users](../../general/users.md)** - Responsible users

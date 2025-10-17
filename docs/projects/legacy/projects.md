@@ -1,533 +1,187 @@
 # Legacy Projects
 
-Manage legacy projects in Teamleader Focus. This resource provides complete CRUD operations for managing projects, including milestones, participants, and project lifecycle management (close/reopen operations).
+Manage legacy projects in Teamleader Focus (Old Projects API).
+
+## Overview
+
+The Legacy Projects resource manages projects using the old Teamleader Projects API. These projects use milestones instead of tasks/materials/groups.
+
+**Note:** This is the legacy API. For new projects, use the [New Projects API](../projects.md). Legacy projects are maintained for backward compatibility.
+
+## Navigation
+
+- [Endpoint](#endpoint)
+- [Capabilities](#capabilities)
+- [Available Methods](#available-methods)
+- [Helper Methods](#helper-methods)
+- [Filtering](#filtering)
+- [Sorting](#sorting)
+- [Usage Examples](#usage-examples)
+- [Related Resources](#related-resources)
 
 ## Endpoint
 
-`legacyProjects`
+`projects` (not `projects-v2`)
 
 ## Capabilities
 
-- **Supports Pagination**: ✅ Supported
-- **Supports Filtering**: ✅ Supported
-- **Supports Sorting**: ✅ Supported
-- **Supports Sideloading**: ❌ Not Supported
-- **Supports Creation**: ✅ Supported
-- **Supports Update**: ✅ Supported
-- **Supports Deletion**: ✅ Supported
-- **Supports Batch**: ❌ Not Supported
+- **Pagination**: ✅ Supported
+- **Filtering**: ✅ Supported
+- **Sorting**: ✅ Supported
+- **Sideloading**: ❌ Not Supported
+- **Creation**: ✅ Supported
+- **Update**: ✅ Supported
+- **Deletion**: ✅ Supported
 
 ## Available Methods
 
-### `list()`
+### `list()`, `info()`, `create()`, `update()`, `delete()`
 
-Get a paginated list of projects with filtering and sorting options.
-
-**Parameters:**
-- `filters` (array): Array of filters to apply
-- `options` (array): Pagination and sorting options
-
-**Example:**
-```php
-$projects = $teamleader->legacyProjects()->list([
-    'status' => 'active'
-]);
-```
-
-### `info()`
-
-Get detailed information about a specific project.
-
-**Parameters:**
-- `id` (string): Project UUID
-
-**Example:**
-```php
-$project = $teamleader->legacyProjects()->info('project-uuid-here');
-```
-
-### `create()`
-
-Create a new project.
-
-**Parameters:**
-- `data` (array): Array of project data
-
-**Required fields:**
-- `title` (string): Project title
-- `starts_on` (string): Start date (Y-m-d format)
-- `milestones` (array): At least one milestone required
-- `participants` (array): At least one participant required
-
-**Example:**
-```php
-$project = $teamleader->legacyProjects()->create([
-    'title' => 'New company website',
-    'description' => 'Complete redesign of the company website',
-    'starts_on' => '2024-01-01',
-    'milestones' => [
-        [
-            'starts_on' => '2024-01-01',
-            'due_on' => '2024-03-01',
-            'name' => 'Initial setup',
-            'responsible_user_id' => 'user-uuid'
-        ]
-    ],
-    'participants' => [
-        [
-            'participant' => [
-                'type' => 'user',
-                'id' => 'user-uuid'
-            ],
-            'role' => 'decision_maker'
-        ]
-    ],
-    'customer' => [
-        'type' => 'company',
-        'id' => 'company-uuid'
-    ]
-]);
-```
-
-### `update()`
-
-Update an existing project.
-
-**Parameters:**
-- `id` (string): Project UUID
-- `data` (array): Array of data to update
-
-**Example:**
-```php
-$project = $teamleader->legacyProjects()->update('project-uuid', [
-    'title' => 'Updated project title',
-    'status' => 'on_hold'
-]);
-```
-
-### `delete()`
-
-Delete a project.
-
-**Parameters:**
-- `id` (string): Project UUID
-
-**Example:**
-```php
-$result = $teamleader->legacyProjects()->delete('project-uuid');
-```
+Standard CRUD operations similar to new projects, but with different structure.
 
 ### `close()`
 
-Close a project, all its phases, and all tasks within each phase (but not meetings).
+Close a project (also closes all phases and tasks).
 
-**Parameters:**
-- `id` (string): Project UUID
-
-**Example:**
 ```php
-$result = $teamleader->legacyProjects()->close('project-uuid');
+Teamleader::legacyProjects()->close('project-uuid');
 ```
 
 ### `reopen()`
 
-Reopen a closed project, changing its status to "active".
+Reopen a closed project.
 
-**Parameters:**
-- `id` (string): Project UUID
-
-**Example:**
 ```php
-$result = $teamleader->legacyProjects()->reopen('project-uuid');
+Teamleader::legacyProjects()->reopen('project-uuid');
 ```
 
 ### `addParticipant()`
 
-Add a participant to a project.
+Add a participant to a legacy project.
 
-**Parameters:**
-- `id` (string): Project UUID
-- `participant` (array): Participant data with 'type' and 'id' keys
-- `role` (string): Participant role ('decision_maker' or 'member', default: 'member')
-
-**Example:**
 ```php
-$result = $teamleader->legacyProjects()->addParticipant('project-uuid', [
-    'type' => 'user',
-    'id' => 'user-uuid'
-], 'decision_maker');
+Teamleader::legacyProjects()->addParticipant('project-uuid', [
+    'participant' => [
+        'type' => 'user',
+        'id' => 'user-uuid'
+    ],
+    'role' => 'decision_maker'  // or 'member'
+]);
 ```
 
 ### `updateParticipant()`
 
-Update a participant's role for a project.
+Update a participant's role.
 
-**Parameters:**
-- `id` (string): Project UUID
-- `participant` (array): Participant data with 'type' and 'id' keys
-- `role` (string): New role ('decision_maker' or 'member')
-
-**Example:**
 ```php
-$result = $teamleader->legacyProjects()->updateParticipant('project-uuid', [
-    'type' => 'user',
-    'id' => 'user-uuid'
-], 'member');
+Teamleader::legacyProjects()->updateParticipant(
+    'project-uuid',
+    ['type' => 'user', 'id' => 'user-uuid'],
+    'member'
+);
 ```
 
-## Convenience Methods
+## Helper Methods
 
-### `active()`
-
-Get all active projects.
-
-**Example:**
 ```php
-$activeProjects = $teamleader->legacyProjects()->active();
-```
+// Get by status
+$active = Teamleader::legacyProjects()->active();
+$onHold = Teamleader::legacyProjects()->onHold();
+$done = Teamleader::legacyProjects()->done();
+$cancelled = Teamleader::legacyProjects()->cancelled();
 
-### `byStatus()`
+// Get for customer
+$projects = Teamleader::legacyProjects()->forCustomer('company-uuid', 'company');
 
-Get projects by status.
+// Get for participant
+$projects = Teamleader::legacyProjects()->forParticipant('user-uuid');
 
-**Parameters:**
-- `status` (string): Status filter ('active', 'on_hold', 'done', 'cancelled')
-- `options` (array): Additional options
+// Search
+$projects = Teamleader::legacyProjects()->search('website');
 
-**Example:**
-```php
-$onHoldProjects = $teamleader->legacyProjects()->byStatus('on_hold');
-```
-
-### `forCustomer()`
-
-Get projects for a specific customer.
-
-**Parameters:**
-- `customerId` (string): Customer UUID
-- `customerType` (string): Customer type ('company' or 'contact', default: 'company')
-- `options` (array): Additional options
-
-**Example:**
-```php
-$companyProjects = $teamleader->legacyProjects()->forCustomer('company-uuid', 'company');
-```
-
-### `forParticipant()`
-
-Get projects for a specific participant.
-
-**Parameters:**
-- `participantId` (string): Participant UUID
-- `options` (array): Additional options
-
-**Example:**
-```php
-$userProjects = $teamleader->legacyProjects()->forParticipant('user-uuid');
-```
-
-### `search()`
-
-Search projects by term (searches title or description).
-
-**Parameters:**
-- `term` (string): Search term
-- `options` (array): Additional options
-
-**Example:**
-```php
-$results = $teamleader->legacyProjects()->search('website');
-```
-
-### `updatedSince()`
-
-Get projects updated since a specific date.
-
-**Parameters:**
-- `datetime` (string): ISO 8601 datetime
-- `options` (array): Additional options
-
-**Example:**
-```php
-$recentProjects = $teamleader->legacyProjects()->updatedSince('2024-01-01T00:00:00+00:00');
+// Updated since
+$projects = Teamleader::legacyProjects()->updatedSince('2024-01-01T00:00:00+00:00');
 ```
 
 ## Filtering
 
-Available filters:
+- `customer` - Object with type and id
+- `status` - active, on_hold, done, cancelled
+- `participant_id` - User UUID
+- `term` - Search term
+- `updated_since` - ISO 8601 datetime
 
-- `customer.type` / `customer.id`: Filter by customer (company or contact)
-- `status`: Project status (active, on_hold, done, cancelled)
-- `participant_id`: Filter by participant UUID
-- `term`: Search term (searches title or description)
-- `updated_since`: ISO 8601 datetime
+## Sorting
 
-**Example:**
+- `due_on`
+- `title`
+- `created_at`
+
+## Usage Examples
+
+### Create Legacy Project
+
+**Required fields:**
+- `title`
+- `starts_on`
+- `milestones` (at least one)
+- `participants` (at least one decision maker)
+
 ```php
-// Complex filtering
-$projects = $teamleader->legacyProjects()->list([
+$project = Teamleader::legacyProjects()->create([
+    'title' => 'Website Redesign',
+    'starts_on' => '2024-01-01',
     'customer' => [
         'type' => 'company',
         'id' => 'company-uuid'
     ],
-    'status' => 'active',
-    'participant_id' => 'user-uuid'
-], [
-    'page_size' => 50,
-    'sort_field' => 'due_on',
-    'sort_order' => 'asc'
-]);
-```
-
-## Sorting
-
-Available sort fields:
-
-- `due_on`: Sort by due date
-- `title`: Sort by project title
-- `created_at`: Sort by creation date
-
-**Example:**
-```php
-$projects = $teamleader->legacyProjects()->list([], [
-    'sort_field' => 'title',
-    'sort_order' => 'asc'
-]);
-
-// Or using the full sort array
-$projects = $teamleader->legacyProjects()->list([], [
-    'sort' => [
-        ['field' => 'due_on', 'order' => 'desc'],
-        ['field' => 'title', 'order' => 'asc']
-    ]
-]);
-```
-
-## Project Status Workflow
-
-Projects can have the following statuses:
-
-- `active`: Project is currently active
-- `on_hold`: Project is temporarily on hold
-- `done`: Project is completed
-- `cancelled`: Project is cancelled
-
-**Example workflow:**
-```php
-// Create a project
-$project = $teamleader->legacyProjects()->create([...]);
-
-// Put on hold
-$updated = $teamleader->legacyProjects()->update($project['data']['id'], [
-    'status' => 'on_hold'
-]);
-
-// Reactivate
-$updated = $teamleader->legacyProjects()->update($project['data']['id'], [
-    'status' => 'active'
-]);
-
-// Close when complete
-$closed = $teamleader->legacyProjects()->close($project['data']['id']);
-
-// Reopen if needed
-$reopened = $teamleader->legacyProjects()->reopen($project['data']['id']);
-```
-
-## Milestones
-
-Each project requires at least one milestone. Milestones structure:
-
-```php
-[
-    'starts_on' => '2024-01-01',  // Optional, nullable
-    'due_on' => '2024-03-01',     // Required
-    'name' => 'Phase 1',          // Required
-    'responsible_user_id' => 'user-uuid'  // Required
-]
-```
-
-## Participants
-
-Each project requires at least one decision-making participant. Participants structure:
-
-```php
-[
-    'participant' => [
-        'type' => 'user',  // Required, currently only 'user' is supported
-        'id' => 'user-uuid'  // Required
-    ],
-    'role' => 'decision_maker'  // 'decision_maker' or 'member'
-]
-```
-
-## Custom Fields
-
-Projects support custom fields:
-
-```php
-$project = $teamleader->legacyProjects()->create([
-    // ... other fields
-    'custom_fields' => [
-        [
-            'id' => 'custom-field-uuid',
-            'value' => 'custom value'
-        ]
-    ]
-]);
-```
-
-## Budget Management
-
-Projects can have budget information (only accessible for project administrators):
-
-```php
-$project = $teamleader->legacyProjects()->update('project-uuid', [
-    'budget' => [
-        'amount' => 50000,
-        'currency' => 'EUR'
-    ]
-]);
-```
-
-## Error Handling
-
-The legacy projects resource follows standard SDK error handling:
-
-```php
-$result = $teamleader->legacyProjects()->create($projectData);
-
-if (isset($result['error']) && $result['error']) {
-    $errorMessage = $result['message'] ?? 'Unknown error';
-    $statusCode = $result['status_code'] ?? 0;
-    
-    Log::error("Projects API error: {$errorMessage}", [
-        'status_code' => $statusCode,
-        'errors' => $result['errors'] ?? []
-    ]);
-}
-```
-
-## Rate Limiting
-
-Project API calls count towards your overall Teamleader API rate limit:
-
-- **List operations**: 1 request per call
-- **Info operations**: 1 request per call
-- **CRUD operations**: 1 request per call
-- **Participant operations**: 1 request per call
-- **Close/Reopen operations**: 1 request per call
-
-## Laravel Integration
-
-```php
-use McoreServices\TeamleaderSDK\TeamleaderSDK;
-
-class ProjectController extends Controller
-{
-    public function index(TeamleaderSDK $teamleader)
-    {
-        $projects = $teamleader->legacyProjects()->active();
-        return view('projects.index', compact('projects'));
-    }
-    
-    public function store(Request $request, TeamleaderSDK $teamleader)
-    {
-        $project = $teamleader->legacyProjects()->create($request->validated());
-        return redirect()->route('projects.show', $project['data']['id']);
-    }
-    
-    public function close($id, TeamleaderSDK $teamleader)
-    {
-        $teamleader->legacyProjects()->close($id);
-        return redirect()->route('projects.index')
-            ->with('success', 'Project closed successfully');
-    }
-}
-```
-
-## Complete Example
-
-```php
-use McoreServices\TeamleaderSDK\TeamleaderSDK;
-
-$teamleader = app(TeamleaderSDK::class);
-
-// Create a comprehensive project
-$project = $teamleader->legacyProjects()->create([
-    'title' => 'New Website Development',
-    'description' => 'Complete redesign and development of the company website',
-    'starts_on' => '2024-01-01',
     'milestones' => [
         [
-            'name' => 'Discovery & Planning',
-            'starts_on' => '2024-01-01',
-            'due_on' => '2024-01-31',
-            'responsible_user_id' => 'project-manager-uuid'
-        ],
-        [
-            'name' => 'Design Phase',
-            'starts_on' => '2024-02-01',
-            'due_on' => '2024-02-28',
-            'responsible_user_id' => 'designer-uuid'
-        ],
-        [
-            'name' => 'Development',
-            'starts_on' => '2024-03-01',
-            'due_on' => '2024-05-31',
-            'responsible_user_id' => 'developer-uuid'
+            'name' => 'Phase 1',
+            'due_on' => '2024-03-31',
+            'responsible_user_id' => 'user-uuid',
+            'billing_method' => 'time_and_materials'
         ]
     ],
     'participants' => [
         [
-            'participant' => [
-                'type' => 'user',
-                'id' => 'project-manager-uuid'
-            ],
+            'participant' => ['type' => 'user', 'id' => 'user-uuid'],
             'role' => 'decision_maker'
-        ],
-        [
-            'participant' => [
-                'type' => 'user',
-                'id' => 'developer-uuid'
-            ],
-            'role' => 'member'
-        ]
-    ],
-    'customer' => [
-        'type' => 'company',
-        'id' => 'client-company-uuid'
-    ],
-    'budget' => [
-        'amount' => 50000,
-        'currency' => 'EUR'
-    ],
-    'purchase_order_number' => 'PO-2024-001',
-    'custom_fields' => [
-        [
-            'id' => 'project-type-field-uuid',
-            'value' => 'Website Development'
         ]
     ]
 ]);
+```
 
-// Get project info
-$projectInfo = $teamleader->legacyProjects()->info($project['data']['id']);
+### Complete Project Lifecycle
 
-// Add a participant
-$teamleader->legacyProjects()->addParticipant(
-    $project['data']['id'],
-    ['type' => 'user', 'id' => 'new-member-uuid'],
-    'member'
-);
+```php
+$projectId = 'project-uuid';
 
-// Update project status
-$teamleader->legacyProjects()->update($project['data']['id'], [
+// Update status
+Teamleader::legacyProjects()->update($projectId, [
+    'status' => 'on_hold'
+]);
+
+// Resume
+Teamleader::legacyProjects()->update($projectId, [
     'status' => 'active'
 ]);
 
-// Close project when complete
-$teamleader->legacyProjects()->close($project['data']['id']);
+// Complete
+Teamleader::legacyProjects()->close($projectId);
+
+// Reopen if needed
+Teamleader::legacyProjects()->reopen($projectId);
 ```
 
-For more information, refer to the [Teamleader API Documentation](https://developer.focus.teamleader.eu/).
+## Best Practices
+
+1. **Use New Projects API for new work**: Legacy API is for maintenance only
+2. **Migrate when possible**: Consider migrating to new projects
+3. **Work with milestones**: See [Legacy Milestones](milestones.md)
+
+## Related Resources
+
+- **[Legacy Milestones](milestones.md)** - Manage project milestones
+- **[New Projects](../projects.md)** - Modern projects API
+- **[Companies](../../crm/companies.md)** - Project customers

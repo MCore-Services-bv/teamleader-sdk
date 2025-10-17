@@ -1,375 +1,273 @@
 # Project Lines
 
-Manage project lines (tasks, materials, and groups) in Teamleader Focus projects. This resource allows you to list project lines with filtering and manage group assignments.
-
-## Resource Path
-`packages/mcore-services/teamleader-sdk/src/Resources/Projects/ProjectLines.php`
-
-## API Endpoint
-- Base: `projects-v2/projectLines`
-- Methods: `.list`, `.addToGroup`, `.removeFromGroup`
+Manage project lines (unified view of tasks, materials, and groups).
 
 ## Overview
 
-Project lines represent the work items within a project, including:
-- **Tasks** (`nextgenTask`) - Work items to be completed
-- **Materials** (`nextgenMaterial`) - Resources or materials used
-- **Groups** (`nextgenProjectGroup`) - Organizational containers for tasks and materials
+The Project Lines resource provides a unified interface to view and manage all line items within a project: tasks, materials, and groups. It also handles group membership operations.
+
+**Note:** Use specific resources (ProjectTasks, Materials, Groups) for creation. This resource is primarily for listing and group operations.
+
+## Navigation
+
+- [Endpoint](#endpoint)
+- [Capabilities](#capabilities)
+- [Available Methods](#available-methods)
+- [Filtering](#filtering)
+- [Usage Examples](#usage-examples)
+- [Related Resources](#related-resources)
+
+## Endpoint
+
+`projects-v2/projectLines`
+
+## Capabilities
+
+- **Pagination**: ❌ Not Supported
+- **Filtering**: ✅ Supported
+- **Sorting**: ❌ Not Supported
+- **Sideloading**: ❌ Not Supported
+- **Creation**: ❌ Not Supported (use specific resources)
+- **Update**: ❌ Not Supported (use specific resources)
+- **Deletion**: ❌ Not Supported (use specific resources)
 
 ## Available Methods
 
-### Listing Project Lines
+### `list()`
 
-#### `list(array $filters = [], array $options = []): array`
+**Required:** `project_id` must be provided.
 
-List all lines for a specific project with optional filtering.
-
-**Parameters:**
-- `$filters['project_id']` (string, required) - The project UUID
-- `$filters['filter']['types']` (array, optional) - Filter by line types
-- `$filters['filter']['assignees']` (array|null, optional) - Filter by assignees (null for unassigned)
-
-**Example:**
 ```php
 // Get all lines for a project
-$lines = $teamleader->projectLines()->list([
-    'project_id' => '49b403be-a32e-0901-9b1c-25214f9027c6'
+$lines = Teamleader::projectLines()->list([
+    'project_id' => 'project-uuid'
 ]);
 
-// Get only tasks
-$tasks = $teamleader->projectLines()->list([
-    'project_id' => '49b403be-a32e-0901-9b1c-25214f9027c6',
+// Filter by type
+$lines = Teamleader::projectLines()->list([
+    'project_id' => 'project-uuid',
     'filter' => [
-        'types' => ['nextgenTask']
+        'types' => ['nextgenTask', 'nextgenMaterial']
     ]
 ]);
 
-// Get lines assigned to specific user
-$userLines = $teamleader->projectLines()->list([
-    'project_id' => '49b403be-a32e-0901-9b1c-25214f9027c6',
+// Filter by assignee
+$lines = Teamleader::projectLines()->list([
+    'project_id' => 'project-uuid',
     'filter' => [
         'assignees' => [
-            [
-                'type' => 'user',
-                'id' => '66abace2-62af-0836-a927-fe3f44b9b47b'
-            ]
+            ['type' => 'user', 'id' => 'user-uuid']
         ]
     ]
 ]);
 
 // Get unassigned lines
-$unassigned = $teamleader->projectLines()->list([
-    'project_id' => '49b403be-a32e-0901-9b1c-25214f9027c6',
+$lines = Teamleader::projectLines()->list([
+    'project_id' => 'project-uuid',
     'filter' => [
         'assignees' => null
     ]
 ]);
 ```
 
-**Response:**
+### `addToGroup()`
+
+Add a task or material to a group.
+
 ```php
-[
-    'data' => [
-        [
-            'line' => [
-                'type' => 'nextgenTask',
-                'id' => 'a14a464d-320a-49bb-b6ee-b510c7f4f66c'
-            ],
-            'group' => [
-                'id' => 'eab232c6-49b2-4b7e-a977-5e1148dad471',
-                'type' => 'nextgenProjectGroup'
-            ]
-        ],
-        [
-            'line' => [
-                'type' => 'nextgenMaterial',
-                'id' => 'b25b575e-431c-5abb-c6ff-c621d8e5g77d'
-            ],
-            'group' => null  // Not in a group
-        ]
-    ]
-]
+Teamleader::projectLines()->addToGroup('line-uuid', 'group-uuid');
 ```
 
-### Group Management
+### `removeFromGroup()`
 
-#### `addToGroup(string $lineId, string $groupId): array`
+Remove a task or material from its current group.
 
-Add an existing task or material to a group.
-
-**Parameters:**
-- `$lineId` (string, required) - The UUID of the task or material (may not be a group)
-- `$groupId` (string, required) - The UUID of the group
-
-**Example:**
 ```php
-$result = $teamleader->projectLines()->addToGroup(
-    'a14a464d-320a-49bb-b6ee-b510c7f4f66c',  // line ID
-    '0daf76e6-5141-4fb0-866f-01916a873a38'   // group ID
-);
+Teamleader::projectLines()->removeFromGroup('line-uuid');
 ```
 
-**Response:**
-204 No Content on success
+## Filtering
 
----
+**Line Types:**
+- `nextgenTask`
+- `nextgenMaterial`
+- `nextgenProjectGroup`
 
-#### `removeFromGroup(string $lineId): array`
+**Filters:**
+- `types` - Array of line types
+- `assignees` - Array of assignee objects, or `null` for unassigned
 
-Remove a task or material from the group it is currently in.
-
-**Parameters:**
-- `$lineId` (string, required) - The UUID of the task or material (may not be a group)
-
-**Example:**
-```php
-$result = $teamleader->projectLines()->removeFromGroup(
-    'a14a464d-320a-49bb-b6ee-b510c7f4f66c'
-);
-```
-
-**Response:**
-204 No Content on success
-
-## Fluent Interface Methods
-
-The ProjectLines resource provides a fluent interface for building queries:
-
-### `forProject(string $projectId): self`
-
-Set the project to query lines from.
+## Fluent Interface
 
 ```php
-$lines = $teamleader->projectLines()
-    ->forProject('49b403be-a32e-0901-9b1c-25214f9027c6')
-    ->get();
-```
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
 
-### `ofType(array $types): self`
-
-Filter by specific line types.
-
-```php
-$lines = $teamleader->projectLines()
-    ->forProject('project-uuid')
-    ->ofType(['nextgenTask', 'nextgenMaterial'])
-    ->get();
-```
-
-### `tasksOnly(): self`
-
-Filter to show only tasks.
-
-```php
-$tasks = $teamleader->projectLines()
+// Chain filters
+$tasks = Teamleader::projectLines()
     ->forProject('project-uuid')
     ->tasksOnly()
     ->get();
-```
 
-### `materialsOnly(): self`
-
-Filter to show only materials.
-
-```php
-$materials = $teamleader->projectLines()
+$materials = Teamleader::projectLines()
     ->forProject('project-uuid')
     ->materialsOnly()
     ->get();
-```
 
-### `groupsOnly(): self`
-
-Filter to show only groups.
-
-```php
-$groups = $teamleader->projectLines()
+$groups = Teamleader::projectLines()
     ->forProject('project-uuid')
     ->groupsOnly()
     ->get();
-```
 
-### `assignedTo(string $type, string $id): self`
-
-Filter by assignee.
-
-**Parameters:**
-- `$type` - Either 'user' or 'team'
-- `$id` - The UUID of the user or team
-
-```php
-$lines = $teamleader->projectLines()
+// Filter by assignee
+$userLines = Teamleader::projectLines()
     ->forProject('project-uuid')
     ->assignedTo('user', 'user-uuid')
     ->get();
-```
 
-### `unassigned(?string $projectId = null): array`
-
-Get unassigned lines. Can be used with or without prior fluent calls.
-
-```php
-// Direct usage
-$unassigned = $teamleader->projectLines()->unassigned('project-uuid');
-
-// With fluent interface
-$unassigned = $teamleader->projectLines()
+// Get unassigned
+$unassigned = Teamleader::projectLines()
     ->forProject('project-uuid')
-    ->tasksOnly()
-    ->unassigned();
-```
-
-### `get(): array`
-
-Execute the query with all pending filters.
-
-```php
-$lines = $teamleader->projectLines()
-    ->forProject('project-uuid')
-    ->tasksOnly()
-    ->assignedTo('user', 'user-uuid')
+    ->unassigned()
     ->get();
-```
-
-## Line Types
-
-Valid line types for filtering:
-- `nextgenTask` - Tasks
-- `nextgenMaterial` - Materials
-- `nextgenProjectGroup` - Groups
-
-## Assignee Types
-
-Valid assignee types:
-- `user` - Individual user
-- `team` - Team
-
-## Common Usage Patterns
-
-### Get all tasks for a project
-```php
-$tasks = $teamleader->projectLines()
-    ->forProject('project-uuid')
-    ->tasksOnly()
-    ->get();
-```
-
-### Get unassigned materials
-```php
-$unassigned = $teamleader->projectLines()
-    ->forProject('project-uuid')
-    ->materialsOnly()
-    ->unassigned();
-```
-
-### Get lines assigned to a specific team
-```php
-$teamLines = $teamleader->projectLines()
-    ->forProject('project-uuid')
-    ->assignedTo('team', 'team-uuid')
-    ->get();
-```
-
-### Organize lines into groups
-```php
-// Add a task to a group
-$teamleader->projectLines()->addToGroup(
-    'task-id',
-    'group-id'
-);
-
-// Remove from group later
-$teamleader->projectLines()->removeFromGroup('task-id');
-```
-
-### Complex filtering
-```php
-$lines = $teamleader->projectLines()->list([
-    'project_id' => 'project-uuid',
-    'filter' => [
-        'types' => ['nextgenTask', 'nextgenMaterial'],
-        'assignees' => [
-            ['type' => 'user', 'id' => 'user-uuid-1'],
-            ['type' => 'team', 'id' => 'team-uuid-1']
-        ]
-    ]
-]);
 ```
 
 ## Response Structure
 
-### List Response
-```php
-[
-    'data' => [
-        [
-            'line' => [
-                'type' => 'nextgenTask|nextgenMaterial|nextgenProjectGroup',
-                'id' => 'line-uuid'
-            ],
-            'group' => [  // nullable - null if not in a group
-                'id' => 'group-uuid',
-                'type' => 'nextgenProjectGroup'
-            ]
-        ]
-    ]
-]
+```json
+{
+  "data": [
+    {
+      "line": {
+        "type": "nextgenTask",
+        "id": "task-uuid"
+      },
+      "group": {
+        "type": "nextgenProjectGroup",
+        "id": "group-uuid"
+      }
+    },
+    {
+      "line": {
+        "type": "nextgenMaterial",
+        "id": "material-uuid"
+      },
+      "group": null
+    }
+  ]
+}
 ```
 
-### addToGroup / removeFromGroup Response
-These methods return a 204 No Content response on success.
+## Usage Examples
 
-## Resource Capabilities
-
-- ❌ Create (use Tasks or Materials resources)
-- ❌ Update
-- ❌ Delete
-- ✅ List with filtering
-- ✅ Group management
-- ❌ Pagination
-- ❌ Sorting
-- ❌ Sideloading
-- ✅ Fluent interface
-
-## Notes
-
-- The `project_id` parameter is always required for listing lines
-- Lines can be organized into groups for better project structure
-- Only tasks and materials can be added to groups (not other groups)
-- Removing a line from a group doesn't delete the line, just ungroups it
-- To get unassigned lines, pass `null` as the assignees filter value
-- For creating, updating, or deleting individual lines, use the respective Tasks or Materials resources
-
-## Error Handling
+### Get All Project Lines
 
 ```php
-use InvalidArgumentException;
+$lines = Teamleader::projectLines()->forProject('project-uuid')->get();
 
-try {
-    // project_id is required
-    $lines = $teamleader->projectLines()->list();
-} catch (InvalidArgumentException $e) {
-    // Handle missing project_id
+foreach ($lines['data'] as $line) {
+    $type = $line['line']['type'];
+    $id = $line['line']['id'];
+    $inGroup = isset($line['group']) ? 'Yes' : 'No';
+    
+    echo "{$type}: {$id} (In Group: {$inGroup})\n";
 }
+```
 
-try {
-    // Invalid line type
-    $lines = $teamleader->projectLines()->list([
-        'project_id' => 'uuid',
-        'filter' => ['types' => ['invalid_type']]
-    ]);
-} catch (InvalidArgumentException $e) {
-    // Handle invalid line type
+### Organize Tasks into Groups
+
+```php
+$projectId = 'project-uuid';
+
+// Get all tasks
+$tasks = Teamleader::projectLines()
+    ->forProject($projectId)
+    ->tasksOnly()
+    ->get();
+
+// Create group
+$group = Teamleader::groups()->create([
+    'project_id' => $projectId,
+    'title' => 'Development Phase'
+]);
+
+$groupId = $group['data']['id'];
+
+// Add tasks to group
+foreach ($tasks['data'] as $task) {
+    if ($task['group'] === null) {
+        Teamleader::projectLines()->addToGroup(
+            $task['line']['id'],
+            $groupId
+        );
+    }
 }
+```
+
+### Move Lines Between Groups
+
+```php
+$lineId = 'line-uuid';
+$newGroupId = 'new-group-uuid';
+
+// Remove from current group
+Teamleader::projectLines()->removeFromGroup($lineId);
+
+// Add to new group
+Teamleader::projectLines()->addToGroup($lineId, $newGroupId);
+```
+
+### Get Unassigned Work
+
+```php
+$unassigned = Teamleader::projectLines()
+    ->forProject('project-uuid')
+    ->unassigned()
+    ->get();
+
+echo "Unassigned items:\n";
+foreach ($unassigned['data'] as $line) {
+    echo "- {$line['line']['type']}: {$line['line']['id']}\n";
+}
+```
+
+## Best Practices
+
+1. **Always Provide project_id**: Required for all operations
+```php
+// Good
+$lines = Teamleader::projectLines()->forProject('uuid')->get();
+
+// Will fail
+$lines = Teamleader::projectLines()->list();
+```
+
+2. **Use Fluent Interface**: More readable
+```php
+// Good
+$tasks = Teamleader::projectLines()
+    ->forProject('uuid')
+    ->tasksOnly()
+    ->get();
+
+// Works but less clear
+$tasks = Teamleader::projectLines()->list([
+    'project_id' => 'uuid',
+    'filter' => ['types' => ['nextgenTask']]
+]);
+```
+
+3. **Use Specific Resources for Creation**: Don't try to create via projectLines
+```php
+// Good - use specific resource
+$task = Teamleader::projectTasks()->create([...]);
+
+// Wrong - not supported
+$task = Teamleader::projectLines()->create([...]);
 ```
 
 ## Related Resources
 
-- **Tasks** - Create and manage individual tasks
-- **Materials** - Create and manage individual materials
-- **Projects** - Manage the parent projects
-
-## API Documentation
-
-For complete API documentation, visit:
-https://developer.teamleader.eu/api/projects-v2/projectlines
+- **[Projects](projects.md)** - Parent projects
+- **[Project Tasks](project-tasks.md)** - Create and manage tasks
+- **[Materials](materials.md)** - Create and manage materials
+- **[Groups](groups.md)** - Create and manage groups
