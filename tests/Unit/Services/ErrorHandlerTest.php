@@ -19,8 +19,7 @@ class ErrorHandlerTest extends TestCase
         $this->errorHandler = new TeamleaderErrorHandler(new NullLogger(), true);
     }
 
-    /** @test */
-    public function it_throws_validation_exception_for_422(): void
+    public function testThrowsValidationExceptionFor422(): void
     {
         $this->expectException(ValidationException::class);
 
@@ -34,8 +33,7 @@ class ErrorHandlerTest extends TestCase
         $this->errorHandler->handleApiError($result, 'test');
     }
 
-    /** @test */
-    public function it_throws_rate_limit_exception_for_429(): void
+    public function testThrowsRateLimitExceptionFor429(): void
     {
         $this->expectException(RateLimitExceededException::class);
 
@@ -49,8 +47,7 @@ class ErrorHandlerTest extends TestCase
         $this->errorHandler->handleApiError($result, 'test');
     }
 
-    /** @test */
-    public function it_throws_server_exception_for_500(): void
+    public function testThrowsServerExceptionFor500(): void
     {
         $this->expectException(ServerException::class);
 
@@ -63,8 +60,7 @@ class ErrorHandlerTest extends TestCase
         $this->errorHandler->handleApiError($result, 'test');
     }
 
-    /** @test */
-    public function it_does_not_throw_when_disabled(): void
+    public function testDoesNotThrowWhenDisabled(): void
     {
         $errorHandler = new TeamleaderErrorHandler(new NullLogger(), false);
 
@@ -79,8 +75,7 @@ class ErrorHandlerTest extends TestCase
         $this->assertTrue(true); // If we get here, no exception was thrown
     }
 
-    /** @test */
-    public function it_identifies_retryable_errors(): void
+    public function testIdentifiesRetryableErrors(): void
     {
         $serverError = new ServerException('Server error', 500);
         $this->assertTrue($this->errorHandler->isRetryableError($serverError));

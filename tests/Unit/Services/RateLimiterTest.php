@@ -19,8 +19,7 @@ class RateLimiterTest extends TestCase
         $this->rateLimiter->reset();
     }
 
-    /** @test */
-    public function it_allows_requests_within_limit(): void
+    public function testAllowsRequestsWithinLimit(): void
     {
         $result = $this->rateLimiter->checkAndThrottle();
 
@@ -28,11 +27,10 @@ class RateLimiterTest extends TestCase
         $this->assertEquals(0, $result['delay_applied']);
     }
 
-    /** @test */
-    public function it_records_requests(): void
+    public function testRecordsRequests(): void
     {
         $stats = $this->rateLimiter->getStatistics();
-        $initialCount = $stats['total_requests']; // Changed from 'requests_made' to 'total_requests'
+        $initialCount = $stats['total_requests'];
 
         $this->rateLimiter->recordRequest();
 
@@ -40,8 +38,7 @@ class RateLimiterTest extends TestCase
         $this->assertEquals($initialCount + 1, $stats['total_requests']);
     }
 
-    /** @test */
-    public function it_calculates_usage_percentage(): void
+    public function testCalculatesUsagePercentage(): void
     {
         // Make some requests
         for ($i = 0; $i < 50; $i++) {
@@ -53,8 +50,7 @@ class RateLimiterTest extends TestCase
         $this->assertLessThanOrEqual(100, $stats['usage_percentage']);
     }
 
-    /** @test */
-    public function it_respects_rate_limit_headers(): void
+    public function testRespectsRateLimitHeaders(): void
     {
         // Make some requests first to have local usage
         for ($i = 0; $i < 50; $i++) {

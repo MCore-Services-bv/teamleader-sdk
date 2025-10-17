@@ -17,8 +17,7 @@ class TokenServiceTest extends TestCase
         Cache::flush();
     }
 
-    /** @test */
-    public function it_can_store_tokens(): void
+    public function testCanStoreTokens(): void
     {
         $tokens = [
             'access_token' => 'test_access_token',
@@ -32,15 +31,13 @@ class TokenServiceTest extends TestCase
         $this->assertEquals('test_access_token', $this->tokenService->getValidAccessToken());
     }
 
-    /** @test */
-    public function it_returns_null_when_no_tokens_exist(): void
+    public function testReturnsNullWhenNoTokensExist(): void
     {
         $this->assertNull($this->tokenService->getValidAccessToken());
         $this->assertFalse($this->tokenService->hasValidTokens());
     }
 
-    /** @test */
-    public function it_can_clear_tokens(): void
+    public function testCanClearTokens(): void
     {
         $tokens = [
             'access_token' => 'test_access_token',
@@ -55,8 +52,7 @@ class TokenServiceTest extends TestCase
         $this->assertFalse($this->tokenService->hasValidTokens());
     }
 
-    /** @test */
-    public function it_detects_expired_tokens(): void
+    public function testDetectsExpiredTokens(): void
     {
         $tokens = [
             'access_token' => 'test_access_token',

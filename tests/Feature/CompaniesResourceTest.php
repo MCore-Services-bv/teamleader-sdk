@@ -19,14 +19,12 @@ class CompaniesResourceTest extends TestCase
         $this->companies = $this->sdk->companies();
     }
 
-    /** @test */
-    public function it_can_access_companies_resource(): void
+    public function testCanAccessCompaniesResource(): void
     {
         $this->assertInstanceOf(Companies::class, $this->companies);
     }
 
-    /** @test */
-    public function it_has_correct_base_path(): void
+    public function testHasCorrectBasePath(): void
     {
         $reflection = new \ReflectionClass($this->companies);
         $method = $reflection->getMethod('getBasePath');
@@ -36,8 +34,7 @@ class CompaniesResourceTest extends TestCase
         $this->assertEquals('companies', $basePath);
     }
 
-    /** @test */
-    public function it_supports_required_capabilities(): void
+    public function testSupportsRequiredCapabilities(): void
     {
         $capabilities = $this->companies->getCapabilities();
 
@@ -48,8 +45,7 @@ class CompaniesResourceTest extends TestCase
         $this->assertTrue($capabilities['supports_update']);
     }
 
-    /** @test */
-    public function it_has_sideloading_options(): void
+    public function testHasSideloadingOptions(): void
     {
         $capabilities = $this->companies->getCapabilities();
 

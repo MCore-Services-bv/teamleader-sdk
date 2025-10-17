@@ -17,8 +17,7 @@ class AuthenticationTest extends TestCase
         Cache::flush();
     }
 
-    /** @test */
-    public function it_generates_authorization_url(): void
+    public function testGeneratesAuthorizationUrl(): void
     {
         $url = $this->sdk->getAuthorizationUrl('test_state');
 
@@ -28,14 +27,12 @@ class AuthenticationTest extends TestCase
         $this->assertStringContainsString('response_type=code', $url);
     }
 
-    /** @test */
-    public function it_checks_authentication_status(): void
+    public function testChecksAuthenticationStatus(): void
     {
         $this->assertFalse($this->sdk->isAuthenticated());
     }
 
-    /** @test */
-    public function it_can_set_access_token_manually(): void
+    public function testCanSetAccessTokenManually(): void
     {
         $token = 'test_access_token_12345';
 
@@ -44,8 +41,7 @@ class AuthenticationTest extends TestCase
         $this->assertEquals($token, $this->sdk->getToken());
     }
 
-    /** @test */
-    public function it_can_logout(): void
+    public function testCanLogout(): void
     {
         $this->sdk->setAccessToken('test_token');
         $this->assertNotNull($this->sdk->getToken());

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.5/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+         failOnWarning="true"
+         failOnRisky="true"
+         beStrictAboutOutputDuringTests="true"
+         cacheDirectory=".phpunit.cache"
+         backupGlobals="false">
+    <testsuites>
+        <testsuite name="Teamleader SDK Test Suite">
+            <directory>tests</directory>
+        </testsuite>
+    </testsuites>
+
+    <source>
+        <include>
+            <directory suffix=".php">src</directory>
+        </include>
+        <exclude>
+            <directory>src/Console</directory>
+            <file>src/TeamleaderServiceProvider.php</file>
+        </exclude>
+    </source>
+
+    <php>
+        <env name="APP_ENV" value="testing"/>
+        <env name="APP_KEY" value="base64:2fl+Ktvkdphvk8TuWWL+RqhQz4dY2qk8tNt5h8K0Iws="/>
+        <env name="CACHE_DRIVER" value="array"/>
+        <env name="SESSION_DRIVER" value="array"/>
+        <env name="QUEUE_CONNECTION" value="sync"/>
+        <env name="DB_CONNECTION" value="sqlite"/>
+        <env name="DB_DATABASE" value=":memory:"/>
+
+        <!-- Teamleader Test Configuration -->
+        <env name="TEAMLEADER_CLIENT_ID" value="test_client_id"/>
+        <env name="TEAMLEADER_CLIENT_SECRET" value="test_client_secret"/>
+        <env name="TEAMLEADER_REDIRECT_URI" value="http://localhost/callback"/>
+        <env name="TEAMLEADER_CACHING_ENABLED" value="false"/>
+        <env name="TEAMLEADER_RATE_LIMITING_ENABLED" value="false"/>
+        <env name="TEAMLEADER_THROW_EXCEPTIONS" value="true"/>
+    </php>
+</phpunit>

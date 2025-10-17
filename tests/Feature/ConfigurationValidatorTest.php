@@ -15,8 +15,7 @@ class ConfigurationValidatorTest extends TestCase
         $this->validator = new ConfigurationValidator();
     }
 
-    /** @test */
-    public function it_validates_configuration_successfully(): void
+    public function testValidatesConfigurationSuccessfully(): void
     {
         $result = $this->validator->validate();
 
@@ -24,8 +23,7 @@ class ConfigurationValidatorTest extends TestCase
         $this->assertTrue($result->isValid());
     }
 
-    /** @test */
-    public function it_provides_summary(): void
+    public function testProvidesSummary(): void
     {
         $result = $this->validator->validate();
 
@@ -34,8 +32,7 @@ class ConfigurationValidatorTest extends TestCase
         $this->assertNotEmpty($summary);
     }
 
-    /** @test */
-    public function it_generates_configuration_report(): void
+    public function testGeneratesConfigurationReport(): void
     {
         $report = $this->validator->generateReport();
 
@@ -45,8 +42,7 @@ class ConfigurationValidatorTest extends TestCase
         $this->assertArrayHasKey('configuration_summary', $report);
     }
 
-    /** @test */
-    public function it_provides_suggestions(): void
+    public function testProvidesSuggestions(): void
     {
         $suggestions = $this->validator->getSuggestions();
 
