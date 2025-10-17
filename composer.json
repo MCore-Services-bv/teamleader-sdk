@@ -29,6 +29,11 @@
             "McoreServices\\TeamleaderSDK\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "McoreServices\\TeamleaderSDK\\Tests\\": "tests/"
+        }
+    },
     "extra": {
         "laravel": {
             "providers": [
