@@ -1,53 +1,97 @@
 ```bash
-tree -I 'node_modules|vendor|storage|.git|.idea' -a -L 6
 .
+├── .gitignore
 ├── CHANGELOG.md
 ├── FILES.md
+├── LICENSE.md
 ├── README.md
 ├── composer.json
 ├── config
 │   └── teamleader.php
 ├── docs
+│   ├── calendar
+│   │   ├── activity-types.md
+│   │   ├── call-outcomes.md
+│   │   ├── calls.md
+│   │   ├── events.md
+│   │   └── meetings.md
 │   ├── crm
 │   │   ├── addresses.md
-│   │   ├── business_types.md
+│   │   ├── business-types.md
 │   │   ├── companies.md
 │   │   ├── contacts.md
 │   │   └── tags.md
 │   ├── deals
-│   │   ├── deal_phases.md
-│   │   ├── deal_pipelines.md
-│   │   ├── deal_sources.md
 │   │   ├── deals.md
-│   │   ├── lost_reasons.md
+│   │   ├── lost-reasons.md
 │   │   ├── orders.md
-│   │   └── quotations.md
+│   │   ├── phases.md
+│   │   ├── pipelines.md
+│   │   ├── quotations.md
+│   │   └── sources.md
+│   ├── expenses
+│   │   ├── bookkeeping-submissions.md
+│   │   ├── expenses.md
+│   │   ├── incoming-creditnotes.md
+│   │   ├── incoming-invoices.md
+│   │   └── receipts.md
+│   ├── files
+│   │   └── files.md
 │   ├── filtering.md
 │   ├── general
-│   │   ├── custom_fields.md
+│   │   ├── closing-days.md
+│   │   ├── currencies.md
+│   │   ├── custom-fields.md
+│   │   ├── days-off-types.md
+│   │   ├── days-off.md
 │   │   ├── departments.md
+│   │   ├── document-templates.md
+│   │   ├── email-tracking.md
 │   │   ├── notes.md
-│   │   ├── resources.md
 │   │   ├── teams.md
 │   │   ├── users.md
-│   │   └── work_types.md
+│   │   └── work-types.md
 │   ├── invoicing
-│   │   ├── commercial_discounts.md
+│   │   ├── commercial-discounts.md
 │   │   ├── creditnotes.md
 │   │   ├── invoices.md
-│   │   ├── payment_methods.md
-│   │   ├── payment_terms.md
+│   │   ├── payment-methods.md
+│   │   ├── payment-terms.md
 │   │   ├── subscriptions.md
-│   │   ├── taxrates.md
-│   │   └── withholding_taxrates.md
+│   │   ├── tax-rates.md
+│   │   └── withholding-taxrates.md
 │   ├── other
+│   │   ├── accounts.md
+│   │   ├── cloud-platforms.md
+│   │   ├── migrate.md
 │   │   └── webhooks.md
 │   ├── products
-│   │   ├── price_lists.md
-│   │   ├── product_categories.md
+│   │   ├── categories.md
+│   │   ├── price-lists.md
 │   │   ├── products.md
-│   │   └── units_of_measure.md
+│   │   └── units-of-measure.md
+│   ├── projects
+│   │   ├── external-parties.md
+│   │   ├── groups.md
+│   │   ├── legacy
+│   │   │   ├── milestones.md
+│   │   │   └── projects.md
+│   │   ├── materials.md
+│   │   ├── project-lines.md
+│   │   ├── project-tasks.md
+│   │   └── projects.md
+│   ├── resources.md
 │   ├── sideloading.md
+│   ├── tasks
+│   │   └── tasks.md
+│   ├── templates
+│   │   └── mail-templates.md
+│   ├── tickets
+│   │   ├── ticket-status.md
+│   │   └── tickets.md
+│   ├── time-tracking
+│   │   ├── time-tracking.md
+│   │   └── timers.md
 │   └── usage.md
 └── src
     ├── Console
@@ -68,20 +112,26 @@ tree -I 'node_modules|vendor|storage|.git|.idea' -a -L 6
     │   │   ├── Companies.php
     │   │   ├── Contacts.php
     │   │   └── Tags.php
-    │   ├── Calender
+    │   ├── Calendar
     │   │   ├── ActivityTypes.php
-    │   │   ├── CalenderEvents.php
     │   │   ├── CallOutcomes.php
     │   │   ├── Calls.php
+    │   │   ├── Events.php
     │   │   └── Meetings.php
     │   ├── Deals
-    │   │   ├── DealPhases.php
-    │   │   ├── DealPipelines.php
-    │   │   ├── DealSources.php
     │   │   ├── Deals.php
     │   │   ├── LostReasons.php
     │   │   ├── Orders.php
-    │   │   └── Quotations.php
+    │   │   ├── Phases.php
+    │   │   ├── Pipelines.php
+    │   │   ├── Quotations.php
+    │   │   └── Sources.php
+    │   ├── Expenses
+    │   │   ├── BookkeepingSubmissions.php
+    │   │   ├── Expenses.php
+    │   │   ├── IncomingCreditNotes.php
+    │   │   ├── IncomingInvoices.php
+    │   │   └── Receipts.php
     │   ├── Files
     │   │   └── Files.php
     │   ├── General
@@ -112,30 +162,30 @@ tree -I 'node_modules|vendor|storage|.git|.idea' -a -L 6
     │   │   ├── Migrate.php
     │   │   └── Webhooks.php
     │   ├── Products
+    │   │   ├── Categories.php
     │   │   ├── PriceLists.php
-    │   │   ├── ProductCategories.php
     │   │   ├── Products.php
-    │   │   └── UnitsOfMeasure.php
+    │   │   └── UnitOfMeasure.php
     │   ├── Projects
+    │   │   ├── ExternalParties.php
     │   │   ├── Groups.php
-    │   │   ├── Legacy
-    │   │   │   ├── Milestones.php
-    │   │   │   └── Projects.php
+    │   │   ├── LegacyMilestones.php
+    │   │   ├── LegacyProjects.php
     │   │   ├── Materials.php
     │   │   ├── ProjectLines.php
-    │   │   ├── Projects.php
-    │   │   └── Tasks.php
+    │   │   ├── ProjectTasks.php
+    │   │   └── Projects.php
     │   ├── Resource.php
     │   ├── Tasks
-    │   │   └── Tasks.php4
+    │   │   └── Tasks.php
     │   ├── Templates
     │   │   └── MailTemplates.php
     │   ├── Tickets
     │   │   ├── TicketStatus.php
     │   │   └── Tickets.php
     │   └── TimeTracking
-    │       ├── TimeTracking.php4
-    │       └── Timers.php4
+    │       ├── TimeTracking.php
+    │       └── Timers.php
     ├── Services
     │   ├── ApiRateLimiterService.php
     │   ├── ConfigurationValidator.php
@@ -149,5 +199,5 @@ tree -I 'node_modules|vendor|storage|.git|.idea' -a -L 6
     └── Transformers
         └── ResponseTransformer.php
 
-33 directories, 115 files
+42 directories, 157 files
 ```
