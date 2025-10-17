@@ -199,6 +199,8 @@ $types = Teamleader::emailTracking()->getAvailableSubjectTypes();
 ### Track Sent Email
 
 ```php
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
 // After sending an email, track it in Teamleader
 $email = Teamleader::emailTracking()->createForContact(
     $contactId,
@@ -210,6 +212,8 @@ $email = Teamleader::emailTracking()->createForContact(
 ### Get Email History for Contact
 
 ```php
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
 $contactId = 'contact-uuid';
 $emailHistory = Teamleader::emailTracking()->forContact($contactId);
 
@@ -221,6 +225,8 @@ foreach ($emailHistory['data'] as $email) {
 ### Track Email with Attachments
 
 ```php
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
 // Upload file first (using Files resource)
 $file = Teamleader::files()->upload($filePath);
 
@@ -239,6 +245,8 @@ $email = Teamleader::emailTracking()->create([
 ### Paginate Through Email History
 
 ```php
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
 $subjectId = 'company-uuid';
 $allEmails = [];
 $page = 1;
@@ -267,6 +275,8 @@ do {
 ### Email Activity Logger
 
 ```php
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
 class EmailActivityLogger
 {
     public function logSentEmail($subjectType, $subjectId, $emailData)
@@ -291,6 +301,8 @@ class EmailActivityLogger
 ### CRM Integration
 
 ```php
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
 class CRMEmailIntegration
 {
     public function syncEmailToTeamleader($email, $recipientType, $recipientId)
@@ -315,6 +327,8 @@ class CRMEmailIntegration
 ### Communication Timeline
 
 ```php
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
 class CommunicationTimeline
 {
     public function getTimeline($entityType, $entityId)
@@ -367,6 +381,8 @@ class CommunicationTimeline
 ### Email Campaign Tracking
 
 ```php
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
 class EmailCampaignTracker
 {
     public function trackCampaignEmail($campaignName, $recipients, $subject, $body)
@@ -406,6 +422,8 @@ class EmailCampaignTracker
 ### Automated Follow-up Tracker
 
 ```php
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
 class FollowUpTracker
 {
     public function trackFollowUp($dealId, $followUpNumber, $emailSubject, $emailBody)

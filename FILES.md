@@ -1,7 +1,10 @@
 ```bash
 .
+├── .env.example
+├── .gitattributes
 ├── .gitignore
 ├── CHANGELOG.md
+├── CONTRIBUTING.md
 ├── FILES.md
 ├── LICENSE.md
 ├── README.md
@@ -29,6 +32,7 @@
 │   │   ├── pipelines.md
 │   │   ├── quotations.md
 │   │   └── sources.md
+│   ├── errors.md
 │   ├── expenses
 │   │   ├── bookkeeping-submissions.md
 │   │   ├── expenses.md
@@ -81,6 +85,8 @@
 │   │   ├── project-tasks.md
 │   │   └── projects.md
 │   ├── resources.md
+│   ├── security
+│   │   └── token-storage.md
 │   ├── sideloading.md
 │   ├── tasks
 │   │   └── tasks.md
@@ -93,111 +99,126 @@
 │   │   ├── time-tracking.md
 │   │   └── timers.md
 │   └── usage.md
-└── src
-    ├── Console
-    │   └── Commands
-    │       ├── TeamleaderConfigValidateCommand.php
-    │       ├── TeamleaderHealthCommand.php
-    │       └── TeamleaderStatusCommand.php
-    ├── Exceptions
-    │   └── TeamleaderException.php
-    ├── Facades
-    │   ├── Teamleader
-    │   │   └── ApiCallCounterMiddleware.php
-    │   └── Teamleader.php
-    ├── Resources
-    │   ├── CRM
-    │   │   ├── Addresses.php
-    │   │   ├── BusinessTypes.php
-    │   │   ├── Companies.php
-    │   │   ├── Contacts.php
-    │   │   └── Tags.php
-    │   ├── Calendar
-    │   │   ├── ActivityTypes.php
-    │   │   ├── CallOutcomes.php
-    │   │   ├── Calls.php
-    │   │   ├── Events.php
-    │   │   └── Meetings.php
-    │   ├── Deals
-    │   │   ├── Deals.php
-    │   │   ├── LostReasons.php
-    │   │   ├── Orders.php
-    │   │   ├── Phases.php
-    │   │   ├── Pipelines.php
-    │   │   ├── Quotations.php
-    │   │   └── Sources.php
-    │   ├── Expenses
-    │   │   ├── BookkeepingSubmissions.php
-    │   │   ├── Expenses.php
-    │   │   ├── IncomingCreditNotes.php
-    │   │   ├── IncomingInvoices.php
-    │   │   └── Receipts.php
-    │   ├── Files
-    │   │   └── Files.php
-    │   ├── General
-    │   │   ├── ClosingDays.php
-    │   │   ├── Currencies.php
-    │   │   ├── CustomFields.php
-    │   │   ├── DayOffTypes.php
-    │   │   ├── DaysOff.php
-    │   │   ├── Departments.php
-    │   │   ├── DocumentTemplates.php
-    │   │   ├── EmailTracking.php
-    │   │   ├── Notes.php
-    │   │   ├── Teams.php
-    │   │   ├── Users.php
-    │   │   └── WorkTypes.php
-    │   ├── Invoicing
-    │   │   ├── CommercialDiscounts.php
-    │   │   ├── Creditnotes.php
-    │   │   ├── Invoices.php
-    │   │   ├── PaymentMethods.php
-    │   │   ├── PaymentTerms.php
-    │   │   ├── Subscriptions.php
-    │   │   ├── TaxRates.php
-    │   │   └── WithholdingTaxRates.php
-    │   ├── Other
-    │   │   ├── Accounts.php
-    │   │   ├── CloudPlatforms.php
-    │   │   ├── Migrate.php
-    │   │   └── Webhooks.php
-    │   ├── Products
-    │   │   ├── Categories.php
-    │   │   ├── PriceLists.php
-    │   │   ├── Products.php
-    │   │   └── UnitOfMeasure.php
-    │   ├── Projects
-    │   │   ├── ExternalParties.php
-    │   │   ├── Groups.php
-    │   │   ├── LegacyMilestones.php
-    │   │   ├── LegacyProjects.php
-    │   │   ├── Materials.php
-    │   │   ├── ProjectLines.php
-    │   │   ├── ProjectTasks.php
-    │   │   └── Projects.php
-    │   ├── Resource.php
-    │   ├── Tasks
-    │   │   └── Tasks.php
-    │   ├── Templates
-    │   │   └── MailTemplates.php
-    │   ├── Tickets
-    │   │   ├── TicketStatus.php
-    │   │   └── Tickets.php
-    │   └── TimeTracking
-    │       ├── TimeTracking.php
-    │       └── Timers.php
-    ├── Services
-    │   ├── ApiRateLimiterService.php
-    │   ├── ConfigurationValidator.php
-    │   ├── HealthCheckService.php
-    │   ├── TeamleaderErrorHandler.php
-    │   └── TokenService.php
-    ├── TeamleaderSDK.php
-    ├── TeamleaderServiceProvider.php
-    ├── Traits
-    │   └── FilterTrait.php
-    └── Transformers
-        └── ResponseTransformer.php
+├── phpunit.xml
+├── src
+│   ├── Console
+│   │   └── Commands
+│   │       ├── TeamleaderConfigValidateCommand.php
+│   │       ├── TeamleaderHealthCommand.php
+│   │       └── TeamleaderStatusCommand.php
+│   ├── Constants
+│   │   ├── ErrorMessages.php
+│   │   └── TeamleaderConstants.php
+│   ├── Exceptions
+│   │   └── TeamleaderException.php
+│   ├── Facades
+│   │   ├── Teamleader
+│   │   │   └── ApiCallCounterMiddleware.php
+│   │   └── Teamleader.php
+│   ├── Resources
+│   │   ├── CRM
+│   │   │   ├── Addresses.php
+│   │   │   ├── BusinessTypes.php
+│   │   │   ├── Companies.php
+│   │   │   ├── Contacts.php
+│   │   │   └── Tags.php
+│   │   ├── Calendar
+│   │   │   ├── ActivityTypes.php
+│   │   │   ├── CallOutcomes.php
+│   │   │   ├── Calls.php
+│   │   │   ├── Events.php
+│   │   │   └── Meetings.php
+│   │   ├── Deals
+│   │   │   ├── Deals.php
+│   │   │   ├── LostReasons.php
+│   │   │   ├── Orders.php
+│   │   │   ├── Phases.php
+│   │   │   ├── Pipelines.php
+│   │   │   ├── Quotations.php
+│   │   │   └── Sources.php
+│   │   ├── Expenses
+│   │   │   ├── BookkeepingSubmissions.php
+│   │   │   ├── Expenses.php
+│   │   │   ├── IncomingCreditNotes.php
+│   │   │   ├── IncomingInvoices.php
+│   │   │   └── Receipts.php
+│   │   ├── Files
+│   │   │   └── Files.php
+│   │   ├── General
+│   │   │   ├── ClosingDays.php
+│   │   │   ├── Currencies.php
+│   │   │   ├── CustomFields.php
+│   │   │   ├── DayOffTypes.php
+│   │   │   ├── DaysOff.php
+│   │   │   ├── Departments.php
+│   │   │   ├── DocumentTemplates.php
+│   │   │   ├── EmailTracking.php
+│   │   │   ├── Notes.php
+│   │   │   ├── Teams.php
+│   │   │   ├── Users.php
+│   │   │   └── WorkTypes.php
+│   │   ├── Invoicing
+│   │   │   ├── CommercialDiscounts.php
+│   │   │   ├── Creditnotes.php
+│   │   │   ├── Invoices.php
+│   │   │   ├── PaymentMethods.php
+│   │   │   ├── PaymentTerms.php
+│   │   │   ├── Subscriptions.php
+│   │   │   ├── TaxRates.php
+│   │   │   └── WithholdingTaxRates.php
+│   │   ├── Other
+│   │   │   ├── Accounts.php
+│   │   │   ├── CloudPlatforms.php
+│   │   │   ├── Migrate.php
+│   │   │   └── Webhooks.php
+│   │   ├── Products
+│   │   │   ├── Categories.php
+│   │   │   ├── PriceLists.php
+│   │   │   ├── Products.php
+│   │   │   └── UnitOfMeasure.php
+│   │   ├── Projects
+│   │   │   ├── ExternalParties.php
+│   │   │   ├── Groups.php
+│   │   │   ├── LegacyMilestones.php
+│   │   │   ├── LegacyProjects.php
+│   │   │   ├── Materials.php
+│   │   │   ├── ProjectLines.php
+│   │   │   ├── ProjectTasks.php
+│   │   │   └── Projects.php
+│   │   ├── Resource.php
+│   │   ├── Tasks
+│   │   │   └── Tasks.php
+│   │   ├── Templates
+│   │   │   └── MailTemplates.php
+│   │   ├── Tickets
+│   │   │   ├── TicketStatus.php
+│   │   │   └── Tickets.php
+│   │   └── TimeTracking
+│   │       ├── TimeTracking.php
+│   │       └── Timers.php
+│   ├── Services
+│   │   ├── ApiRateLimiterService.php
+│   │   ├── ConfigurationValidator.php
+│   │   ├── HealthCheckService.php
+│   │   ├── TeamleaderErrorHandler.php
+│   │   └── TokenService.php
+│   ├── TeamleaderSDK.php
+│   ├── TeamleaderServiceProvider.php
+│   ├── Traits
+│   │   └── FilterTrait.php
+│   └── Transformers
+│       └── ResponseTransformer.php
+└── tests
+    ├── Feature
+    │   ├── AuthenticationTest.php
+    │   ├── CompaniesResourceTest.php
+    │   └── ConfigurationValidatorTest.php
+    ├── TestCase.php
+    └── Unit
+        └── Services
+            ├── ErrorHandlerTest.php
+            ├── RateLimiterTest.php
+            └── TokenServiceTest.php
 
-42 directories, 157 files
+48 directories, 172 files
 ```

@@ -649,4 +649,4 @@ When an account migrates from legacy to Projects v2:
 ## See Also
 
 - [Usage Guide](../usage.md) - General SDK usage
-- [Migration Guide](../migration.md) - Migrating to Projects v2
+- [Migration Guide](../migrate.md) - Migrating to Projects v2

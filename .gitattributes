@@ -1,0 +1,56 @@
+# Exclude files from distribution archives
+/tests export-ignore
+/docs export-ignore
+/.github export-ignore
+.gitattributes export-ignore
+.gitignore export-ignore
+phpunit.xml export-ignore
+phpunit.xml.dist export-ignore
+.php-cs-fixer.php export-ignore
+.editorconfig export-ignore
+CONTRIBUTING.md export-ignore
+.env.example export-ignore
+
+# Normalize line endings for all text files
+* text=auto
+
+# PHP files
+*.php text eol=lf diff=php
+
+# Markdown files
+*.md text eol=lf
+
+# JSON files
+*.json text eol=lf
+
+# XML files
+*.xml text eol=lf
+
+# YAML files
+*.yaml text eol=lf
+*.yml text eol=lf
+
+# Shell scripts
+*.sh text eol=lf
+
+# Config files
+.editorconfig text eol=lf
+.gitattributes text eol=lf
+.gitignore text eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+
+# Prevent merge conflicts in composer.lock
+composer.lock binary merge=ours
+
+# Linguist language detection
+*.php linguist-language=PHP
+docs/*.md linguist-documentation
+tests/* linguist-vendored=false
