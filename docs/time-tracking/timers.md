@@ -1,6 +1,28 @@
 # Timers
 
-Manage time tracking timers in Teamleader Focus. This resource allows you to start, stop, update, and retrieve the currently running timer. Timers are used to track time spent on various subjects like companies, contacts, events, tickets, and more.
+Manage time tracking timers in Teamleader Focus.
+
+## Overview
+
+The Timers resource provides methods for starting, stopping, and managing time tracking timers. Timers allow real-time tracking of work being performed, which automatically creates time tracking entries when stopped. Only one timer can run at a time per account.
+
+## Navigation
+
+- [Endpoint](#endpoint)
+- [Capabilities](#capabilities)
+- [Available Methods](#available-methods)
+    - [start()](#start)
+    - [current()](#current)
+    - [stop()](#stop)
+    - [updateCurrent()](#updatecurrent)
+    - [isRunning()](#isrunning)
+- [Helper Methods](#helper-methods)
+- [Response Structure](#response-structure)
+- [Usage Examples](#usage-examples)
+- [Common Use Cases](#common-use-cases)
+- [Best Practices](#best-practices)
+- [Error Handling](#error-handling)
+- [Related Resources](#related-resources)
 
 ## Endpoint
 
@@ -8,14 +30,13 @@ Manage time tracking timers in Teamleader Focus. This resource allows you to sta
 
 ## Capabilities
 
-- **Supports Pagination**: ❌ Not Supported
-- **Supports Filtering**: ❌ Not Supported
-- **Supports Sorting**: ❌ Not Supported
-- **Supports Sideloading**: ❌ Not Supported
-- **Supports Creation**: ✅ Supported (start)
-- **Supports Update**: ✅ Supported (current timer only)
-- **Supports Deletion**: ❌ Not Supported (use stop instead)
-- **Supports Batch**: ❌ Not Supported
+- **Pagination**: ❌ Not Supported
+- **Filtering**: ❌ Not Supported
+- **Sorting**: ❌ Not Supported
+- **Sideloading**: ❌ Not Supported
+- **Creation**: ✅ Supported (via start())
+- **Update**: ✅ Supported (via updateCurrent())
+- **Deletion**: ❌ Not Supported (use stop() instead)
 
 ## Available Methods
 
@@ -23,131 +44,73 @@ Manage time tracking timers in Teamleader Focus. This resource allows you to sta
 
 Start a new timer.
 
-**Parameters:**
-- `data` (array): Timer configuration
-    - `work_type_id` (string, required): UUID of the work type
-    - `subject` (array, required): Subject to track time for
-        - `type` (string, required): Subject type (company, contact, event, todo, milestone, ticket)
-        - `id` (string, required): Subject UUID
-    - `description` (string, optional): Description of the work being performed
-    - `started_at` (string, optional): ISO 8601 datetime. If not provided, current time will be used
-    - `invoiceable` (boolean, optional): Whether the time is invoiceable
+**Required Fields:**
+- `work_type_id` (string): Work type UUID
+- `subject` (object): Subject with type and id
+
+**Optional Fields:**
+- `description` (string): Timer description
+- `invoiceable` (boolean): Whether time is invoiceable (default: true)
+- `started_at` (string): Custom start time (ISO 8601 format)
 
 **Example:**
 ```php
-$timer = $teamleader->timers()->start([
-    'work_type_id' => 'db41328a-7a25-4e85-8fb9-830baacb7f40',
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
+$timer = Teamleader::timers()->start([
+    'work_type_id' => 'work-type-uuid',
     'subject' => [
         'type' => 'company',
-        'id' => 'eab232c6-49b2-4b7e-a977-5e1148dad471'
+        'id' => 'company-uuid'
     ],
-    'description' => 'Working on website redesign',
+    'description' => 'Working on project',
     'invoiceable' => true
 ]);
 ```
 
-### `startForSubject()`
-
-Start a timer for a specific subject (convenience method).
-
-**Parameters:**
-- `subjectType` (string): Type of subject (company, contact, event, todo, milestone, ticket)
-- `subjectId` (string): UUID of the subject
-- `workTypeId` (string): UUID of the work type
-- `options` (array, optional): Additional options
-    - `description` (string): Description of the work
-    - `invoiceable` (boolean): Whether the time is invoiceable
-    - `started_at` (string): ISO 8601 datetime
-
-**Example:**
-```php
-// Start timer for a ticket
-$timer = $teamleader->timers()->startForSubject(
-    'ticket',
-    'ticket-uuid-here',
-    'work-type-uuid-here',
-    [
-        'description' => 'Fixing critical bug',
-        'invoiceable' => true
-    ]
-);
-
-// Start timer for a company
-$timer = $teamleader->timers()->startForSubject(
-    'company',
-    'company-uuid-here',
-    'work-type-uuid-here',
-    ['description' => 'Client meeting']
-);
-```
-
 ### `current()`
 
-Get the current running timer.
-
-**Parameters:** None
-
-**Returns:** Array with timer data if a timer is running, empty data array if no timer is running
+Get the currently running timer (if any).
 
 **Example:**
 ```php
-$currentTimer = $teamleader->timers()->current();
+// Get current timer
+$timer = Teamleader::timers()->current();
 
-if (!empty($currentTimer['data'])) {
-    echo "Timer is running: " . $currentTimer['data']['description'];
-    echo "Started at: " . $currentTimer['data']['started_at'];
+// Returns empty data if no timer is running
+if (!empty($timer['data'])) {
+    echo "Timer is running!";
 }
 ```
 
 ### `stop()`
 
-Stop the current timer. This will add a new time tracking entry in the background.
-
-**Parameters:** None
-
-**Returns:** Array with the created time tracking entry reference
+Stop the current timer. This will automatically create a time tracking entry in the background.
 
 **Example:**
 ```php
-$result = $teamleader->timers()->stop();
+// Stop current timer
+$result = Teamleader::timers()->stop();
 
-if (!empty($result['data'])) {
-    echo "Timer stopped. Time tracking entry created with ID: " . $result['data']['id'];
-}
+// The timer data will be converted to a time tracking entry
 ```
 
-### `update()`
+### `updateCurrent()`
 
-Update the current timer. Only possible if there is a timer running.
+Update the current running timer.
 
 **Parameters:**
-- `data` (array): Data to update
-    - `work_type_id` (string, nullable): UUID of the work type
-    - `started_at` (string, optional): ISO 8601 datetime
-    - `description` (string, nullable): Description of the work
-    - `subject` (array, nullable): Subject to track time for
-        - `type` (string, required if subject provided): Subject type
-        - `id` (string, required if subject provided): Subject UUID
-    - `invoiceable` (boolean, optional): Whether the time is invoiceable
+- `data` (array): Fields to update (description, invoiceable)
 
 **Example:**
 ```php
-// Update description
-$result = $teamleader->timers()->update([
-    'description' => 'Updated: Working on database optimization'
+// Update description of running timer
+$result = Teamleader::timers()->updateCurrent([
+    'description' => 'Updated task description'
 ]);
 
-// Change subject
-$result = $teamleader->timers()->update([
-    'subject' => [
-        'type' => 'ticket',
-        'id' => 'new-ticket-uuid'
-    ]
-]);
-
-// Update multiple fields
-$result = $teamleader->timers()->update([
-    'description' => 'Final review',
+// Change invoiceable status
+$result = Teamleader::timers()->updateCurrent([
     'invoiceable' => false
 ]);
 ```
@@ -156,211 +119,495 @@ $result = $teamleader->timers()->update([
 
 Check if there is a timer currently running.
 
-**Parameters:** None
-
-**Returns:** Boolean (true if a timer is running, false otherwise)
+**Returns:** boolean
 
 **Example:**
 ```php
-if ($teamleader->timers()->isRunning()) {
-    echo "A timer is currently running";
+if (Teamleader::timers()->isRunning()) {
+    echo "A timer is currently active";
 } else {
     echo "No timer running";
 }
 ```
 
-### `getAvailableSubjectTypes()`
+## Helper Methods
 
-Get the list of available subject types for timers.
+### `startForSubject()`
 
-**Parameters:** None
+Convenience method to start a timer for a specific subject.
 
-**Returns:** Array of subject type strings
+**Parameters:**
+- `subjectType` (string): Type of subject
+- `subjectId` (string): UUID of subject
+- `workTypeId` (string): Work type UUID
+- `options` (array): Optional fields (description, invoiceable, started_at)
 
 **Example:**
 ```php
-$types = $teamleader->timers()->getAvailableSubjectTypes();
-// Returns: ['company', 'contact', 'event', 'todo', 'milestone', 'ticket']
+// Start timer for a company
+$timer = Teamleader::timers()->startForSubject(
+    'company',
+    'company-uuid',
+    'consulting-work-type-uuid',
+    [
+        'description' => 'Client consultation',
+        'invoiceable' => true
+    ]
+);
+
+// Start timer for a ticket
+$timer = Teamleader::timers()->startForSubject(
+    'ticket',
+    'ticket-uuid',
+    'support-work-type-uuid',
+    ['description' => 'Bug fix']
+);
 ```
 
-## Complete Workflow Examples
+## Available Subject Types
 
-### Basic Timer Workflow
+Valid subject types for timers:
+
+- `company`
+- `contact`
+- `event`
+- `todo`
+- `milestone`
+- `ticket`
+
+## Response Structure
+
+### Start/Current Response
 
 ```php
-// Start a timer
-$timer = $teamleader->timers()->start([
+[
+    'data' => [
+        'id' => 'timer-uuid',
+        'description' => 'Working on project',
+        'started_at' => '2025-10-17T09:00:00+00:00',
+        'invoiceable' => true,
+        'user' => [
+            'type' => 'user',
+            'id' => 'user-uuid'
+        ],
+        'subject' => [
+            'type' => 'company',
+            'id' => 'company-uuid'
+        ],
+        'work_type' => [
+            'type' => 'workType',
+            'id' => 'work-type-uuid'
+        ]
+    ]
+]
+```
+
+### Stop Response
+
+```php
+[
+    'data' => [
+        'time_tracking' => [
+            'type' => 'timeTracking',
+            'id' => 'time-tracking-entry-uuid'
+        ]
+    ]
+]
+```
+
+### Empty Response (No Timer Running)
+
+```php
+[
+    'data' => []
+]
+```
+
+## Usage Examples
+
+### Start Timer for Company Work
+
+```php
+// Start tracking time for client work
+$timer = Teamleader::timers()->start([
+    'work_type_id' => 'consulting-work-type-uuid',
+    'subject' => [
+        'type' => 'company',
+        'id' => 'company-uuid'
+    ],
+    'description' => 'Strategic planning session',
+    'invoiceable' => true
+]);
+
+echo "Timer started at: " . $timer['data']['started_at'];
+```
+
+### Start Timer for Ticket
+
+```php
+// Track time spent on support ticket
+$timer = Teamleader::timers()->startForSubject(
+    'ticket',
+    'ticket-uuid',
+    'support-work-type-uuid',
+    [
+        'description' => 'Investigating reported issue',
+        'invoiceable' => true
+    ]
+);
+```
+
+### Check and Update Running Timer
+
+```php
+// Check if timer is running
+if (Teamleader::timers()->isRunning()) {
+    // Get current timer details
+    $timer = Teamleader::timers()->current();
+    
+    // Update description
+    Teamleader::timers()->updateCurrent([
+        'description' => 'Updated: Now working on code review'
+    ]);
+}
+```
+
+### Stop Timer and Get Entry
+
+```php
+// Stop the timer
+$result = Teamleader::timers()->stop();
+
+// Get the created time tracking entry ID
+$entryId = $result['data']['time_tracking']['id'];
+
+// Fetch full details of the created entry
+$entry = Teamleader::timeTracking()->info($entryId);
+
+echo "Tracked " . ($entry['data']['duration'] / 3600) . " hours";
+```
+
+### Timer Workflow
+
+```php
+// Check if timer already running
+if (!Teamleader::timers()->isRunning()) {
+    // Start new timer
+    $timer = Teamleader::timers()->start([
+        'work_type_id' => 'development-work-type-uuid',
+        'subject' => [
+            'type' => 'milestone',
+            'id' => 'milestone-uuid'
+        ],
+        'description' => 'Feature development'
+    ]);
+    
+    echo "Timer started!";
+} else {
+    echo "Timer already running. Stop it first.";
+}
+```
+
+### Start Timer with Custom Start Time
+
+```php
+// Start timer with specific start time (e.g., forgot to start it earlier)
+$timer = Teamleader::timers()->start([
     'work_type_id' => 'work-type-uuid',
     'subject' => [
         'type' => 'company',
         'id' => 'company-uuid'
     ],
-    'description' => 'Client consultation',
-    'invoiceable' => true
+    'description' => 'Client meeting',
+    'started_at' => '2025-10-17T09:00:00+00:00'
 ]);
-
-// ... do some work ...
-
-// Check what's running
-$current = $teamleader->timers()->current();
-echo "Currently tracking: " . $current['data']['description'];
-
-// Update the timer
-$teamleader->timers()->update([
-    'description' => 'Client consultation - Project discussion'
-]);
-
-// Stop the timer
-$result = $teamleader->timers()->stop();
 ```
 
-### Checking Before Starting
+## Common Use Cases
+
+### 1. Time Tracking Widget
 
 ```php
-// Check if a timer is already running
-if ($teamleader->timers()->isRunning()) {
-    // Stop the current timer first
-    $teamleader->timers()->stop();
+// Widget to display/control timer
+class TimerWidget
+{
+    public function getCurrentTimer()
+    {
+        if (Teamleader::timers()->isRunning()) {
+            $timer = Teamleader::timers()->current();
+            
+            return [
+                'active' => true,
+                'description' => $timer['data']['description'],
+                'started_at' => $timer['data']['started_at'],
+                'duration' => $this->calculateDuration($timer['data']['started_at'])
+            ];
+        }
+        
+        return ['active' => false];
+    }
+    
+    private function calculateDuration(string $startedAt): int
+    {
+        $start = new DateTime($startedAt);
+        $now = new DateTime();
+        return $now->getTimestamp() - $start->getTimestamp();
+    }
+}
+```
+
+### 2. Automatic Timer Management
+
+```php
+// Stop current timer and start new one
+function switchTimer(string $newWorkTypeId, array $newSubject, string $description): array
+{
+    // Stop current timer if running
+    if (Teamleader::timers()->isRunning()) {
+        Teamleader::timers()->stop();
+    }
+    
+    // Start new timer
+    return Teamleader::timers()->start([
+        'work_type_id' => $newWorkTypeId,
+        'subject' => $newSubject,
+        'description' => $description
+    ]);
 }
 
-// Now start a new timer
-$timer = $teamleader->timers()->startForSubject(
-    'ticket',
-    'ticket-uuid',
-    'work-type-uuid',
-    ['description' => 'Bug fix']
+// Usage
+$timer = switchTimer(
+    'new-work-type-uuid',
+    ['type' => 'ticket', 'id' => 'ticket-uuid'],
+    'Working on high-priority bug'
 );
 ```
 
-### Working with Different Subjects
+### 3. Timer Reminder System
 
 ```php
-// For a company
-$teamleader->timers()->startForSubject(
-    'company',
-    'company-uuid',
-    'work-type-uuid',
-    ['description' => 'Business meeting']
-);
+// Check if timer has been running too long
+function checkLongRunningTimer(int $maxHours = 8): ?array
+{
+    if (!Teamleader::timers()->isRunning()) {
+        return null;
+    }
+    
+    $timer = Teamleader::timers()->current();
+    $startedAt = new DateTime($timer['data']['started_at']);
+    $now = new DateTime();
+    
+    $hours = ($now->getTimestamp() - $startedAt->getTimestamp()) / 3600;
+    
+    if ($hours > $maxHours) {
+        return [
+            'warning' => true,
+            'hours' => round($hours, 2),
+            'description' => $timer['data']['description']
+        ];
+    }
+    
+    return null;
+}
 
-// For a contact
-$teamleader->timers()->startForSubject(
-    'contact',
-    'contact-uuid',
-    'work-type-uuid',
-    ['description' => 'Phone consultation']
-);
-
-// For a ticket
-$teamleader->timers()->startForSubject(
-    'ticket',
-    'ticket-uuid',
-    'work-type-uuid',
-    ['description' => 'Technical support', 'invoiceable' => true]
-);
-
-// For a milestone
-$teamleader->timers()->startForSubject(
-    'milestone',
-    'milestone-uuid',
-    'work-type-uuid',
-    ['description' => 'Project milestone work']
-);
+// Usage
+$check = checkLongRunningTimer();
+if ($check) {
+    echo "Warning: Timer has been running for {$check['hours']} hours!";
+}
 ```
 
-## Response Examples
-
-### Start Timer Response
+### 4. Daily Timer Summary
 
 ```php
-[
-    'data' => [
-        'type' => 'timeTracking',
-        'id' => 'eab232c6-49b2-4b7e-a977-5e1148dad471'
-    ]
-]
+// Get today's time tracking (from stopped timers)
+function getTodayTimeTracking(string $userId): array
+{
+    $today = date('Y-m-d');
+    $entries = Teamleader::timeTracking()->forUser($userId)->list([
+        'started_after' => $today . 'T00:00:00+00:00',
+        'started_before' => $today . 'T23:59:59+00:00'
+    ]);
+    
+    $totalSeconds = array_sum(array_column($entries['data'], 'duration'));
+    
+    // Add current timer if running
+    if (Teamleader::timers()->isRunning()) {
+        $timer = Teamleader::timers()->current();
+        $start = new DateTime($timer['data']['started_at']);
+        $now = new DateTime();
+        $currentDuration = $now->getTimestamp() - $start->getTimestamp();
+        $totalSeconds += $currentDuration;
+    }
+    
+    return [
+        'total_hours' => round($totalSeconds / 3600, 2),
+        'entries_count' => count($entries['data']),
+        'timer_active' => Teamleader::timers()->isRunning()
+    ];
+}
 ```
 
-### Current Timer Response
+## Best Practices
+
+### 1. Always Check Before Starting
 
 ```php
-[
-    'data' => [
-        'id' => '2b282dec-ba9d-4faa-9b39-944b99ee5c0a',
-        'user' => [
-            'id' => 'eab232c6-49b2-4b7e-a977-5e1148dad471',
-            'type' => 'user'
-        ],
-        'work_type' => [
-            'id' => 'eab232c6-49b2-4b7e-a977-5e1148dad471',
-            'type' => 'workType'
-        ],
-        'started_at' => '2017-04-26T10:01:49+00:00',
-        'description' => 'Timer description',
-        'subject' => [
-            'id' => 'eab232c6-49b2-4b7e-a977-5e1148dad471',
-            'type' => 'company'
-        ],
-        'invoiceable' => true
-    ]
-]
+// Good: Check if timer is already running
+if (!Teamleader::timers()->isRunning()) {
+    $timer = Teamleader::timers()->start([...]);
+} else {
+    // Handle already running timer
+    throw new Exception('Timer already running. Stop it first.');
+}
 ```
 
-### Stop Timer Response
+### 2. Handle Timer State in UI
 
 ```php
-[
-    'data' => [
-        'type' => 'timeTracking',
-        'id' => 'eab232c6-49b2-4b7e-a977-5e1148dad471'
-    ]
-]
+// Check timer state before showing UI
+$timerState = [
+    'is_running' => Teamleader::timers()->isRunning(),
+    'current_timer' => null
+];
+
+if ($timerState['is_running']) {
+    $timerState['current_timer'] = Teamleader::timers()->current();
+}
+
+// Use this state to show appropriate UI (start/stop button)
 ```
 
-## Available Subject Types
+### 3. Use Descriptive Timer Descriptions
 
-- **company**: Track time for a company
-- **contact**: Track time for a contact
-- **event**: Track time for an event
-- **todo**: Track time for a todo/task
-- **milestone**: Track time for a project milestone
-- **ticket**: Track time for a support ticket
+```php
+// Good: Clear and specific
+$timer = Teamleader::timers()->start([
+    'work_type_id' => 'work-type-uuid',
+    'subject' => ['type' => 'company', 'id' => 'company-uuid'],
+    'description' => 'Implementing user authentication feature for web app'
+]);
 
-## Notes
+// Less helpful: Vague description
+// 'description' => 'Work'
+```
 
-- Only one timer can be running at a time per user
-- Stopping a timer automatically creates a time tracking entry
-- The `started_at` parameter must be in ISO 8601 format (e.g., `2017-04-26T10:01:49+00:00`)
-- If `started_at` is not provided when starting a timer, the current time will be used
-- Timers must have a subject (the entity you're tracking time for)
-- Update operations return a 204 status (no content) on success
-- The timer tracks duration automatically from the `started_at` time until it's stopped
+### 4. Set Invoiceable Flag Correctly
+
+```php
+// Billable work
+$timer = Teamleader::timers()->start([
+    'work_type_id' => 'consulting-work-type-uuid',
+    'subject' => ['type' => 'company', 'id' => 'company-uuid'],
+    'description' => 'Business strategy session',
+    'invoiceable' => true // Will appear on invoices
+]);
+
+// Internal/overhead work
+$timer = Teamleader::timers()->start([
+    'work_type_id' => 'admin-work-type-uuid',
+    'subject' => ['type' => 'company', 'id' => 'company-uuid'],
+    'description' => 'Internal team meeting',
+    'invoiceable' => false // Won't be billed
+]);
+```
+
+### 5. Handle Stop Gracefully
+
+```php
+function stopTimerSafely(): ?array
+{
+    try {
+        if (Teamleader::timers()->isRunning()) {
+            return Teamleader::timers()->stop();
+        }
+        return null;
+    } catch (Exception $e) {
+        Log::error('Failed to stop timer', [
+            'error' => $e->getMessage()
+        ]);
+        return null;
+    }
+}
+```
 
 ## Error Handling
 
 ```php
+use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
+
+// Starting a timer
 try {
-    // Try to start a timer
-    $timer = $teamleader->timers()->start([
-        'work_type_id' => 'invalid-uuid',
+    $timer = Teamleader::timers()->start([
+        'work_type_id' => 'work-type-uuid',
         'subject' => [
             'type' => 'company',
             'id' => 'company-uuid'
         ]
     ]);
-} catch (\InvalidArgumentException $e) {
-    echo "Validation error: " . $e->getMessage();
-} catch (\Exception $e) {
-    echo "API error: " . $e->getMessage();
+} catch (TeamleaderException $e) {
+    if ($e->getCode() === 422) {
+        // Validation error (e.g., timer already running)
+        Log::error('Timer start failed', [
+            'error' => $e->getMessage()
+        ]);
+    } elseif ($e->getCode() === 404) {
+        // Work type or subject not found
+        Log::error('Resource not found');
+    }
 }
 
-// Safe check for running timer
+// Stopping a timer
 try {
-    $current = $teamleader->timers()->current();
-    if (!empty($current['data'])) {
-        // Timer is running
+    $result = Teamleader::timers()->stop();
+} catch (TeamleaderException $e) {
+    if ($e->getCode() === 422) {
+        // No timer running
+        Log::warning('No timer to stop');
     }
-} catch (\Exception $e) {
-    // No timer running or API error
+}
+
+// Updating current timer
+try {
+    Teamleader::timers()->updateCurrent([
+        'description' => 'Updated description'
+    ]);
+} catch (TeamleaderException $e) {
+    if ($e->getCode() === 422) {
+        // No timer running to update
+        Log::warning('No timer running to update');
+    }
 }
 ```
+
+## Important Notes
+
+### 1. One Timer Per Account
+
+Only one timer can run at a time per Teamleader account. Starting a new timer while one is already running will result in an error.
+
+### 2. Automatic Time Tracking Entry
+
+When you stop a timer, it automatically creates a time tracking entry in the background. You don't need to manually create the entry.
+
+### 3. Timer vs Time Tracking
+
+- **Timers**: For real-time tracking (start/stop)
+- **Time Tracking**: For manual entry of completed work
+
+### 4. Subject Types Differ
+
+Timer subject types include `todo` but Time Tracking uses different types. When a timer is stopped, it's converted appropriately.
+
+## Related Resources
+
+- [Time Tracking](time-tracking.md) - Manual time entry management
+- [Users](../general/users.md) - Users who track time
+- [Work Types](../general/work-types.md) - Categorize timer activities
+- [Tickets](../tickets/tickets.md) - Track time on tickets
+- [Projects](../projects/projects.md) - Track time on projects
+
+## See Also
+
+- [Usage Guide](../usage.md) - General SDK usage
+- [Error Handling](../error-handling.md) - Handle API errors

@@ -1,6 +1,28 @@
 # Cloud Platforms
 
-Fetch cloud platform URLs for invoices, quotations, and tickets. These URLs provide direct access to resources in the Teamleader cloud platform interface.
+Fetch cloud platform URLs for resources in Teamleader Focus.
+
+## Overview
+
+The Cloud Platforms resource provides methods to generate secure URLs to view resources (invoices, quotations, tickets) in the Teamleader cloud platform. These URLs allow you to redirect users directly to specific resources in the Teamleader interface, useful for deep linking and integrations.
+
+## Navigation
+
+- [Endpoint](#endpoint)
+- [Capabilities](#capabilities)
+- [Available Methods](#available-methods)
+    - [url()](#url)
+    - [invoiceUrl()](#invoiceurl)
+    - [quotationUrl()](#quotationurl)
+    - [ticketUrl()](#ticketurl)
+- [Helper Methods](#helper-methods)
+- [Supported Resource Types](#supported-resource-types)
+- [Response Structure](#response-structure)
+- [Usage Examples](#usage-examples)
+- [Common Use Cases](#common-use-cases)
+- [Best Practices](#best-practices)
+- [Error Handling](#error-handling)
+- [Related Resources](#related-resources)
 
 ## Endpoint
 
@@ -8,523 +30,569 @@ Fetch cloud platform URLs for invoices, quotations, and tickets. These URLs prov
 
 ## Capabilities
 
-- **Supports Pagination**: ❌ Not Supported
-- **Supports Filtering**: ❌ Not Supported
-- **Supports Sorting**: ❌ Not Supported
-- **Supports Sideloading**: ❌ Not Supported
-- **Supports Creation**: ❌ Not Supported
-- **Supports Update**: ❌ Not Supported
-- **Supports Deletion**: ❌ Not Supported
-- **Supports Batch**: ⚠️ Partial (via `batchUrls()` helper method)
+- **Pagination**: ❌ Not Supported
+- **Filtering**: ❌ Not Supported
+- **Sorting**: ❌ Not Supported
+- **Sideloading**: ❌ Not Supported
+- **Creation**: ❌ Not Supported
+- **Update**: ❌ Not Supported
+- **Deletion**: ❌ Not Supported
 
 ## Available Methods
 
 ### `url()`
 
-Fetch the cloud platform URL for a specific resource type and ID.
+Fetch cloud platform URL for a specific resource type and ID.
 
 **Parameters:**
-- `type` (string, required): Resource type - must be one of: `invoice`, `quotation`, or `ticket`
-- `id` (string, required): Resource UUID
+- `type` (string): Resource type (invoice, quotation, or ticket)
+- `id` (string): Resource UUID
 
 **Returns:** Array with cloud platform URL
 
 **Example:**
 ```php
-$result = $teamleader->cloudPlatforms()->url('invoice', 'b7023c11-455e-4fa5-bb96-87f37dbc7d07');
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
 
-// Returns:
-// [
-//     'data' => [
-//         'url' => 'https://teamleader.cloud/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...'
-//     ]
-// ]
+// Get URL for invoice
+$result = Teamleader::cloudPlatforms()->url('invoice', 'invoice-uuid');
+$url = $result['data']['url'];
 
-$cloudUrl = $result['data']['url'];
+// Redirect user
+return redirect($url);
 ```
 
-### `getUrl()`
+### `invoiceUrl()`
 
-Extract just the URL string from the API response (convenience method).
+Get cloud platform URL for an invoice.
 
 **Parameters:**
-- `type` (string, required): Resource type
-- `id` (string, required): Resource UUID
-
-**Returns:** String containing the cloud platform URL
+- `invoiceId` (string): Invoice UUID
 
 **Example:**
 ```php
-$url = $teamleader->cloudPlatforms()->getUrl('invoice', 'b7023c11-455e-4fa5-bb96-87f37dbc7d07');
-
-// Returns: "https://teamleader.cloud/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
-```
-
-### Type-Specific Convenience Methods
-
-#### `invoiceUrl()` / `getInvoiceUrl()`
-
-Get cloud platform URL specifically for an invoice.
-
-**Example:**
-```php
-// Get full response
-$result = $teamleader->cloudPlatforms()->invoiceUrl('invoice-uuid');
+// Get invoice URL
+$result = Teamleader::cloudPlatforms()->invoiceUrl('invoice-uuid');
 $url = $result['data']['url'];
-
-// Get just the URL string
-$url = $teamleader->cloudPlatforms()->getInvoiceUrl('invoice-uuid');
 ```
 
-#### `quotationUrl()` / `getQuotationUrl()`
+### `quotationUrl()`
 
-Get cloud platform URL specifically for a quotation.
-
-**Example:**
-```php
-// Get full response
-$result = $teamleader->cloudPlatforms()->quotationUrl('quotation-uuid');
-$url = $result['data']['url'];
-
-// Get just the URL string
-$url = $teamleader->cloudPlatforms()->getQuotationUrl('quotation-uuid');
-```
-
-#### `ticketUrl()` / `getTicketUrl()`
-
-Get cloud platform URL specifically for a ticket.
-
-**Example:**
-```php
-// Get full response
-$result = $teamleader->cloudPlatforms()->ticketUrl('ticket-uuid');
-$url = $result['data']['url'];
-
-// Get just the URL string
-$url = $teamleader->cloudPlatforms()->getTicketUrl('ticket-uuid');
-```
-
-### `batchUrls()`
-
-Get cloud platform URLs for multiple resources of the same type. This is a convenience method that calls the API multiple times.
+Get cloud platform URL for a quotation.
 
 **Parameters:**
-- `type` (string, required): Resource type
-- `ids` (array, required): Array of resource UUIDs
-
-**Returns:** Associative array mapping IDs to URLs
+- `quotationId` (string): Quotation UUID
 
 **Example:**
 ```php
-$invoiceIds = [
-    'b7023c11-455e-4fa5-bb96-87f37dbc7d07',
-    'c8134d22-566f-5ga6-cc07-98g48ecd8e18',
-    'd9245e33-677g-6hb7-dd18-09h59fde9f29'
-];
+// Get quotation URL
+$result = Teamleader::cloudPlatforms()->quotationUrl('quotation-uuid');
+$url = $result['data']['url'];
+```
 
-$urls = $teamleader->cloudPlatforms()->batchUrls('invoice', $invoiceIds);
+### `ticketUrl()`
 
-// Returns:
-// [
-//     'b7023c11-455e-4fa5-bb96-87f37dbc7d07' => 'https://teamleader.cloud/...',
-//     'c8134d22-566f-5ga6-cc07-98g48ecd8e18' => 'https://teamleader.cloud/...',
-//     'd9245e33-677g-6hb7-dd18-09h59fde9f29' => 'https://teamleader.cloud/...'
-// ]
+Get cloud platform URL for a ticket.
+
+**Parameters:**
+- `ticketId` (string): Ticket UUID
+
+**Example:**
+```php
+// Get ticket URL
+$result = Teamleader::cloudPlatforms()->ticketUrl('ticket-uuid');
+$url = $result['data']['url'];
 ```
 
 ## Helper Methods
 
-### `getSupportedTypes()`
+### Get URL String Directly
 
-Get all supported resource types.
-
-**Example:**
 ```php
-$types = $teamleader->cloudPlatforms()->getSupportedTypes();
-// Returns: ['invoice', 'quotation', 'ticket']
+// Get just the URL string (without the full response array)
+$url = Teamleader::cloudPlatforms()->getUrl('invoice', 'invoice-uuid');
+
+// Type-specific helpers
+$invoiceUrl = Teamleader::cloudPlatforms()->getInvoiceUrl('invoice-uuid');
+$quotationUrl = Teamleader::cloudPlatforms()->getQuotationUrl('quotation-uuid');
+$ticketUrl = Teamleader::cloudPlatforms()->getTicketUrl('ticket-uuid');
 ```
 
-### `isTypeSupported()`
+### Batch URLs
 
-Check if a resource type is supported.
-
-**Example:**
 ```php
-if ($teamleader->cloudPlatforms()->isTypeSupported('invoice')) {
-    // This type is supported
-}
+// Get URLs for multiple resources of the same type
+$urls = Teamleader::cloudPlatforms()->batchUrls('invoice', [
+    'invoice-uuid-1',
+    'invoice-uuid-2',
+    'invoice-uuid-3'
+]);
+
+// Returns: ['invoice-uuid-1' => 'https://...', 'invoice-uuid-2' => 'https://...', ...]
 ```
 
 ## Supported Resource Types
 
-The following resource types support cloud platform URLs:
+Valid resource types for cloud platform URLs:
 
-- `invoice` - View invoices in the cloud platform
-- `quotation` - View quotations in the cloud platform
-- `ticket` - View tickets in the cloud platform
-
-## Common Usage Patterns
-
-### Redirect User to Invoice
-
-```php
-use Illuminate\Support\Facades\Redirect;
-
-public function viewInvoiceInCloud($invoiceId)
-{
-    $url = $teamleader->cloudPlatforms()->getInvoiceUrl($invoiceId);
-    
-    return Redirect::away($url);
-}
-```
-
-### Generate Links for Email Notifications
-
-```php
-$invoice = $teamleader->invoices()->info($invoiceId);
-$cloudUrl = $teamleader->cloudPlatforms()->getInvoiceUrl($invoiceId);
-
-Mail::to($customer->email)->send(new InvoiceNotification($invoice, $cloudUrl));
-```
-
-### Add Cloud Links to Admin Panel
-
-```php
-// In your controller
-$invoices = $teamleader->invoices()->list();
-
-foreach ($invoices['data'] as &$invoice) {
-    $invoice['cloud_url'] = $teamleader->cloudPlatforms()
-        ->getInvoiceUrl($invoice['id']);
-}
-
-return view('admin.invoices', compact('invoices'));
-```
-
-### Batch Generate URLs for Reports
-
-```php
-$invoiceIds = DB::table('invoices')
-    ->where('status', 'sent')
-    ->pluck('teamleader_id')
-    ->toArray();
-
-$cloudUrls = $teamleader->cloudPlatforms()->batchUrls('invoice', $invoiceIds);
-
-// Store URLs in database for quick access
-foreach ($cloudUrls as $invoiceId => $url) {
-    DB::table('invoices')
-        ->where('teamleader_id', $invoiceId)
-        ->update(['cloud_url' => $url]);
-}
-```
-
-### Create "View in Teamleader" Button
-
-```php
-// In your Blade template
-@foreach($invoices as $invoice)
-    <tr>
-        <td>{{ $invoice['invoice_number'] }}</td>
-        <td>{{ $invoice['total'] }}</td>
-        <td>
-            <a href="{{ $teamleader->cloudPlatforms()->getInvoiceUrl($invoice['id']) }}" 
-               target="_blank" 
-               class="btn btn-primary">
-                View in Teamleader
-            </a>
-        </td>
-    </tr>
-@endforeach
-```
-
-### Handle Different Resource Types
-
-```php
-public function getCloudUrl(string $type, string $id)
-{
-    $cloudPlatforms = $teamleader->cloudPlatforms();
-    
-    if (!$cloudPlatforms->isTypeSupported($type)) {
-        throw new \InvalidArgumentException("Type {$type} is not supported");
-    }
-    
-    return match($type) {
-        'invoice' => $cloudPlatforms->getInvoiceUrl($id),
-        'quotation' => $cloudPlatforms->getQuotationUrl($id),
-        'ticket' => $cloudPlatforms->getTicketUrl($id),
-    };
-}
-```
-
-### Generate QR Codes for Cloud URLs
-
-```php
-use SimpleSoftwareIO\QrCode\Facades\QrCode;
-
-public function generateInvoiceQrCode($invoiceId)
-{
-    $cloudUrl = $teamleader->cloudPlatforms()->getInvoiceUrl($invoiceId);
-    
-    return QrCode::size(300)->generate($cloudUrl);
-}
-```
+| Type | Description |
+|------|-------------|
+| `invoice` | Invoice resources |
+| `quotation` | Quotation resources |
+| `ticket` | Support ticket resources |
 
 ## Response Structure
 
-### url() / invoiceUrl() / quotationUrl() / ticketUrl()
+### URL Response
 
 ```php
 [
     'data' => [
-        'url' => 'https://teamleader.cloud/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.yUmR5yNZ45P_jHDbjAzuk4kRA8YNoM9ckSZOZpMIJmU/'
+        'url' => 'https://focus.teamleader.eu/invoice_detail.php?id=12345'
     ]
 ]
 ```
 
-### getUrl() / getInvoiceUrl() / getQuotationUrl() / getTicketUrl()
+## Usage Examples
+
+### Redirect to Invoice
 
 ```php
-'https://teamleader.cloud/eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...'
+// Get invoice URL and redirect
+$result = Teamleader::cloudPlatforms()->invoiceUrl('invoice-uuid');
+$url = $result['data']['url'];
+
+return redirect($url);
+
+// Or use the helper
+$url = Teamleader::cloudPlatforms()->getInvoiceUrl('invoice-uuid');
+return redirect($url);
 ```
 
-### batchUrls()
+### Generate View Links
 
 ```php
-[
-    'uuid-1' => 'https://teamleader.cloud/...',
-    'uuid-2' => 'https://teamleader.cloud/...',
-    'uuid-3' => 'https://teamleader.cloud/...'
-]
-```
+// Create "View in Teamleader" links
+$invoices = Teamleader::invoices()->list();
 
-## Error Handling
-
-```php
-use McoreServices\TeamleaderSDK\Exceptions\ValidationException;
-use McoreServices\TeamleaderSDK\Exceptions\NotFoundException;
-use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
-
-try {
-    $url = $teamleader->cloudPlatforms()->getInvoiceUrl($invoiceId);
-} catch (ValidationException $e) {
-    // Handle validation errors (invalid type, invalid UUID format)
-    echo "Validation error: " . $e->getMessage();
-} catch (NotFoundException $e) {
-    // Handle case where resource doesn't exist
-    echo "Resource not found: " . $e->getMessage();
-} catch (TeamleaderException $e) {
-    // Handle other API errors
-    echo "API error: " . $e->getMessage();
-}
-```
-
-## Security Considerations
-
-### URL Expiration
-
-Cloud platform URLs are JWT-encoded and may have an expiration time:
-
-```php
-// Don't cache URLs indefinitely
-$url = $teamleader->cloudPlatforms()->getInvoiceUrl($invoiceId);
-
-// Instead, generate fresh URLs when needed
-Cache::remember("invoice_{$invoiceId}_url", now()->addHours(1), function() use ($invoiceId) {
-    return $teamleader->cloudPlatforms()->getInvoiceUrl($invoiceId);
-});
-```
-
-### Permission Checks
-
-Users need appropriate permissions to view resources:
-
-```php
-// Check if current user has access before generating URL
-if (!Auth::user()->can('view-invoice', $invoice)) {
-    abort(403, 'You do not have permission to view this invoice');
-}
-
-$url = $teamleader->cloudPlatforms()->getInvoiceUrl($invoiceId);
-```
-
-### External Sharing
-
-Be cautious when sharing cloud URLs externally:
-
-```php
-// For customer portals, consider creating a proxy
-public function showInvoice($invoiceId)
-{
-    $invoice = $teamleader->invoices()->info($invoiceId);
+foreach ($invoices['data'] as $invoice) {
+    $url = Teamleader::cloudPlatforms()->getInvoiceUrl($invoice['id']);
     
-    // Only share URL if invoice belongs to current customer
-    if ($invoice['data']['customer']['id'] !== Auth::user()->teamleader_id) {
-        abort(403);
+    echo '<tr>';
+    echo "<td>{$invoice['invoice_number']}</td>";
+    echo "<td><a href='{$url}' target='_blank'>View in Teamleader</a></td>";
+    echo '</tr>';
+}
+```
+
+### Email Notification with Links
+
+```php
+// Send email with link to quotation
+$quotation = Teamleader::quotations()->info('quotation-uuid');
+$url = Teamleader::cloudPlatforms()->getQuotationUrl($quotation['data']['id']);
+
+$emailBody = "
+    <p>Your quotation is ready for review.</p>
+    <p><a href='{$url}'>View Quotation</a></p>
+";
+
+Mail::send($emailBody);
+```
+
+### Support Portal Integration
+
+```php
+// Show customer their tickets with links
+$tickets = Teamleader::tickets()->forCustomer('company', 'company-uuid');
+
+echo '<h3>Your Support Tickets</h3>';
+echo '<ul>';
+
+foreach ($tickets['data'] as $ticket) {
+    $url = Teamleader::cloudPlatforms()->getTicketUrl($ticket['id']);
+    
+    echo '<li>';
+    echo "{$ticket['subject']} - ";
+    echo "<a href='{$url}' target='_blank'>View Details</a>";
+    echo '</li>';
+}
+
+echo '</ul>';
+```
+
+### Batch URL Generation
+
+```php
+// Get URLs for multiple invoices
+$invoiceIds = ['uuid1', 'uuid2', 'uuid3'];
+$urls = Teamleader::cloudPlatforms()->batchUrls('invoice', $invoiceIds);
+
+foreach ($urls as $id => $url) {
+    echo "Invoice {$id}: <a href='{$url}'>View</a><br>";
+}
+```
+
+### Dashboard Links
+
+```php
+// Create dashboard with direct links
+function getDashboardData(): array
+{
+    $recentInvoices = Teamleader::invoices()->list([], ['page_size' => 5]);
+    $openTickets = Teamleader::tickets()->list([], ['page_size' => 5]);
+    
+    $data = [
+        'invoices' => [],
+        'tickets' => []
+    ];
+    
+    // Add URLs to invoices
+    foreach ($recentInvoices['data'] as $invoice) {
+        $data['invoices'][] = [
+            'id' => $invoice['id'],
+            'number' => $invoice['invoice_number'],
+            'url' => Teamleader::cloudPlatforms()->getInvoiceUrl($invoice['id'])
+        ];
     }
     
-    $cloudUrl = $teamleader->cloudPlatforms()->getInvoiceUrl($invoiceId);
+    // Add URLs to tickets
+    foreach ($openTickets['data'] as $ticket) {
+        $data['tickets'][] = [
+            'id' => $ticket['id'],
+            'subject' => $ticket['subject'],
+            'url' => Teamleader::cloudPlatforms()->getTicketUrl($ticket['id'])
+        ];
+    }
     
-    return view('invoices.view', compact('invoice', 'cloudUrl'));
+    return $data;
+}
+```
+
+## Common Use Cases
+
+### 1. External Application Integration
+
+```php
+class TeamleaderDeepLinks
+{
+    public function getResourceUrl(string $type, string $id): string
+    {
+        return Teamleader::cloudPlatforms()->getUrl($type, $id);
+    }
+    
+    public function createViewButton(string $type, string $id, string $label = 'View'): string
+    {
+        $url = $this->getResourceUrl($type, $id);
+        return "<a href='{$url}' target='_blank' class='btn btn-primary'>{$label}</a>";
+    }
+    
+    public function createQuickAccessLinks(array $resources): array
+    {
+        $links = [];
+        
+        foreach ($resources as $type => $ids) {
+            foreach ($ids as $id) {
+                $url = $this->getResourceUrl($type, $id);
+                $links[] = [
+                    'type' => $type,
+                    'id' => $id,
+                    'url' => $url
+                ];
+            }
+        }
+        
+        return $links;
+    }
+}
+
+// Usage
+$deepLinks = new TeamleaderDeepLinks();
+$button = $deepLinks->createViewButton('invoice', 'invoice-uuid', 'View Invoice');
+```
+
+### 2. Notification System
+
+```php
+class TeamleaderNotifications
+{
+    public function notifyInvoiceCreated(string $invoiceId, string $userEmail): void
+    {
+        $invoice = Teamleader::invoices()->info($invoiceId);
+        $url = Teamleader::cloudPlatforms()->getInvoiceUrl($invoiceId);
+        
+        $message = "New invoice #{$invoice['data']['invoice_number']} has been created.";
+        $link = "<a href='{$url}'>View Invoice</a>";
+        
+        // Send notification
+        $this->sendEmail($userEmail, $message, $link);
+    }
+    
+    public function notifyTicketUpdated(string $ticketId, string $userEmail): void
+    {
+        $ticket = Teamleader::tickets()->info($ticketId);
+        $url = Teamleader::cloudPlatforms()->getTicketUrl($ticketId);
+        
+        $message = "Ticket '{$ticket['data']['subject']}' has been updated.";
+        $link = "<a href='{$url}'>View Ticket</a>";
+        
+        $this->sendEmail($userEmail, $message, $link);
+    }
+    
+    private function sendEmail(string $to, string $message, string $link): void
+    {
+        // Email sending logic
+    }
+}
+```
+
+### 3. Customer Portal
+
+```php
+class CustomerPortal
+{
+    public function getCustomerInvoices(string $companyId): array
+    {
+        $invoices = Teamleader::invoices()->list([
+            'customer' => [
+                'type' => 'company',
+                'id' => $companyId
+            ]
+        ]);
+        
+        $invoicesWithUrls = [];
+        
+        foreach ($invoices['data'] as $invoice) {
+            $invoicesWithUrls[] = [
+                'id' => $invoice['id'],
+                'number' => $invoice['invoice_number'],
+                'date' => $invoice['invoice_date'],
+                'total' => $invoice['total'],
+                'view_url' => Teamleader::cloudPlatforms()->getInvoiceUrl($invoice['id'])
+            ];
+        }
+        
+        return $invoicesWithUrls;
+    }
+    
+    public function getCustomerQuotations(string $companyId): array
+    {
+        $quotations = Teamleader::quotations()->list([
+            'customer' => [
+                'type' => 'company',
+                'id' => $companyId
+            ]
+        ]);
+        
+        $quotationsWithUrls = [];
+        
+        foreach ($quotations['data'] as $quotation) {
+            $quotationsWithUrls[] = [
+                'id' => $quotation['id'],
+                'number' => $quotation['quotation_number'],
+                'view_url' => Teamleader::cloudPlatforms()->getQuotationUrl($quotation['id'])
+            ];
+        }
+        
+        return $quotationsWithUrls;
+    }
+}
+```
+
+### 4. Reporting Dashboard
+
+```php
+function generateReportWithLinks(): array
+{
+    $report = [
+        'recent_invoices' => [],
+        'open_quotations' => [],
+        'active_tickets' => []
+    ];
+    
+    // Get recent invoices with URLs
+    $invoices = Teamleader::invoices()->list([], ['page_size' => 10]);
+    foreach ($invoices['data'] as $invoice) {
+        $report['recent_invoices'][] = [
+            'number' => $invoice['invoice_number'],
+            'total' => $invoice['total'],
+            'teamleader_url' => Teamleader::cloudPlatforms()->getInvoiceUrl($invoice['id'])
+        ];
+    }
+    
+    // Get open quotations with URLs
+    $quotations = Teamleader::quotations()->list([], ['page_size' => 10]);
+    foreach ($quotations['data'] as $quotation) {
+        $report['open_quotations'][] = [
+            'number' => $quotation['quotation_number'],
+            'teamleader_url' => Teamleader::cloudPlatforms()->getQuotationUrl($quotation['id'])
+        ];
+    }
+    
+    // Get active tickets with URLs
+    $tickets = Teamleader::tickets()->list();
+    foreach ($tickets['data'] as $ticket) {
+        $report['active_tickets'][] = [
+            'subject' => $ticket['subject'],
+            'teamleader_url' => Teamleader::cloudPlatforms()->getTicketUrl($ticket['id'])
+        ];
+    }
+    
+    return $report;
 }
 ```
 
 ## Best Practices
 
-### 1. Use Type-Specific Methods
+### 1. Cache URLs When Appropriate
 
 ```php
-// Prefer this:
-$url = $teamleader->cloudPlatforms()->getInvoiceUrl($id);
-
-// Over this:
-$url = $teamleader->cloudPlatforms()->getUrl('invoice', $id);
-```
-
-### 2. Generate URLs On-Demand
-
-```php
-// Don't store URLs permanently in your database
-// Generate them when needed
-
-// Bad:
-DB::table('invoices')->update(['cloud_url' => $url]);
-
-// Good:
-public function getCloudUrl($invoiceId) {
-    return $teamleader->cloudPlatforms()->getInvoiceUrl($invoiceId);
-}
-```
-
-### 3. Batch Processing for Performance
-
-```php
-// When you need multiple URLs, use batchUrls()
-$urls = $teamleader->cloudPlatforms()->batchUrls('invoice', $invoiceIds);
-
-// Instead of:
-foreach ($invoiceIds as $id) {
-    $urls[$id] = $teamleader->cloudPlatforms()->getInvoiceUrl($id);
-}
-```
-
-### 4. Add Rate Limiting for Batch Operations
-
-```php
-use Illuminate\Support\Facades\RateLimiter;
-
-public function batchGenerateUrls(array $invoiceIds)
+// URLs don't change often, cache them
+function getCachedUrl(string $type, string $id): string
 {
-    RateLimiter::attempt(
-        'cloud-urls:' . Auth::id(),
-        $perMinute = 60,
-        function() use ($invoiceIds) {
-            return $teamleader->cloudPlatforms()->batchUrls('invoice', $invoiceIds);
-        }
-    );
+    $cacheKey = "teamleader_url_{$type}_{$id}";
+    
+    return Cache::remember($cacheKey, 3600, function() use ($type, $id) {
+        return Teamleader::cloudPlatforms()->getUrl($type, $id);
+    });
 }
 ```
 
-### 5. Handle URLs in Frontend Safely
+### 2. Open Links in New Tab
 
-```blade
-{{-- Always open cloud URLs in new tab --}}
-<a href="{{ $cloudUrl }}" target="_blank" rel="noopener noreferrer">
-    View in Teamleader
-</a>
+```php
+// Always open Teamleader links in new tab
+$url = Teamleader::cloudPlatforms()->getInvoiceUrl('invoice-uuid');
+echo "<a href='{$url}' target='_blank' rel='noopener'>View Invoice</a>";
+```
 
-{{-- Or use JavaScript --}}
-<button onclick="window.open('{{ $cloudUrl }}', '_blank')">
-    Open Invoice
-</button>
+### 3. Handle Invalid Resource Types
+
+```php
+function getSafeUrl(string $type, string $id): ?string
+{
+    $validTypes = ['invoice', 'quotation', 'ticket'];
+    
+    if (!in_array($type, $validTypes)) {
+        Log::warning('Invalid resource type for cloud platform URL', ['type' => $type]);
+        return null;
+    }
+    
+    try {
+        return Teamleader::cloudPlatforms()->getUrl($type, $id);
+    } catch (Exception $e) {
+        Log::error('Failed to get cloud platform URL', [
+            'type' => $type,
+            'id' => $id,
+            'error' => $e->getMessage()
+        ]);
+        
+        return null;
+    }
+}
+```
+
+### 4. Validate IDs Before Getting URLs
+
+```php
+function getUrlIfExists(string $type, string $id): ?string
+{
+    // Verify resource exists first
+    try {
+        if ($type === 'invoice') {
+            Teamleader::invoices()->info($id);
+        } elseif ($type === 'quotation') {
+            Teamleader::quotations()->info($id);
+        } elseif ($type === 'ticket') {
+            Teamleader::tickets()->info($id);
+        }
+        
+        // Resource exists, get URL
+        return Teamleader::cloudPlatforms()->getUrl($type, $id);
+        
+    } catch (Exception $e) {
+        Log::warning('Resource not found, cannot generate URL', [
+            'type' => $type,
+            'id' => $id
+        ]);
+        
+        return null;
+    }
+}
+```
+
+### 5. Provide Fallback for Errors
+
+```php
+function getUrlWithFallback(string $type, string $id, string $fallbackUrl = '/'): string
+{
+    try {
+        return Teamleader::cloudPlatforms()->getUrl($type, $id);
+    } catch (Exception $e) {
+        Log::error('Cloud platform URL generation failed', [
+            'type' => $type,
+            'id' => $id
+        ]);
+        
+        return $fallbackUrl;
+    }
+}
+
+// Usage
+$url = getUrlWithFallback('invoice', 'invoice-uuid', '/invoices');
+```
+
+## Error Handling
+
+```php
+use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
+
+try {
+    $url = Teamleader::cloudPlatforms()->url('invoice', 'invoice-uuid');
+} catch (TeamleaderException $e) {
+    if ($e->getCode() === 404) {
+        // Resource not found
+        Log::error('Invoice not found', ['id' => 'invoice-uuid']);
+    } elseif ($e->getCode() === 422) {
+        // Invalid type
+        Log::error('Invalid resource type');
+    }
+}
+
+// Handle missing URL gracefully
+try {
+    $url = Teamleader::cloudPlatforms()->getInvoiceUrl('invoice-uuid');
+    echo "<a href='{$url}'>View</a>";
+} catch (Exception $e) {
+    // Don't show link if URL generation fails
+    echo "Unable to generate link";
+}
 ```
 
 ## Important Notes
 
-- Cloud platform URLs are JWT-encoded links to teamleader.cloud
-- URLs may be time-limited and expire after a certain period
-- Users need appropriate Teamleader permissions to view the resources
-- Only three resource types are supported: invoice, quotation, and ticket
-- IDs must be valid UUIDs (format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
-- The `batchUrls()` method makes multiple API calls, so use with consideration for rate limits
-- URLs should generally be generated on-demand rather than stored permanently
-- Always validate user permissions before providing cloud URLs
+### 1. URL Format
 
-## Integration Examples
+The URLs returned are direct links to the Teamleader Focus interface. They require the user to be logged into Teamleader to access.
 
-### Laravel Livewire Component
+### 2. Resource Must Exist
 
-```php
-use Livewire\Component;
+You can only generate URLs for resources that exist. The API will return an error if the resource ID is invalid.
 
-class InvoiceViewer extends Component
-{
-    public $invoiceId;
-    public $cloudUrl;
-    
-    public function mount($invoiceId)
-    {
-        $this->invoiceId = $invoiceId;
-        $this->loadCloudUrl();
-    }
-    
-    public function loadCloudUrl()
-    {
-        $this->cloudUrl = app('teamleader')
-            ->cloudPlatforms()
-            ->getInvoiceUrl($this->invoiceId);
-    }
-    
-    public function render()
-    {
-        return view('livewire.invoice-viewer');
-    }
-}
-```
+### 3. Limited Resource Types
 
-### API Endpoint
+Only invoices, quotations, and tickets support cloud platform URLs. Other resource types are not supported.
 
-```php
-Route::get('/api/invoices/{id}/cloud-url', function($id) {
-    try {
-        $url = app('teamleader')
-            ->cloudPlatforms()
-            ->getInvoiceUrl($id);
-            
-        return response()->json(['url' => $url]);
-    } catch (\Exception $e) {
-        return response()->json(['error' => $e->getMessage()], 400);
-    }
-});
-```
+### 4. No URL Customization
 
-### Custom Artisan Command
+The generated URLs point to Teamleader's standard interface. You cannot customize the URL structure or destination.
 
-```php
-use Illuminate\Console\Command;
+## Related Resources
 
-class GenerateCloudUrls extends Command
-{
-    protected $signature = 'teamleader:generate-urls {type} {--ids=*}';
-    
-    public function handle()
-    {
-        $type = $this->argument('type');
-        $ids = $this->option('ids');
-        
-        $urls = app('teamleader')
-            ->cloudPlatforms()
-            ->batchUrls($type, $ids);
-            
-        foreach ($urls as $id => $url) {
-            $this->info("{$id}: {$url}");
-        }
-    }
-}
-```
+- [Invoices](../invoicing/invoices.md) - Invoice management
+- [Quotations](../deals/quotations.md) - Quotation management
+- [Tickets](../tickets/tickets.md) - Ticket management
 
 ## See Also
 
-- [Invoices](../invoicing/invoices.md) - Managing invoices
-- [Quotations](../deals/quotations.md) - Managing quotations
-- [Tickets](../tickets/tickets.md) - Managing tickets
+- [Usage Guide](../usage.md) - General SDK usage

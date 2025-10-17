@@ -1,6 +1,26 @@
 # Mail Templates
 
-Manage mail templates in Teamleader Focus. This resource provides read-only access to email templates used for invoices, quotations, work orders, and credit notes.
+Manage mail templates in Teamleader Focus.
+
+## Overview
+
+The Mail Templates resource provides read-only access to email templates configured in Teamleader Focus. These templates are used for sending invoices, quotations, work orders, and credit notes. Templates are configured in the Teamleader interface and can be filtered by department and document type.
+
+## Navigation
+
+- [Endpoint](#endpoint)
+- [Capabilities](#capabilities)
+- [Available Methods](#available-methods)
+    - [list()](#list)
+- [Helper Methods](#helper-methods)
+- [Template Types](#template-types)
+- [Filters](#filters)
+- [Response Structure](#response-structure)
+- [Usage Examples](#usage-examples)
+- [Common Use Cases](#common-use-cases)
+- [Best Practices](#best-practices)
+- [Error Handling](#error-handling)
+- [Related Resources](#related-resources)
 
 ## Endpoint
 
@@ -8,165 +28,107 @@ Manage mail templates in Teamleader Focus. This resource provides read-only acce
 
 ## Capabilities
 
-- **Supports Pagination**: ✅ Supported
-- **Supports Filtering**: ✅ Supported (department_id and type are required)
-- **Supports Sorting**: ❌ Not Supported
-- **Supports Sideloading**: ❌ Not Supported
-- **Supports Creation**: ❌ Not Supported
-- **Supports Update**: ❌ Not Supported
-- **Supports Deletion**: ❌ Not Supported
-- **Supports Batch**: ❌ Not Supported
-
-## Important Notes
-
-Mail templates are **read-only** via the API. Both `department_id` and `type` are **required** parameters for all queries.
-
-## Available Filters
-
-- `department_id` (string, required): The UUID of the department
-- `type` (string, required): The template type - must be one of:
-    - `invoice`
-    - `quotation`
-    - `work_order`
-    - `credit_note`
+- **Pagination**: ❌ Not Supported
+- **Filtering**: ✅ Supported (required)
+- **Sorting**: ❌ Not Supported
+- **Sideloading**: ❌ Not Supported
+- **Creation**: ❌ Not Supported (read-only)
+- **Update**: ❌ Not Supported (read-only)
+- **Deletion**: ❌ Not Supported (read-only)
 
 ## Available Methods
 
 ### `list()`
 
-Get a list of mail templates for a specific department and type.
+Get mail templates with required filtering by type.
 
-**Parameters:**
-- `filters` (array): Filters to apply (department_id and type are required)
-- `options` (array): Pagination options
+**Required Filters:**
+- `type` (string): Template type (invoice, quotation, work_order, credit_note)
+
+**Optional Filters:**
+- `department_id` (string): Filter by department UUID
 
 **Example:**
 ```php
-$templates = $teamleader->mailTemplates()->list([
-    'department_id' => 'a344c251-2494-0013-b433-ccee8e8435e5',
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
+// Get invoice templates
+$templates = Teamleader::mailTemplates()->list([
     'type' => 'invoice'
+]);
+
+// Get templates for specific department
+$templates = Teamleader::mailTemplates()->list([
+    'type' => 'quotation',
+    'department_id' => 'department-uuid'
 ]);
 ```
 
-### `forDepartment()`
+## Helper Methods
 
-Get mail templates for a specific department and type (helper method).
+### Type-based Methods
 
-**Parameters:**
-- `departmentId` (string): Department UUID
-- `type` (string): Template type (invoice, quotation, work_order, credit_note)
-- `options` (array): Optional pagination options
-
-**Example:**
 ```php
-$templates = $teamleader->mailTemplates()->forDepartment(
-    'a344c251-2494-0013-b433-ccee8e8435e5',
+// Get templates by type
+$invoiceTemplates = Teamleader::mailTemplates()->forType('invoice');
+
+$quotationTemplates = Teamleader::mailTemplates()->forType('quotation');
+
+// With department filter
+$templates = Teamleader::mailTemplates()->forType('invoice', 'department-uuid');
+```
+
+### Find by Name
+
+```php
+// Find template by name
+$template = Teamleader::mailTemplates()->findByName(
+    'Send link in english',
     'invoice'
 );
 ```
 
-### `byType()`
-
-Alias for `forDepartment()` - get templates by type.
-
-**Parameters:**
-- `departmentId` (string): Department UUID
-- `type` (string): Template type
-- `options` (array): Optional pagination options
-
-**Example:**
-```php
-$templates = $teamleader->mailTemplates()->byType(
-    'dept-uuid',
-    'quotation'
-);
-```
-
-### `allForDepartment()`
-
-Get templates for all types in a department.
-
-**Parameters:**
-- `departmentId` (string): Department UUID
-
-**Returns:** Associative array with template types as keys
-
-**Example:**
-```php
-$allTemplates = $teamleader->mailTemplates()->allForDepartment('dept-uuid');
-
-// Returns:
-// [
-//     'invoice' => [...invoice templates...],
-//     'quotation' => [...quotation templates...],
-//     'work_order' => [...work order templates...],
-//     'credit_note' => [...credit note templates...]
-// ]
-```
-
-### `findByName()`
-
-Find a specific mail template by name.
-
-**Parameters:**
-- `departmentId` (string): Department UUID
-- `type` (string): Template type
-- `name` (string): Template name to search for
-
-**Returns:** Template array or null if not found
-
-**Example:**
-```php
-$template = $teamleader->mailTemplates()->findByName(
-    'dept-uuid',
-    'invoice',
-    'Send link in english'
-);
-```
-
-### Type-Specific Helper Methods
-
-Convenience methods for each template type:
-
-#### `invoiceTemplates()`
-Get invoice templates for a department.
+### Dropdown Options
 
 ```php
-$invoiceTemplates = $teamleader->mailTemplates()->invoiceTemplates('dept-uuid');
+// Get templates as key-value pairs for dropdowns
+$options = Teamleader::mailTemplates()->asOptions('invoice');
+
+// Returns: ['uuid1' => 'Default Invoice', 'uuid2' => 'Custom Invoice', ...]
 ```
 
-#### `quotationTemplates()`
-Get quotation templates for a department.
+### Specific Type Helpers
 
 ```php
-$quotationTemplates = $teamleader->mailTemplates()->quotationTemplates('dept-uuid');
+// Get templates for specific types
+$invoiceTemplates = Teamleader::mailTemplates()->invoiceTemplates();
+$quotationTemplates = Teamleader::mailTemplates()->quotationTemplates();
+$workOrderTemplates = Teamleader::mailTemplates()->workOrderTemplates();
+$creditNoteTemplates = Teamleader::mailTemplates()->creditNoteTemplates();
+
+// With department
+$templates = Teamleader::mailTemplates()->invoiceTemplates('department-uuid');
 ```
 
-#### `workOrderTemplates()`
-Get work order templates for a department.
+## Template Types
 
-```php
-$workOrderTemplates = $teamleader->mailTemplates()->workOrderTemplates('dept-uuid');
-```
+Valid mail template types:
 
-#### `creditNoteTemplates()`
-Get credit note templates for a department.
+| Type | Description |
+|------|-------------|
+| `invoice` | Invoice email templates |
+| `quotation` | Quotation email templates |
+| `work_order` | Work order email templates |
+| `credit_note` | Credit note email templates |
 
-```php
-$creditNoteTemplates = $teamleader->mailTemplates()->creditNoteTemplates('dept-uuid');
-```
+## Filters
 
-### `getValidTypes()`
+Available filters for the `list()` method:
 
-Get all available template types.
-
-**Returns:** Array of valid template type strings
-
-**Example:**
-```php
-$types = $teamleader->mailTemplates()->getValidTypes();
-// Returns: ['invoice', 'quotation', 'work_order', 'credit_note']
-```
+| Filter | Type | Required | Description |
+|--------|------|----------|-------------|
+| `type` | string | Yes | Template type |
+| `department_id` | string | No | Filter by department UUID |
 
 ## Response Structure
 
@@ -176,196 +138,481 @@ $types = $teamleader->mailTemplates()->getValidTypes();
 [
     'data' => [
         [
-            'id' => 'a344c251-2494-0013-b433-ccee8e8435e5',
+            'id' => 'template-uuid-1',
+            'name' => 'Default Invoice Template',
+            'language' => 'en',
             'department' => [
-                'id' => 'eab232c6-49b2-4b7e-a977-5e1148dad471',
-                'type' => 'department'
-            ],
-            'type' => 'invoice',
-            'name' => 'Send link in english',
-            'content' => [
-                'subject' => 'Link for document',
-                'body' => '#LINK \n<link> Thank you for using our services'
-            ],
-            'language' => 'en'
+                'type' => 'department',
+                'id' => 'department-uuid'
+            ]
+        ],
+        [
+            'id' => 'template-uuid-2',
+            'name' => 'Invoice Template - Dutch',
+            'language' => 'nl',
+            'department' => [
+                'type' => 'department',
+                'id' => 'department-uuid'
+            ]
         ]
     ]
 ]
 ```
 
-### Field Descriptions
-
-- `id` (string): Unique identifier for the mail template
-- `department` (object, nullable): Reference to the department this template belongs to
-    - `id` (string): Department UUID
-    - `type` (string): Resource type (always "department")
-- `type` (string): The document type this template is for (invoice, quotation, work_order, credit_note)
-- `name` (string): Display name of the template
-- `content` (object): The email content
-    - `subject` (string): Email subject line
-    - `body` (string): Email body content (may contain placeholders like #LINK)
-- `language` (string): Language code for the template (e.g., "en", "nl", "fr")
-
 ## Usage Examples
 
-### Basic Usage
+### Get All Invoice Templates
 
 ```php
-// Get all invoice templates for a department
-$templates = $teamleader->mailTemplates()->list([
-    'department_id' => 'a344c251-2494-0013-b433-ccee8e8435e5',
-    'type' => 'invoice'
-]);
+// Get all invoice templates
+$templates = Teamleader::mailTemplates()->forType('invoice');
 
-// Or using the helper method
-$templates = $teamleader->mailTemplates()->forDepartment(
-    'a344c251-2494-0013-b433-ccee8e8435e5',
-    'invoice'
-);
-```
-
-### With Pagination
-
-```php
-$templates = $teamleader->mailTemplates()->list([
-    'department_id' => 'dept-uuid',
-    'type' => 'quotation'
-], [
-    'page_size' => 50,
-    'page_number' => 1
-]);
-```
-
-### Find Specific Template
-
-```php
-$template = $teamleader->mailTemplates()->findByName(
-    'dept-uuid',
-    'invoice',
-    'Send link in english'
-);
-
-if ($template) {
-    echo "Template subject: " . $template['content']['subject'];
-    echo "Template body: " . $template['content']['body'];
+foreach ($templates['data'] as $template) {
+    echo "{$template['name']} ({$template['language']})<br>";
 }
 ```
 
-### Get All Templates for a Department
+### Get Templates for Department
 
 ```php
-$allTemplates = $teamleader->mailTemplates()->allForDepartment('dept-uuid');
+// Get quotation templates for specific department
+$templates = Teamleader::mailTemplates()->forType(
+    'quotation',
+    'department-uuid'
+);
+```
 
-foreach ($allTemplates as $type => $templates) {
-    if (!isset($templates['error'])) {
-        echo "Found " . count($templates['data']) . " {$type} templates\n";
+### Find Template by Name
+
+```php
+// Find specific template
+$template = Teamleader::mailTemplates()->findByName(
+    'Default Invoice',
+    'invoice'
+);
+
+if ($template) {
+    $templateId = $template['id'];
+    // Use template ID for sending emails
+}
+```
+
+### Build Template Selector
+
+```php
+// Create dropdown for template selection
+$options = Teamleader::mailTemplates()->asOptions('invoice');
+
+echo '<select name="mail_template">';
+echo '<option value="">Select template...</option>';
+
+foreach ($options as $id => $name) {
+    echo "<option value='{$id}'>{$name}</option>";
+}
+
+echo '</select>';
+```
+
+### Get Templates by Language
+
+```php
+// Get templates filtered by language
+$allTemplates = Teamleader::mailTemplates()->forType('invoice');
+
+$englishTemplates = array_filter($allTemplates['data'], function($t) {
+    return $t['language'] === 'en';
+});
+
+$dutchTemplates = array_filter($allTemplates['data'], function($t) {
+    return $t['language'] === 'nl';
+});
+```
+
+### Multi-language Template Selection
+
+```php
+function getTemplateForLanguage(string $type, string $language): ?array
+{
+    $templates = Teamleader::mailTemplates()->forType($type);
+    
+    foreach ($templates['data'] as $template) {
+        if ($template['language'] === $language) {
+            return $template;
+        }
+    }
+    
+    // Fallback to first template if language not found
+    return $templates['data'][0] ?? null;
+}
+
+// Usage
+$template = getTemplateForLanguage('invoice', 'en');
+```
+
+## Common Use Cases
+
+### 1. Template Selector Component
+
+```php
+class MailTemplateSelector
+{
+    private $templates;
+    
+    public function __construct(string $type, ?string $departmentId = null)
+    {
+        if ($departmentId) {
+            $this->templates = Teamleader::mailTemplates()->forType($type, $departmentId);
+        } else {
+            $this->templates = Teamleader::mailTemplates()->forType($type);
+        }
+    }
+    
+    public function getOptions(): array
+    {
+        $options = [];
+        
+        foreach ($this->templates['data'] as $template) {
+            $options[$template['id']] = $template['name'];
+        }
+        
+        return $options;
+    }
+    
+    public function getTemplateById(string $id): ?array
+    {
+        foreach ($this->templates['data'] as $template) {
+            if ($template['id'] === $id) {
+                return $template;
+            }
+        }
+        
+        return null;
+    }
+    
+    public function getDefaultTemplate(): ?array
+    {
+        return $this->templates['data'][0] ?? null;
+    }
+}
+
+// Usage
+$selector = new MailTemplateSelector('invoice', 'department-uuid');
+$options = $selector->getOptions();
+```
+
+### 2. Automatic Template Selection
+
+```php
+class TemplateResolver
+{
+    public function resolveTemplate(
+        string $type,
+        string $language,
+        ?string $departmentId = null
+    ): ?string {
+        $templates = $departmentId
+            ? Teamleader::mailTemplates()->forType($type, $departmentId)
+            : Teamleader::mailTemplates()->forType($type);
+        
+        // First, try exact language match
+        foreach ($templates['data'] as $template) {
+            if ($template['language'] === $language) {
+                return $template['id'];
+            }
+        }
+        
+        // Fallback to English
+        foreach ($templates['data'] as $template) {
+            if ($template['language'] === 'en') {
+                return $template['id'];
+            }
+        }
+        
+        // Last resort: return first available
+        return $templates['data'][0]['id'] ?? null;
+    }
+}
+
+// Usage
+$resolver = new TemplateResolver();
+$templateId = $resolver->resolveTemplate('invoice', 'nl', 'department-uuid');
+```
+
+### 3. Template Cache
+
+```php
+class TemplateCache
+{
+    private static $cache = [];
+    
+    public static function getTemplates(string $type, ?string $departmentId = null): array
+    {
+        $key = $type . '_' . ($departmentId ?? 'all');
+        
+        if (!isset(self::$cache[$key])) {
+            $templates = $departmentId
+                ? Teamleader::mailTemplates()->forType($type, $departmentId)
+                : Teamleader::mailTemplates()->forType($type);
+                
+            self::$cache[$key] = $templates['data'];
+        }
+        
+        return self::$cache[$key];
+    }
+    
+    public static function findTemplate(string $type, string $name): ?array
+    {
+        $templates = self::getTemplates($type);
+        
+        foreach ($templates as $template) {
+            if ($template['name'] === $name) {
+                return $template;
+            }
+        }
+        
+        return null;
+    }
+}
+
+// Usage
+$templates = TemplateCache::getTemplates('invoice');
+$template = TemplateCache::findTemplate('invoice', 'Default Invoice');
+```
+
+### 4. Email Sending with Template Selection
+
+```php
+class InvoiceMailer
+{
+    public function sendInvoice(
+        string $invoiceId,
+        string $recipientEmail,
+        ?string $templateId = null
+    ): bool {
+        // If no template specified, get default
+        if (!$templateId) {
+            $templates = Teamleader::mailTemplates()->invoiceTemplates();
+            $templateId = $templates['data'][0]['id'] ?? null;
+        }
+        
+        if (!$templateId) {
+            throw new Exception('No mail template available');
+        }
+        
+        // Use template ID to send invoice email
+        // (Implementation depends on your email sending logic)
+        
+        return true;
     }
 }
 ```
 
-### Using Type-Specific Helpers
+## Best Practices
+
+### 1. Cache Template Data
 
 ```php
-// Get invoice templates
-$invoiceTemplates = $teamleader->mailTemplates()->invoiceTemplates('dept-uuid');
+// Templates rarely change, cache them
+class TemplateManager
+{
+    private static $templates = [];
+    
+    public static function getTemplates(string $type): array
+    {
+        if (!isset(self::$templates[$type])) {
+            $result = Teamleader::mailTemplates()->forType($type);
+            self::$templates[$type] = $result['data'];
+        }
+        
+        return self::$templates[$type];
+    }
+}
+```
 
-// Get quotation templates
-$quotationTemplates = $teamleader->mailTemplates()->quotationTemplates('dept-uuid');
+### 2. Provide Fallback Templates
 
-// Get work order templates
-$workOrderTemplates = $teamleader->mailTemplates()->workOrderTemplates('dept-uuid');
+```php
+function getTemplateWithFallback(string $type, string $preferredName): string
+{
+    $templates = Teamleader::mailTemplates()->forType($type);
+    
+    // Try to find preferred template
+    foreach ($templates['data'] as $template) {
+        if ($template['name'] === $preferredName) {
+            return $template['id'];
+        }
+    }
+    
+    // Fallback to first available
+    if (!empty($templates['data'])) {
+        return $templates['data'][0]['id'];
+    }
+    
+    throw new Exception("No {$type} templates available");
+}
+```
 
-// Get credit note templates
-$creditNoteTemplates = $teamleader->mailTemplates()->creditNoteTemplates('dept-uuid');
+### 3. Validate Template Type
+
+```php
+function isValidTemplateType(string $type): bool
+{
+    $validTypes = ['invoice', 'quotation', 'work_order', 'credit_note'];
+    return in_array($type, $validTypes);
+}
+
+// Usage
+if (isValidTemplateType($requestedType)) {
+    $templates = Teamleader::mailTemplates()->forType($requestedType);
+}
+```
+
+### 4. Group Templates by Department
+
+```php
+function getTemplatesByDepartment(string $type): array
+{
+    $allTemplates = Teamleader::mailTemplates()->forType($type);
+    $byDepartment = [];
+    
+    foreach ($allTemplates['data'] as $template) {
+        $deptId = $template['department']['id'];
+        
+        if (!isset($byDepartment[$deptId])) {
+            $byDepartment[$deptId] = [];
+        }
+        
+        $byDepartment[$deptId][] = $template;
+    }
+    
+    return $byDepartment;
+}
+```
+
+### 5. Handle Missing Templates
+
+```php
+function getTemplateOrNull(string $type, ?string $departmentId = null): ?string
+{
+    try {
+        $templates = $departmentId
+            ? Teamleader::mailTemplates()->forType($type, $departmentId)
+            : Teamleader::mailTemplates()->forType($type);
+        
+        return $templates['data'][0]['id'] ?? null;
+        
+    } catch (Exception $e) {
+        Log::warning('Failed to fetch templates', [
+            'type' => $type,
+            'department' => $departmentId
+        ]);
+        
+        return null;
+    }
+}
 ```
 
 ## Error Handling
 
 ```php
-use InvalidArgumentException;
+use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
 
+// Fetching templates
 try {
-    // Missing required parameter
-    $templates = $teamleader->mailTemplates()->list([
-        'type' => 'invoice'
-        // Missing department_id!
-    ]);
-} catch (InvalidArgumentException $e) {
-    echo "Error: " . $e->getMessage();
-    // "department_id is required for mail templates"
+    $templates = Teamleader::mailTemplates()->forType('invoice');
+} catch (TeamleaderException $e) {
+    if ($e->getCode() === 422) {
+        // Invalid type parameter
+        Log::error('Invalid template type');
+    }
+    
+    // Provide default templates or handle gracefully
+    $templates = ['data' => []];
 }
 
+// Finding template by name
 try {
-    // Invalid type
-    $templates = $teamleader->mailTemplates()->forDepartment(
-        'dept-uuid',
-        'invalid_type'
-    );
-} catch (InvalidArgumentException $e) {
-    echo "Error: " . $e->getMessage();
-    // "Invalid template type: invalid_type. Must be one of: invoice, quotation, work_order, credit_note"
+    $template = Teamleader::mailTemplates()->findByName('Custom Template', 'invoice');
+    
+    if (!$template) {
+        // Template not found
+        Log::warning('Template not found', ['name' => 'Custom Template']);
+    }
+} catch (TeamleaderException $e) {
+    Log::error('Error fetching template', ['error' => $e->getMessage()]);
 }
-```
 
-## Template Placeholders
-
-Mail template bodies may contain placeholders that are replaced by Teamleader when sending emails. Common placeholders include:
-
-- `#LINK` - Link to the document
-- Other placeholders specific to document types (refer to Teamleader documentation)
-
-Example template body:
-```
-#LINK 
-<link> Thank you for using our services
-```
-
-## Common Use Cases
-
-### Building a Template Selector
-
-```php
-// Get all templates for dropdown/selector
-$departmentId = 'dept-uuid';
-$type = 'invoice';
-
-$templates = $teamleader->mailTemplates()->forDepartment($departmentId, $type);
-
-if (isset($templates['data'])) {
-    foreach ($templates['data'] as $template) {
-        echo sprintf(
-            '<option value="%s">%s (%s)</option>',
-            $template['id'],
-            $template['name'],
-            $template['language']
-        );
+// Department-specific templates
+try {
+    $templates = Teamleader::mailTemplates()->forType('invoice', 'invalid-department-id');
+} catch (TeamleaderException $e) {
+    if ($e->getCode() === 404) {
+        // Department not found
+        Log::error('Department not found');
     }
 }
 ```
 
-### Validating Template Availability
+## Important Notes
+
+### 1. Read-Only Resource
+
+Mail templates cannot be created, updated, or deleted via the API. They must be configured in the Teamleader Focus interface.
+
+### 2. Type is Required
+
+You must always specify a template type when listing templates. There is no way to get all templates across all types in a single call.
+
+### 3. Department Filtering
+
+Department filtering is optional but recommended if your organization uses multiple departments with different templates.
+
+### 4. Language Support
+
+Templates can have different language variants. Consider language when selecting templates for international customers.
+
+## Template Type Details
+
+### Invoice Templates
+
+Used when sending invoices to customers.
 
 ```php
-// Check if a specific template exists
-$departmentId = 'dept-uuid';
-$templateName = 'Default Invoice Email';
-
-$template = $teamleader->mailTemplates()->findByName(
-    $departmentId,
-    'invoice',
-    $templateName
-);
-
-if (!$template) {
-    // Template doesn't exist - create fallback or notify admin
-    echo "Template '{$templateName}' not found";
-}
+$templates = Teamleader::mailTemplates()->invoiceTemplates();
 ```
 
-## Notes
+### Quotation Templates
 
-- Mail templates are configured in the Teamleader Focus UI
-- The API provides read-only access to these templates
-- Templates are specific to departments and document types
-- You cannot create, update, or delete templates via the API
-- Both `department_id` and `type` parameters are always required
+Used when sending quotations/proposals to prospects.
+
+```php
+$templates = Teamleader::mailTemplates()->quotationTemplates();
+```
+
+### Work Order Templates
+
+Used when sending work orders to customers or suppliers.
+
+```php
+$templates = Teamleader::mailTemplates()->workOrderTemplates();
+```
+
+### Credit Note Templates
+
+Used when sending credit notes to customers.
+
+```php
+$templates = Teamleader::mailTemplates()->creditNoteTemplates();
+```
+
+## Related Resources
+
+- [Invoices](../invoicing/invoices.md) - Send invoices using templates
+- [Quotations](../deals/quotations.md) - Send quotations using templates
+- [Credit Notes](../invoicing/creditnotes.md) - Send credit notes using templates
+- [Departments](../general/departments.md) - Department information
+
+## See Also
+
+- [Usage Guide](../usage.md) - General SDK usage
+- [Filtering](../filtering.md) - Advanced filtering techniques

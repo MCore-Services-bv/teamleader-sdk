@@ -1,6 +1,27 @@
 # Migrate
 
-Utility endpoints for migrating from the deprecated Teamleader API to the new UUID-based API. These endpoints help translate old numeric IDs, activity types, and tax rates into their new UUID equivalents.
+Utility endpoints for migrating from the deprecated Teamleader API to the new UUID-based API.
+
+## Overview
+
+The Migrate resource provides utility methods to help migrate from the old numeric ID-based Teamleader API to the new UUID-based API. These endpoints translate old IDs to new UUIDs, making the migration process smoother for existing integrations.
+
+## Navigation
+
+- [Endpoint](#endpoint)
+- [Capabilities](#capabilities)
+- [Available Methods](#available-methods)
+    - [activityType()](#activitytype)
+    - [taxRate()](#taxrate)
+    - [id()](#id)
+- [Helper Methods](#helper-methods)
+- [Supported Resource Types](#supported-resource-types)
+- [Response Structure](#response-structure)
+- [Usage Examples](#usage-examples)
+- [Common Use Cases](#common-use-cases)
+- [Best Practices](#best-practices)
+- [Error Handling](#error-handling)
+- [Related Resources](#related-resources)
 
 ## Endpoint
 
@@ -8,199 +29,141 @@ Utility endpoints for migrating from the deprecated Teamleader API to the new UU
 
 ## Capabilities
 
-- **Supports Pagination**: ❌ Not Supported
-- **Supports Filtering**: ❌ Not Supported
-- **Supports Sorting**: ❌ Not Supported
-- **Supports Sideloading**: ❌ Not Supported
-- **Supports Creation**: ❌ Not Supported
-- **Supports Update**: ❌ Not Supported
-- **Supports Deletion**: ❌ Not Supported
-- **Supports Batch**: ⚠️ Partial (via `batchIds()` helper method)
+- **Pagination**: ❌ Not Supported
+- **Filtering**: ❌ Not Supported
+- **Sorting**: ❌ Not Supported
+- **Sideloading**: ❌ Not Supported
+- **Creation**: ❌ Not Supported
+- **Update**: ❌ Not Supported
+- **Deletion**: ❌ Not Supported
 
 ## Available Methods
 
 ### `activityType()`
 
-Translate activity type names (meeting, call, task) into their respective activity type UUIDs.
+Translate activity type (meeting, call, task) into activity type UUID.
 
 **Parameters:**
-- `type` (string, required): Activity type - must be one of: `meeting`, `call`, or `task`
+- `type` (string): Activity type (meeting, call, or task)
 
-**Returns:** Array with activity type UUID and type
+**Returns:** Array with activity type UUID
 
 **Example:**
 ```php
-$result = $teamleader->migrate()->activityType('meeting');
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
 
-// Returns:
-// [
-//     'data' => [
-//         'id' => 'eab232c6-49b2-4b7e-a977-5e1148dad471',
-//         'type' => 'meeting'
-//     ]
-// ]
+// Translate 'meeting' to UUID
+$result = Teamleader::migrate()->activityType('meeting');
+$activityTypeId = $result['data']['id'];
+$activityTypeType = $result['data']['type'];
 
-// Migrate all activity types
-$activityTypes = ['meeting', 'call', 'task'];
-$uuids = [];
-
-foreach ($activityTypes as $type) {
-    $result = $teamleader->migrate()->activityType($type);
-    $uuids[$type] = $result['data']['id'];
-}
+// Use the UUID in new API calls
 ```
 
 ### `taxRate()`
 
-Translate tax rates from the deprecated API into new UUID tax rates.
+Translate old tax rate percentage to new UUID tax rate.
 
 **Parameters:**
-- `departmentId` (string, required): Department UUID
-- `taxRate` (string, required): Tax rate as a string (e.g., "21", "6", "0")
+- `departmentId` (string): Department UUID
+- `taxRate` (string): Tax rate as string (e.g., "21", "6", "0")
 
 **Returns:** Array with tax rate UUID
 
 **Example:**
 ```php
-$result = $teamleader->migrate()->taxRate(
-    '6ad54ec6-ee2d-4500-afe6-0917c1aa7a38',
-    '21'
-);
+// Translate 21% tax rate to UUID
+$result = Teamleader::migrate()->taxRate('department-uuid', '21');
+$taxRateId = $result['data']['id'];
 
-// Returns:
-// [
-//     'data' => [
-//         'id' => 'eab232c6-49b2-4b7e-a977-5e1148dad471',
-//         'type' => 'taxRate'
-//     ]
-// ]
-
-// Migrate multiple tax rates for a department
-$departmentId = '6ad54ec6-ee2d-4500-afe6-0917c1aa7a38';
-$taxRates = ['0', '6', '12', '21'];
-$taxRateUuids = [];
-
-foreach ($taxRates as $rate) {
-    $result = $teamleader->migrate()->taxRate($departmentId, $rate);
-    $taxRateUuids[$rate] = $result['data']['id'];
-}
+// Use in invoice creation
+$invoice = Teamleader::invoices()->create([
+    // ... other fields
+    'grouped_lines' => [
+        [
+            'section' => [
+                'title' => 'Products'
+            ],
+            'line_items' => [
+                [
+                    'quantity' => 1,
+                    'description' => 'Product',
+                    'unit_price' => [
+                        'amount' => 100.00,
+                        'tax' => 'excluding'
+                    ],
+                    'tax_rate_id' => $taxRateId
+                ]
+            ]
+        ]
+    ]
+]);
 ```
 
 ### `id()`
 
-Translate old numeric IDs from the deprecated API into new UUIDs.
+Translate old numeric ID to new UUID.
 
 **Parameters:**
-- `type` (string, required): Resource type (see [Supported Resource Types](#supported-resource-types))
-- `id` (int, required): Old numeric ID
+- `type` (string): Resource type (contact, company, invoice, etc.)
+- `id` (int): Old numeric ID
 
-**Returns:** Array with new UUID and resource type
+**Returns:** Array with new UUID and type
 
 **Example:**
 ```php
-// Migrate a contact ID
-$result = $teamleader->migrate()->id('contact', 123);
+// Translate old contact ID
+$result = Teamleader::migrate()->id('contact', 123);
+$newUuid = $result['data']['id'];
+$resourceType = $result['data']['type'];
 
-// Returns:
-// [
-//     'data' => [
-//         'type' => 'contact',
-//         'id' => '6ad54ec6-ee2d-4500-afe6-0917c1aa7a38'
-//     ]
-// ]
-
-// Migrate an invoice ID
-$result = $teamleader->migrate()->id('invoice', 456);
-
-// Migrate a deal ID
-$result = $teamleader->migrate()->id('deal', 789);
-```
-
-**Important Note:** The response type may differ from the request type:
-- `task` becomes `todo` in the response
-- `meeting` and `call` become `event` in the response
-
-### `batchIds()`
-
-Convenience method to migrate multiple IDs of the same type at once. This method calls the API multiple times and returns a mapping of old IDs to new UUIDs.
-
-**Parameters:**
-- `type` (string, required): Resource type
-- `ids` (array, required): Array of old numeric IDs
-
-**Returns:** Associative array mapping old IDs to new UUIDs
-
-**Example:**
-```php
-$oldContactIds = [1, 2, 3, 4, 5];
-
-$mapping = $teamleader->migrate()->batchIds('contact', $oldContactIds);
-
-// Returns:
-// [
-//     1 => 'uuid-1',
-//     2 => 'uuid-2',
-//     3 => 'uuid-3',
-//     4 => 'uuid-4',
-//     5 => 'uuid-5'
-// ]
-
-// Use the mapping to update your database
-foreach ($mapping as $oldId => $newUuid) {
-    // Update your local database
-    DB::table('contacts')
-        ->where('old_id', $oldId)
-        ->update(['teamleader_uuid' => $newUuid]);
-}
+// Use new UUID
+$contact = Teamleader::contacts()->info($newUuid);
 ```
 
 ## Helper Methods
 
-### `getActivityTypes()`
+### Batch ID Migration
 
-Get all valid activity types.
-
-**Example:**
 ```php
-$types = $teamleader->migrate()->getActivityTypes();
+// Migrate multiple IDs of the same type
+$oldIds = [1, 2, 3, 4, 5];
+$mapping = Teamleader::migrate()->batchIds('contact', $oldIds);
+
+// Returns: [1 => 'new-uuid-1', 2 => 'new-uuid-2', ...]
+```
+
+### Get Available Activity Types
+
+```php
+// Get list of valid activity types
+$types = Teamleader::migrate()->getActivityTypes();
+
 // Returns: ['meeting', 'call', 'task']
 ```
 
-### `getResourceTypes()`
+### Get Available Resource Types
 
-Get all valid resource types for ID migration.
-
-**Example:**
 ```php
-$types = $teamleader->migrate()->getResourceTypes();
-// Returns: ['account', 'user', 'department', 'product', ...]
-```
+// Get list of migratable resource types
+$types = Teamleader::migrate()->getResourceTypes();
 
-### `isValidActivityType()`
-
-Check if an activity type is valid.
-
-**Example:**
-```php
-if ($teamleader->migrate()->isValidActivityType('meeting')) {
-    // Valid activity type
-}
-```
-
-### `isValidResourceType()`
-
-Check if a resource type is valid for migration.
-
-**Example:**
-```php
-if ($teamleader->migrate()->isValidResourceType('contact')) {
-    // Valid resource type
-}
+// Returns: ['contact', 'company', 'invoice', ...]
 ```
 
 ## Supported Resource Types
 
-The `id()` and `batchIds()` methods support the following resource types:
+### Activity Types
+
+Valid activity types for migration:
+
+- `meeting`
+- `call`
+- `task`
+
+### Resource Types
+
+Valid resource types for ID migration:
 
 - `account`
 - `user`
@@ -212,9 +175,9 @@ The `id()` and `batchIds()` methods support the following resource types:
 - `dealPhase`
 - `project`
 - `milestone`
-- `task` (returns as `todo` in response)
-- `meeting` (returns as `event` in response)
-- `call` (returns as `event` in response)
+- `task`
+- `meeting`
+- `call`
 - `ticket`
 - `invoice`
 - `creditNote`
@@ -223,269 +186,516 @@ The `id()` and `batchIds()` methods support the following resource types:
 - `timeTracking`
 - `customField`
 
-## Common Migration Patterns
+**Note:** In responses, some types are transformed:
+- `task` becomes `todo`
+- `meeting` and `call` become `event`
 
-### Migrate All Contacts
+## Response Structure
 
-```php
-$migrate = $teamleader->migrate();
+### Activity Type Response
 
-// Get all old contact IDs from your database
-$oldIds = DB::table('contacts')->pluck('old_teamleader_id')->toArray();
-
-// Batch migrate
-$mapping = $migrate->batchIds('contact', $oldIds);
-
-// Update your database
-foreach ($mapping as $oldId => $newUuid) {
-    DB::table('contacts')
-        ->where('old_teamleader_id', $oldId)
-        ->update(['teamleader_uuid' => $newUuid]);
-}
-```
-
-### Migrate Multiple Resource Types
-
-```php
-$migrate = $teamleader->migrate();
-
-$resourceTypes = ['contact', 'company', 'invoice', 'deal'];
-
-foreach ($resourceTypes as $type) {
-    // Get old IDs from your database
-    $oldIds = DB::table($type . 's')->pluck('old_id')->toArray();
-    
-    // Migrate
-    $mapping = $migrate->batchIds($type, $oldIds);
-    
-    // Update database
-    foreach ($mapping as $oldId => $newUuid) {
-        DB::table($type . 's')
-            ->where('old_id', $oldId)
-            ->update(['uuid' => $newUuid]);
-    }
-}
-```
-
-### Migrate Tax Rates for All Departments
-
-```php
-$migrate = $teamleader->migrate();
-
-// Get all departments
-$departments = $teamleader->departments()->list();
-
-// Common tax rates in Belgium
-$taxRates = ['0', '6', '12', '21'];
-
-$taxRateMapping = [];
-
-foreach ($departments['data'] as $department) {
-    $deptId = $department['id'];
-    $taxRateMapping[$deptId] = [];
-    
-    foreach ($taxRates as $rate) {
-        try {
-            $result = $migrate->taxRate($deptId, $rate);
-            $taxRateMapping[$deptId][$rate] = $result['data']['id'];
-        } catch (\Exception $e) {
-            // Some tax rates may not exist for all departments
-            continue;
-        }
-    }
-}
-```
-
-### Migrate Activity Types
-
-```php
-$migrate = $teamleader->migrate();
-
-$activityTypes = ['meeting', 'call', 'task'];
-$activityTypeUuids = [];
-
-foreach ($activityTypes as $type) {
-    $result = $migrate->activityType($type);
-    $activityTypeUuids[$type] = $result['data']['id'];
-}
-
-// Store in config or database
-config(['teamleader.activity_types' => $activityTypeUuids]);
-```
-
-## Response Structures
-
-### activityType()
 ```php
 [
     'data' => [
-        'id' => 'eab232c6-49b2-4b7e-a977-5e1148dad471',
-        'type' => 'meeting'  // or 'call', 'task'
+        'id' => 'activity-type-uuid',
+        'type' => 'meeting' // or 'call', 'task'
     ]
 ]
 ```
 
-### taxRate()
+### Tax Rate Response
+
 ```php
 [
     'data' => [
-        'id' => 'eab232c6-49b2-4b7e-a977-5e1148dad471',
+        'id' => 'tax-rate-uuid',
         'type' => 'taxRate'
     ]
 ]
 ```
 
-### id()
+### ID Migration Response
+
 ```php
 [
     'data' => [
-        'type' => 'contact',  // May differ from request (task->todo, meeting->event)
-        'id' => '6ad54ec6-ee2d-4500-afe6-0917c1aa7a38'
+        'type' => 'contact', // or 'todo', 'event', etc.
+        'id' => 'new-uuid-here'
     ]
 ]
 ```
 
-## Error Handling
+## Usage Examples
+
+### Migrate Activity Type
 
 ```php
-use McoreServices\TeamleaderSDK\Exceptions\ValidationException;
-use McoreServices\TeamleaderSDK\Exceptions\NotFoundException;
-use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
+// Get UUID for meeting activity type
+$result = Teamleader::migrate()->activityType('meeting');
+$activityTypeId = $result['data']['id'];
 
-try {
-    $result = $teamleader->migrate()->id('contact', 123);
-} catch (ValidationException $e) {
-    // Handle validation errors (invalid type, invalid ID format)
-    echo "Validation error: " . $e->getMessage();
-} catch (NotFoundException $e) {
-    // Handle case where old ID doesn't exist
-    echo "Old ID not found: " . $e->getMessage();
-} catch (TeamleaderException $e) {
-    // Handle other API errors
-    echo "API error: " . $e->getMessage();
+// Use in event creation
+$event = Teamleader::calendarEvents()->create([
+    'activity_type_id' => $activityTypeId,
+    'title' => 'Client meeting',
+    'starts_at' => '2025-10-20T10:00:00+00:00',
+    'ends_at' => '2025-10-20T11:00:00+00:00'
+]);
+```
+
+### Migrate Tax Rate
+
+```php
+// Get UUID for 21% VAT
+$result = Teamleader::migrate()->taxRate('department-uuid', '21');
+$taxRateId = $result['data']['id'];
+
+// Use in product creation
+$product = Teamleader::products()->create([
+    'name' => 'Product Name',
+    'tax_rate_id' => $taxRateId,
+    'unit_price' => [
+        'amount' => 100.00,
+        'currency' => 'EUR'
+    ]
+]);
+```
+
+### Migrate Contact IDs
+
+```php
+// Old contact IDs from legacy system
+$oldContactIds = [123, 456, 789];
+$newUuids = [];
+
+foreach ($oldContactIds as $oldId) {
+    $result = Teamleader::migrate()->id('contact', $oldId);
+    $newUuids[$oldId] = $result['data']['id'];
+}
+
+// Use new UUIDs
+foreach ($newUuids as $oldId => $newUuid) {
+    echo "Old ID {$oldId} -> New UUID {$newUuid}\n";
+}
+```
+
+### Batch ID Migration
+
+```php
+// Migrate multiple contacts at once
+$oldIds = [1, 2, 3, 4, 5];
+$mapping = Teamleader::migrate()->batchIds('contact', $oldIds);
+
+// Update database with new UUIDs
+foreach ($mapping as $oldId => $newUuid) {
+    DB::table('contacts')
+        ->where('legacy_id', $oldId)
+        ->update(['teamleader_uuid' => $newUuid]);
+}
+```
+
+### Migrate Invoice References
+
+```php
+// Migrate old invoice IDs in your system
+$oldInvoiceIds = DB::table('orders')
+    ->whereNotNull('teamleader_invoice_id')
+    ->pluck('teamleader_invoice_id')
+    ->unique()
+    ->toArray();
+
+foreach ($oldInvoiceIds as $oldId) {
+    try {
+        $result = Teamleader::migrate()->id('invoice', $oldId);
+        $newUuid = $result['data']['id'];
+        
+        // Update all orders with this invoice
+        DB::table('orders')
+            ->where('teamleader_invoice_id', $oldId)
+            ->update(['teamleader_invoice_uuid' => $newUuid]);
+            
+    } catch (Exception $e) {
+        Log::error("Failed to migrate invoice ID {$oldId}");
+    }
+}
+```
+
+### Build Migration Mapping
+
+```php
+function buildIdMapping(string $type, array $oldIds): array
+{
+    $mapping = [
+        'successful' => [],
+        'failed' => []
+    ];
+    
+    foreach ($oldIds as $oldId) {
+        try {
+            $result = Teamleader::migrate()->id($type, $oldId);
+            $mapping['successful'][$oldId] = $result['data']['id'];
+        } catch (Exception $e) {
+            $mapping['failed'][$oldId] = $e->getMessage();
+            Log::error("Failed to migrate {$type} ID {$oldId}: {$e->getMessage()}");
+        }
+    }
+    
+    return $mapping;
+}
+
+// Usage
+$mapping = buildIdMapping('contact', [1, 2, 3, 4, 5]);
+
+echo "Successfully migrated: " . count($mapping['successful']) . "\n";
+echo "Failed: " . count($mapping['failed']) . "\n";
+```
+
+## Common Use Cases
+
+### 1. Database Migration Script
+
+```php
+class TeamleaderMigrationScript
+{
+    public function migrateContacts(): void
+    {
+        $contacts = DB::table('contacts')
+            ->whereNotNull('teamleader_legacy_id')
+            ->whereNull('teamleader_uuid')
+            ->get();
+        
+        foreach ($contacts as $contact) {
+            try {
+                $result = Teamleader::migrate()->id('contact', $contact->teamleader_legacy_id);
+                
+                DB::table('contacts')
+                    ->where('id', $contact->id)
+                    ->update([
+                        'teamleader_uuid' => $result['data']['id'],
+                        'migrated_at' => now()
+                    ]);
+                    
+                Log::info("Migrated contact {$contact->id}");
+                
+            } catch (Exception $e) {
+                Log::error("Failed to migrate contact {$contact->id}: {$e->getMessage()}");
+            }
+        }
+    }
+    
+    public function migrateInvoices(): void
+    {
+        // Similar logic for invoices
+    }
+    
+    public function migrateCompanies(): void
+    {
+        // Similar logic for companies
+    }
+}
+
+// Run migration
+$migration = new TeamleaderMigrationScript();
+$migration->migrateContacts();
+$migration->migrateInvoices();
+$migration->migrateCompanies();
+```
+
+### 2. Legacy API Wrapper
+
+```php
+class LegacyTeamleaderWrapper
+{
+    private $idCache = [];
+    
+    public function getContact(int $legacyId): array
+    {
+        $uuid = $this->getLegacyIdAsUuid('contact', $legacyId);
+        return Teamleader::contacts()->info($uuid);
+    }
+    
+    public function getInvoice(int $legacyId): array
+    {
+        $uuid = $this->getLegacyIdAsUuid('invoice', $legacyId);
+        return Teamleader::invoices()->info($uuid);
+    }
+    
+    private function getLegacyIdAsUuid(string $type, int $legacyId): string
+    {
+        $cacheKey = "{$type}_{$legacyId}";
+        
+        if (!isset($this->idCache[$cacheKey])) {
+            $result = Teamleader::migrate()->id($type, $legacyId);
+            $this->idCache[$cacheKey] = $result['data']['id'];
+        }
+        
+        return $this->idCache[$cacheKey];
+    }
+}
+
+// Usage
+$wrapper = new LegacyTeamleaderWrapper();
+$contact = $wrapper->getContact(123); // Uses old ID
+```
+
+### 3. Activity Type Resolver
+
+```php
+class ActivityTypeResolver
+{
+    private static $activityTypes = null;
+    
+    public static function resolve(string $type): string
+    {
+        if (self::$activityTypes === null) {
+            self::$activityTypes = self::loadActivityTypes();
+        }
+        
+        return self::$activityTypes[$type] ?? null;
+    }
+    
+    private static function loadActivityTypes(): array
+    {
+        $types = ['meeting', 'call', 'task'];
+        $mapping = [];
+        
+        foreach ($types as $type) {
+            $result = Teamleader::migrate()->activityType($type);
+            $mapping[$type] = $result['data']['id'];
+        }
+        
+        return $mapping;
+    }
+}
+
+// Usage
+$meetingTypeId = ActivityTypeResolver::resolve('meeting');
+```
+
+### 4. Tax Rate Migration Helper
+
+```php
+class TaxRateMigrator
+{
+    private $cache = [];
+    
+    public function getTaxRateUuid(string $departmentId, string $rate): string
+    {
+        $cacheKey = "{$departmentId}_{$rate}";
+        
+        if (!isset($this->cache[$cacheKey])) {
+            $result = Teamleader::migrate()->taxRate($departmentId, $rate);
+            $this->cache[$cacheKey] = $result['data']['id'];
+        }
+        
+        return $this->cache[$cacheKey];
+    }
+    
+    public function migrateInvoiceLineItems(array $lineItems, string $departmentId): array
+    {
+        foreach ($lineItems as &$item) {
+            if (isset($item['tax_rate_percentage'])) {
+                $rate = (string) $item['tax_rate_percentage'];
+                $item['tax_rate_id'] = $this->getTaxRateUuid($departmentId, $rate);
+                unset($item['tax_rate_percentage']);
+            }
+        }
+        
+        return $lineItems;
+    }
 }
 ```
 
 ## Best Practices
 
-### 1. Batch Processing with Rate Limiting
+### 1. Cache Migrated IDs
 
 ```php
-$migrate = $teamleader->migrate();
-$oldIds = [1, 2, 3, /* ... thousands more ... */];
-
-// Process in chunks to avoid rate limits
-$chunks = array_chunk($oldIds, 100);
-
-foreach ($chunks as $chunk) {
-    $mapping = $migrate->batchIds('contact', $chunk);
-    
-    // Update your database
-    foreach ($mapping as $oldId => $newUuid) {
-        // ... update logic
+// Cache migrated IDs to avoid repeated API calls
+class IdMigrationCache
+{
+    public static function getUuid(string $type, int $legacyId): string
+    {
+        $cacheKey = "teamleader_migrate_{$type}_{$legacyId}";
+        
+        return Cache::remember($cacheKey, 86400, function() use ($type, $legacyId) {
+            $result = Teamleader::migrate()->id($type, $legacyId);
+            return $result['data']['id'];
+        });
     }
-    
-    // Optional: Add delay between chunks to respect rate limits
-    sleep(1);
 }
 ```
 
-### 2. Handle Missing IDs Gracefully
+### 2. Handle Migration Errors Gracefully
 
 ```php
-$migrate = $teamleader->migrate();
-
-foreach ($oldIds as $oldId) {
+function migrateIdSafely(string $type, int $legacyId): ?string
+{
     try {
-        $result = $migrate->id('contact', $oldId);
-        $newUuid = $result['data']['id'];
-        
-        // Update database
-        DB::table('contacts')
-            ->where('old_id', $oldId)
-            ->update(['uuid' => $newUuid]);
-            
-    } catch (NotFoundException $e) {
-        // Log IDs that couldn't be migrated
-        Log::warning("Contact ID {$oldId} not found in Teamleader");
-        
-        // Mark as needs manual review
-        DB::table('contacts')
-            ->where('old_id', $oldId)
-            ->update(['migration_status' => 'not_found']);
+        $result = Teamleader::migrate()->id($type, $legacyId);
+        return $result['data']['id'];
+    } catch (Exception $e) {
+        Log::error("Migration failed for {$type} ID {$legacyId}", [
+            'error' => $e->getMessage()
+        ]);
+        return null;
     }
 }
 ```
 
-### 3. Store Mappings for Future Reference
+### 3. Batch Migrations for Efficiency
 
 ```php
-$migrate = $teamleader->migrate();
-
-// Migrate and store mapping in a separate table
-$mapping = $migrate->batchIds('contact', $oldIds);
-
-foreach ($mapping as $oldId => $newUuid) {
-    DB::table('id_mappings')->insert([
-        'resource_type' => 'contact',
-        'old_id' => $oldId,
-        'new_uuid' => $newUuid,
-        'migrated_at' => now()
-    ]);
+// Migrate in batches rather than one at a time
+function migrateBatch(string $type, array $legacyIds, int $batchSize = 100): array
+{
+    $results = [];
+    $batches = array_chunk($legacyIds, $batchSize);
+    
+    foreach ($batches as $batch) {
+        $batchResults = Teamleader::migrate()->batchIds($type, $batch);
+        $results = array_merge($results, $batchResults);
+        
+        // Small delay to avoid rate limiting
+        usleep(100000); // 100ms
+    }
+    
+    return $results;
 }
 ```
 
-### 4. Validate Before Migration
+### 4. Validate Resource Types
 
 ```php
-$migrate = $teamleader->migrate();
-
-// Validate resource type
-if (!$migrate->isValidResourceType($type)) {
-    throw new \InvalidArgumentException("Invalid resource type: {$type}");
+function isValidResourceType(string $type): bool
+{
+    $validTypes = Teamleader::migrate()->getResourceTypes();
+    return in_array($type, $validTypes);
 }
 
-// Validate activity type
-if (!$migrate->isValidActivityType($activityType)) {
-    throw new \InvalidArgumentException("Invalid activity type: {$activityType}");
+// Usage
+if (isValidResourceType($requestedType)) {
+    $uuid = Teamleader::migrate()->id($requestedType, $legacyId);
+}
+```
+
+### 5. Log Migration Progress
+
+```php
+function migrateWithLogging(string $type, array $legacyIds): array
+{
+    $total = count($legacyIds);
+    $processed = 0;
+    $results = ['success' => [], 'failed' => []];
+    
+    foreach ($legacyIds as $legacyId) {
+        try {
+            $result = Teamleader::migrate()->id($type, $legacyId);
+            $results['success'][$legacyId] = $result['data']['id'];
+        } catch (Exception $e) {
+            $results['failed'][$legacyId] = $e->getMessage();
+        }
+        
+        $processed++;
+        
+        if ($processed % 10 === 0) {
+            Log::info("Migration progress: {$processed}/{$total}");
+        }
+    }
+    
+    Log::info("Migration complete", [
+        'total' => $total,
+        'successful' => count($results['success']),
+        'failed' => count($results['failed'])
+    ]);
+    
+    return $results;
+}
+```
+
+## Error Handling
+
+```php
+use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
+
+// Migrate activity type
+try {
+    $result = Teamleader::migrate()->activityType('meeting');
+} catch (TeamleaderException $e) {
+    if ($e->getCode() === 422) {
+        Log::error('Invalid activity type');
+    }
 }
 
-// Then proceed with migration
-$result = $migrate->id($type, $oldId);
+// Migrate tax rate
+try {
+    $result = Teamleader::migrate()->taxRate('department-uuid', '21');
+} catch (TeamleaderException $e) {
+    if ($e->getCode() === 404) {
+        Log::error('Department not found');
+    } elseif ($e->getCode() === 422) {
+        Log::error('Invalid tax rate');
+    }
+}
+
+// Migrate ID
+try {
+    $result = Teamleader::migrate()->id('contact', 123);
+} catch (TeamleaderException $e) {
+    if ($e->getCode() === 404) {
+        Log::error('Legacy ID not found');
+    } elseif ($e->getCode() === 422) {
+        Log::error('Invalid resource type');
+    }
+}
 ```
 
 ## Important Notes
 
-- These endpoints are specifically for migrating from the deprecated Teamleader API
-- The response type may differ from the request type (task→todo, meeting/call→event)
-- Old IDs must be positive integers
-- Tax rates must be provided as strings (e.g., "21" not 21)
-- Department ID is required for tax rate migration
-- The `batchIds()` method is a convenience wrapper that makes multiple API calls
-- Consider implementing proper error handling and logging for production migrations
-- Store the old ID to new UUID mappings for future reference
+### 1. One-Way Migration
+
+This is a one-way migration tool. You cannot convert new UUIDs back to old numeric IDs.
+
+### 2. Legacy API Deprecation
+
+These endpoints are designed to help with the transition from the deprecated API. Once migrated, use the new UUID-based endpoints directly.
+
+### 3. Response Type Changes
+
+Some resource types are transformed in responses:
+- `task` → `todo`
+- `meeting`/`call` → `event`
+
+### 4. Not All IDs May Exist
+
+If a legacy ID doesn't exist in the system, the migration will fail with a 404 error.
+
+### 5. Rate Limiting
+
+Be mindful of API rate limits when performing bulk migrations. Implement delays between requests if necessary.
 
 ## Migration Checklist
 
-When migrating from the old API to the new API:
+When migrating from legacy API to UUID-based API:
 
-- [ ] Migrate all activity types (meeting, call, task)
-- [ ] Migrate tax rates for each department
-- [ ] Migrate contacts
-- [ ] Migrate companies
-- [ ] Migrate deals and deal phases
-- [ ] Migrate invoices and credit notes
-- [ ] Migrate projects and milestones
-- [ ] Migrate tasks
-- [ ] Migrate time tracking entries
-- [ ] Migrate custom fields
-- [ ] Update all references in your local database
-- [ ] Test the migrated data thoroughly
-- [ ] Keep the old ID to UUID mappings for troubleshooting
+1. **Identify Legacy IDs**: Find all places where old numeric IDs are stored
+2. **Run Migration**: Use migrate endpoints to convert IDs to UUIDs
+3. **Update Database**: Store new UUIDs in your database
+4. **Update Code**: Change code to use new API endpoints
+5. **Test**: Verify all integrations work with new UUIDs
+6. **Deploy**: Roll out changes to production
+7. **Monitor**: Watch for any migration-related issues
+8. **Cleanup**: Remove old ID references once stable
+
+## Related Resources
+
+- [Contacts](../crm/contacts.md) - Contact management
+- [Companies](../crm/companies.md) - Company management
+- [Invoices](../invoicing/invoices.md) - Invoice management
+- [Calendar Events](../calendar/events.md) - Event management
+- [Tax Rates](../invoicing/tax-rates.md) - Tax rate information
 
 ## See Also
 
-- [Departments](../general/departments.md) - Required for tax rate migration
-- [Contacts](../crm/contacts.md) - Working with contacts after migration
-- [Companies](../crm/companies.md) - Working with companies after migration
-- [Invoices](../invoicing/invoices.md) - Working with invoices after migration
+- [Usage Guide](../usage.md) - General SDK usage
+- [Migration Guide](../migration-guide.md) - Complete migration guide

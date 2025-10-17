@@ -1,6 +1,28 @@
 # Webhooks
 
-Manage webhooks for real-time event notifications in Teamleader Focus. Webhooks allow you to subscribe to specific events and receive instant HTTP POST notifications when those events occur in your Teamleader account.
+Manage webhooks for real-time event notifications in Teamleader Focus.
+
+## Overview
+
+The Webhooks resource allows you to register and manage webhooks for real-time notifications when events occur in Teamleader. Webhooks enable your application to respond immediately to changes like new invoices, updated deals, or created tickets without constantly polling the API.
+
+## Navigation
+
+- [Endpoint](#endpoint)
+- [Capabilities](#capabilities)
+- [Available Methods](#available-methods)
+    - [list()](#list)
+    - [register()](#register)
+    - [unregister()](#unregister)
+- [Helper Methods](#helper-methods)
+- [Event Types](#event-types)
+- [Response Structure](#response-structure)
+- [Usage Examples](#usage-examples)
+- [Common Use Cases](#common-use-cases)
+- [Best Practices](#best-practices)
+- [Error Handling](#error-handling)
+- [Webhook Verification](#webhook-verification)
+- [Related Resources](#related-resources)
 
 ## Endpoint
 
@@ -8,59 +30,46 @@ Manage webhooks for real-time event notifications in Teamleader Focus. Webhooks 
 
 ## Capabilities
 
-- **Supports Pagination**: ❌ Not Supported
-- **Supports Filtering**: ❌ Not Supported
-- **Supports Sorting**: ❌ Not Supported
-- **Supports Sideloading**: ❌ Not Supported
-- **Supports Creation**: ✅ Supported (via `register()` method)
-- **Supports Update**: ❌ Not Supported
-- **Supports Deletion**: ✅ Supported (via `unregister()` method)
-- **Supports Batch**: ❌ Not Supported
+- **Pagination**: ❌ Not Supported
+- **Filtering**: ❌ Not Supported
+- **Sorting**: ❌ Not Supported
+- **Sideloading**: ❌ Not Supported
+- **Creation**: ✅ Supported (via register())
+- **Update**: ❌ Not Supported
+- **Deletion**: ✅ Supported (via unregister())
 
 ## Available Methods
 
 ### `list()`
 
-Get all registered webhooks ordered by URL.
-
-**Parameters:**
-- None required
+Get all registered webhooks.
 
 **Example:**
 ```php
-$webhooks = $teamleader->webhooks()->list();
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
 
-// Returns:
-// [
-//     'data' => [
-//         [
-//             'url' => 'https://example.com/webhook',
-//             'types' => ['invoice.booked', 'invoice.sent']
-//         ],
-//         ...
-//     ]
-// ]
+// Get all webhooks
+$webhooks = Teamleader::webhooks()->list();
+
+foreach ($webhooks['data'] as $webhook) {
+    echo "URL: {$webhook['url']}\n";
+    echo "Types: " . implode(', ', $webhook['types']) . "\n";
+}
 ```
 
 ### `register()`
 
-Register a new webhook to receive notifications for specific event types.
+Register a new webhook for specific event types.
 
 **Parameters:**
-- `url` (string, required): Your webhook URL (must be HTTPS)
-- `types` (array, required): Array of event types to subscribe to
+- `url` (string): Your webhook URL that will receive POST requests
+- `types` (array): Array of event types to subscribe to
 
 **Example:**
 ```php
-// Register for a single event type
-$result = $teamleader->webhooks()->register(
-    'https://example.com/webhook',
-    ['invoice.booked']
-);
-
-// Register for multiple event types
-$result = $teamleader->webhooks()->register(
-    'https://example.com/webhook',
+// Register webhook for invoice events
+$webhook = Teamleader::webhooks()->register(
+    'https://example.com/webhooks/teamleader',
     [
         'invoice.booked',
         'invoice.sent',
@@ -69,108 +78,70 @@ $result = $teamleader->webhooks()->register(
 );
 ```
 
-**Returns:** Empty response with 204 status code on success
-
 ### `unregister()`
 
-Unregister event types from a webhook URL. This removes the specified event types from the webhook registration.
+Remove a registered webhook.
 
 **Parameters:**
-- `url` (string, required): Your webhook URL
-- `types` (array, required): Array of event types to unsubscribe from
+- `url` (string): The webhook URL to unregister
 
 **Example:**
 ```php
-// Unregister specific event types
-$result = $teamleader->webhooks()->unregister(
-    'https://example.com/webhook',
-    ['invoice.booked']
-);
-
-// To completely remove a webhook, unregister all its types
-$webhooks = $teamleader->webhooks()->list();
-$url = 'https://example.com/webhook';
-$types = [];
-foreach ($webhooks['data'] as $webhook) {
-    if ($webhook['url'] === $url) {
-        $types = $webhook['types'];
-        break;
-    }
-}
-$result = $teamleader->webhooks()->unregister($url, $types);
+// Unregister webhook
+$result = Teamleader::webhooks()->unregister('https://example.com/webhooks/teamleader');
 ```
-
-**Returns:** Empty response with 204 status code on success
 
 ## Helper Methods
 
-### `getAvailableEventTypes()`
-
-Get all available webhook event types.
-
-**Example:**
-```php
-$allTypes = $teamleader->webhooks()->getAvailableEventTypes();
-```
-
-### `getEventTypesByCategory()`
-
-Get event types filtered by category (e.g., 'invoice', 'contact', 'deal').
-
-**Parameters:**
-- `category` (string): The category prefix to filter by
-
-**Example:**
-```php
-$contactEvents = $teamleader->webhooks()->getEventTypesByCategory('contact');
-$dealEvents = $teamleader->webhooks()->getEventTypesByCategory('deal');
-```
-
-### Category-Specific Methods
-
-Convenient methods to get event types for specific categories:
+### Event Type Helpers
 
 ```php
-// Get all invoice-related events (including incomingInvoice)
-$invoiceEvents = $teamleader->webhooks()->getInvoiceEventTypes();
+// Get all available event types
+$allTypes = Teamleader::webhooks()->getEventTypes();
 
-// Get all deal-related events
-$dealEvents = $teamleader->webhooks()->getDealEventTypes();
-
-// Get all contact-related events
-$contactEvents = $teamleader->webhooks()->getContactEventTypes();
-
-// Get all company-related events
-$companyEvents = $teamleader->webhooks()->getCompanyEventTypes();
-
-// Get all project-related events (including nextgenProject)
-$projectEvents = $teamleader->webhooks()->getProjectEventTypes();
-
-// Get all task-related events (including nextgenTask)
-$taskEvents = $teamleader->webhooks()->getTaskEventTypes();
-
-// Get all time tracking events
-$timeTrackingEvents = $teamleader->webhooks()->getTimeTrackingEventTypes();
+// Get event types for specific resources
+$invoiceTypes = Teamleader::webhooks()->getInvoiceEventTypes();
+$dealTypes = Teamleader::webhooks()->getDealEventTypes();
+$contactTypes = Teamleader::webhooks()->getContactEventTypes();
+$companyTypes = Teamleader::webhooks()->getCompanyEventTypes();
+$ticketTypes = Teamleader::webhooks()->getTicketEventTypes();
 ```
 
-## Available Event Types
+### Multi-Resource Registration
 
-### Account Events
+```php
+// Register for all invoice events
+$webhook = Teamleader::webhooks()->registerForInvoices('https://example.com/webhook');
+
+// Register for all deal events
+$webhook = Teamleader::webhooks()->registerForDeals('https://example.com/webhook');
+
+// Register for all ticket events
+$webhook = Teamleader::webhooks()->registerForTickets('https://example.com/webhook');
+```
+
+## Event Types
+
+### Available Event Categories
+
+Webhooks support events across many resource types:
+
+**Account Events:**
 - `account.deactivated`
 - `account.deleted`
 
-### Call Events
+**Call Events:**
 - `call.added`
 - `call.completed`
 - `call.deleted`
 - `call.updated`
 
-### Company Events
+**Company Events:**
 - `company.added`
 - `company.deleted`
 - `company.updated`
 
-### Contact Events
+**Contact Events:**
 - `contact.added`
 - `contact.deleted`
 - `contact.linkedToCompany`
@@ -178,13 +149,13 @@ $timeTrackingEvents = $teamleader->webhooks()->getTimeTrackingEventTypes();
 - `contact.updatedLinkToCompany`
 - `contact.updated`
 
-### Credit Note Events
+**Credit Note Events:**
 - `creditNote.booked`
 - `creditNote.deleted`
 - `creditNote.sent`
 - `creditNote.updated`
 
-### Deal Events
+**Deal Events:**
 - `deal.created`
 - `deal.deleted`
 - `deal.lost`
@@ -192,87 +163,64 @@ $timeTrackingEvents = $teamleader->webhooks()->getTimeTrackingEventTypes();
 - `deal.updated`
 - `deal.won`
 
-### Incoming Credit Note Events
-- `incomingCreditNote.added`
-- `incomingCreditNote.approved`
-- `incomingCreditNote.bookkeepingSubmissionFailed`
-- `incomingCreditNote.bookkeepingSubmissionSucceeded`
-- `incomingCreditNote.deleted`
-- `incomingCreditNote.refused`
-- `incomingCreditNote.updated`
+**Event Events:**
+- `event.cancelled`
+- `event.completed`
+- `event.created`
+- `event.deleted`
+- `event.updated`
 
-### Incoming Invoice Events
-- `incomingInvoice.added`
-- `incomingInvoice.approved`
-- `incomingInvoice.bookkeepingSubmissionFailed`
-- `incomingInvoice.bookkeepingSubmissionSucceeded`
-- `incomingInvoice.deleted`
-- `incomingInvoice.refused`
-- `incomingInvoice.updated`
-
-### Invoice Events
+**Invoice Events:**
 - `invoice.booked`
+- `invoice.credited`
 - `invoice.deleted`
-- `invoice.drafted`
+- `invoice.paymentLinked`
 - `invoice.paymentRegistered`
-- `invoice.paymentRemoved`
+- `invoice.paymentUnlinked`
 - `invoice.sent`
 - `invoice.updated`
 
-### Meeting Events
-- `meeting.created`
+**Meeting Events:**
 - `meeting.completed`
+- `meeting.created`
 - `meeting.deleted`
 - `meeting.updated`
 
-### Milestone Events
+**Milestone Events:**
 - `milestone.created`
+- `milestone.deleted`
 - `milestone.updated`
 
-### Next Generation Project Events
-- `nextgenProject.created`
-- `nextgenProject.updated`
-- `nextgenProject.closed`
-- `nextgenProject.deleted`
-
-### Next Generation Task Events
-- `nextgenTask.completed`
-- `nextgenTask.created`
-- `nextgenTask.deleted`
-- `nextgenTask.updated`
-
-### Product Events
+**Product Events:**
 - `product.added`
-- `product.updated`
 - `product.deleted`
+- `product.updated`
 
-### Project Events
+**Project Events:**
+- `project.closed`
 - `project.created`
 - `project.deleted`
 - `project.updated`
 
-### Receipt Events
-- `receipt.added`
-- `receipt.approved`
-- `receipt.bookkeepingSubmissionFailed`
-- `receipt.bookkeepingSubmissionSucceeded`
-- `receipt.deleted`
-- `receipt.refused`
-- `receipt.updated`
+**Quotation Events:**
+- `quotation.accepted`
+- `quotation.deleted`
+- `quotation.sent`
+- `quotation.updated`
 
-### Subscription Events
-- `subscription.added`
+**Subscription Events:**
+- `subscription.activated`
 - `subscription.deactivated`
 - `subscription.deleted`
 - `subscription.updated`
 
-### Task Events
+**Task Events:**
 - `task.completed`
 - `task.created`
 - `task.deleted`
 - `task.updated`
 
-### Ticket Events
+**Ticket Events:**
 - `ticket.closed`
 - `ticket.created`
 - `ticket.deleted`
@@ -280,147 +228,559 @@ $timeTrackingEvents = $teamleader->webhooks()->getTimeTrackingEventTypes();
 - `ticket.updated`
 - `ticketMessage.added`
 
-### Time Tracking Events
+**Time Tracking Events:**
 - `timeTracking.added`
 - `timeTracking.deleted`
 - `timeTracking.updated`
 
-### User Events
+**User Events:**
 - `user.deactivated`
-
-## Common Usage Patterns
-
-### Subscribe to All Invoice Events
-```php
-$invoiceTypes = $teamleader->webhooks()->getInvoiceEventTypes();
-$result = $teamleader->webhooks()->register(
-    'https://example.com/webhooks/invoices',
-    $invoiceTypes
-);
-```
-
-### Subscribe to CRM Updates
-```php
-$crmTypes = array_merge(
-    $teamleader->webhooks()->getContactEventTypes(),
-    $teamleader->webhooks()->getCompanyEventTypes(),
-    $teamleader->webhooks()->getDealEventTypes()
-);
-
-$result = $teamleader->webhooks()->register(
-    'https://example.com/webhooks/crm',
-    $crmTypes
-);
-```
-
-### Subscribe to Project Management Events
-```php
-$projectTypes = array_merge(
-    $teamleader->webhooks()->getProjectEventTypes(),
-    $teamleader->webhooks()->getTaskEventTypes(),
-    $teamleader->webhooks()->getTimeTrackingEventTypes()
-);
-
-$result = $teamleader->webhooks()->register(
-    'https://example.com/webhooks/projects',
-    $projectTypes
-);
-```
-
-### Update Webhook Subscriptions
-```php
-// Get current webhooks
-$webhooks = $teamleader->webhooks()->list();
-
-// Find your webhook
-$myWebhookUrl = 'https://example.com/webhook';
-$currentTypes = [];
-foreach ($webhooks['data'] as $webhook) {
-    if ($webhook['url'] === $myWebhookUrl) {
-        $currentTypes = $webhook['types'];
-        break;
-    }
-}
-
-// Remove old subscriptions
-if (!empty($currentTypes)) {
-    $teamleader->webhooks()->unregister($myWebhookUrl, $currentTypes);
-}
-
-// Add new subscriptions
-$newTypes = ['invoice.booked', 'invoice.sent', 'deal.won'];
-$teamleader->webhooks()->register($myWebhookUrl, $newTypes);
-```
-
-## Webhook Payload
-
-When an event occurs, Teamleader will send a POST request to your registered webhook URL with the following structure:
-
-```json
-{
-    "event": "invoice.booked",
-    "data": {
-        "id": "uuid-of-resource",
-        "type": "invoice"
-    },
-    "meta": {
-        "timestamp": "2025-10-06T12:34:56+00:00"
-    }
-}
-```
-
-## Security Recommendations
-
-1. **Always use HTTPS**: Webhook URLs must use HTTPS to ensure secure data transmission
-2. **Validate webhook signatures**: Implement signature validation to verify requests are from Teamleader
-3. **Use dedicated endpoints**: Create specific endpoints for different event categories
-4. **Implement idempotency**: Handle duplicate webhook deliveries gracefully
-5. **Monitor webhook health**: Track failed deliveries and implement retry logic
-6. **Keep URLs stable**: Avoid changing webhook URLs frequently to prevent missed events
 
 ## Response Structure
 
-### list()
+### List Response
+
 ```php
 [
     'data' => [
         [
-            'url' => 'https://example.com/webhook',
-            'types' => ['invoice.booked', 'invoice.sent', ...]
+            'url' => 'https://example.com/webhooks/teamleader',
+            'types' => [
+                'invoice.booked',
+                'invoice.sent',
+                'invoice.paymentRegistered'
+            ]
         ],
-        ...
+        [
+            'url' => 'https://example.com/webhooks/deals',
+            'types' => [
+                'deal.created',
+                'deal.won',
+                'deal.lost'
+            ]
+        ]
     ]
 ]
 ```
 
-### register() / unregister()
-Both methods return an empty response with HTTP 204 (No Content) status on success.
+### Register Response
+
+```php
+[
+    'data' => [
+        'url' => 'https://example.com/webhooks/teamleader',
+        'types' => [
+            'invoice.booked',
+            'invoice.sent'
+        ]
+    ]
+]
+```
+
+### Webhook Payload
+
+When an event occurs, Teamleader will POST to your webhook URL:
+
+```json
+{
+    "type": "invoice.booked",
+    "data": {
+        "id": "invoice-uuid",
+        "type": "invoice"
+    },
+    "meta": {
+        "timestamp": "2025-10-17T10:30:00+00:00"
+    }
+}
+```
+
+## Usage Examples
+
+### Register Invoice Webhook
+
+```php
+// Listen for invoice events
+$webhook = Teamleader::webhooks()->register(
+    'https://myapp.com/webhooks/teamleader',
+    [
+        'invoice.booked',
+        'invoice.sent',
+        'invoice.paymentRegistered'
+    ]
+);
+
+echo "Webhook registered for " . count($webhook['data']['types']) . " event types";
+```
+
+### Register Multiple Resource Types
+
+```php
+// Listen for various events
+$webhook = Teamleader::webhooks()->register(
+    'https://myapp.com/webhooks/teamleader',
+    [
+        'invoice.booked',
+        'deal.won',
+        'deal.lost',
+        'ticket.created',
+        'contact.added'
+    ]
+);
+```
+
+### List Registered Webhooks
+
+```php
+// Check current webhooks
+$webhooks = Teamleader::webhooks()->list();
+
+foreach ($webhooks['data'] as $webhook) {
+    echo "Webhook URL: {$webhook['url']}\n";
+    echo "Listening to " . count($webhook['types']) . " event types\n";
+    echo "Types: " . implode(', ', $webhook['types']) . "\n\n";
+}
+```
+
+### Unregister Webhook
+
+```php
+// Remove webhook
+$result = Teamleader::webhooks()->unregister('https://myapp.com/webhooks/teamleader');
+
+echo "Webhook unregistered successfully";
+```
+
+### Handle Webhook Payload
+
+```php
+// In your webhook endpoint (e.g., routes/web.php or controller)
+Route::post('/webhooks/teamleader', function(Request $request) {
+    $payload = $request->json()->all();
+    
+    $eventType = $payload['type'];
+    $resourceId = $payload['data']['id'];
+    $timestamp = $payload['meta']['timestamp'];
+    
+    Log::info('Webhook received', [
+        'type' => $eventType,
+        'id' => $resourceId,
+        'timestamp' => $timestamp
+    ]);
+    
+    // Handle different event types
+    switch ($eventType) {
+        case 'invoice.booked':
+            handleInvoiceBooked($resourceId);
+            break;
+            
+        case 'deal.won':
+            handleDealWon($resourceId);
+            break;
+            
+        case 'ticket.created':
+            handleTicketCreated($resourceId);
+            break;
+    }
+    
+    return response()->json(['status' => 'received'], 200);
+});
+```
+
+### Dynamic Webhook Registration
+
+```php
+// Register webhook based on configuration
+$eventTypes = config('teamleader.webhook_events', [
+    'invoice.booked',
+    'invoice.paymentRegistered'
+]);
+
+$webhookUrl = config('app.url') . '/webhooks/teamleader';
+
+try {
+    $webhook = Teamleader::webhooks()->register($webhookUrl, $eventTypes);
+    Log::info('Webhook registered successfully');
+} catch (Exception $e) {
+    Log::error('Webhook registration failed: ' . $e->getMessage());
+}
+```
+
+## Common Use Cases
+
+### 1. Real-time Invoice Notifications
+
+```php
+class InvoiceWebhookHandler
+{
+    public function handle(array $payload): void
+    {
+        $eventType = $payload['type'];
+        $invoiceId = $payload['data']['id'];
+        
+        switch ($eventType) {
+            case 'invoice.booked':
+                $this->handleInvoiceBooked($invoiceId);
+                break;
+                
+            case 'invoice.sent':
+                $this->handleInvoiceSent($invoiceId);
+                break;
+                
+            case 'invoice.paymentRegistered':
+                $this->handlePaymentReceived($invoiceId);
+                break;
+        }
+    }
+    
+    private function handleInvoiceBooked(string $invoiceId): void
+    {
+        $invoice = Teamleader::invoices()->info($invoiceId);
+        
+        // Update local database
+        DB::table('invoices')->insert([
+            'teamleader_id' => $invoiceId,
+            'invoice_number' => $invoice['data']['invoice_number'],
+            'created_at' => now()
+        ]);
+        
+        // Send notification
+        Notification::send(
+            User::admins()->get(),
+            new InvoiceBookedNotification($invoice['data'])
+        );
+    }
+    
+    private function handlePaymentReceived(string $invoiceId): void
+    {
+        $invoice = Teamleader::invoices()->info($invoiceId);
+        
+        // Mark as paid in local system
+        DB::table('invoices')
+            ->where('teamleader_id', $invoiceId)
+            ->update(['paid_at' => now()]);
+    }
+}
+```
+
+### 2. Deal Pipeline Automation
+
+```php
+class DealWebhookHandler
+{
+    public function handle(array $payload): void
+    {
+        $eventType = $payload['type'];
+        $dealId = $payload['data']['id'];
+        
+        if ($eventType === 'deal.won') {
+            $this->handleDealWon($dealId);
+        } elseif ($eventType === 'deal.lost') {
+            $this->handleDealLost($dealId);
+        }
+    }
+    
+    private function handleDealWon(string $dealId): void
+    {
+        $deal = Teamleader::deals()->info($dealId);
+        
+        // Create project for won deal
+        $project = Teamleader::projects()->create([
+            'title' => 'Project: ' . $deal['data']['title'],
+            'customer' => $deal['data']['lead']['customer']
+        ]);
+        
+        // Send congratulations email to sales team
+        $this->notifySalesTeam($deal['data']);
+    }
+}
+```
+
+### 3. Support Ticket Monitoring
+
+```php
+class TicketWebhookHandler
+{
+    public function handle(array $payload): void
+    {
+        $eventType = $payload['type'];
+        $ticketId = $payload['data']['id'];
+        
+        switch ($eventType) {
+            case 'ticket.created':
+                $this->notifySupport($ticketId);
+                break;
+                
+            case 'ticketMessage.added':
+                $this->checkForEscalation($ticketId);
+                break;
+                
+            case 'ticket.closed':
+                $this->sendSatisfactionSurvey($ticketId);
+                break;
+        }
+    }
+    
+    private function notifySupport(string $ticketId): void
+    {
+        $ticket = Teamleader::tickets()->info($ticketId);
+        
+        // Send notification to support team
+        Slack::send('#support', "New ticket: {$ticket['data']['subject']}");
+    }
+}
+```
+
+### 4. Contact Synchronization
+
+```php
+class ContactWebhookHandler
+{
+    public function handle(array $payload): void
+    {
+        $eventType = $payload['type'];
+        $contactId = $payload['data']['id'];
+        
+        switch ($eventType) {
+            case 'contact.added':
+                $this->syncNewContact($contactId);
+                break;
+                
+            case 'contact.updated':
+                $this->updateContact($contactId);
+                break;
+                
+            case 'contact.linkedToCompany':
+                $this->handleCompanyLink($contactId);
+                break;
+        }
+    }
+    
+    private function syncNewContact(string $contactId): void
+    {
+        $contact = Teamleader::contacts()->info($contactId);
+        
+        // Sync to CRM
+        $this->crmService->createContact([
+            'teamleader_id' => $contactId,
+            'name' => $contact['data']['first_name'] . ' ' . $contact['data']['last_name'],
+            'email' => $contact['data']['emails'][0]['email'] ?? null
+        ]);
+    }
+}
+```
+
+## Best Practices
+
+### 1. Verify Webhook Origin
+
+```php
+// Validate webhook requests
+Route::post('/webhooks/teamleader', function(Request $request) {
+    // Verify request is from Teamleader
+    // Check IP whitelist, signatures, etc.
+    
+    if (!$this->isValidWebhook($request)) {
+        return response()->json(['error' => 'Invalid webhook'], 403);
+    }
+    
+    // Process webhook
+    $payload = $request->json()->all();
+    // ... handle payload
+    
+    return response()->json(['status' => 'received'], 200);
+});
+```
+
+### 2. Return 200 Quickly
+
+```php
+// Process webhooks asynchronously
+Route::post('/webhooks/teamleader', function(Request $request) {
+    $payload = $request->json()->all();
+    
+    // Queue for background processing
+    ProcessTeamleaderWebhook::dispatch($payload);
+    
+    // Return 200 immediately
+    return response()->json(['status' => 'queued'], 200);
+});
+
+// In ProcessTeamleaderWebhook job
+class ProcessTeamleaderWebhook implements ShouldQueue
+{
+    public function handle(array $payload): void
+    {
+        // Process webhook in background
+        // ... your logic here
+    }
+}
+```
+
+### 3. Handle Duplicate Events
+
+```php
+// Prevent duplicate processing
+function processWebhook(array $payload): void
+{
+    $eventId = md5(json_encode($payload));
+    
+    // Check if already processed
+    if (Cache::has("webhook_processed_{$eventId}")) {
+        Log::info('Webhook already processed', ['event_id' => $eventId]);
+        return;
+    }
+    
+    // Process webhook
+    // ... your logic
+    
+    // Mark as processed (24 hour cache)
+    Cache::put("webhook_processed_{$eventId}", true, 86400);
+}
+```
+
+### 4. Log All Webhooks
+
+```php
+Route::post('/webhooks/teamleader', function(Request $request) {
+    $payload = $request->json()->all();
+    
+    // Log all webhooks
+    Log::info('Webhook received', [
+        'type' => $payload['type'],
+        'data' => $payload['data'],
+        'timestamp' => $payload['meta']['timestamp']
+    ]);
+    
+    // Store in database for debugging
+    DB::table('webhook_log')->insert([
+        'type' => $payload['type'],
+        'payload' => json_encode($payload),
+        'received_at' => now()
+    ]);
+    
+    // Process webhook
+    // ...
+    
+    return response()->json(['status' => 'received'], 200);
+});
+```
+
+### 5. Handle Errors Gracefully
+
+```php
+Route::post('/webhooks/teamleader', function(Request $request) {
+    try {
+        $payload = $request->json()->all();
+        
+        // Process webhook
+        WebhookProcessor::process($payload);
+        
+        return response()->json(['status' => 'processed'], 200);
+        
+    } catch (Exception $e) {
+        Log::error('Webhook processing failed', [
+            'error' => $e->getMessage(),
+            'payload' => $request->json()->all()
+        ]);
+        
+        // Still return 200 to avoid retries
+        return response()->json(['status' => 'error'], 200);
+    }
+});
+```
 
 ## Error Handling
 
 ```php
-use McoreServices\TeamleaderSDK\Exceptions\ValidationException;
 use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
 
+// Register webhook
 try {
-    $result = $teamleader->webhooks()->register(
-        'https://example.com/webhook',
+    $webhook = Teamleader::webhooks()->register(
+        'https://myapp.com/webhooks/teamleader',
         ['invoice.booked']
     );
-} catch (ValidationException $e) {
-    // Handle validation errors (invalid URL, invalid event types, etc.)
-    echo "Validation error: " . $e->getMessage();
 } catch (TeamleaderException $e) {
-    // Handle other API errors
-    echo "API error: " . $e->getMessage();
+    if ($e->getCode() === 422) {
+        // Invalid URL or event types
+        Log::error('Webhook registration failed: Invalid parameters');
+    }
+}
+
+// Unregister webhook
+try {
+    Teamleader::webhooks()->unregister('https://myapp.com/webhooks/teamleader');
+} catch (TeamleaderException $e) {
+    if ($e->getCode() === 404) {
+        // Webhook not found
+        Log::warning('Webhook was not registered');
+    }
 }
 ```
 
-## Notes
+## Webhook Verification
 
-- Webhooks must use HTTPS protocol
-- Each webhook URL can be registered with multiple event types
-- To completely remove a webhook, unregister all its event types
-- Webhook deliveries are retried automatically by Teamleader in case of failures
-- There is no built-in update operation - use unregister followed by register to modify subscriptions
-- Webhooks are ordered by URL in the list response
+### Security Considerations
+
+1. **HTTPS Only**: Webhook URLs must use HTTPS
+2. **IP Whitelist**: Consider whitelisting Teamleader IPs
+3. **Signature Verification**: Implement signature verification if available
+4. **Rate Limiting**: Protect your endpoint from abuse
+
+### Recommended Implementation
+
+```php
+class WebhookVerifier
+{
+    public function verify(Request $request): bool
+    {
+        // Check if request is over HTTPS
+        if (!$request->secure()) {
+            return false;
+        }
+        
+        // Verify content type
+        if ($request->header('Content-Type') !== 'application/json') {
+            return false;
+        }
+        
+        // Additional verification logic
+        // ...
+        
+        return true;
+    }
+}
+```
+
+## Important Notes
+
+### 1. Webhook Delivery
+
+- Teamleader will retry failed webhooks
+- Return HTTP 200 status code to acknowledge receipt
+- Process webhooks asynchronously to avoid timeouts
+
+### 2. HTTPS Required
+
+Webhook URLs must use HTTPS for security.
+
+### 3. Event Ordering
+
+Events may not always arrive in chronological order. Use the timestamp in the payload.
+
+### 4. One URL per Registration
+
+Each `register()` call creates a separate webhook registration. To add event types to an existing webhook, you must unregister and re-register.
+
+## Related Resources
+
+- [Invoices](../invoicing/invoices.md) - Invoice events
+- [Deals](../deals/deals.md) - Deal events
+- [Tickets](../tickets/tickets.md) - Ticket events
+- [Contacts](../crm/contacts.md) - Contact events
+- [Companies](../crm/companies.md) - Company events
+
+## See Also
+
+- [Usage Guide](../usage.md) - General SDK usage
+- [Event Types Reference](../webhooks-events.md) - Complete event types list

@@ -1,6 +1,33 @@
 # Tasks
 
-Manage tasks in Teamleader Focus. This resource provides complete CRUD operations for managing tasks, including special operations like completing, reopening, and scheduling tasks in your calendar.
+Manage tasks in Teamleader Focus.
+
+## Overview
+
+The Tasks resource provides full CRUD (Create, Read, Update, Delete) operations for managing task records in your Teamleader system. Tasks can be assigned to users, linked to customers (companies or contacts), associated with milestones, scheduled in calendars, and tracked for completion.
+
+## Navigation
+
+- [Endpoint](#endpoint)
+- [Capabilities](#capabilities)
+- [Available Methods](#available-methods)
+    - [list()](#list)
+    - [info()](#info)
+    - [create()](#create)
+    - [update()](#update)
+    - [delete()](#delete)
+    - [complete()](#complete)
+    - [reopen()](#reopen)
+    - [schedule()](#schedule)
+- [Helper Methods](#helper-methods)
+- [Filters](#filters)
+- [Sorting](#sorting)
+- [Response Structure](#response-structure)
+- [Usage Examples](#usage-examples)
+- [Common Use Cases](#common-use-cases)
+- [Best Practices](#best-practices)
+- [Error Handling](#error-handling)
+- [Related Resources](#related-resources)
 
 ## Endpoint
 
@@ -8,30 +35,46 @@ Manage tasks in Teamleader Focus. This resource provides complete CRUD operation
 
 ## Capabilities
 
-- **Supports Pagination**: ✅ Supported
-- **Supports Filtering**: ✅ Supported
-- **Supports Sorting**: ✅ Supported
-- **Supports Sideloading**: ❌ Not Supported
-- **Supports Creation**: ✅ Supported
-- **Supports Update**: ✅ Supported
-- **Supports Deletion**: ✅ Supported
-- **Supports Batch**: ❌ Not Supported
+- **Pagination**: ✅ Supported
+- **Filtering**: ✅ Supported
+- **Sorting**: ✅ Supported
+- **Sideloading**: ❌ Not Supported
+- **Creation**: ✅ Supported
+- **Update**: ✅ Supported
+- **Deletion**: ✅ Supported
 
 ## Available Methods
 
 ### `list()`
 
-Get a paginated list of tasks with filtering and sorting options.
+Get all tasks with optional filtering, sorting, and pagination.
 
 **Parameters:**
-- `filters` (array): Array of filters to apply
-- `options` (array): Pagination, sorting, and include options
+- `filters` (array): Filters to apply
+- `options` (array): Additional options (page_size, page_number, sort)
 
 **Example:**
 ```php
-$tasks = $teamleader->tasks()->list([
-    'completed' => false,
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
+// Get all tasks
+$tasks = Teamleader::tasks()->list();
+
+// Get tasks for a specific user
+$tasks = Teamleader::tasks()->list([
     'user_id' => 'user-uuid'
+]);
+
+// With pagination
+$tasks = Teamleader::tasks()->list([], [
+    'page_size' => 50,
+    'page_number' => 2
+]);
+
+// With sorting
+$tasks = Teamleader::tasks()->list([], [
+    'sort' => 'due_at',
+    'sort_order' => 'asc'
 ]);
 ```
 
@@ -41,51 +84,40 @@ Get detailed information about a specific task.
 
 **Parameters:**
 - `id` (string): Task UUID
-- `includes` (array|string): Relations to include (not used for tasks)
 
 **Example:**
 ```php
-$task = $teamleader->tasks()->info('task-uuid-here');
+// Get task information
+$task = Teamleader::tasks()->info('task-uuid');
 ```
 
 ### `create()`
 
 Create a new task.
 
-**Required Parameters:**
+**Required Fields:**
 - `title` (string): Task title
-- `due_on` (string): Due date in YYYY-MM-DD format
+- `due_on` (string): Due date (YYYY-MM-DD format)
 - `work_type_id` (string): Work type UUID
 
-**Optional Parameters:**
+**Optional Fields:**
 - `description` (string): Task description
-- `milestone_id` (string): Milestone UUID (old projects module)
-- `project_id` (string): Project UUID (new projects module)
-- `deal_id` (string): Deal UUID
-- `ticket_id` (string): Ticket UUID
-- `estimated_duration` (object): Estimated duration with unit and value
-- `assignee` (object|null): Assignee object or null for unassigned
+- `user_id` (string): Assigned user UUID
+- `milestone_id` (string): Milestone UUID
 - `customer` (object): Customer object with type and id
-- `custom_fields` (array): Array of custom field objects
+- `estimated_duration` (int): Estimated duration in minutes
 
 **Example:**
 ```php
-$task = $teamleader->tasks()->create([
-    'title' => 'Review code changes',
-    'due_on' => '2025-02-15',
-    'work_type_id' => '32665afd-1818-0ed3-9e18-a603a3a21b95',
-    'description' => 'Review the latest pull request',
-    'estimated_duration' => [
-        'unit' => 'min',
-        'value' => 60
-    ],
-    'assignee' => [
-        'type' => 'user',
-        'id' => '66abace2-62af-0836-a927-fe3f44b9b47b'
-    ],
+$task = Teamleader::tasks()->create([
+    'title' => 'Follow up with client',
+    'due_on' => '2025-12-31',
+    'work_type_id' => 'work-type-uuid',
+    'description' => 'Discuss renewal options',
+    'user_id' => 'user-uuid',
     'customer' => [
-        'type' => 'contact',
-        'id' => 'f29abf48-337d-44b4-aad4-585f5277a456'
+        'type' => 'company',
+        'id' => 'company-uuid'
     ]
 ]);
 ```
@@ -96,13 +128,13 @@ Update an existing task.
 
 **Parameters:**
 - `id` (string): Task UUID
-- `data` (array): Array of data to update
+- `data` (array): Fields to update
 
 **Example:**
 ```php
-$task = $teamleader->tasks()->update('task-uuid', [
+$task = Teamleader::tasks()->update('task-uuid', [
     'title' => 'Updated task title',
-    'due_on' => '2025-02-20'
+    'description' => 'Updated description'
 ]);
 ```
 
@@ -115,7 +147,7 @@ Delete a task.
 
 **Example:**
 ```php
-$result = $teamleader->tasks()->delete('task-uuid');
+$result = Teamleader::tasks()->delete('task-uuid');
 ```
 
 ### `complete()`
@@ -127,7 +159,7 @@ Mark a task as complete.
 
 **Example:**
 ```php
-$result = $teamleader->tasks()->complete('task-uuid');
+$result = Teamleader::tasks()->complete('task-uuid');
 ```
 
 ### `reopen()`
@@ -139,437 +171,492 @@ Reopen a task that had been marked as complete.
 
 **Example:**
 ```php
-$result = $teamleader->tasks()->reopen('task-uuid');
+$result = Teamleader::tasks()->reopen('task-uuid');
 ```
 
 ### `schedule()`
 
-Schedule a task in your calendar (creates a calendar event).
+Schedule a task in your calendar.
 
 **Parameters:**
 - `id` (string): Task UUID
-- `startsAt` (string): Start datetime in ISO 8601 format
-- `endsAt` (string): End datetime in ISO 8601 format
+- `startsAt` (string): Start datetime (ISO 8601 format)
+- `endsAt` (string): End datetime (ISO 8601 format)
 
 **Example:**
 ```php
-$event = $teamleader->tasks()->schedule(
+$result = Teamleader::tasks()->schedule(
     'task-uuid',
-    '2025-02-15T09:00:00+00:00',
-    '2025-02-15T10:00:00+00:00'
+    '2025-10-20T09:00:00+00:00',
+    '2025-10-20T10:00:00+00:00'
 );
 ```
 
-### `forUser()`
+## Helper Methods
 
-Get all tasks for a specific user (or team member).
+### Status Filtering
 
-**Parameters:**
-- `userId` (string): User UUID
-- `options` (array): Additional options
-
-**Example:**
 ```php
-$tasks = $teamleader->tasks()->forUser('user-uuid');
+// Get completed tasks
+$completed = Teamleader::tasks()->completed();
+
+// Get incomplete tasks
+$incomplete = Teamleader::tasks()->incomplete();
+
+// Get scheduled tasks
+$scheduled = Teamleader::tasks()->scheduled();
 ```
 
-### `unassigned()`
+### User Filtering
 
-Get all unassigned tasks.
-
-**Parameters:**
-- `options` (array): Additional options
-
-**Example:**
 ```php
-$tasks = $teamleader->tasks()->unassigned();
+// Get tasks for specific user
+$userTasks = Teamleader::tasks()->forUser('user-uuid');
+
+// Get unassigned tasks
+$unassigned = Teamleader::tasks()->unassigned();
 ```
 
-### `completed()`
+### Customer Filtering
 
-Get all completed tasks.
-
-**Parameters:**
-- `options` (array): Additional options
-
-**Example:**
 ```php
-$tasks = $teamleader->tasks()->completed();
-```
-
-### `incomplete()`
-
-Get all incomplete tasks.
-
-**Parameters:**
-- `options` (array): Additional options
-
-**Example:**
-```php
-$tasks = $teamleader->tasks()->incomplete();
-```
-
-### `scheduled()`
-
-Get all scheduled tasks (tasks that have been scheduled in calendar).
-
-**Parameters:**
-- `options` (array): Additional options
-
-**Example:**
-```php
-$tasks = $teamleader->tasks()->scheduled();
-```
-
-### `forMilestone()`
-
-Get tasks for a specific milestone.
-
-**Parameters:**
-- `milestoneId` (string): Milestone UUID
-- `options` (array): Additional options
-
-**Example:**
-```php
-$tasks = $teamleader->tasks()->forMilestone('milestone-uuid');
-```
-
-### `forCustomer()`
-
-Get tasks for a specific customer.
-
-**Parameters:**
-- `customerType` (string): Type of customer ('contact' or 'company')
-- `customerId` (string): UUID of the customer
-- `options` (array): Additional options
-
-**Example:**
-```php
-// Get tasks for a contact
-$tasks = $teamleader->tasks()->forCustomer('contact', 'contact-uuid');
-
 // Get tasks for a company
-$tasks = $teamleader->tasks()->forCustomer('company', 'company-uuid');
+$tasks = Teamleader::tasks()->forCustomer('company', 'company-uuid');
+
+// Get tasks for a contact
+$tasks = Teamleader::tasks()->forCustomer('contact', 'contact-uuid');
 ```
 
-### `dueBetween()`
+### Milestone Filtering
 
-Get tasks due within a specific date range.
-
-**Parameters:**
-- `dueFrom` (string): Start date (YYYY-MM-DD)
-- `dueBy` (string): End date (YYYY-MM-DD)
-- `options` (array): Additional options
-
-**Example:**
 ```php
-$tasks = $teamleader->tasks()->dueBetween(
-    '2025-02-01',
-    '2025-02-28'
-);
+// Get tasks for a milestone
+$tasks = Teamleader::tasks()->forMilestone('milestone-uuid');
 ```
 
-### `search()`
+### Date Filtering
 
-Search tasks by term (searches in description).
-
-**Parameters:**
-- `term` (string): Search term
-- `options` (array): Additional options
-
-**Example:**
 ```php
-$tasks = $teamleader->tasks()->search('website design');
+// Get tasks due between dates
+$tasks = Teamleader::tasks()->dueBetween('2025-01-01', '2025-12-31');
 ```
 
-### `byIds()`
+### Search
 
-Get tasks by specific IDs.
-
-**Parameters:**
-- `ids` (array): Array of task UUIDs
-- `options` (array): Additional options
-
-**Example:**
 ```php
-$tasks = $teamleader->tasks()->byIds([
-    'task-uuid-1',
-    'task-uuid-2'
-]);
+// Search tasks by term (searches in description)
+$tasks = Teamleader::tasks()->search('client meeting');
 ```
 
-## Available Filters
+### ID Filtering
 
-When using the `list()` method, you can apply the following filters:
+```php
+// Get specific tasks by IDs
+$tasks = Teamleader::tasks()->byIds(['uuid1', 'uuid2', 'uuid3']);
+```
 
-- **ids**: Array of task UUIDs
-- **user_id**: Filter by assigned user (or team member). Use `null` for unassigned tasks
-- **milestone_id**: Filter by milestone UUID (old projects module)
-- **completed**: Filter by completion status (boolean)
-- **scheduled**: Filter by scheduled status (boolean)
-- **due_by**: Filter tasks due by this date (YYYY-MM-DD)
-- **due_from**: Filter tasks due from this date (YYYY-MM-DD)
-- **term**: Search term (searches in description)
-- **customer**: Filter by customer (object with `type` and `id`)
+## Filters
+
+Available filters for the `list()` method:
+
+| Filter | Type | Description |
+|--------|------|-------------|
+| `ids` | array | Array of task UUIDs |
+| `user_id` | string | Filter by assigned user UUID |
+| `milestone_id` | string | Filter by milestone UUID |
+| `customer` | object | Filter by customer (type and id) |
+| `completed` | boolean | Filter by completion status |
+| `scheduled` | boolean | Filter by scheduled status |
+| `due_from` | string | Tasks due from date (YYYY-MM-DD) |
+| `due_by` | string | Tasks due by date (YYYY-MM-DD) |
+| `term` | string | Search term (searches in description) |
+
+### Customer Filter Structure
+
+```php
+[
+    'customer' => [
+        'type' => 'company', // or 'contact'
+        'id' => 'uuid-here'
+    ]
+]
+```
 
 ## Sorting
 
-Tasks can be sorted by the following field:
+Available sort fields:
 
-- **name**: Sort by task name
-
-**Example:**
-```php
-$tasks = $teamleader->tasks()->list([], [
-    'sort' => [
-        'field' => 'name',
-        'order' => 'asc'
-    ]
-]);
-```
-
-## Pagination
-
-Tasks support pagination through the standard pagination options:
+| Field | Description |
+|-------|-------------|
+| `due_at` | Sort by due date/time |
 
 **Example:**
 ```php
-$tasks = $teamleader->tasks()->list([], [
-    'page_size' => 50,
-    'page_number' => 2
+$tasks = Teamleader::tasks()->list([], [
+    'sort' => 'due_at',
+    'sort_order' => 'asc' // or 'desc'
 ]);
 ```
 
-## Assignee Types
+## Response Structure
 
-When assigning tasks, use one of the following types:
-
-- `user` - A Teamleader user
-- `team` - A team
-
-## Customer Types
-
-When linking tasks to customers, use one of the following types:
-
-- `contact` - Link to a contact
-- `company` - Link to a company
-
-## Priority Levels
-
-Tasks support the following priority levels:
-
-- `A` - Highest priority
-- `B` - High priority
-- `C` - Medium priority
-- `D` - Low priority
-
-## Complete Examples
-
-### Creating a Full Task
+### List Response
 
 ```php
-$task = $teamleader->tasks()->create([
-    'title' => 'Complete project documentation',
-    'description' => 'Write comprehensive documentation for the project',
-    'due_on' => '2025-03-01',
-    'work_type_id' => '32665afd-1818-0ed3-9e18-a603a3a21b95',
-    'project_id' => '0185aa33-603c-7fd5-bf0d-5bd83d503b96',
-    'estimated_duration' => [
-        'unit' => 'min',
-        'value' => 120
-    ],
-    'assignee' => [
-        'type' => 'user',
-        'id' => '66abace2-62af-0836-a927-fe3f44b9b47b'
-    ],
-    'customer' => [
-        'type' => 'company',
-        'id' => 'f29abf48-337d-44b4-aad4-585f5277a456'
-    ],
-    'custom_fields' => [
+[
+    'data' => [
         [
-            'id' => 'bf6765de-56eb-40ec-ad14-9096c5dc5fe1',
-            'value' => 'High importance'
+            'id' => 'task-uuid',
+            'title' => 'Follow up with client',
+            'description' => 'Discuss renewal options',
+            'completed' => false,
+            'due_at' => '2025-12-31T23:59:59+00:00',
+            'estimated_duration' => 3600,
+            'work_type' => [
+                'type' => 'workType',
+                'id' => 'work-type-uuid'
+            ],
+            'assignee' => [
+                'type' => 'user',
+                'id' => 'user-uuid'
+            ],
+            'customer' => [
+                'type' => 'company',
+                'id' => 'company-uuid'
+            ],
+            'milestone' => [
+                'type' => 'milestone',
+                'id' => 'milestone-uuid'
+            ],
+            'scheduled_at' => [
+                'starts_at' => '2025-10-20T09:00:00+00:00',
+                'ends_at' => '2025-10-20T10:00:00+00:00'
+            ]
+        ]
+    ],
+    'meta' => [
+        'page' => [
+            'size' => 20,
+            'number' => 1
+        ],
+        'matches' => 42
+    ]
+]
+```
+
+### Info Response
+
+```php
+[
+    'data' => [
+        'id' => 'task-uuid',
+        'title' => 'Follow up with client',
+        'description' => 'Discuss renewal options',
+        'completed' => false,
+        'due_at' => '2025-12-31T23:59:59+00:00',
+        'estimated_duration' => 3600,
+        'work_type' => [
+            'type' => 'workType',
+            'id' => 'work-type-uuid'
+        ],
+        'assignee' => [
+            'type' => 'user',
+            'id' => 'user-uuid'
+        ],
+        'customer' => [
+            'type' => 'company',
+            'id' => 'company-uuid'
+        ],
+        'milestone' => [
+            'type' => 'milestone',
+            'id' => 'milestone-uuid'
         ]
     ]
+]
+```
+
+## Usage Examples
+
+### Create and Assign Task
+
+```php
+// Create a task and assign to user
+$task = Teamleader::tasks()->create([
+    'title' => 'Prepare quarterly report',
+    'due_on' => '2025-10-31',
+    'work_type_id' => 'admin-work-type-uuid',
+    'user_id' => 'user-uuid',
+    'description' => 'Compile Q3 financial data',
+    'estimated_duration' => 240 // 4 hours in minutes
 ]);
 ```
 
-### Getting This Week's Tasks for a User
+### Create Task for Customer
 
 ```php
-$startOfWeek = now()->startOfWeek()->format('Y-m-d');
-$endOfWeek = now()->endOfWeek()->format('Y-m-d');
+// Create task linked to a company
+$task = Teamleader::tasks()->create([
+    'title' => 'Follow up on proposal',
+    'due_on' => '2025-10-25',
+    'work_type_id' => 'sales-work-type-uuid',
+    'customer' => [
+        'type' => 'company',
+        'id' => 'company-uuid'
+    ],
+    'description' => 'Check if they received the quotation'
+]);
+```
 
-$tasks = $teamleader->tasks()->forUser('user-uuid', [
-    'filters' => [
-        'due_from' => $startOfWeek,
-        'due_by' => $endOfWeek,
-        'completed' => false
-    ]
+### Schedule Task in Calendar
+
+```php
+// Create task
+$task = Teamleader::tasks()->create([
+    'title' => 'Client meeting preparation',
+    'due_on' => '2025-10-20',
+    'work_type_id' => 'work-type-uuid'
+]);
+
+// Schedule it in calendar
+Teamleader::tasks()->schedule(
+    $task['data']['id'],
+    '2025-10-20T14:00:00+00:00',
+    '2025-10-20T15:00:00+00:00'
+);
+```
+
+### Get Overdue Tasks
+
+```php
+// Get incomplete tasks due before today
+$overdue = Teamleader::tasks()->list([
+    'completed' => false,
+    'due_by' => date('Y-m-d')
 ]);
 ```
 
 ### Complete Task Workflow
 
 ```php
-// Create a task
-$task = $teamleader->tasks()->create([
-    'title' => 'Review quarterly report',
-    'due_on' => '2025-02-28',
-    'work_type_id' => 'work-type-uuid',
-    'assignee' => [
-        'type' => 'user',
-        'id' => 'user-uuid'
-    ]
-]);
+// Get task
+$task = Teamleader::tasks()->info('task-uuid');
 
-$taskId = $task['data']['id'];
-
-// Schedule it in calendar
-$event = $teamleader->tasks()->schedule(
-    $taskId,
-    '2025-02-25T14:00:00+00:00',
-    '2025-02-25T16:00:00+00:00'
-);
-
-// Mark as complete when done
-$teamleader->tasks()->complete($taskId);
+// Mark as complete
+if (!$task['data']['completed']) {
+    Teamleader::tasks()->complete($task['data']['id']);
+}
 
 // If needed, reopen it
-$teamleader->tasks()->reopen($taskId);
+Teamleader::tasks()->reopen($task['data']['id']);
 ```
 
-### Advanced Filtering
+### Get User's Tasks for Today
 
 ```php
-// Get incomplete, scheduled tasks for a user due this month
-$tasks = $teamleader->tasks()->list([
+$today = date('Y-m-d');
+$tasks = Teamleader::tasks()->list([
     'user_id' => 'user-uuid',
-    'completed' => false,
-    'scheduled' => true,
-    'due_from' => '2025-02-01',
-    'due_by' => '2025-02-28'
-], [
-    'sort' => [
-        'field' => 'name',
-        'order' => 'asc'
-    ],
-    'page_size' => 50
+    'due_from' => $today,
+    'due_by' => $today,
+    'completed' => false
 ]);
 ```
 
-### Working with Milestones and Projects
+## Common Use Cases
+
+### 1. Task Management Dashboard
 
 ```php
-// Get tasks for a milestone (old projects module)
-$milestoneTasks = $teamleader->tasks()->forMilestone('milestone-uuid');
+// Get incomplete tasks for logged-in user
+$myTasks = Teamleader::tasks()->forUser($currentUserId)
+    ->list(['completed' => false]);
 
-// Create a task for a project (new projects module)
-$projectTask = $teamleader->tasks()->create([
-    'title' => 'Design mockups',
-    'due_on' => '2025-03-15',
+// Get overdue tasks
+$overdue = Teamleader::tasks()->list([
+    'user_id' => $currentUserId,
+    'completed' => false,
+    'due_by' => date('Y-m-d', strtotime('-1 day'))
+]);
+
+// Get upcoming tasks (next 7 days)
+$upcoming = Teamleader::tasks()->dueBetween(
+    date('Y-m-d'),
+    date('Y-m-d', strtotime('+7 days'))
+);
+```
+
+### 2. Project Task Management
+
+```php
+// Get all tasks for a milestone
+$milestoneTasks = Teamleader::tasks()->forMilestone('milestone-uuid');
+
+// Track completion
+$completed = array_filter($milestoneTasks['data'], fn($task) => $task['completed']);
+$completionRate = count($completed) / count($milestoneTasks['data']) * 100;
+
+echo "Project is {$completionRate}% complete";
+```
+
+### 3. Customer Follow-up System
+
+```php
+// Create follow-up task after deal
+$deal = Teamleader::deals()->info('deal-uuid');
+
+if ($deal['data']['lead']['customer']['type'] === 'company') {
+    Teamleader::tasks()->create([
+        'title' => 'Follow up on deal: ' . $deal['data']['title'],
+        'due_on' => date('Y-m-d', strtotime('+3 days')),
+        'work_type_id' => 'sales-work-type-uuid',
+        'user_id' => $deal['data']['responsible_user']['id'],
+        'customer' => [
+            'type' => 'company',
+            'id' => $deal['data']['lead']['customer']['id']
+        ],
+        'description' => 'Check satisfaction and discuss next steps'
+    ]);
+}
+```
+
+### 4. Task Reassignment
+
+```php
+// Get tasks for user leaving the team
+$tasks = Teamleader::tasks()->forUser('old-user-uuid')
+    ->list(['completed' => false]);
+
+// Reassign to new user
+foreach ($tasks['data'] as $task) {
+    Teamleader::tasks()->update($task['id'], [
+        'user_id' => 'new-user-uuid'
+    ]);
+}
+```
+
+## Best Practices
+
+### 1. Always Set Due Dates
+
+```php
+// Good: Clear deadline
+$task = Teamleader::tasks()->create([
+    'title' => 'Review contract',
+    'due_on' => '2025-10-25',
+    'work_type_id' => 'work-type-uuid'
+]);
+
+// Avoid: Using far-future dates as placeholders
+```
+
+### 2. Use Descriptive Titles
+
+```php
+// Good: Clear and actionable
+$task = Teamleader::tasks()->create([
+    'title' => 'Prepare Q4 budget proposal for Acme Corp',
+    'due_on' => '2025-10-31',
+    'work_type_id' => 'work-type-uuid'
+]);
+
+// Less helpful: Vague title
+// 'title' => 'Budget stuff'
+```
+
+### 3. Link Tasks to Context
+
+```php
+// Good: Link to customer and milestone
+$task = Teamleader::tasks()->create([
+    'title' => 'Website design review',
+    'due_on' => '2025-10-30',
     'work_type_id' => 'work-type-uuid',
-    'project_id' => 'project-uuid'
+    'customer' => [
+        'type' => 'company',
+        'id' => 'company-uuid'
+    ],
+    'milestone_id' => 'milestone-uuid',
+    'description' => 'Review mockups and provide feedback'
 ]);
 ```
 
-## Response Structure
+### 4. Include Estimated Duration
 
-### Create Response
+```php
+// Helps with capacity planning
+$task = Teamleader::tasks()->create([
+    'title' => 'Code review',
+    'due_on' => '2025-10-22',
+    'work_type_id' => 'work-type-uuid',
+    'estimated_duration' => 120 // 2 hours
+]);
+```
 
-```json
+### 5. Handle Pagination for Large Lists
+
+```php
+function getAllTasks(): array
 {
-    "data": {
-        "id": "eab232c6-49b2-4b7e-a977-5e1148dad471",
-        "type": "task"
+    $allTasks = [];
+    $page = 1;
+    $pageSize = 100;
+
+    do {
+        $response = Teamleader::tasks()->list([], [
+            'page_size' => $pageSize,
+            'page_number' => $page
+        ]);
+
+        $allTasks = array_merge($allTasks, $response['data']);
+        $page++;
+    } while (count($response['data']) === $pageSize);
+
+    return $allTasks;
+}
+```
+
+## Error Handling
+
+```php
+use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
+
+try {
+    $task = Teamleader::tasks()->create([
+        'title' => 'New task',
+        'due_on' => '2025-10-20',
+        'work_type_id' => 'work-type-uuid'
+    ]);
+} catch (TeamleaderException $e) {
+    if ($e->getCode() === 422) {
+        // Validation error
+        Log::error('Task validation failed', [
+            'errors' => $e->getDetails()
+        ]);
+    } elseif ($e->getCode() === 404) {
+        // Work type not found
+        Log::error('Work type does not exist');
+    }
+}
+
+// Safely complete a task
+try {
+    Teamleader::tasks()->complete('task-uuid');
+} catch (TeamleaderException $e) {
+    if ($e->getCode() === 404) {
+        Log::warning('Task not found or already deleted');
     }
 }
 ```
 
-### Info Response
+## Related Resources
 
-```json
-{
-    "data": {
-        "id": "6fac0bf0-e803-424e-af67-76863a3d7d16",
-        "title": "Review code changes",
-        "description": "Review the latest pull request",
-        "completed": false,
-        "completed_at": null,
-        "due_on": "2016-02-04",
-        "added_at": "2016-02-04T16:44:33+00:00",
-        "estimated_duration": {
-            "unit": "min",
-            "value": 60
-        },
-        "work_type": {
-            "id": "eab232c6-49b2-4b7e-a977-5e1148dad471",
-            "type": "workType"
-        },
-        "assignee": {
-            "type": "user",
-            "id": "66abace2-62af-0836-a927-fe3f44b9b47b"
-        },
-        "customer": {
-            "type": "contact",
-            "id": "f29abf48-337d-44b4-aad4-585f5277a456"
-        },
-        "milestone": {
-            "id": "eab232c6-49b2-4b7e-a977-5e1148dad471",
-            "type": "milestone"
-        },
-        "deal": {
-            "id": "eab232c6-49b2-4b7e-a977-5e1148dad471",
-            "type": "deal"
-        },
-        "project": {
-            "id": "eab232c6-49b2-4b7e-a977-5e1148dad471",
-            "type": "project"
-        },
-        "ticket": {
-            "id": "eab232c6-49b2-4b7e-a977-5e1148dad471",
-            "type": "ticket"
-        },
-        "custom_fields": [
-            {
-                "definition": {
-                    "type": "customFieldDefinition",
-                    "id": "bf6765de-56eb-40ec-ad14-9096c5dc5fe1"
-                },
-                "value": "092980616"
-            }
-        ],
-        "priority": "A"
-    }
-}
-```
+- [Time Tracking](../time-tracking/time-tracking.md) - Track time spent on tasks
+- [Users](../general/users.md) - Assign tasks to users
+- [Work Types](../general/work-types.md) - Categorize tasks by work type
+- [Projects](../projects/projects.md) - Link tasks to projects
+- [Calendar Events](../calendar/events.md) - Schedule tasks in calendar
 
-### Schedule Response
+## See Also
 
-When scheduling a task, it returns a calendar event:
-
-```json
-{
-    "data": {
-        "id": "eab232c6-49b2-4b7e-a977-5e1148dad471",
-        "type": "event"
-    }
-}
-```
-
-## Notes
-
-- All date fields (`due_on`, `due_from`, `due_by`) must be in YYYY-MM-DD format
-- All datetime fields (`starts_at`, `ends_at` for scheduling) must be in ISO 8601 format with timezone offset
-- Use `null` for `user_id` filter to get unassigned tasks
-- Use `null` for `assignee` field to unassign a task
-- The `milestone_id` field is only available for users with access to the old projects module
-- The `project_id` field is only available for users with access to the new projects module
-- Completing a task sets the `completed` field to `true` and populates `completed_at`
-- Reopening a task sets `completed` to `false` and clears `completed_at`
-- Scheduling a task creates a calendar event linked to the task
-- Custom fields must reference existing custom field definitions
-- Tasks can be linked to customers (contacts or companies), milestones, projects, deals, or tickets
-- The `term` filter searches only in the task description, not the title
-- Priority levels (A, B, C, D) determine the importance of tasks
+- [Usage Guide](../usage.md) - General SDK usage
+- [Filtering](../filtering.md) - Advanced filtering techniques
