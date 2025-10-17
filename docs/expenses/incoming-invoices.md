@@ -1,6 +1,30 @@
 # Incoming Invoices
 
-Manage incoming invoices in Teamleader Focus. This resource provides operations for creating, updating, and managing incoming invoices from suppliers.
+Manage incoming invoices (purchase invoices) in Teamleader Focus.
+
+## Overview
+
+The Incoming Invoices resource allows you to manage purchase invoices from your suppliers in Teamleader. These invoices represent expenses that your company needs to pay and can be sent to your bookkeeping system for processing.
+
+## Navigation
+
+- [Endpoint](#endpoint)
+- [Capabilities](#capabilities)
+- [Available Methods](#available-methods)
+    - [info()](#info)
+    - [create() / add()](#create--add)
+    - [update()](#update)
+    - [delete()](#delete)
+    - [approve()](#approve)
+    - [refuse()](#refuse)
+    - [sendToBookkeeping()](#sendtobookkeeping)
+- [Valid Values](#valid-values)
+- [Response Structure](#response-structure)
+- [Usage Examples](#usage-examples)
+- [Common Use Cases](#common-use-cases)
+- [Best Practices](#best-practices)
+- [Error Handling](#error-handling)
+- [Related Resources](#related-resources)
 
 ## Endpoint
 
@@ -8,47 +32,55 @@ Manage incoming invoices in Teamleader Focus. This resource provides operations 
 
 ## Capabilities
 
-- **Supports Pagination**: ❌ Not Supported
-- **Supports Filtering**: ❌ Not Supported
-- **Supports Sorting**: ❌ Not Supported
-- **Supports Sideloading**: ❌ Not Supported
-- **Supports Creation**: ✅ Supported
-- **Supports Update**: ✅ Supported
-- **Supports Deletion**: ✅ Supported
-- **Supports Batch**: ❌ Not Supported
+- **Pagination**: ❌ Not Supported (use Expenses for listing)
+- **Filtering**: ❌ Not Supported (use Expenses for filtering)
+- **Sorting**: ❌ Not Supported
+- **Sideloading**: ❌ Not Supported
+- **Creation**: ✅ Supported
+- **Update**: ✅ Supported
+- **Deletion**: ✅ Supported
 
 ## Available Methods
 
-### `add()`
+### `info()`
 
-Create a new incoming invoice.
+Get detailed information about a specific incoming invoice.
 
 **Parameters:**
-- `data` (array): Invoice data including title, supplier, amounts, and other details
-
-**Required Fields:**
-- `title`: Invoice title
-- `currency.code`: Currency code (e.g., "EUR")
-- `total`: Total amounts (either tax_exclusive or tax_inclusive)
-
-**Optional Fields:**
-- `supplier_id`: Supplier UUID
-- `document_number`: Invoice document number
-- `invoice_date`: Invoice date
-- `due_date`: Due date
-- `company_entity_id`: Company entity UUID
-- `file_id`: Attached file UUID
-- `payment_reference`: Payment reference
-- `iban_number`: IBAN number
+- `id` (string): The incoming invoice UUID
 
 **Example:**
 ```php
-$invoice = $teamleader->incomingInvoices()->add([
-    'title' => 'Office Supplies Invoice',
-    'supplier_id' => 'supplier-uuid-here',
-    'document_number' => 'INV-2024-001',
-    'invoice_date' => '2024-01-15',
-    'due_date' => '2024-02-15',
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
+$invoice = Teamleader::incomingInvoices()->info('invoice-uuid');
+```
+
+### `create()` / `add()`
+
+Create a new incoming invoice.
+
+**Required fields:**
+- `title` (string): Invoice title/description
+- `currency.code` (string): Currency code (e.g., EUR, USD, GBP)
+- `total` (object): Invoice total with either:
+    - `tax_exclusive.amount` (decimal): Amount excluding tax, OR
+    - `tax_inclusive.amount` (decimal): Amount including tax
+
+**Optional fields:**
+- `supplier_id` (string): Supplier company UUID
+- `document_number` (string): Invoice reference number
+- `invoice_date` (string): Invoice date (YYYY-MM-DD)
+- `due_date` (string): Payment due date (YYYY-MM-DD)
+- `payment_reference` (string): Payment reference/structured communication
+- `description` (string): Additional notes or description
+- `review_status` (string): `pending`, `approved`, or `refused`
+
+**Example:**
+```php
+// Basic invoice
+$invoice = Teamleader::incomingInvoices()->create([
+    'title' => 'Monthly Services',
     'currency' => [
         'code' => 'EUR'
     ],
@@ -56,9 +88,27 @@ $invoice = $teamleader->incomingInvoices()->add([
         'tax_exclusive' => [
             'amount' => 1000.00
         ]
+    ]
+]);
+
+// Complete invoice
+$invoice = Teamleader::incomingInvoices()->add([
+    'title' => 'Office Supplies',
+    'supplier_id' => 'company-uuid',
+    'document_number' => 'INV-2024/001',
+    'invoice_date' => '2024-01-15',
+    'due_date' => '2024-02-15',
+    'payment_reference' => '+++123/4567/89012+++',
+    'description' => 'Various office supplies for Q1',
+    'currency' => [
+        'code' => 'EUR'
     ],
-    'payment_reference' => 'REF123456',
-    'iban_number' => 'BE68539007547034'
+    'total' => [
+        'tax_exclusive' => [
+            'amount' => 2500.00
+        ]
+    ],
+    'review_status' => 'pending'
 ]);
 ```
 
@@ -68,31 +118,15 @@ Update an existing incoming invoice.
 
 **Parameters:**
 - `id` (string): Invoice UUID
-- `data` (array): Invoice data to update
+- `data` (array): Fields to update (same as create)
 
 **Example:**
 ```php
-$teamleader->incomingInvoices()->update('invoice-uuid-here', [
+Teamleader::incomingInvoices()->update('invoice-uuid', [
     'title' => 'Updated Invoice Title',
     'due_date' => '2024-03-15',
-    'total' => [
-        'tax_exclusive' => [
-            'amount' => 1200.00
-        ]
-    ]
+    'review_status' => 'approved'
 ]);
-```
-
-### `info()`
-
-Get detailed information about a specific incoming invoice.
-
-**Parameters:**
-- `id` (string): Invoice UUID
-
-**Example:**
-```php
-$invoice = $teamleader->incomingInvoices()->info('invoice-uuid-here');
 ```
 
 ### `delete()`
@@ -104,313 +138,393 @@ Delete an incoming invoice.
 
 **Example:**
 ```php
-$teamleader->incomingInvoices()->delete('invoice-uuid-here');
+Teamleader::incomingInvoices()->delete('invoice-uuid');
 ```
 
 ### `approve()`
 
-Approve an incoming invoice.
+Approve an incoming invoice for payment.
 
 **Parameters:**
 - `id` (string): Invoice UUID
 
 **Example:**
 ```php
-$teamleader->incomingInvoices()->approve('invoice-uuid-here');
+Teamleader::incomingInvoices()->approve('invoice-uuid');
 ```
 
 ### `refuse()`
 
-Refuse an incoming invoice.
+Refuse/reject an incoming invoice.
 
 **Parameters:**
 - `id` (string): Invoice UUID
 
 **Example:**
 ```php
-$teamleader->incomingInvoices()->refuse('invoice-uuid-here');
-```
-
-### `markAsPendingReview()`
-
-Mark an incoming invoice as pending review.
-
-**Parameters:**
-- `id` (string): Invoice UUID
-
-**Example:**
-```php
-$teamleader->incomingInvoices()->markAsPendingReview('invoice-uuid-here');
+Teamleader::incomingInvoices()->refuse('invoice-uuid');
 ```
 
 ### `sendToBookkeeping()`
 
-Send an incoming invoice to bookkeeping.
+Send an approved invoice to your bookkeeping system.
 
 **Parameters:**
 - `id` (string): Invoice UUID
 
 **Example:**
 ```php
-$teamleader->incomingInvoices()->sendToBookkeeping('invoice-uuid-here');
+Teamleader::incomingInvoices()->sendToBookkeeping('invoice-uuid');
 ```
 
-## Currency Codes
+## Valid Values
 
-Supported currency codes for the `currency.code` field:
+### Currency Codes
 
-- BAM (Bosnia and Herzegovina Convertible Mark)
-- CAD (Canadian Dollar)
-- CHF (Swiss Franc)
-- CLP (Chilean Peso)
-- CNY (Chinese Yuan)
-- COP (Colombian Peso)
-- CZK (Czech Koruna)
-- DKK (Danish Krone)
-- EUR (Euro)
-- GBP (British Pound)
-- INR (Indian Rupee)
-- ISK (Icelandic Krona)
-- JPY (Japanese Yen)
-- MAD (Moroccan Dirham)
-- MXN (Mexican Peso)
-- NOK (Norwegian Krone)
-- PEN (Peruvian Sol)
-- PLN (Polish Zloty)
-- RON (Romanian Leu)
-- SEK (Swedish Krona)
-- TRY (Turkish Lira)
-- USD (US Dollar)
-- ZAR (South African Rand)
+Supported currencies: `BAM`, `CAD`, `CHF`, `CLP`, `CNY`, `COP`, `CZK`, `DKK`, `EUR`, `GBP`, `INR`, `ISK`, `JPY`, `MAD`, `MXN`, `NOK`, `PEN`, `PLN`, `RON`, `SEK`, `TRY`, `USD`, `ZAR`
 
-## Review Status Values
+Get the list programmatically:
+```php
+$currencies = Teamleader::incomingInvoices()->getValidCurrencyCodes();
+```
 
-Incoming invoices can have the following review statuses:
+### Review Statuses
 
-- `pending`: Awaiting review
-- `approved`: Approved for processing
-- `refused`: Refused/rejected
+- `pending` - Awaiting review
+- `approved` - Approved for payment
+- `refused` - Rejected/refused
+
+Get the list programmatically:
+```php
+$statuses = Teamleader::incomingInvoices()->getValidReviewStatuses();
+```
+
+## Response Structure
+
+### Invoice Object
+
+```json
+{
+  "id": "invoice-uuid",
+  "title": "Monthly Services",
+  "supplier": {
+    "type": "company",
+    "id": "company-uuid"
+  },
+  "document_number": "INV-2024/001",
+  "invoice_date": "2024-01-15",
+  "due_date": "2024-02-15",
+  "payment_reference": "+++123/4567/89012+++",
+  "description": "Various office supplies",
+  "currency": {
+    "code": "EUR"
+  },
+  "total": {
+    "tax_exclusive": {
+      "amount": 1000.00,
+      "currency": "EUR"
+    },
+    "tax_inclusive": {
+      "amount": 1210.00,
+      "currency": "EUR"
+    }
+  },
+  "review_status": "approved",
+  "bookkeeping_status": "sent",
+  "created_at": "2024-01-15T10:00:00+00:00",
+  "updated_at": "2024-01-20T14:30:00+00:00"
+}
+```
 
 ## Usage Examples
 
-### Create a Complete Invoice
-
-Create a new incoming invoice with all details:
+### Create Invoice from Email
 
 ```php
-$invoice = $teamleader->incomingInvoices()->add([
-    'title' => 'Monthly Service Invoice',
-    'supplier_id' => '9d4fde95-9b6b-4c41-ae71-6c5f70bc2fc7',
-    'document_number' => 'SUP-INV-2024-123',
-    'invoice_date' => '2024-01-15',
-    'due_date' => '2024-02-15',
+// Parse invoice details from email
+$invoiceData = [
+    'title' => 'Web Hosting Services',
+    'supplier_id' => $supplierId,
+    'document_number' => $extractedInvoiceNumber,
+    'invoice_date' => $extractedDate,
+    'due_date' => date('Y-m-d', strtotime($extractedDate . ' +30 days')),
     'currency' => [
         'code' => 'EUR'
     ],
     'total' => [
-        'tax_exclusive' => [
-            'amount' => 2500.00
-        ],
         'tax_inclusive' => [
-            'amount' => 3025.00
+            'amount' => $extractedAmount
         ]
-    ],
-    'company_entity_id' => 'entity-uuid-here',
-    'file_id' => 'file-uuid-here',
-    'payment_reference' => '+++123/4567/89012+++',
-    'iban_number' => 'BE68539007547034'
+    ]
+];
+
+$invoice = Teamleader::incomingInvoices()->create($invoiceData);
+```
+
+### Complete Approval Workflow
+
+```php
+// Get pending invoices using the Expenses resource
+$pending = Teamleader::expenses()->list([
+    'source_types' => ['incomingInvoice'],
+    'review_statuses' => ['pending']
 ]);
 
-$invoiceId = $invoice['data']['id'];
+foreach ($pending['data'] as $expense) {
+    $invoice = Teamleader::incomingInvoices()->info($expense['source_id']);
+    
+    // Validate invoice details
+    if ($invoice['total']['tax_inclusive']['amount'] < 5000) {
+        // Auto-approve small invoices
+        Teamleader::incomingInvoices()->approve($expense['source_id']);
+        
+        // Send to bookkeeping
+        Teamleader::incomingInvoices()->sendToBookkeeping($expense['source_id']);
+    } else {
+        // Flag for manual review
+        echo "Invoice {$invoice['document_number']} requires manual approval\n";
+    }
+}
 ```
 
 ### Update Invoice Details
 
-Update specific fields of an existing invoice:
-
 ```php
-$teamleader->incomingInvoices()->update('invoice-uuid-here', [
-    'title' => 'Updated Invoice Title',
-    'due_date' => '2024-03-01',
-    'payment_reference' => 'NEW-REF-123'
+$invoiceId = 'invoice-uuid';
+
+// Get current invoice
+$invoice = Teamleader::incomingInvoices()->info($invoiceId);
+
+// Update specific fields
+Teamleader::incomingInvoices()->update($invoiceId, [
+    'due_date' => date('Y-m-d', strtotime('+60 days')),
+    'description' => $invoice['description'] . ' - Payment terms extended'
 ]);
 ```
 
-### Invoice Approval Workflow
-
-Complete workflow for reviewing and approving an invoice:
+### Bulk Approve and Send
 
 ```php
-$invoiceId = 'invoice-uuid-here';
+$invoiceIds = ['invoice-1', 'invoice-2', 'invoice-3'];
 
-// Get invoice details
-$invoice = $teamleader->incomingInvoices()->info($invoiceId);
-
-// Mark as pending review
-$teamleader->incomingInvoices()->markAsPendingReview($invoiceId);
-
-// After review, approve or refuse
-if ($invoiceIsValid) {
-    $teamleader->incomingInvoices()->approve($invoiceId);
-    
-    // Send to bookkeeping
-    $teamleader->incomingInvoices()->sendToBookkeeping($invoiceId);
-} else {
-    $teamleader->incomingInvoices()->refuse($invoiceId);
+foreach ($invoiceIds as $invoiceId) {
+    try {
+        // Approve
+        Teamleader::incomingInvoices()->approve($invoiceId);
+        
+        // Send to bookkeeping
+        Teamleader::incomingInvoices()->sendToBookkeeping($invoiceId);
+        
+        echo "Successfully processed invoice: {$invoiceId}\n";
+        
+    } catch (Exception $e) {
+        Log::error("Failed to process invoice {$invoiceId}: " . $e->getMessage());
+    }
 }
 ```
 
-### Create Invoice with Tax-Inclusive Amount
-
-When you have the total including tax:
+### Create Invoice with Validation
 
 ```php
-$invoice = $teamleader->incomingInvoices()->add([
-    'title' => 'Equipment Purchase',
-    'supplier_id' => 'supplier-uuid-here',
-    'invoice_date' => '2024-01-20',
-    'currency' => [
-        'code' => 'EUR'
-    ],
-    'total' => [
-        'tax_inclusive' => [
-            'amount' => 1210.00
-        ]
+function createValidatedInvoice(array $data)
+{
+    // Validate required fields
+    $required = ['title', 'currency', 'total'];
+    foreach ($required as $field) {
+        if (!isset($data[$field])) {
+            throw new InvalidArgumentException("Missing required field: {$field}");
+        }
+    }
+    
+    // Validate currency code
+    $validCurrencies = Teamleader::incomingInvoices()->getValidCurrencyCodes();
+    if (!in_array($data['currency']['code'], $validCurrencies)) {
+        throw new InvalidArgumentException("Invalid currency code");
+    }
+    
+    // Create invoice
+    return Teamleader::incomingInvoices()->create($data);
+}
+```
+
+## Common Use Cases
+
+### Invoice Processing Pipeline
+
+```php
+// 1. Create invoice
+$invoice = Teamleader::incomingInvoices()->create([
+    'title' => 'Monthly Subscription',
+    'supplier_id' => 'supplier-uuid',
+    'document_number' => 'INV-2024/001',
+    'invoice_date' => date('Y-m-d'),
+    'currency' => ['code' => 'EUR'],
+    'total' => ['tax_exclusive' => ['amount' => 500.00]]
+]);
+
+// 2. Review and approve
+Teamleader::incomingInvoices()->approve($invoice['data']['id']);
+
+// 3. Send to bookkeeping
+Teamleader::incomingInvoices()->sendToBookkeeping($invoice['data']['id']);
+
+// 4. Verify submission
+$submissions = Teamleader::bookkeepingSubmissions()->forInvoice($invoice['data']['id']);
+$latestStatus = $submissions['data'][0]['status'];
+
+if ($latestStatus === 'confirmed') {
+    echo "Invoice successfully processed!";
+}
+```
+
+### Handle Overdue Invoices
+
+```php
+// Get overdue invoices using Expenses
+$expenses = Teamleader::expenses()->list([
+    'source_types' => ['incomingInvoice'],
+    'document_date' => [
+        'operator' => 'before',
+        'value' => date('Y-m-d', strtotime('-30 days'))
     ]
 ]);
-```
 
-### Retrieve and Display Invoice Information
-
-Get detailed information about an invoice:
-
-```php
-$invoice = $teamleader->incomingInvoices()->info('invoice-uuid-here');
-
-// Access invoice data
-$title = $invoice['data']['title'];
-$documentNumber = $invoice['data']['document_number'];
-$totalAmount = $invoice['data']['total']['tax_exclusive']['amount'];
-$reviewStatus = $invoice['data']['review_status'];
-$currencyCode = $invoice['data']['currency']['code'];
-
-// Check supplier information
-if (isset($invoice['data']['supplier'])) {
-    $supplierType = $invoice['data']['supplier']['type'];
-    $supplierId = $invoice['data']['supplier']['id'];
+foreach ($expenses['data'] as $expense) {
+    $invoice = Teamleader::incomingInvoices()->info($expense['source_id']);
+    
+    if ($invoice['review_status'] === 'pending') {
+        // Send reminder
+        sendPaymentReminder($invoice);
+    }
 }
 ```
 
-## Data Fields
+### Monthly Invoice Report
 
-### Response Data (from info method)
+```php
+$startOfMonth = date('Y-m-01');
+$endOfMonth = date('Y-m-t');
 
-- **`id`**: Invoice UUID
-- **`title`**: Invoice title
-- **`origin`**: Origin information (type: user or peppolIncomingDocument, id)
-- **`supplier`**: Supplier information (type: company or contact, id) - nullable
-- **`document_number`**: Invoice document number - nullable
-- **`invoice_date`**: Invoice date - nullable
-- **`due_date`**: Due date - nullable
-- **`currency`**: Currency object with code
-- **`total`**: Total amounts object
-    - **`tax_exclusive`**: Amount excluding tax - nullable
-    - **`tax_inclusive`**: Amount including tax - nullable
-- **`company_entity`**: Company entity information (type, id)
-- **`file`**: Attached file information (type, id) - nullable
-- **`payment_reference`**: Payment reference - nullable
-- **`review_status`**: Review status (pending, approved, refused)
-- **`iban_number`**: IBAN number - nullable
+$expenses = Teamleader::expenses()->byDateRange($startOfMonth, $endOfMonth, [
+    'source_types' => ['incomingInvoice']
+]);
+
+$totalAmount = 0;
+$approvedCount = 0;
+
+foreach ($expenses['data'] as $expense) {
+    $totalAmount += $expense['total']['tax_inclusive']['amount'];
+    
+    if ($expense['review_status'] === 'approved') {
+        $approvedCount++;
+    }
+}
+
+echo "Monthly Invoice Summary:\n";
+echo "Total Invoices: " . count($expenses['data']) . "\n";
+echo "Approved: {$approvedCount}\n";
+echo "Total Amount: €" . number_format($totalAmount, 2) . "\n";
+```
+
+## Best Practices
+
+1. **Use Expenses for Listing**: To list or search invoices, use the Expenses resource
+```php
+// Good - use Expenses for listing
+$invoices = Teamleader::expenses()->list([
+    'source_types' => ['incomingInvoice']
+]);
+
+// Then get details if needed
+$details = Teamleader::incomingInvoices()->info($invoiceId);
+```
+
+2. **Always Approve Before Sending**: Invoices should be approved before sending to bookkeeping
+```php
+Teamleader::incomingInvoices()->approve($invoiceId);
+Teamleader::incomingInvoices()->sendToBookkeeping($invoiceId);
+```
+
+3. **Validate Data Before Creating**: Use the validation helper
+```php
+$data = [
+    'title' => 'Invoice',
+    'currency' => ['code' => 'EUR'],
+    'total' => ['tax_exclusive' => ['amount' => 1000.00]]
+];
+
+// Validates and creates
+$invoice = Teamleader::incomingInvoices()->create($data);
+```
+
+4. **Handle Bookkeeping Submissions**: Check submission status after sending
+```php
+Teamleader::incomingInvoices()->sendToBookkeeping($invoiceId);
+
+// Wait a moment for processing
+sleep(2);
+
+$submissions = Teamleader::bookkeepingSubmissions()->forInvoice($invoiceId);
+$status = $submissions['data'][0]['status'] ?? 'unknown';
+```
+
+5. **Use Descriptive Titles**: Make invoices easy to identify
+```php
+// Good
+'title' => 'AWS Cloud Services - January 2024'
+
+// Avoid
+'title' => 'Invoice'
+```
 
 ## Error Handling
 
-The incoming invoices resource follows the standard SDK error handling patterns:
-
 ```php
-$result = $teamleader->incomingInvoices()->add([
-    'title' => 'New Invoice',
-    'currency' => ['code' => 'EUR'],
-    'total' => ['tax_exclusive' => ['amount' => 1000]]
-]);
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
 
-if (isset($result['error']) && $result['error']) {
-    $errorMessage = $result['message'] ?? 'Unknown error';
-    $statusCode = $result['status_code'] ?? 0;
-    
-    Log::error("Incoming Invoices API error: {$errorMessage}", [
-        'status_code' => $statusCode
+try {
+    $invoice = Teamleader::incomingInvoices()->create([
+        'title' => 'Monthly Services',
+        'currency' => ['code' => 'EUR'],
+        'total' => ['tax_exclusive' => ['amount' => 1000.00]]
     ]);
+    
+    // Approve and send
+    Teamleader::incomingInvoices()->approve($invoice['data']['id']);
+    Teamleader::incomingInvoices()->sendToBookkeeping($invoice['data']['id']);
+    
+} catch (\InvalidArgumentException $e) {
+    // Validation error
+    Log::error('Invalid invoice data: ' . $e->getMessage());
+    
+} catch (\Exception $e) {
+    // API error
+    Log::error('Failed to create/process invoice: ' . $e->getMessage());
 }
-```
 
-## Rate Limiting
-
-Incoming Invoices API calls count towards your overall Teamleader API rate limit:
-
-- **List operations**: Not supported
-- **Info operations**: 1 request per call
-- **Create operations**: 1 request per call
-- **Update operations**: 1 request per call
-- **Delete operations**: 1 request per call
-- **Status change operations** (approve, refuse, markAsPendingReview, sendToBookkeeping): 1 request per call
-
-Rate limit cost: **1 request per method call**
-
-## Notes
-
-- The `add()` method returns the created invoice data including the new UUID
-- Either `tax_exclusive` or `tax_inclusive` amount is required in the `total` object
-- If `company_entity_id` is not provided, the default company entity will be used
-- The `supplier` field in responses can be either a company or contact type
-- The `origin` field indicates how the invoice was created (user or via PEPPOL)
-- Review status workflow: pending → approved/refused
-- Approved invoices can be sent to bookkeeping
-- Some operations (approve, refuse, markAsPendingReview, sendToBookkeeping) return no content (204 response)
-
-## Laravel Integration
-
-When using this resource in Laravel applications, you can inject the SDK:
-
-```php
-use McoreServices\TeamleaderSDK\TeamleaderSDK;
-
-class IncomingInvoiceController extends Controller
-{
-    public function store(Request $request, TeamleaderSDK $teamleader)
-    {
-        $validated = $request->validate([
-            'title' => 'required|string',
-            'supplier_id' => 'nullable|string',
-            'amount' => 'required|numeric',
-            'invoice_date' => 'required|date',
-            'due_date' => 'required|date'
-        ]);
-        
-        $invoice = $teamleader->incomingInvoices()->add([
-            'title' => $validated['title'],
-            'supplier_id' => $validated['supplier_id'],
-            'invoice_date' => $validated['invoice_date'],
-            'due_date' => $validated['due_date'],
-            'currency' => ['code' => 'EUR'],
-            'total' => [
-                'tax_exclusive' => [
-                    'amount' => $validated['amount']
-                ]
-            ]
-        ]);
-        
-        return redirect()
-            ->route('invoices.show', $invoice['data']['id'])
-            ->with('success', 'Invoice created successfully');
+// Handle bookkeeping failures
+try {
+    Teamleader::incomingInvoices()->sendToBookkeeping($invoiceId);
+    
+    sleep(2);
+    
+    $submissions = Teamleader::bookkeepingSubmissions()->forInvoice($invoiceId);
+    
+    if ($submissions['data'][0]['status'] === 'failed') {
+        $error = $submissions['data'][0]['error']['message'];
+        Log::error("Bookkeeping submission failed: {$error}");
+        // Handle the error...
     }
     
-    public function approve(TeamleaderSDK $teamleader, string $id)
-    {
-        $teamleader->incomingInvoices()->approve($id);
-        
-        return back()->with('success', 'Invoice approved successfully');
-    }
+} catch (\Exception $e) {
+    Log::error('Error sending to bookkeeping: ' . $e->getMessage());
 }
 ```
 
-For more information, refer to the [Teamleader API Documentation](https://developer.focus.teamleader.eu/).
+## Related Resources
+
+- **[Expenses](expenses.md)** - List and search incoming invoices
+- **[Bookkeeping Submissions](bookkeeping-submissions.md)** - Track submission status
+- **[Companies](../crm/companies.md)** - Manage suppliers
+- **[Incoming Credit Notes](incoming-creditnotes.md)** - Related credit notes
+- **[Receipts](receipts.md)** - Other expense types

@@ -1,6 +1,27 @@
 # Bookkeeping Submissions
 
-Manage bookkeeping submissions for expense documents in Teamleader Focus. This resource provides read-only access to submission records that track when expense documents (incoming invoices, credit notes, and receipts) are sent to your bookkeeping system.
+Manage bookkeeping submissions for expense documents in Teamleader Focus.
+
+## Overview
+
+The Bookkeeping Submissions resource provides read-only access to the history of bookkeeping submissions for expense documents (incoming invoices, incoming credit notes, and receipts). When an expense document is sent to bookkeeping, a submission record is created to track the status and details of that submission.
+
+**Important:** This resource is read-only and requires a `subject` filter. You cannot create, update, or delete bookkeeping submissions directly. Submissions are automatically created when you send expense documents to bookkeeping.
+
+## Navigation
+
+- [Endpoint](#endpoint)
+- [Capabilities](#capabilities)
+- [Available Methods](#available-methods)
+    - [list()](#list)
+- [Helper Methods](#helper-methods)
+- [Filtering](#filtering)
+- [Response Structure](#response-structure)
+- [Usage Examples](#usage-examples)
+- [Common Use Cases](#common-use-cases)
+- [Best Practices](#best-practices)
+- [Error Handling](#error-handling)
+- [Related Resources](#related-resources)
 
 ## Endpoint
 
@@ -8,50 +29,49 @@ Manage bookkeeping submissions for expense documents in Teamleader Focus. This r
 
 ## Capabilities
 
-- **Supports Pagination**: ❌ Not Supported
-- **Supports Filtering**: ✅ Supported (subject filter is REQUIRED)
-- **Supports Sorting**: ❌ Not Supported
-- **Supports Sideloading**: ❌ Not Supported
-- **Supports Creation**: ❌ Not Supported
-- **Supports Update**: ❌ Not Supported
-- **Supports Deletion**: ❌ Not Supported
-- **Supports Batch**: ❌ Not Supported
-
-## Important Notes
-
-⚠️ **REQUIRED FILTER**: This endpoint requires a `subject` filter with both `id` (document UUID) and `type` (document type) fields. You cannot list all submissions without specifying a document.
+- **Pagination**: ❌ Not Supported
+- **Filtering**: ✅ Required (subject with id and type)
+- **Sorting**: ❌ Not Supported
+- **Sideloading**: ❌ Not Supported
+- **Creation**: ❌ Not Supported (automatic)
+- **Update**: ❌ Not Supported
+- **Deletion**: ❌ Not Supported
 
 ## Available Methods
 
 ### `list()`
 
-Get bookkeeping submissions for a specific financial document. **Requires subject filter.**
+Get bookkeeping submissions for a specific expense document. The `subject` filter is required.
 
 **Parameters:**
-- `filters` (array): Must include `subject` with `id` and `type`
-- `options` (array): Additional options (not used for this endpoint)
+- `filters` (array): Required filters
+    - `subject` (object, required): Document to get submissions for
+        - `id` (string): Document UUID
+        - `type` (string): `incoming_invoice`, `incoming_credit_note`, or `receipt`
 
 **Example:**
 ```php
-$submissions = $teamleader->bookkeepingSubmissions()->list([
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
+// Get submissions for a document
+$submissions = Teamleader::bookkeepingSubmissions()->list([
     'subject' => [
-        'id' => 'document-uuid',
+        'id' => 'invoice-uuid',
         'type' => 'incoming_invoice'
     ]
 ]);
 ```
 
+## Helper Methods
+
+The Bookkeeping Submissions resource provides convenient helper methods:
+
 ### `forDocument()`
 
-Get submissions for a specific financial document by ID and type.
+Get submissions for any expense document type.
 
-**Parameters:**
-- `documentId` (string): UUID of the financial document
-- `documentType` (string): Type of document (`incoming_invoice`, `incoming_credit_note`, or `receipt`)
-
-**Example:**
 ```php
-$submissions = $teamleader->bookkeepingSubmissions()->forDocument(
+$submissions = Teamleader::bookkeepingSubmissions()->forDocument(
     'document-uuid',
     'incoming_invoice'
 );
@@ -59,527 +79,390 @@ $submissions = $teamleader->bookkeepingSubmissions()->forDocument(
 
 ### `forInvoice()`
 
-Get submissions for an incoming invoice (convenience method).
+Get submissions for an incoming invoice.
 
-**Parameters:**
-- `invoiceId` (string): UUID of the incoming invoice
-
-**Example:**
 ```php
-$submissions = $teamleader->bookkeepingSubmissions()->forInvoice('invoice-uuid');
+$submissions = Teamleader::bookkeepingSubmissions()->forInvoice('invoice-uuid');
 ```
 
 ### `forCreditNote()`
 
-Get submissions for an incoming credit note (convenience method).
+Get submissions for an incoming credit note.
 
-**Parameters:**
-- `creditNoteId` (string): UUID of the incoming credit note
-
-**Example:**
 ```php
-$submissions = $teamleader->bookkeepingSubmissions()->forCreditNote('credit-note-uuid');
+$submissions = Teamleader::bookkeepingSubmissions()->forCreditNote('credit-note-uuid');
 ```
 
 ### `forReceipt()`
 
-Get submissions for a receipt (convenience method).
+Get submissions for a receipt.
 
-**Parameters:**
-- `receiptId` (string): UUID of the receipt
-
-**Example:**
 ```php
-$submissions = $teamleader->bookkeepingSubmissions()->forReceipt('receipt-uuid');
+$submissions = Teamleader::bookkeepingSubmissions()->forReceipt('receipt-uuid');
 ```
 
 ### `byStatus()`
 
 Filter submissions by status for a specific document.
 
-**Parameters:**
-- `documentId` (string): UUID of the financial document
-- `documentType` (string): Type of document
-- `status` (string): Status to filter by (`sending`, `confirmed`, or `failed`)
-
-**Example:**
 ```php
-$confirmed = $teamleader->bookkeepingSubmissions()->byStatus(
-    'document-uuid',
+// Get only confirmed submissions
+$confirmed = Teamleader::bookkeepingSubmissions()->byStatus(
+    'invoice-uuid',
     'incoming_invoice',
     'confirmed'
 );
-```
 
-### `confirmed()`
-
-Get confirmed submissions for a document.
-
-**Parameters:**
-- `documentId` (string): UUID of the financial document
-- `documentType` (string): Type of document
-
-**Example:**
-```php
-$submissions = $teamleader->bookkeepingSubmissions()->confirmed(
-    'document-uuid',
-    'incoming_invoice'
+// Get failed submissions
+$failed = Teamleader::bookkeepingSubmissions()->byStatus(
+    'invoice-uuid',
+    'incoming_invoice',
+    'failed'
 );
 ```
 
-### `failed()`
+Valid statuses:
+- `sending` - Submission is in progress
+- `confirmed` - Successfully sent to bookkeeping
+- `failed` - Submission failed
 
-Get failed submissions for a document.
+### `getStats()`
 
-**Parameters:**
-- `documentId` (string): UUID of the financial document
-- `documentType` (string): Type of document
+Get statistics about submissions for a document.
 
-**Example:**
 ```php
-$submissions = $teamleader->bookkeepingSubmissions()->failed(
-    'document-uuid',
-    'incoming_invoice'
-);
-```
+$stats = Teamleader::bookkeepingSubmissions()->getStats('invoice-uuid', 'incoming_invoice');
 
-### `sending()`
-
-Get submissions currently being sent for a document.
-
-**Parameters:**
-- `documentId` (string): UUID of the financial document
-- `documentType` (string): Type of document
-
-**Example:**
-```php
-$submissions = $teamleader->bookkeepingSubmissions()->sending(
-    'document-uuid',
-    'incoming_invoice'
-);
-```
-
-### `latest()`
-
-Get the most recent submission for a document.
-
-**Parameters:**
-- `documentId` (string): UUID of the financial document
-- `documentType` (string): Type of document
-
-**Returns:** Single submission array or null if none exist
-
-**Example:**
-```php
-$latestSubmission = $teamleader->bookkeepingSubmissions()->latest(
-    'document-uuid',
-    'incoming_invoice'
-);
-
-if ($latestSubmission) {
-    echo "Latest status: " . $latestSubmission['status'];
-    echo "Sent to: " . $latestSubmission['email_address'];
-}
-```
-
-### `hasConfirmed()`
-
-Check if a document has any confirmed submissions.
-
-**Parameters:**
-- `documentId` (string): UUID of the financial document
-- `documentType` (string): Type of document
-
-**Returns:** Boolean
-
-**Example:**
-```php
-$isConfirmed = $teamleader->bookkeepingSubmissions()->hasConfirmed(
-    'document-uuid',
-    'incoming_invoice'
-);
-
-if ($isConfirmed) {
-    echo "Document has been successfully sent to bookkeeping";
-}
-```
-
-### `hasFailed()`
-
-Check if a document has any failed submissions.
-
-**Parameters:**
-- `documentId` (string): UUID of the financial document
-- `documentType` (string): Type of document
-
-**Returns:** Boolean
-
-**Example:**
-```php
-$hasFailed = $teamleader->bookkeepingSubmissions()->hasFailed(
-    'document-uuid',
-    'incoming_invoice'
-);
-
-if ($hasFailed) {
-    echo "Warning: Document has failed bookkeeping submissions";
-}
-```
-
-### `statistics()`
-
-Get comprehensive statistics for all submissions of a document.
-
-**Parameters:**
-- `documentId` (string): UUID of the financial document
-- `documentType` (string): Type of document
-
-**Returns:** Array with statistics including total count, status breakdown, email addresses, and latest/first submissions
-
-**Example:**
-```php
-$stats = $teamleader->bookkeepingSubmissions()->statistics(
-    'document-uuid',
-    'incoming_invoice'
-);
-
-echo "Total submissions: " . $stats['total'];
-echo "Confirmed: " . $stats['by_status']['confirmed'];
-echo "Failed: " . $stats['by_status']['failed'];
-echo "Email addresses: " . implode(', ', $stats['email_addresses']);
+// Returns:
+// [
+//     'total_submissions' => 3,
+//     'confirmed_count' => 2,
+//     'failed_count' => 1,
+//     'sending_count' => 0,
+//     'latest_submission' => [...],
+//     'first_submission' => [...]
+// ]
 ```
 
 ## Filtering
 
-### Required Filter
+The `subject` filter is required for all bookkeeping submission queries:
 
-The `subject` filter is **REQUIRED** and must include both fields:
+- `subject.id` (string, required) - UUID of the expense document
+- `subject.type` (string, required) - Document type:
+    - `incoming_invoice`
+    - `incoming_credit_note`
+    - `receipt`
 
-- **`subject.id`** (string, required): UUID of the financial document
-- **`subject.type`** (string, required): Type of document
-    - Possible values: `incoming_invoice`, `incoming_credit_note`, `receipt`
-
-### Filter Examples
-
+**Example:**
 ```php
-// Using the list method directly (not recommended - use convenience methods instead)
-$submissions = $teamleader->bookkeepingSubmissions()->list([
+$submissions = Teamleader::bookkeepingSubmissions()->list([
     'subject' => [
-        'id' => 'f9a1c2e4-8d3b-4a5e-9f1c-2e4d8a3b5f1c',
+        'id' => 'document-uuid',
         'type' => 'incoming_invoice'
     ]
 ]);
-
-// Recommended: Use convenience methods
-$invoiceSubmissions = $teamleader->bookkeepingSubmissions()->forInvoice('invoice-uuid');
-$creditNoteSubmissions = $teamleader->bookkeepingSubmissions()->forCreditNote('credit-note-uuid');
-$receiptSubmissions = $teamleader->bookkeepingSubmissions()->forReceipt('receipt-uuid');
 ```
 
-## Document Types
+## Response Structure
 
-Valid document types for the `subject.type` field:
+### List Response
 
-- **`incoming_invoice`**: Incoming invoices from suppliers
-- **`incoming_credit_note`**: Credit notes received from suppliers
-- **`receipt`**: Receipt documents
+```json
+{
+  "data": [
+    {
+      "id": "submission-uuid",
+      "subject": {
+        "type": "incoming_invoice",
+        "id": "invoice-uuid"
+      },
+      "status": "confirmed",
+      "created_at": "2024-01-20T10:00:00+00:00",
+      "confirmed_at": "2024-01-20T10:05:00+00:00",
+      "reference": "BK-2024-001",
+      "bookkeeping_account": {
+        "id": "account-uuid",
+        "code": "6000",
+        "description": "Purchases"
+      }
+    },
+    {
+      "id": "submission-uuid-2",
+      "subject": {
+        "type": "incoming_invoice",
+        "id": "invoice-uuid"
+      },
+      "status": "failed",
+      "created_at": "2024-01-15T14:00:00+00:00",
+      "error": {
+        "code": "validation_error",
+        "message": "Missing required field: purchase_order"
+      }
+    }
+  ]
+}
+```
 
-## Submission Statuses
+### Submission Statuses
 
-Bookkeeping submissions can have three statuses:
-
-- **`sending`**: Submission is currently being sent to the bookkeeping system
-- **`confirmed`**: Submission was successfully sent and confirmed
-- **`failed`**: Submission failed to send
+- **sending** - The submission is currently being processed
+- **confirmed** - Successfully sent and confirmed by bookkeeping system
+- **failed** - The submission failed (includes error details)
 
 ## Usage Examples
 
-### Basic Usage
-
-Get all submissions for an incoming invoice:
+### Check Submission History
 
 ```php
-$submissions = $teamleader->bookkeepingSubmissions()->forInvoice('invoice-uuid');
+$submissions = Teamleader::bookkeepingSubmissions()->forInvoice('invoice-uuid');
+
+if (count($submissions['data']) > 0) {
+    $latest = $submissions['data'][0];
+    echo "Latest submission status: " . $latest['status'];
+    
+    if ($latest['status'] === 'confirmed') {
+        echo "\nSent to bookkeeping on: " . $latest['confirmed_at'];
+        echo "\nReference: " . $latest['reference'];
+    }
+}
+```
+
+### Handle Failed Submissions
+
+```php
+$submissions = Teamleader::bookkeepingSubmissions()->forInvoice('invoice-uuid');
 
 foreach ($submissions['data'] as $submission) {
-    echo "Submission ID: " . $submission['id'] . "\n";
-    echo "Status: " . $submission['status'] . "\n";
-    echo "Sent to: " . $submission['email_address'] . "\n";
-    echo "Created: " . $submission['created_at'] . "\n\n";
-}
-```
-
-### Check Submission Status
-
-Check if a document was successfully sent:
-
-```php
-$documentId = 'invoice-uuid';
-$documentType = 'incoming_invoice';
-
-if ($teamleader->bookkeepingSubmissions()->hasConfirmed($documentId, $documentType)) {
-    echo "✓ Document successfully sent to bookkeeping";
-} elseif ($teamleader->bookkeepingSubmissions()->hasFailed($documentId, $documentType)) {
-    echo "✗ Document submission failed - manual intervention needed";
-} else {
-    echo "⟳ Document submission in progress or not yet sent";
-}
-```
-
-### Get Latest Submission Status
-
-Get the most recent submission to check current status:
-
-```php
-$latest = $teamleader->bookkeepingSubmissions()->latest('invoice-uuid', 'incoming_invoice');
-
-if ($latest) {
-    switch ($latest['status']) {
-        case 'confirmed':
-            echo "Document successfully sent on " . $latest['created_at'];
-            break;
-        case 'failed':
-            echo "Last submission failed - sent to " . $latest['email_address'];
-            break;
-        case 'sending':
-            echo "Submission currently in progress";
-            break;
+    if ($submission['status'] === 'failed') {
+        Log::error('Bookkeeping submission failed', [
+            'submission_id' => $submission['id'],
+            'invoice_id' => $submission['subject']['id'],
+            'error' => $submission['error']['message']
+        ]);
+        
+        // Handle the error and potentially retry
     }
 }
 ```
 
 ### Get Submission Statistics
 
-Get comprehensive statistics for a document:
-
 ```php
-$stats = $teamleader->bookkeepingSubmissions()->statistics('invoice-uuid', 'incoming_invoice');
-
-echo "Submission Summary:\n";
-echo "Total attempts: " . $stats['total'] . "\n";
-echo "Confirmed: " . $stats['by_status']['confirmed'] . "\n";
-echo "Failed: " . $stats['by_status']['failed'] . "\n";
-echo "Sending: " . $stats['by_status']['sending'] . "\n";
-echo "\nEmail addresses used:\n";
-foreach ($stats['email_addresses'] as $email) {
-    echo "  - " . $email . "\n";
-}
-
-if ($stats['latest_submission']) {
-    echo "\nLatest submission: " . $stats['latest_submission']['status'];
-    echo " on " . $stats['latest_submission']['created_at'];
-}
-```
-
-### Filter by Status
-
-Get only failed submissions for a document:
-
-```php
-$failedSubmissions = $teamleader->bookkeepingSubmissions()->failed(
+$stats = Teamleader::bookkeepingSubmissions()->getStats(
     'invoice-uuid',
     'incoming_invoice'
 );
 
-if (!empty($failedSubmissions['data'])) {
-    echo "Failed submissions detected:\n";
-    foreach ($failedSubmissions['data'] as $submission) {
-        echo "- Failed on: " . $submission['created_at'] . "\n";
-        echo "  Email: " . $submission['email_address'] . "\n";
+echo "Total Submissions: {$stats['total_submissions']}" . PHP_EOL;
+echo "Confirmed: {$stats['confirmed_count']}" . PHP_EOL;
+echo "Failed: {$stats['failed_count']}" . PHP_EOL;
+echo "In Progress: {$stats['sending_count']}" . PHP_EOL;
+
+if ($stats['latest_submission']) {
+    echo "Latest Status: {$stats['latest_submission']['status']}" . PHP_EOL;
+}
+```
+
+### Verify Successful Submission
+
+```php
+$submissions = Teamleader::bookkeepingSubmissions()->forInvoice('invoice-uuid');
+
+$hasConfirmedSubmission = false;
+foreach ($submissions['data'] as $submission) {
+    if ($submission['status'] === 'confirmed') {
+        $hasConfirmedSubmission = true;
+        break;
+    }
+}
+
+if ($hasConfirmedSubmission) {
+    echo "Invoice successfully sent to bookkeeping";
+} else {
+    echo "Invoice not yet sent or submission failed";
+}
+```
+
+### Monitor Recent Submissions
+
+```php
+$invoices = Teamleader::incomingInvoices()->list([
+    'bookkeeping_statuses' => ['sent']
+]);
+
+foreach ($invoices['data'] as $invoice) {
+    $submissions = Teamleader::bookkeepingSubmissions()->forInvoice($invoice['id']);
+    
+    if (count($submissions['data']) > 0) {
+        $latest = $submissions['data'][0];
+        
+        echo "Invoice: {$invoice['document_number']} - ";
+        echo "Status: {$latest['status']}" . PHP_EOL;
+        
+        if ($latest['status'] === 'failed') {
+            echo "  Error: {$latest['error']['message']}" . PHP_EOL;
+        }
     }
 }
 ```
 
-### Working with Different Document Types
+## Common Use Cases
+
+### Audit Trail for Bookkeeping
 
 ```php
-// For incoming invoices
-$invoiceSubmissions = $teamleader->bookkeepingSubmissions()->forInvoice('invoice-uuid');
+function getBookkeepingAuditTrail($documentId, $documentType)
+{
+    $submissions = Teamleader::bookkeepingSubmissions()->forDocument(
+        $documentId,
+        $documentType
+    );
+    
+    $auditTrail = [];
+    foreach ($submissions['data'] as $submission) {
+        $auditTrail[] = [
+            'date' => $submission['created_at'],
+            'status' => $submission['status'],
+            'reference' => $submission['reference'] ?? null,
+            'confirmed_at' => $submission['confirmed_at'] ?? null,
+            'error' => $submission['error'] ?? null
+        ];
+    }
+    
+    return $auditTrail;
+}
+```
 
-// For credit notes
-$creditNoteSubmissions = $teamleader->bookkeepingSubmissions()->forCreditNote('credit-note-uuid');
+### Retry Failed Submissions
 
-// For receipts
-$receiptSubmissions = $teamleader->bookkeepingSubmissions()->forReceipt('receipt-uuid');
-
-// Generic method for any document type
-$submissions = $teamleader->bookkeepingSubmissions()->forDocument(
-    'document-uuid',
-    'incoming_invoice'
+```php
+$submissions = Teamleader::bookkeepingSubmissions()->byStatus(
+    'invoice-uuid',
+    'incoming_invoice',
+    'failed'
 );
+
+if (count($submissions['data']) > 0) {
+    // Get the invoice details to understand the error
+    $invoice = Teamleader::incomingInvoices()->info('invoice-uuid');
+    
+    // Fix any issues with the invoice
+    // Then retry sending to bookkeeping
+    Teamleader::incomingInvoices()->sendToBookkeeping('invoice-uuid');
+}
+```
+
+### Dashboard Statistics
+
+```php
+$invoices = Teamleader::incomingInvoices()->list([
+    'review_statuses' => ['approved']
+]);
+
+$totalSubmissions = 0;
+$failedSubmissions = 0;
+$confirmedSubmissions = 0;
+
+foreach ($invoices['data'] as $invoice) {
+    $stats = Teamleader::bookkeepingSubmissions()->getStats(
+        $invoice['id'],
+        'incoming_invoice'
+    );
+    
+    $totalSubmissions += $stats['total_submissions'];
+    $failedSubmissions += $stats['failed_count'];
+    $confirmedSubmissions += $stats['confirmed_count'];
+}
+
+echo "Dashboard Statistics:" . PHP_EOL;
+echo "Total Submissions: {$totalSubmissions}" . PHP_EOL;
+echo "Confirmed: {$confirmedSubmissions}" . PHP_EOL;
+echo "Failed: {$failedSubmissions}" . PHP_EOL;
+```
+
+## Best Practices
+
+1. **Always Check Latest Submission**: Submissions are returned in reverse chronological order, so the first item is the most recent
+```php
+$submissions = Teamleader::bookkeepingSubmissions()->forInvoice('invoice-uuid');
+$latestStatus = $submissions['data'][0]['status'] ?? null;
+```
+
+2. **Use Helper Methods**: Use specific helper methods for cleaner code
+```php
+// Good
+$submissions = Teamleader::bookkeepingSubmissions()->forInvoice('invoice-uuid');
+
+// Avoid
+$submissions = Teamleader::bookkeepingSubmissions()->list([
+    'subject' => ['id' => 'invoice-uuid', 'type' => 'incoming_invoice']
+]);
+```
+
+3. **Handle Missing Submissions**: Not all documents have submissions
+```php
+$submissions = Teamleader::bookkeepingSubmissions()->forInvoice('invoice-uuid');
+
+if (empty($submissions['data'])) {
+    // Document has never been sent to bookkeeping
+}
+```
+
+4. **Monitor Failed Submissions**: Implement monitoring for failed submissions
+```php
+$stats = Teamleader::bookkeepingSubmissions()->getStats('invoice-uuid', 'incoming_invoice');
+
+if ($stats['failed_count'] > 0) {
+    // Alert or log the failed submissions
+}
+```
+
+5. **Use Stats for Quick Checks**: The `getStats()` method is efficient for getting overview information
+```php
+$stats = Teamleader::bookkeepingSubmissions()->getStats('invoice-uuid', 'incoming_invoice');
+$hasConfirmed = $stats['confirmed_count'] > 0;
 ```
 
 ## Error Handling
 
-The bookkeeping submissions resource follows standard SDK error handling:
-
 ```php
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
 try {
-    $submissions = $teamleader->bookkeepingSubmissions()->forInvoice('invoice-uuid');
+    $submissions = Teamleader::bookkeepingSubmissions()->forInvoice('invoice-uuid');
     
-    if (isset($submissions['error']) && $submissions['error']) {
-        $errorMessage = $submissions['message'] ?? 'Unknown error';
-        Log::error("Bookkeeping submissions API error: {$errorMessage}");
+    if (empty($submissions['data'])) {
+        // No submissions found - document never sent to bookkeeping
+        echo "This invoice has not been sent to bookkeeping yet";
     }
-} catch (InvalidArgumentException $e) {
-    // Handle validation errors (e.g., missing required fields)
-    Log::error("Validation error: " . $e->getMessage());
+    
+} catch (\InvalidArgumentException $e) {
+    // Missing required subject filter
+    Log::error('Invalid bookkeeping submission query: ' . $e->getMessage());
+    
+} catch (\Exception $e) {
+    // Handle API errors
+    Log::error('Failed to fetch bookkeeping submissions: ' . $e->getMessage());
+}
+
+// Handle failed submission with retry logic
+try {
+    $stats = Teamleader::bookkeepingSubmissions()->getStats('invoice-uuid', 'incoming_invoice');
+    
+    if ($stats['failed_count'] > 0) {
+        // Attempt to resend
+        Teamleader::incomingInvoices()->sendToBookkeeping('invoice-uuid');
+    }
+    
+} catch (\Exception $e) {
+    Log::error('Failed to retry bookkeeping submission: ' . $e->getMessage());
 }
 ```
 
-### Validation Errors
+## Related Resources
 
-The SDK will throw `InvalidArgumentException` for:
-
-- Missing subject filter
-- Invalid document type
-- Invalid status value
-- Missing document ID
-
-## Response Structure
-
-```json
-{
-    "data": [
-        {
-            "id": "submission-uuid",
-            "subject": {
-                "id": "document-uuid",
-                "type": "incoming_invoice"
-            },
-            "email_address": "bookkeeping@company.com",
-            "status": "confirmed",
-            "created_at": "2024-01-15T10:30:00+00:00"
-        },
-        {
-            "id": "submission-uuid-2",
-            "subject": {
-                "id": "document-uuid",
-                "type": "incoming_invoice"
-            },
-            "email_address": "accounting@company.com",
-            "status": "failed",
-            "created_at": "2024-01-14T15:20:00+00:00"
-        }
-    ]
-}
-```
-
-## Data Fields
-
-### Submission Fields
-
-- **`id`**: UUID of the bookkeeping submission
-- **`subject.id`**: UUID of the financial document
-- **`subject.type`**: Type of document (`incoming_invoice`, `incoming_credit_note`, `receipt`)
-- **`email_address`**: Email address where the submission was sent
-- **`status`**: Current status (`sending`, `confirmed`, `failed`)
-- **`created_at`**: Timestamp when the submission was created (ISO 8601 format)
-
-## Rate Limiting
-
-Bookkeeping submissions API calls count towards your overall Teamleader API rate limit:
-
-- **List operations**: 1 request per call
-
-Rate limit cost: **1 request per method call**
-
-## Notes
-
-- Bookkeeping submissions are **read-only** - you cannot create, update, or delete submissions via the API
-- The `subject` filter with both `id` and `type` is **REQUIRED** for all queries
-- No pagination is available - all submissions for a document are returned
-- Sorting is not supported - use the `latest()` method or client-side sorting
-- Submissions track the history of attempts to send documents to your bookkeeping system
-- Multiple submissions may exist for a single document (e.g., after retries)
-- The `created_at` timestamp shows when each submission attempt was made
-- Use the `statistics()` method to get a comprehensive overview of all submissions
-
-## Best Practices
-
-1. **Always check the latest status** before assuming a document was sent:
-   ```php
-   $latest = $teamleader->bookkeepingSubmissions()->latest($id, $type);
-   $status = $latest['status'] ?? 'unknown';
-   ```
-
-2. **Use convenience methods** instead of the raw `list()` method:
-   ```php
-   // Good
-   $submissions = $teamleader->bookkeepingSubmissions()->forInvoice($id);
-   
-   // Less readable
-   $submissions = $teamleader->bookkeepingSubmissions()->list([
-       'subject' => ['id' => $id, 'type' => 'incoming_invoice']
-   ]);
-   ```
-
-3. **Monitor failed submissions** to identify issues:
-   ```php
-   if ($teamleader->bookkeepingSubmissions()->hasFailed($id, $type)) {
-       // Alert or log for manual review
-   }
-   ```
-
-4. **Use statistics for reporting**:
-   ```php
-   $stats = $teamleader->bookkeepingSubmissions()->statistics($id, $type);
-   // Build dashboards or reports from the statistics
-   ```
-
-## Laravel Integration
-
-When using this resource in Laravel applications:
-
-```php
-use McoreServices\TeamleaderSDK\TeamleaderSDK;
-
-class BookkeepingController extends Controller
-{
-    public function checkSubmissionStatus(TeamleaderSDK $teamleader, string $expenseId)
-    {
-        $latest = $teamleader->bookkeepingSubmissions()->latest(
-            $expenseId,
-            'incoming_invoice'
-        );
-        
-        if (!$latest) {
-            return response()->json(['status' => 'not_submitted']);
-        }
-        
-        return response()->json([
-            'status' => $latest['status'],
-            'sent_to' => $latest['email_address'],
-            'timestamp' => $latest['created_at']
-        ]);
-    }
-    
-    public function submissionHistory(TeamleaderSDK $teamleader, string $expenseId)
-    {
-        $submissions = $teamleader->bookkeepingSubmissions()->forInvoice($expenseId);
-        
-        return view('bookkeeping.history', [
-            'submissions' => $submissions['data'],
-            'expense_id' => $expenseId
-        ]);
-    }
-    
-    public function statistics(TeamleaderSDK $teamleader)
-    {
-        // Get statistics for multiple documents
-        $expenses = Expense::all();
-        $stats = [];
-        
-        foreach ($expenses as $expense) {
-            $stats[$expense->id] = $teamleader->bookkeepingSubmissions()->statistics(
-                $expense->teamleader_id,
-                'incoming_invoice'
-            );
-        }
-        
-        return view('bookkeeping.statistics', compact('stats'));
-    }
-}
-```
-
-For more information, refer to the [Teamleader API Documentation](https://developer.focus.teamleader.eu/).
+- **[Incoming Invoices](incoming-invoices.md)** - Send invoices to bookkeeping
+- **[Incoming Credit Notes](incoming-creditnotes.md)** - Send credit notes to bookkeeping
+- **[Receipts](receipts.md)** - Send receipts to bookkeeping
+- **[Expenses](expenses.md)** - Overview of all expense documents

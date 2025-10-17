@@ -1,6 +1,32 @@
 # Receipts
 
-Manage expense receipts in Teamleader Focus. This resource provides operations for creating, updating, and managing expense receipts.
+Manage expense receipts in Teamleader Focus.
+
+## Overview
+
+The Receipts resource allows you to manage expense receipts in Teamleader. Receipts represent smaller expenses (typically without VAT details) such as meals, parking, office supplies, and other day-to-day business expenses that can be sent to your bookkeeping system.
+
+**Note:** Unlike invoices and credit notes, receipts use **tax-inclusive** amounts only as they typically don't itemize VAT.
+
+## Navigation
+
+- [Endpoint](#endpoint)
+- [Capabilities](#capabilities)
+- [Available Methods](#available-methods)
+    - [info()](#info)
+    - [create() / add()](#create--add)
+    - [update()](#update)
+    - [delete()](#delete)
+    - [approve()](#approve)
+    - [refuse()](#refuse)
+    - [sendToBookkeeping()](#sendtobookkeeping)
+- [Valid Values](#valid-values)
+- [Response Structure](#response-structure)
+- [Usage Examples](#usage-examples)
+- [Common Use Cases](#common-use-cases)
+- [Best Practices](#best-practices)
+- [Error Handling](#error-handling)
+- [Related Resources](#related-resources)
 
 ## Endpoint
 
@@ -8,43 +34,51 @@ Manage expense receipts in Teamleader Focus. This resource provides operations f
 
 ## Capabilities
 
-- **Supports Pagination**: ❌ Not Supported
-- **Supports Filtering**: ❌ Not Supported
-- **Supports Sorting**: ❌ Not Supported
-- **Supports Sideloading**: ❌ Not Supported
-- **Supports Creation**: ✅ Supported
-- **Supports Update**: ✅ Supported
-- **Supports Deletion**: ✅ Supported
-- **Supports Batch**: ❌ Not Supported
+- **Pagination**: ❌ Not Supported (use Expenses for listing)
+- **Filtering**: ❌ Not Supported (use Expenses for filtering)
+- **Sorting**: ❌ Not Supported
+- **Sideloading**: ❌ Not Supported
+- **Creation**: ✅ Supported
+- **Update**: ✅ Supported
+- **Deletion**: ✅ Supported
 
 ## Available Methods
 
-### `add()`
+### `info()`
 
-Create a new expense receipt.
+Get detailed information about a specific receipt.
 
 **Parameters:**
-- `data` (array): Receipt data including title, supplier, amounts, and other details
-
-**Required Fields:**
-- `title`: Receipt title
-- `currency.code`: Currency code (e.g., "EUR")
-- `total.tax_inclusive`: Total amount including tax
-
-**Optional Fields:**
-- `supplier_id`: Supplier UUID
-- `document_number`: Receipt document number
-- `receipt_date`: Receipt date
-- `company_entity_id`: Company entity UUID
-- `file_id`: Attached file UUID
+- `id` (string): The receipt UUID
 
 **Example:**
 ```php
-$receipt = $teamleader->receipts()->add([
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
+$receipt = Teamleader::receipts()->info('receipt-uuid');
+```
+
+### `create()` / `add()`
+
+Create a new expense receipt.
+
+**Required fields:**
+- `title` (string): Receipt title/description
+- `currency.code` (string): Currency code (e.g., EUR, USD, GBP)
+- `total.tax_inclusive.amount` (decimal): Total amount including any tax
+
+**Optional fields:**
+- `supplier_id` (string): Supplier company UUID
+- `document_number` (string): Receipt reference number
+- `receipt_date` (string): Receipt date (YYYY-MM-DD)
+- `description` (string): Additional notes or description
+- `review_status` (string): `pending`, `approved`, or `refused`
+
+**Example:**
+```php
+// Basic receipt
+$receipt = Teamleader::receipts()->create([
     'title' => 'Office Lunch',
-    'supplier_id' => 'supplier-uuid-here',
-    'document_number' => 'REC-2024-001',
-    'receipt_date' => '2024-01-15',
     'currency' => [
         'code' => 'EUR'
     ],
@@ -52,8 +86,32 @@ $receipt = $teamleader->receipts()->add([
         'tax_inclusive' => [
             'amount' => 45.50
         ]
+    ]
+]);
+
+// Using add() helper
+$receipt = Teamleader::receipts()->add([
+    'title' => 'Parking Fee',
+    'currency' => ['code' => 'EUR'],
+    'total' => ['tax_inclusive' => ['amount' => 15.00]]
+]);
+
+// Complete receipt
+$receipt = Teamleader::receipts()->add([
+    'title' => 'Business Dinner',
+    'supplier_id' => 'restaurant-uuid',
+    'document_number' => 'REC-2024/001',
+    'receipt_date' => '2024-01-15',
+    'description' => 'Client meeting at Restaurant XYZ',
+    'currency' => [
+        'code' => 'EUR'
     ],
-    'file_id' => 'file-uuid-here'
+    'total' => [
+        'tax_inclusive' => [
+            'amount' => 125.00
+        ]
+    ],
+    'review_status' => 'pending'
 ]);
 ```
 
@@ -63,31 +121,16 @@ Update an existing receipt.
 
 **Parameters:**
 - `id` (string): Receipt UUID
-- `data` (array): Receipt data to update
+- `data` (array): Fields to update (same as create)
 
 **Example:**
 ```php
-$teamleader->receipts()->update('receipt-uuid-here', [
+Teamleader::receipts()->update('receipt-uuid', [
     'title' => 'Updated Receipt Title',
     'receipt_date' => '2024-01-16',
-    'total' => [
-        'tax_inclusive' => [
-            'amount' => 52.00
-        ]
-    ]
+    'description' => 'Additional details added',
+    'review_status' => 'approved'
 ]);
-```
-
-### `info()`
-
-Get detailed information about a specific receipt.
-
-**Parameters:**
-- `id` (string): Receipt UUID
-
-**Example:**
-```php
-$receipt = $teamleader->receipts()->info('receipt-uuid-here');
 ```
 
 ### `delete()`
@@ -99,318 +142,531 @@ Delete a receipt.
 
 **Example:**
 ```php
-$teamleader->receipts()->delete('receipt-uuid-here');
+Teamleader::receipts()->delete('receipt-uuid');
 ```
 
 ### `approve()`
 
-Approve a receipt.
+Approve a receipt for processing.
 
 **Parameters:**
 - `id` (string): Receipt UUID
 
 **Example:**
 ```php
-$teamleader->receipts()->approve('receipt-uuid-here');
+Teamleader::receipts()->approve('receipt-uuid');
 ```
 
 ### `refuse()`
 
-Refuse a receipt.
+Refuse/reject a receipt.
 
 **Parameters:**
 - `id` (string): Receipt UUID
 
 **Example:**
 ```php
-$teamleader->receipts()->refuse('receipt-uuid-here');
-```
-
-### `markAsPendingReview()`
-
-Mark a receipt as pending review.
-
-**Parameters:**
-- `id` (string): Receipt UUID
-
-**Example:**
-```php
-$teamleader->receipts()->markAsPendingReview('receipt-uuid-here');
+Teamleader::receipts()->refuse('receipt-uuid');
 ```
 
 ### `sendToBookkeeping()`
 
-Send a receipt to bookkeeping for processing.
+Send an approved receipt to your bookkeeping system.
 
 **Parameters:**
 - `id` (string): Receipt UUID
 
 **Example:**
 ```php
-$teamleader->receipts()->sendToBookkeeping('receipt-uuid-here');
+Teamleader::receipts()->sendToBookkeeping('receipt-uuid');
 ```
 
-## Currency Codes
+## Valid Values
 
-Supported currency codes for the `currency.code` field:
+### Currency Codes
 
-- BAM (Bosnia and Herzegovina Convertible Mark)
-- CAD (Canadian Dollar)
-- CHF (Swiss Franc)
-- CLP (Chilean Peso)
-- CNY (Chinese Yuan)
-- COP (Colombian Peso)
-- CZK (Czech Koruna)
-- DKK (Danish Krone)
-- EUR (Euro)
-- GBP (British Pound)
-- INR (Indian Rupee)
-- ISK (Icelandic Krona)
-- JPY (Japanese Yen)
-- MAD (Moroccan Dirham)
-- MXN (Mexican Peso)
-- NOK (Norwegian Krone)
-- PEN (Peruvian Sol)
-- PLN (Polish Zloty)
-- RON (Romanian Leu)
-- SEK (Swedish Krona)
-- TRY (Turkish Lira)
-- USD (US Dollar)
-- ZAR (South African Rand)
+Supported currencies: `BAM`, `CAD`, `CHF`, `CLP`, `CNY`, `COP`, `CZK`, `DKK`, `EUR`, `GBP`, `INR`, `ISK`, `JPY`, `MAD`, `MXN`, `NOK`, `PEN`, `PLN`, `RON`, `SEK`, `TRY`, `USD`, `ZAR`
 
-## Review Status Values
+Get the list programmatically:
+```php
+$currencies = Teamleader::receipts()->getValidCurrencyCodes();
+```
 
-Receipts can have the following review statuses:
+### Review Statuses
 
-- `pending`: Awaiting review
-- `approved`: Approved for processing
-- `refused`: Refused/rejected
+- `pending` - Awaiting review
+- `approved` - Approved for processing
+- `refused` - Rejected/refused
+
+Get the list programmatically:
+```php
+$statuses = Teamleader::receipts()->getValidReviewStatuses();
+```
+
+## Response Structure
+
+### Receipt Object
+
+```json
+{
+  "id": "receipt-uuid",
+  "title": "Business Lunch",
+  "supplier": {
+    "type": "company",
+    "id": "company-uuid"
+  },
+  "document_number": "REC-2024/001",
+  "receipt_date": "2024-01-15",
+  "description": "Client meeting lunch",
+  "currency": {
+    "code": "EUR"
+  },
+  "total": {
+    "tax_inclusive": {
+      "amount": 125.00,
+      "currency": "EUR"
+    }
+  },
+  "review_status": "approved",
+  "bookkeeping_status": "sent",
+  "created_at": "2024-01-15T14:00:00+00:00",
+  "updated_at": "2024-01-16T10:30:00+00:00"
+}
+```
 
 ## Usage Examples
 
-### Create a Complete Receipt
-
-Create a new expense receipt with all details:
+### Create Receipt from Photo/Scan
 
 ```php
-$receipt = $teamleader->receipts()->add([
-    'title' => 'Business Lunch with Client',
-    'supplier_id' => '9d4fde95-9b6b-4c41-ae71-6c5f70bc2fc7',
-    'document_number' => 'REST-INV-2024-123',
+// Extract data from OCR or manual entry
+$receiptData = [
+    'title' => 'Taxi to Client Meeting',
     'receipt_date' => '2024-01-15',
-    'currency' => [
-        'code' => 'EUR'
-    ],
-    'total' => [
-        'tax_inclusive' => [
-            'amount' => 78.50
-        ]
-    ],
-    'company_entity_id' => 'entity-uuid-here',
-    'file_id' => 'file-uuid-here'
+    'currency' => ['code' => 'EUR'],
+    'total' => ['tax_inclusive' => ['amount' => 35.50]],
+    'description' => 'Meeting with Acme Corp at their office'
+];
+
+$receipt = Teamleader::receipts()->create($receiptData);
+
+// Attach scanned image (using Files resource)
+Teamleader::files()->upload(
+    'receipt-scan.jpg',
+    'receipt',
+    $receipt['data']['id']
+);
+```
+
+### Process Employee Expense Receipts
+
+```php
+// Get pending receipts using Expenses
+$pending = Teamleader::expenses()->list([
+    'source_types' => ['receipt'],
+    'review_statuses' => ['pending']
+]);
+
+foreach ($pending['data'] as $expense) {
+    $receipt = Teamleader::receipts()->info($expense['source_id']);
+    
+    // Business rules for approval
+    $approved = false;
+    
+    // Auto-approve small amounts
+    if ($receipt['total']['tax_inclusive']['amount'] < 50) {
+        $approved = true;
+    }
+    
+    // Check if has proper documentation
+    $files = Teamleader::files()->forSubject('receipt', $expense['source_id']);
+    if (!empty($files['data'])) {
+        $approved = true;
+    }
+    
+    if ($approved) {
+        Teamleader::receipts()->approve($expense['source_id']);
+        Teamleader::receipts()->sendToBookkeeping($expense['source_id']);
+        
+        echo "Approved receipt: {$receipt['title']}\n";
+    } else {
+        echo "Requires manual review: {$receipt['title']}\n";
+    }
+}
+```
+
+### Batch Create Receipts
+
+```php
+$receipts = [
+    ['title' => 'Parking', 'amount' => 15.00],
+    ['title' => 'Office Supplies', 'amount' => 45.90],
+    ['title' => 'Coffee Meeting', 'amount' => 12.50]
+];
+
+foreach ($receipts as $data) {
+    try {
+        $receipt = Teamleader::receipts()->create([
+            'title' => $data['title'],
+            'receipt_date' => date('Y-m-d'),
+            'currency' => ['code' => 'EUR'],
+            'total' => ['tax_inclusive' => ['amount' => $data['amount']]]
+        ]);
+        
+        echo "Created receipt: {$data['title']}\n";
+        
+    } catch (Exception $e) {
+        Log::error("Failed to create receipt: " . $e->getMessage());
+    }
+}
+```
+
+### Monthly Receipt Report
+
+```php
+$startOfMonth = date('Y-m-01');
+$endOfMonth = date('Y-m-t');
+
+$receipts = Teamleader::expenses()->byDateRange($startOfMonth, $endOfMonth, [
+    'source_types' => ['receipt']
+]);
+
+$totalAmount = 0;
+$approvedAmount = 0;
+$categoryTotals = [];
+
+foreach ($receipts['data'] as $expense) {
+    $amount = $expense['total']['tax_inclusive']['amount'];
+    $totalAmount += $amount;
+    
+    if ($expense['review_status'] === 'approved') {
+        $approvedAmount += $amount;
+    }
+    
+    // Categorize by title keywords
+    $title = strtolower($expense['title']);
+    if (strpos($title, 'parking') !== false) {
+        $categoryTotals['parking'] = ($categoryTotals['parking'] ?? 0) + $amount;
+    } elseif (strpos($title, 'lunch') !== false || strpos($title, 'dinner') !== false) {
+        $categoryTotals['meals'] = ($categoryTotals['meals'] ?? 0) + $amount;
+    } else {
+        $categoryTotals['other'] = ($categoryTotals['other'] ?? 0) + $amount;
+    }
+}
+
+echo "Monthly Receipt Summary:\n";
+echo "Total Receipts: " . count($receipts['data']) . "\n";
+echo "Total Amount: €" . number_format($totalAmount, 2) . "\n";
+echo "Approved Amount: €" . number_format($approvedAmount, 2) . "\n";
+echo "\nBy Category:\n";
+foreach ($categoryTotals as $category => $amount) {
+    echo "  " . ucfirst($category) . ": €" . number_format($amount, 2) . "\n";
+}
+```
+
+### Update Receipt with Additional Info
+
+```php
+$receiptId = 'receipt-uuid';
+
+// Get current receipt
+$receipt = Teamleader::receipts()->info($receiptId);
+
+// Add more details
+Teamleader::receipts()->update($receiptId, [
+    'description' => $receipt['description'] . ' | Client: Acme Corp',
+    'document_number' => 'EXP-2024-001'
+]);
+```
+
+## Common Use Cases
+
+### Employee Expense Reimbursement
+
+```php
+// Create receipt for employee expense
+$receipt = Teamleader::receipts()->create([
+    'title' => 'Travel Expenses - Conference',
+    'receipt_date' => '2024-01-20',
+    'description' => 'Train tickets and meals during Tech Conference 2024',
+    'currency' => ['code' => 'EUR'],
+    'total' => ['tax_inclusive' => ['amount' => 245.00]]
 ]);
 
 $receiptId = $receipt['data']['id'];
-```
 
-### Update Receipt Details
+// Approve immediately for trusted employees
+Teamleader::receipts()->approve($receiptId);
+Teamleader::receipts()->sendToBookkeeping($receiptId);
 
-Update specific fields of an existing receipt:
-
-```php
-$teamleader->receipts()->update('receipt-uuid-here', [
-    'title' => 'Team Lunch Meeting',
-    'receipt_date' => '2024-01-16',
-    'total' => [
-        'tax_inclusive' => [
-            'amount' => 85.00
-        ]
-    ]
+// Notify employee
+sendEmployeeNotification([
+    'receipt_id' => $receiptId,
+    'status' => 'approved',
+    'amount' => 245.00
 ]);
 ```
 
-### Receipt Approval Workflow
-
-Complete workflow for reviewing and approving a receipt:
+### Receipt Validation Workflow
 
 ```php
-$receiptId = 'receipt-uuid-here';
-
-// Get receipt details
-$receipt = $teamleader->receipts()->info($receiptId);
-
-// Mark as pending review
-$teamleader->receipts()->markAsPendingReview($receiptId);
-
-// After review, approve or refuse
-if ($receiptIsValid) {
-    $teamleader->receipts()->approve($receiptId);
+function validateAndProcessReceipt($receiptId)
+{
+    $receipt = Teamleader::receipts()->info($receiptId);
     
-    // Send to bookkeeping
-    $teamleader->receipts()->sendToBookkeeping($receiptId);
-} else {
-    $teamleader->receipts()->refuse($receiptId);
+    // Validation rules
+    $errors = [];
+    
+    // Check if date is not in the future
+    if (strtotime($receipt['receipt_date']) > time()) {
+        $errors[] = 'Receipt date cannot be in the future';
+    }
+    
+    // Check if amount is reasonable
+    if ($receipt['total']['tax_inclusive']['amount'] > 1000) {
+        $errors[] = 'Amount exceeds approval limit';
+    }
+    
+    // Check if has supporting documentation
+    $files = Teamleader::files()->forSubject('receipt', $receiptId);
+    if (empty($files['data'])) {
+        $errors[] = 'Missing receipt image/scan';
+    }
+    
+    if (!empty($errors)) {
+        // Refuse with reason
+        Teamleader::receipts()->refuse($receiptId);
+        return ['status' => 'refused', 'errors' => $errors];
+    }
+    
+    // All checks passed
+    Teamleader::receipts()->approve($receiptId);
+    Teamleader::receipts()->sendToBookkeeping($receiptId);
+    
+    return ['status' => 'approved'];
 }
 ```
 
-### Create Simple Receipt
-
-Create a basic receipt with minimal information:
+### Expense Category Analysis
 
 ```php
-$receipt = $teamleader->receipts()->add([
-    'title' => 'Coffee & Supplies',
-    'receipt_date' => '2024-01-20',
-    'currency' => [
-        'code' => 'EUR'
-    ],
-    'total' => [
-        'tax_inclusive' => [
-            'amount' => 15.75
-        ]
-    ]
+$receipts = Teamleader::expenses()->list([
+    'source_types' => ['receipt'],
+    'review_statuses' => ['approved']
 ]);
-```
 
-### Retrieve and Display Receipt Information
+$categories = [
+    'meals' => ['lunch', 'dinner', 'breakfast', 'coffee', 'restaurant'],
+    'transport' => ['taxi', 'uber', 'parking', 'train', 'bus'],
+    'office' => ['supplies', 'stationery', 'equipment'],
+    'other' => []
+];
 
-Get detailed information about a receipt:
+$totals = array_fill_keys(array_keys($categories), 0);
 
-```php
-$receipt = $teamleader->receipts()->info('receipt-uuid-here');
+foreach ($receipts['data'] as $expense) {
+    $title = strtolower($expense['title']);
+    $amount = $expense['total']['tax_inclusive']['amount'];
+    $categorized = false;
+    
+    foreach ($categories as $category => $keywords) {
+        if ($category === 'other') continue;
+        
+        foreach ($keywords as $keyword) {
+            if (strpos($title, $keyword) !== false) {
+                $totals[$category] += $amount;
+                $categorized = true;
+                break 2;
+            }
+        }
+    }
+    
+    if (!$categorized) {
+        $totals['other'] += $amount;
+    }
+}
 
-// Access receipt data
-$title = $receipt['data']['title'];
-$documentNumber = $receipt['data']['document_number'];
-$totalAmount = $receipt['data']['total']['tax_inclusive']['amount'];
-$reviewStatus = $receipt['data']['review_status'];
-$currencyCode = $receipt['data']['currency']['code'];
-
-// Check supplier information
-if (isset($receipt['data']['supplier'])) {
-    $supplierType = $receipt['data']['supplier']['type'];
-    $supplierId = $receipt['data']['supplier']['id'];
+echo "Expense Analysis:\n";
+foreach ($totals as $category => $total) {
+    if ($total > 0) {
+        echo ucfirst($category) . ": €" . number_format($total, 2) . "\n";
+    }
 }
 ```
 
-## Data Fields
+### Automated Receipt Processing from Email
 
-### Response Data (from info method)
+```php
+// Process receipts sent via email
+function processReceiptEmail($emailData)
+{
+    // Extract receipt information from email
+    $receipt = Teamleader::receipts()->create([
+        'title' => $emailData['subject'],
+        'receipt_date' => date('Y-m-d'),
+        'description' => $emailData['body'],
+        'currency' => ['code' => 'EUR'],
+        'total' => [
+            'tax_inclusive' => [
+                'amount' => extractAmountFromEmail($emailData['body'])
+            ]
+        ]
+    ]);
+    
+    $receiptId = $receipt['data']['id'];
+    
+    // Attach email attachments as files
+    if (!empty($emailData['attachments'])) {
+        foreach ($emailData['attachments'] as $attachment) {
+            Teamleader::files()->upload(
+                $attachment['name'],
+                'receipt',
+                $receiptId
+            );
+        }
+    }
+    
+    // Auto-approve small amounts
+    if ($receipt['data']['total']['tax_inclusive']['amount'] < 100) {
+        Teamleader::receipts()->approve($receiptId);
+        Teamleader::receipts()->sendToBookkeeping($receiptId);
+    }
+    
+    return $receiptId;
+}
+```
 
-- **`id`**: Receipt UUID
-- **`title`**: Receipt title
-- **`origin`**: Origin information (type, id)
-- **`supplier`**: Supplier information (type: company or contact, id) - nullable
-- **`document_number`**: Receipt document number - nullable
-- **`receipt_date`**: Receipt date - nullable
-- **`currency`**: Currency object with code
-- **`total`**: Total amounts object
-    - **`tax_inclusive`**: Amount including tax - nullable
-        - **`amount`**: Tax-inclusive amount (number)
-- **`company_entity`**: Company entity information (type, id)
-- **`file`**: Attached file information (type, id) - nullable
-- **`review_status`**: Review status (pending, approved, refused)
+## Best Practices
+
+1. **Use Expenses for Listing**: To list or search receipts, use the Expenses resource
+```php
+// Good - use Expenses for listing
+$receipts = Teamleader::expenses()->list([
+    'source_types' => ['receipt']
+]);
+
+// Then get details if needed
+$details = Teamleader::receipts()->info($receiptId);
+```
+
+2. **Always Use Tax-Inclusive Amounts**: Receipts require `tax_inclusive` amounts
+```php
+// Correct
+'total' => [
+    'tax_inclusive' => [
+        'amount' => 45.50
+    ]
+]
+
+// Wrong - will fail
+'total' => [
+    'tax_exclusive' => [
+        'amount' => 45.50
+    ]
+]
+```
+
+3. **Attach Supporting Documentation**: Always attach receipt images
+```php
+$receipt = Teamleader::receipts()->create($data);
+
+// Upload receipt image
+Teamleader::files()->upload(
+    'receipt.jpg',
+    'receipt',
+    $receipt['data']['id']
+);
+```
+
+4. **Use Descriptive Titles**: Make receipts easy to identify
+```php
+// Good
+'title' => 'Client Lunch - Acme Corp - Restaurant XYZ'
+
+// Avoid
+'title' => 'Receipt'
+```
+
+5. **Validate Before Approving**: Implement validation rules
+```php
+$receipt = Teamleader::receipts()->info($receiptId);
+
+// Check date, amount, documentation
+if (isValid($receipt)) {
+    Teamleader::receipts()->approve($receiptId);
+}
+```
 
 ## Error Handling
 
-The receipts resource follows the standard SDK error handling patterns:
-
 ```php
-$result = $teamleader->receipts()->add([
-    'title' => 'New Receipt',
-    'currency' => ['code' => 'EUR'],
-    'total' => ['tax_inclusive' => ['amount' => 50.00]]
-]);
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
 
-if (isset($result['error']) && $result['error']) {
-    $errorMessage = $result['message'] ?? 'Unknown error';
-    $statusCode = $result['status_code'] ?? 0;
+try {
+    $receipt = Teamleader::receipts()->create([
+        'title' => 'Office Lunch',
+        'currency' => ['code' => 'EUR'],
+        'total' => ['tax_inclusive' => ['amount' => 45.50]]
+    ]);
     
-    Log::error("Receipts API error: {$errorMessage}", [
-        'status_code' => $statusCode
+    // Approve and send
+    Teamleader::receipts()->approve($receipt['data']['id']);
+    Teamleader::receipts()->sendToBookkeeping($receipt['data']['id']);
+    
+} catch (\InvalidArgumentException $e) {
+    // Validation error (e.g., missing required field)
+    Log::error('Invalid receipt data: ' . $e->getMessage());
+    
+} catch (\Exception $e) {
+    // API error
+    Log::error('Failed to create/process receipt: ' . $e->getMessage());
+}
+
+// Handle validation errors
+try {
+    // Attempt to create with tax_exclusive (wrong for receipts)
+    $receipt = Teamleader::receipts()->create([
+        'title' => 'Receipt',
+        'currency' => ['code' => 'EUR'],
+        'total' => ['tax_exclusive' => ['amount' => 45.50]]
+    ]);
+    
+} catch (\InvalidArgumentException $e) {
+    // Will fail - receipts require tax_inclusive
+    echo "Error: " . $e->getMessage();
+    
+    // Correct approach
+    $receipt = Teamleader::receipts()->create([
+        'title' => 'Receipt',
+        'currency' => ['code' => 'EUR'],
+        'total' => ['tax_inclusive' => ['amount' => 45.50]]
     ]);
 }
-```
 
-## Rate Limiting
-
-Receipts API calls count towards your overall Teamleader API rate limit:
-
-- **List operations**: Not supported
-- **Info operations**: 1 request per call
-- **Create operations**: 1 request per call
-- **Update operations**: 1 request per call
-- **Delete operations**: 1 request per call
-- **Status change operations** (approve, refuse, markAsPendingReview, sendToBookkeeping): 1 request per call
-
-Rate limit cost: **1 request per method call**
-
-## Notes
-
-- The `add()` method returns the created receipt data including the new UUID
-- Receipts only support **tax-inclusive** amounts (no tax-exclusive option)
-- Receipts do not have due dates, payment references, or IBAN numbers (unlike invoices)
-- If `company_entity_id` is not provided, the default company entity will be used
-- The `supplier` field in responses can be either a company or contact type
-- Review status workflow: pending → approved/refused
-- Approved receipts can be sent to bookkeeping
-- Some operations (approve, refuse, markAsPendingReview, sendToBookkeeping) return no content (204 response)
-- Receipts are typically used for smaller expense items and purchases without formal invoices
-- Always attach a file (scanned receipt/photo) using the `file_id` field for proper documentation
-
-## Differences from Invoices
-
-Receipts are simpler than invoices with some key differences:
-
-- **No tax-exclusive amounts**: Only `tax_inclusive` is supported
-- **No payment tracking**: No `due_date`, `payment_reference`, or `iban_number` fields
-- **Simpler workflow**: Designed for quick expense tracking
-- **Use case**: Small purchases, petty cash, expense reports
-
-## Laravel Integration
-
-When using this resource in Laravel applications, you can inject the SDK:
-
-```php
-use McoreServices\TeamleaderSDK\TeamleaderSDK;
-
-class ReceiptController extends Controller
-{
-    public function store(Request $request, TeamleaderSDK $teamleader)
-    {
-        $validated = $request->validate([
-            'title' => 'required|string',
-            'supplier_id' => 'nullable|string',
-            'amount' => 'required|numeric',
-            'receipt_date' => 'required|date',
-            'file_id' => 'nullable|string'
-        ]);
-        
-        $receipt = $teamleader->receipts()->add([
-            'title' => $validated['title'],
-            'supplier_id' => $validated['supplier_id'],
-            'receipt_date' => $validated['receipt_date'],
-            'currency' => ['code' => 'EUR'],
-            'total' => [
-                'tax_inclusive' => [
-                    'amount' => $validated['amount']
-                ]
-            ],
-            'file_id' => $validated['file_id']
-        ]);
-        
-        return redirect()
-            ->route('receipts.show', $receipt['data']['id'])
-            ->with('success', 'Receipt created successfully');
+// Handle bookkeeping failures
+try {
+    Teamleader::receipts()->sendToBookkeeping($receiptId);
+    
+    sleep(2);
+    
+    $submissions = Teamleader::bookkeepingSubmissions()->forReceipt($receiptId);
+    
+    if ($submissions['data'][0]['status'] === 'failed') {
+        $error = $submissions['data'][0]['error']['message'];
+        Log::error("Bookkeeping submission failed: {$error}");
+        // Handle the error...
     }
     
-    public function approve(TeamleaderSDK $teamleader, string $id)
-    {
-        $teamleader->receipts()->approve($id);
-        
-        return back()->with('success', 'Receipt approved successfully');
-    }
+} catch (\Exception $e) {
+    Log::error('Error sending to bookkeeping: ' . $e->getMessage());
 }
 ```
 
-For more information, refer to the [Teamleader API Documentation](https://developer.focus.teamleader.eu/).
+## Related Resources
+
+- **[Expenses](expenses.md)** - List and search receipts
+- **[Bookkeeping Submissions](bookkeeping-submissions.md)** - Track submission status
+- **[Companies](../crm/companies.md)** - Manage suppliers
+- **[Files](../files/files.md)** - Attach receipt images
+- **[Incoming Invoices](incoming-invoices.md)** - For larger supplier invoices
+- **[Incoming Credit Notes](incoming-creditnotes.md)** - For supplier credits
