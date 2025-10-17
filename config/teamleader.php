@@ -177,22 +177,415 @@ return [
     | Teamleader Variables
     |--------------------------------------------------------------------------
     |
-    | To keep the .env file clean, we'll add variables in this file so you can re-use them throughout your codebase.
+    | Store frequently used Teamleader UUIDs here to keep your codebase clean.
+    | Access these values using: config('teamleader.custom_fields.contact.field_name')
+    |
+    | To get UUIDs from Teamleader, use the SDK list methods:
+    | - Teamleader::customFields()->list();
+    | - Teamleader::departments()->list();
+    | - Teamleader::users()->list();
+    | etc.
     |
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | Custom Fields
+    |--------------------------------------------------------------------------
+    |
+    | Store custom field UUIDs for easy reference throughout your application.
+    | Usage: config('teamleader.custom_fields.contact.newsletter_subscription')
+    |
+    */
     'custom_fields' => [
         'contact' => [
-            'custom_field_name' => 'custom_field_uuid',
+            // Example: 'newsletter_subscription' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+            // Example: 'preferred_language' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
         ],
+
         'company' => [
-            'custom_field_name' => 'custom_field_uuid',
+            // Example: 'industry_segment' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+            // Example: 'annual_revenue' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
         ],
 
-        // Add more custom fields here if needed
+        'deal' => [
+            // Example: 'deal_priority' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+            // Example: 'competitor' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        ],
+
+        'project' => [
+            // Example: 'project_complexity' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+            // Example: 'project_manager' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        ],
+
+        'invoice' => [
+            // Example: 'payment_reference' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        ],
     ],
 
-    'price_lists' => [
-        'price_lists_name' => 'price_list_uuid',
+    /*
+    |--------------------------------------------------------------------------
+    | Departments
+    |--------------------------------------------------------------------------
+    |
+    | Store department UUIDs for filtering and assignment.
+    | Usage: config('teamleader.departments.sales')
+    |
+    */
+    'departments' => [
+        // Example: 'sales' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'marketing' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'support' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'development' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Users
+    |--------------------------------------------------------------------------
+    |
+    | Store user UUIDs for assignments and filtering.
+    | Usage: config('teamleader.users.sales_manager')
+    |
+    */
+    'users' => [
+        // Example: 'sales_manager' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'account_manager' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'support_lead' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Teams
+    |--------------------------------------------------------------------------
+    |
+    | Store team UUIDs for group operations.
+    | Usage: config('teamleader.teams.sales_team')
+    |
+    */
+    'teams' => [
+        // Example: 'sales_team' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'support_team' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Deal Pipelines
+    |--------------------------------------------------------------------------
+    |
+    | Store pipeline UUIDs for deal management.
+    | Usage: config('teamleader.pipelines.sales')
+    |
+    */
+    'pipelines' => [
+        // Example: 'sales' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'enterprise' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'partnerships' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Deal Phases
+    |--------------------------------------------------------------------------
+    |
+    | Store phase UUIDs for deal progression.
+    | Usage: config('teamleader.deal_phases.qualified')
+    |
+    */
+    'deal_phases' => [
+        // Example: 'new' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'qualified' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'proposal' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'negotiation' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'closed_won' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Deal Sources
+    |--------------------------------------------------------------------------
+    |
+    | Store deal source UUIDs for tracking lead origins.
+    | Usage: config('teamleader.deal_sources.website')
+    |
+    */
+    'deal_sources' => [
+        // Example: 'website' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'referral' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'cold_call' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'social_media' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'event' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Lost Reasons
+    |--------------------------------------------------------------------------
+    |
+    | Store lost reason UUIDs for deal analysis.
+    | Usage: config('teamleader.lost_reasons.price')
+    |
+    */
+    'lost_reasons' => [
+        // Example: 'price' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'timing' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'competitor' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'no_budget' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Work Types
+    |--------------------------------------------------------------------------
+    |
+    | Store work type UUIDs for time tracking and billing.
+    | Usage: config('teamleader.work_types.consulting')
+    |
+    */
+    'work_types' => [
+        // Example: 'consulting' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'development' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'design' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'project_management' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'support' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Price Lists
+    |--------------------------------------------------------------------------
+    |
+    | Store price list UUIDs for product pricing.
+    | Usage: config('teamleader.price_lists.standard')
+    |
+    */
+    'price_lists' => [
+        // Example: 'standard' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'wholesale' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'retail' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'enterprise' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Payment Terms
+    |--------------------------------------------------------------------------
+    |
+    | Store payment term UUIDs for invoicing.
+    | Usage: config('teamleader.payment_terms.net_30')
+    |
+    */
+    'payment_terms' => [
+        // Example: 'immediate' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'net_30' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'net_60' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'end_of_month' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Tax Rates
+    |--------------------------------------------------------------------------
+    |
+    | Store tax rate UUIDs for invoicing and quotations.
+    | Usage: config('teamleader.tax_rates.vat_21')
+    |
+    */
+    'tax_rates' => [
+        // Example: 'vat_21' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'vat_12' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'vat_6' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'vat_0' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Business Types
+    |--------------------------------------------------------------------------
+    |
+    | Store business type UUIDs for company classification.
+    | Usage: config('teamleader.business_types.bv')
+    |
+    */
+    'business_types' => [
+        // Belgium examples:
+        // 'bv' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx', // Besloten Vennootschap
+        // 'nv' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx', // Naamloze Vennootschap
+        // 'vof' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx', // Vennootschap onder firma
+
+        // Netherlands examples:
+        // 'bv_nl' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // 'nv_nl' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+
+        // Other examples:
+        // 'ltd' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx', // UK Limited Company
+        // 'gmbh' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx', // German GmbH
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Product Categories
+    |--------------------------------------------------------------------------
+    |
+    | Store product category UUIDs for product organization.
+    | Usage: config('teamleader.product_categories.software')
+    |
+    */
+    'product_categories' => [
+        // Example: 'software' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'hardware' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'services' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'consulting' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Activity Types
+    |--------------------------------------------------------------------------
+    |
+    | Store activity type UUIDs for calendar events.
+    | Usage: config('teamleader.activity_types.meeting')
+    |
+    */
+    'activity_types' => [
+        // Example: 'meeting' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'call' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'task' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Call Outcomes
+    |--------------------------------------------------------------------------
+    |
+    | Store call outcome UUIDs for call tracking.
+    | Usage: config('teamleader.call_outcomes.interested')
+    |
+    */
+    'call_outcomes' => [
+        // Example: 'interested' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'not_interested' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'follow_up' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'voicemail' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Ticket Statuses
+    |--------------------------------------------------------------------------
+    |
+    | Store ticket status UUIDs for ticket management.
+    | Usage: config('teamleader.ticket_statuses.open')
+    |
+    */
+    'ticket_statuses' => [
+        // Example: 'open' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'in_progress' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'waiting_customer' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'resolved' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'closed' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Commercial Discounts
+    |--------------------------------------------------------------------------
+    |
+    | Store commercial discount UUIDs for pricing.
+    | Usage: config('teamleader.commercial_discounts.volume')
+    |
+    */
+    'commercial_discounts' => [
+        // Example: 'volume' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'seasonal' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'loyalty' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Units of Measure
+    |--------------------------------------------------------------------------
+    |
+    | Store unit of measure UUIDs for products.
+    | Usage: config('teamleader.units_of_measure.hour')
+    |
+    */
+    'units_of_measure' => [
+        // Example: 'hour' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'day' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'piece' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'meter' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'kilogram' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Document Templates
+    |--------------------------------------------------------------------------
+    |
+    | Store document template UUIDs for invoice/quotation generation.
+    | Usage: config('teamleader.document_templates.invoice_standard')
+    |
+    */
+    'document_templates' => [
+        // Example: 'invoice_standard' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'invoice_detailed' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'quotation_standard' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'creditnote_standard' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Project Groups
+    |--------------------------------------------------------------------------
+    |
+    | Store project group UUIDs for project organization.
+    | Usage: config('teamleader.project_groups.client_projects')
+    |
+    */
+    'project_groups' => [
+        // Example: 'client_projects' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'internal_projects' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+        // Example: 'r_and_d' => 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Tags
+    |--------------------------------------------------------------------------
+    |
+    | Commonly used tag names for easy reference.
+    | Note: Tags don't have UUIDs, but storing common tag names here
+    | helps maintain consistency across your application.
+    | Usage: config('teamleader.tags.vip')
+    |
+    */
+    'tags' => [
+        // Example: 'vip' => 'VIP Customer',
+        // Example: 'enterprise' => 'Enterprise',
+        // Example: 'needs_attention' => 'Needs Attention',
+        // Example: 'hot_lead' => 'Hot Lead',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Default Currency
+    |--------------------------------------------------------------------------
+    |
+    | Your organization's default currency code.
+    | Usage: config('teamleader.default_currency')
+    |
+    */
+    'default_currency' => env('TEAMLEADER_DEFAULT_CURRENCY', 'EUR'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Default Country
+    |--------------------------------------------------------------------------
+    |
+    | Your organization's default country code (ISO 3166-1 alpha-2).
+    | Usage: config('teamleader.default_country')
+    |
+    */
+    'default_country' => env('TEAMLEADER_DEFAULT_COUNTRY', 'BE'),
 ];

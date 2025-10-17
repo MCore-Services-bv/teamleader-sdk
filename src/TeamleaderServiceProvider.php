@@ -49,6 +49,7 @@ class TeamleaderServiceProvider extends ServiceProvider
                 Console\Commands\TeamleaderStatusCommand::class,
                 Console\Commands\TeamleaderHealthCommand::class,
                 Console\Commands\TeamleaderConfigValidateCommand::class,
+                Console\Commands\TeamleaderExportUuids::class,
             ]);
         }
 

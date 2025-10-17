@@ -47,7 +47,6 @@ phpunit-report.html
 
 # Build & Distribution
 /dist/
-/build/
 *.phar
 
 # Logs & Cache
@@ -72,7 +71,6 @@ yarn.lock
 /.sass-cache/
 
 # OS Files
-.DS_Store
 .DS_Store?
 ._*
 .Spotlight-V100
@@ -89,7 +87,6 @@ Desktop.ini
 
 # Backup files
 *.backup
-*~
 
 # Package files
 *.zip

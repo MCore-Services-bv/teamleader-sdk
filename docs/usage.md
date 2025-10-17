@@ -35,6 +35,87 @@ The SDK provides several configuration options in `config/teamleader.php`:
 - **Retry Behavior**: Set the number of retry attempts and delay between retries
 - **Rate Limiting**: Configure API rate limit behavior
 
+### Populating Teamleader Variables
+
+The `config/teamleader.php` file includes a comprehensive `Teamleader Variables` section where you can store frequently used UUIDs. This keeps your codebase clean and maintainable by centralizing all Teamleader resource IDs.
+
+#### Quick UUID Export
+
+Use the built-in artisan command to export all UUIDs:
+
+```bash
+# Export all UUIDs
+php artisan teamleader:export-uuids
+
+# Export specific resource UUIDs
+php artisan teamleader:export-uuids --resource=departments
+php artisan teamleader:export-uuids --resource=users
+php artisan teamleader:export-uuids --resource=deal-phases
+php artisan teamleader:export-uuids --resource=custom-fields
+```
+
+The command outputs properly formatted configuration ready to copy into your `config/teamleader.php` file.
+
+#### Manual UUID Retrieval
+
+You can also manually retrieve UUIDs using tinker:
+
+```bash
+php artisan tinker
+```
+
+```php
+// Example: Get departments
+Teamleader::departments()->list();
+
+// Example: Get work types  
+Teamleader::workTypes()->list();
+
+// Example: Get custom fields
+Teamleader::customFields()->list();
+```
+
+#### Using Configured UUIDs
+
+Once you've populated your config file, reference UUIDs throughout your application:
+
+```php
+// Creating a deal
+Teamleader::deals()->create([
+    'title' => 'New Enterprise Deal',
+    'phase_id' => config('teamleader.deal_phases.qualified'),
+    'source_id' => config('teamleader.deal_sources.website'),
+    'department_id' => config('teamleader.departments.sales'),
+]);
+
+// Creating an invoice
+Teamleader::invoices()->create([
+    'payment_term_id' => config('teamleader.payment_terms.net_30'),
+    'grouped_lines' => [[
+        'line_items' => [[
+            'quantity' => 1,
+            'tax_rate_id' => config('teamleader.tax_rates.vat_21'),
+            // ... other fields
+        ]]
+    ]]
+]);
+
+// Time tracking entry
+Teamleader::timeTracking()->create([
+    'work_type_id' => config('teamleader.work_types.consulting'),
+    // ... other fields
+]);
+```
+
+#### Benefits
+
+Centralizing UUIDs in config provides:
+- **Clean code**: `config('teamleader.departments.sales')` vs a raw UUID string
+- **Environment-specific**: Different IDs for dev/staging/production
+- **Easy updates**: Change UUIDs in one location
+- **Better readability**: Self-documenting code
+- **IDE support**: Autocomplete for config keys
+
 ## Authentication
 
 The SDK uses OAuth 2.0 for authentication. Here's how to set it up:
