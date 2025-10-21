@@ -127,28 +127,43 @@ class Deals extends Resource
     /**
      * List deals with enhanced filtering and sorting
      *
-     * @param  array  $filters  Filters to apply
-     * @param  array  $options  Additional options (sorting, pagination, includes)
+     * @param array $filters Filters to apply
+     * @param array $options Additional options (sorting, pagination, includes)
+     * @return array
      */
     public function list(array $filters = [], array $options = []): array
     {
-        $params = $this->createParams(
-            $filters,
-            $options['sort'] ?? null,
-            $options['sort_order'] ?? 'desc',
-            $options['page_size'] ?? 20,
-            $options['page_number'] ?? 1
-        );
+        $params = [];
 
-        // Apply includes
+        // Add filters
+        if (!empty($filters)) {
+            $params['filter'] = $filters;
+        }
+
+        // Add pagination
+        if (isset($options['page_size']) || isset($options['page_number'])) {
+            $params['page'] = [
+                'size' => $options['page_size'] ?? 20,
+                'number' => $options['page_number'] ?? 1,
+            ];
+        }
+
+        // Add sorting
+        if (isset($options['sort'])) {
+            $params['sort'] = $this->buildSort($options['sort'], $options['sort_order'] ?? 'desc');
+        }
+
+        // Add includes
         if (isset($options['include'])) {
-            $params = $this->applyIncludes($params, $options['include']);
+            $params['include'] = is_array($options['include'])
+                ? implode(',', $options['include'])
+                : $options['include'];
         }
 
         // Apply any pending includes from fluent interface
         $params = $this->applyPendingIncludes($params);
 
-        return $this->api->request('POST', $this->getBasePath().'.list', $params);
+        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
     }
 
     /**

@@ -93,6 +93,24 @@ class ActivityTypes extends Resource
     }
 
     /**
+     * List activity types with filtering and pagination
+     */
+    public function list(array $filters = [], array $options = []): array
+    {
+        $params = $this->buildQueryParams(
+            [],
+            $filters,
+            $options['sort'] ?? null,
+            $options['sort_order'] ?? 'asc',
+            $options['page_size'] ?? 20,
+            $options['page_number'] ?? 1,
+            $options['include'] ?? null
+        );
+
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
+    }
+
+    /**
      * Get activity types by specific IDs
      */
     public function byIds(array $ids, array $options = []): array

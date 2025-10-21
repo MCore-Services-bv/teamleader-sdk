@@ -25,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Added `$order` parameter with default value `'desc'` to maintain compatibility with parent class
     - Prevents fatal error: "Declaration of buildSort() must be compatible with parent class"
 
+- **Missing Public list() Method in ActivityTypes Resource**
+    - Added missing public `list()` method to `ActivityTypes` resource class
+    - Method was referenced by other public methods (`all()`, `byIds()`, `findByName()`) but not implemented
+    - Implements proper filtering and pagination support consistent with other read-only resources
+    - Fixes error: "Call to undefined method ActivityTypes::list()"
+    - Affects file: `src/Resources/Calendar/ActivityTypes.php`
+
 ### Changed
 - Updated `Subscriptions::buildSort()` to handle multiple input formats:
     - String sort field: `'field_name'`
