@@ -15,17 +15,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Laravel Pulse integration for monitoring
 - CLI tool for quick API exploration
 
-## v1.1.2 - 2025-10-21
-### Fixed
-- Fixed buildSort() method signature in Subscriptions to match parent class
-- Removed array type hint and added $order parameter
-- Explains the compatibility issue it solves
+## [1.1.2] - 2025-10-21
 
-## v1.1.1 - 2025-10-21
 ### Fixed
-- Changed buildFilters() and buildSort() from private to protected
-- Lists all 8 affected files
-- Explains the inheritance issue
+- **Method Signature Compatibility in Subscriptions Resource**
+    - Fixed `buildSort()` method signature in `Subscriptions` resource to match parent `Resource` class
+    - Changed from `buildSort(array $sort): array` to `buildSort($sort, string $order = 'desc'): array`
+    - Removed strict `array` type hint to support flexible parameter types (string, array, or structured array)
+    - Added `$order` parameter with default value `'desc'` to maintain compatibility with parent class
+    - Prevents fatal error: "Declaration of buildSort() must be compatible with parent class"
+
+### Changed
+- Updated `Subscriptions::buildSort()` to handle multiple input formats:
+    - String sort field: `'field_name'`
+    - Simple array: `['field' => 'name', 'order' => 'asc']`
+    - Structured sort array: `[['field' => 'name', 'order' => 'asc']]`
+
+## [1.1.1] - 2025-10-21
+
+### Fixed
+- **Method Visibility for Inheritance Compatibility**
+    - Changed `buildFilters()` and `buildSort()` methods from `private` to `protected` visibility in multiple resource classes
+    - Ensures proper inheritance hierarchy and prevents PHP access level violations
+    - Fixes fatal error: "Access level to [Resource]::buildSort() must be protected (as in class Resource) or weaker"
+
+  **Affected files:**
+    - `src/Resources/General/Departments.php`
+    - `src/Resources/General/Users.php`
+    - `src/Resources/General/Teams.php`
+    - `src/Resources/General/WorkTypes.php`
+    - `src/Resources/Projects/LegacyMilestones.php`
+    - `src/Resources/Deals/LostReasons.php`
+    - `src/Resources/Deals/Sources.php`
+    - `src/Resources/Invoicing/Invoices.php`
+
+### Changed
+- Standardized method visibility across all resource classes for consistent inheritance behavior
+- All helper methods used by parent class now use `protected` visibility instead of `private`
 
 ## [1.1.0-alpha] - 2024-10-16
 
@@ -304,7 +330,7 @@ Each release will include:
 
 ---
 
-**[Unreleased]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.0.0-alpha...HEAD
-**[1.0.0-alpha]**: https://github.com/mcore-services-bv/teamleader-sdk/releases/tag/v1.0.0-alpha
-**[1.1.1]**: https://github.com/mcore-services-bv/teamleader-sdk/releases/tag/v1.1.1
-**[1.1.2]**: https://github.com/mcore-services-bv/teamleader-sdk/releases/tag/v1.1.2
+**[Unreleased]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.2...HEAD
+**[1.1.2]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.1...v1.1.2
+**[1.1.1]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.0-alpha...v1.1.1
+**[1.1.0-alpha]**: https://github.com/mcore-services-bv/teamleader-sdk/releases/tag/v1.1.0-alpha
