@@ -129,7 +129,7 @@ class Sources extends Resource
     /**
      * Build filters array for the API request
      */
-    private function buildFilters(array $filters): array
+    protected function buildFilters(array $filters): array
     {
         $apiFilters = [];
 
@@ -146,7 +146,7 @@ class Sources extends Resource
      *
      * @param  mixed  $sort
      */
-    private function buildSort($sort): array
+    protected function buildSort($sort): array
     {
         // If already in correct format, return as-is
         if (is_array($sort) && isset($sort[0]['field'])) {

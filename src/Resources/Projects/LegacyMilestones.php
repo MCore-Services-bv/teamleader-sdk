@@ -293,7 +293,7 @@ class LegacyMilestones extends Resource
     /**
      * Build filters array for the API request
      */
-    private function buildFilters(array $filters): array
+    protected function buildFilters(array $filters): array
     {
         $apiFilters = [];
 
@@ -332,8 +332,10 @@ class LegacyMilestones extends Resource
 
     /**
      * Build sort array for the API request
+     * @param array $sort
+     * @param string $order
      */
-    private function buildSort(array $sort): array
+    protected function buildSort(array $sort, string $order = 'desc'): array
     {
         $apiSort = [];
 

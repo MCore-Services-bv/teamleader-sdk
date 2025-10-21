@@ -486,7 +486,7 @@ class Deals extends Resource
      * @param  array  $filters  User-provided filters
      * @return array API-formatted filters
      */
-    private function buildFilters(array $filters): array
+    protected function buildFilters(array $filters): array
     {
         $apiFilters = [];
 

@@ -133,7 +133,7 @@ class Departments extends Resource
     /**
      * Build filters array for the API request
      */
-    private function buildFilters(array $filters): array
+    protected function buildFilters(array $filters): array
     {
         $apiFilters = [];
 
@@ -157,9 +157,10 @@ class Departments extends Resource
     /**
      * Build sort array for the API request
      *
-     * @param  mixed  $sort
+     * @param array|string $sort
+     * @param string $order
      */
-    private function buildSort($sort): array
+    protected function buildSort($sort, string $order = 'desc'): array
     {
         // If already in correct format, return as-is
         if (is_array($sort) && isset($sort[0]['field'])) {

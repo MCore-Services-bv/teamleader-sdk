@@ -98,7 +98,7 @@ class PriceLists extends Resource
      * @param  array  $filters  Raw filters
      * @return array Processed filters for the API
      */
-    private function buildFilters(array $filters): array
+    protected function buildFilters(array $filters): array
     {
         $apiFilters = [];
 

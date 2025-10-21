@@ -191,7 +191,7 @@ class Notes extends Resource
     /**
      * Build filters array for the API request
      */
-    private function buildFilters(array $filters): array
+    protected function buildFilters(array $filters): array
     {
         $apiFilters = [];
 

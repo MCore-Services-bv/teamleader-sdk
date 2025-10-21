@@ -139,7 +139,7 @@ class LostReasons extends Resource
     /**
      * Build filters array for the API request
      */
-    private function buildFilters(array $filters): array
+    protected function buildFilters(array $filters): array
     {
         $apiFilters = [];
 
@@ -160,7 +160,7 @@ class LostReasons extends Resource
      * @param  mixed  $sort  Sort field or array
      * @param  string  $order  Sort order (when $sort is string)
      */
-    private function buildSort($sort, string $order = 'asc'): array
+    protected function buildSort($sort, string $order = 'asc'): array
     {
         // If already in correct format, return as-is
         if (is_array($sort) && isset($sort[0]) && is_array($sort[0]) && isset($sort[0]['field'])) {
