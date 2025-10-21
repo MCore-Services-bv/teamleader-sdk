@@ -435,8 +435,8 @@ php artisan teamleader:health
 ## 🤔 Questions?
 
 - **Documentation**: Check `/docs` folder
-- **Issues**: Search [existing issues](https://github.com/mcore-services/teamleader-sdk/issues)
-- **Discussions**: Start a [discussion](https://github.com/mcore-services/teamleader-sdk/discussions)
+- **Issues**: Search [existing issues](https://github.com/mcore-services-bv/teamleader-sdk/issues)
+- **Discussions**: Start a [discussion](https://github.com/mcore-services-bv/teamleader-sdk/discussions)
 - **Email**: help@mcore-services.be
 
 ## 📜 License

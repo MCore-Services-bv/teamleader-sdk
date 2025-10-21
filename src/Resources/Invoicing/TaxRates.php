@@ -336,7 +336,7 @@ class TaxRates extends Resource
     /**
      * Build sort parameters for the API request
      */
-    protected function buildSort(array $sort): array
+    protected function buildSort($sort, string $order = 'desc'): array
     {
         // Validate sort fields
         foreach ($sort as $sortItem) {

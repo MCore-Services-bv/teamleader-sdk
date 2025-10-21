@@ -614,7 +614,7 @@ class Projects extends Resource
     /**
      * Build sort array for API request
      */
-    protected function buildSort(array $sort): array
+    protected function buildSort($sort, string $order = 'desc'): array
     {
         if (isset($sort['field'])) {
             // Single sort field

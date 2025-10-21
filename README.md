@@ -40,8 +40,8 @@ We're actively seeking feedback on:
 4. 🐛 **Bug Reports** - Found an issue? Let us know!
 5. ✨ **Feature Requests** - What would make this better?
 
-**Report Issues:** [GitHub Issues](https://github.com/mcore-services/teamleader-sdk/issues)  
-**Ask Questions:** [GitHub Discussions](https://github.com/mcore-services/teamleader-sdk/discussions)  
+**Report Issues:** [GitHub Issues](https://github.com/mcore-services-bv/teamleader-sdk/issues)  
+**Ask Questions:** [GitHub Discussions](https://github.com/mcore-services-bv/teamleader-sdk/discussions)  
 **Email Us:** help@mcore-services.be
 
 ### Stability Timeline
@@ -918,8 +918,8 @@ The MIT License (MIT). Please see [LICENSE.md](LICENSE.md) for more information.
 
 - **Documentation**: [README.md](README.md)
 - **Email**: help@mcore-services.be
-- **Issues**: [GitHub Issues](https://github.com/mcore-services/teamleader-sdk/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/mcore-services/teamleader-sdk/discussions)
+- **Issues**: [GitHub Issues](https://github.com/mcore-services-bv/teamleader-sdk/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/mcore-services-bv/teamleader-sdk/discussions)
 - **Teamleader API**: [developer.focus.teamleader.eu](https://developer.focus.teamleader.eu/)
 
 ## 🗺️ Roadmap

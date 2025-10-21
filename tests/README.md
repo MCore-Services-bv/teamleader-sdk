@@ -434,8 +434,8 @@ public function it_logs_for_debugging(): void
 
 ## Questions?
 
-- **Issues:** [GitHub Issues](https://github.com/mcore-services/teamleader-sdk/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/mcore-services/teamleader-sdk/discussions)
+- **Issues:** [GitHub Issues](https://github.com/mcore-services-bv/teamleader-sdk/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/mcore-services-bv/teamleader-sdk/discussions)
 - **Email:** help@mcore-services.be
 
 ---

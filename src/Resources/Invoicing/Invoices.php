@@ -875,7 +875,7 @@ class Invoices extends Resource
     /**
      * Build sort array for the API request
      */
-    protected function buildSort(array $sort): array
+    protected function buildSort($sort, string $order = 'desc'): array
     {
         $apiSort = [];
 

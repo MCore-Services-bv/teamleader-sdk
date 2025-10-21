@@ -15,7 +15,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Laravel Pulse integration for monitoring
 - CLI tool for quick API exploration
 
-## [1.0.0-alpha] - 2024-10-16
+## v1.1.2 - 2025-10-21
+### Fixed
+- Fixed buildSort() method signature in Subscriptions to match parent class
+- Removed array type hint and added $order parameter
+- Explains the compatibility issue it solves
+
+## v1.1.1 - 2025-10-21
+### Fixed
+- Changed buildFilters() and buildSort() from private to protected
+- Lists all 8 affected files
+- Explains the inheritance issue
+
+## [1.1.0-alpha] - 2024-10-16
 
 ### 🎉 Initial Alpha Release
 
@@ -292,5 +304,7 @@ Each release will include:
 
 ---
 
-**[Unreleased]**: https://github.com/mcore-services/teamleader-sdk/compare/v1.0.0-alpha...HEAD
-**[1.0.0-alpha]**: https://github.com/mcore-services/teamleader-sdk/releases/tag/v1.0.0-alpha
+**[Unreleased]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.0.0-alpha...HEAD
+**[1.0.0-alpha]**: https://github.com/mcore-services-bv/teamleader-sdk/releases/tag/v1.0.0-alpha
+**[1.1.1]**: https://github.com/mcore-services-bv/teamleader-sdk/releases/tag/v1.1.1
+**[1.1.2]**: https://github.com/mcore-services-bv/teamleader-sdk/releases/tag/v1.1.2
