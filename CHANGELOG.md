@@ -38,6 +38,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Simple array: `['field' => 'name', 'order' => 'asc']`
     - Structured sort array: `[['field' => 'name', 'order' => 'asc']]`
 
+### Enhanced
+- **Files Resource API Compatibility**
+    - Added custom `buildQueryParams()` method to properly handle Files API-specific requirements
+    - Implemented strict validation for subject filter structure (type and id required)
+    - Added validation for subject types against Teamleader API specifications
+    - Validates subject types: `company`, `contact`, `deal`, `invoice`, `creditNote`, `nextgenProject`, `ticket`
+    - Ensures filters are formatted correctly for the Files API endpoint
+    - Throws descriptive `InvalidArgumentException` when:
+        - Subject filter is missing required fields (type or id)
+        - Subject type is not in the valid types list
+    - Improves error messages for better debugging experience
+    - Essential for file sync operations and bulk file management
+    - Affects file: `src/Resources/Files/Files.php`
+
 ## [1.1.1] - 2025-10-21
 
 ### Fixed
