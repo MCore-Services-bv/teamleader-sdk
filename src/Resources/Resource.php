@@ -324,89 +324,10 @@ abstract class Resource
     }
 
     /**
-     * Build query parameters for API requests
-     *
-     * Constructs a properly formatted array of query parameters including:
-     * - Includes (sideloading)
-     * - Filters
-     * - Sorting
-     * - Pagination
-     *
-     * Handles validation and formatting of all parameter types.
-     *
-     * @param  array  $includes  Include strings for sideloading
-     * @param  array  $filters  Filter criteria
-     * @param  string|null  $sort  Field to sort by
-     * @param  string  $sortOrder  Sort direction ('asc' or 'desc')
-     * @param  int  $pageSize  Number of results per page
-     * @param  int  $pageNumber  Page number to retrieve
-     * @param  string|null  $include  Alternative include parameter
-     * @return array Formatted query parameters ready for API request
+     * NOTE: buildQueryParams and buildSort methods are now provided by FilterTrait
+     * The old implementations that called buildFilters() have been removed
+     * to prevent conflicts with the trait's applyFilters() method
      */
-    protected function buildQueryParams(
-        array $includes = [],
-        array $filters = [],
-        ?string $sort = null,
-        string $sortOrder = 'desc',
-        int $pageSize = 20,
-        int $pageNumber = 1,
-        ?string $include = null
-    ): array {
-        $params = [];
-
-        // Handle includes (sideloading)
-        if (! empty($includes) || ! empty($include)) {
-            $includeString = $include ?? implode(',', $includes);
-            $params['include'] = $includeString;
-        }
-
-        // Handle filters
-        if (! empty($filters)) {
-            $params['filter'] = $this->buildFilters($filters);
-        }
-
-        // Handle sorting
-        if ($sort !== null) {
-            $params['sort'] = $this->buildSort($sort, $sortOrder);
-        }
-
-        // Handle pagination
-        if ($this->supportsPagination) {
-            $params['page'] = [
-                'size' => $pageSize,
-                'number' => $pageNumber,
-            ];
-        }
-
-        return $params;
-    }
-
-    /**
-     * Build sort parameter from field and order
-     *
-     * Formats sort parameters according to Teamleader API requirements.
-     * Supports multiple sort fields with different directions.
-     *
-     * @param  string|array  $sort  Field name(s) to sort by
-     * @param  string  $order  Sort direction: 'asc' or 'desc'
-     * @return array|string Formatted sort parameter
-     */
-    protected function buildSort($sort, string $order = 'desc')
-    {
-        if (is_array($sort)) {
-            return array_map(function ($field) use ($order) {
-                return [
-                    'field' => $field,
-                    'order' => $order,
-                ];
-            }, $sort);
-        }
-
-        return [
-            'field' => $sort,
-            'order' => $order,
-        ];
-    }
 
     /**
      * Invalidate cache after updates

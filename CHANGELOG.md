@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Laravel Pulse integration for monitoring
 - CLI tool for quick API exploration
 
-## [1.1.2] - 2025-10-21
+## [1.1.2] - 2025-10-24
 
 ### Fixed
 - **Method Signature Compatibility in Subscriptions Resource**
@@ -31,6 +31,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Implements proper filtering and pagination support consistent with other read-only resources
     - Fixes error: "Call to undefined method ActivityTypes::list()"
     - Affects file: `src/Resources/Calendar/ActivityTypes.php`
+
+- **Resource.php Method Conflict with FilterTrait**
+    - Removed deprecated `buildQueryParams()` method from `Resource` base class (lines 346-382)
+    - Removed deprecated `buildSort()` method from `Resource` base class (lines 384-409)
+    - Fixed fatal error: "Call to undefined method buildFilters()" in Companies and other resources
+    - The old methods were calling non-existent `buildFilters()` and conflicting with `FilterTrait`
+    - Now exclusively uses `FilterTrait` methods: `buildQueryParams()`, `applyFilters()`, `applySorting()`, `applyPagination()`, `applyIncludes()`
+    - Ensures all resources use consistent query building through the trait
+    - Prevents method signature conflicts between base class and trait
+    - Affects file: `src/Resources/Resource.php`
+    - **Impact**: This fix resolves sync command failures where list() operations would fail with undefined method errors
 
 ### Changed
 - Updated `Subscriptions::buildSort()` to handle multiple input formats:
@@ -51,6 +62,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Improves error messages for better debugging experience
     - Essential for file sync operations and bulk file management
     - Affects file: `src/Resources/Files/Files.php`
+
+- **Query Building Architecture**
+    - Standardized all query building through `FilterTrait` across all resources
+    - Improved consistency between resource classes for filters, sorting, pagination
+    - Better separation of concerns: base Resource class handles documentation/caching, FilterTrait handles query construction
 
 ## [1.1.1] - 2025-10-21
 
