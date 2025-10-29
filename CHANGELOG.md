@@ -15,6 +15,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Laravel Pulse integration for monitoring
 - CLI tool for quick API exploration
 
+## [1.1.3] - 2025-10-29
+
+### Fixed
+- **Missing Migrations Directory Structure**
+    - Added `database/migrations/` directory to package structure
+    - Created `0001_01_01_999999_create_teamleader_tokens_table.php` migration file
+    - Fixes error: "Can't locate path: <vendor/mcore-services/teamleader-sdk/src/../database/migrations>"
+    - Error occurred when running `php artisan vendor:publish --provider="McoreServices\TeamleaderSDK\TeamleaderServiceProvider"`
+    - Migration file was previously loaded via `loadMigrationsFrom()` but directory didn't exist for publishing
+    - Now both `loadMigrationsFrom()` and `publishes()` in TeamleaderServiceProvider work correctly
+    - Affects file: `database/migrations/2024_01_01_000000_create_teamleader_tokens_table.php`
+    - **Impact**: Eliminates vendor:publish error while maintaining automatic migration execution
+
+### Enhanced
+- **Token Storage Schema**
+    - Migration creates `teamleader_tokens` table with optimized schema:
+        - `access_token` (VARCHAR 500) - Stores OAuth access token
+        - `refresh_token` (VARCHAR 500) - Stores OAuth refresh token
+        - `expires_at` (TIMESTAMP) - Token expiration time (indexed for performance)
+        - Standard Laravel timestamps (`created_at`, `updated_at`)
+    - Added index on `expires_at` column for efficient token expiration queries
+    - Supports automatic token refresh workflow
+    - Database-backed token persistence (replacing cache-based storage)
+
 ## [1.1.2] - 2025-10-24
 
 ### Fixed
@@ -367,7 +391,8 @@ Each release will include:
 
 ---
 
-**[Unreleased]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.2...HEAD
+**[Unreleased]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.3...HEAD
+**[1.1.3]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.2...v1.1.3
 **[1.1.2]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.1...v1.1.2
 **[1.1.1]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.0-alpha...v1.1.1
 **[1.1.0-alpha]**: https://github.com/mcore-services-bv/teamleader-sdk/releases/tag/v1.1.0-alpha
