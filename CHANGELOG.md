@@ -15,6 +15,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Laravel Pulse integration for monitoring
 - CLI tool for quick API exploration
 
+## [1.1.4] - 2025-10-30
+
+### Fixed
+- **Method Visibility in LegacyMilestones Resource**
+    - Changed `validateId()` method from `private` to `protected` visibility to match parent class requirements
+    - Changed `validateCreateData()` method from `private` to `protected` for consistency
+    - Changed `isValidDate()` method from `private` to `protected` for potential inheritance
+    - Fixes fatal error: "Access level to LegacyMilestones::validateId() must be protected (as in class Resource) or weaker"
+    - Ensures proper inheritance hierarchy and prevents PHP access level violations
+    - Affects file: `src/Resources/Projects/LegacyMilestones.php`
+    - **Impact**: Resolves milestone sync command failures where forProject() operations would fail with access level errors
+
+### Changed
+- Standardized all validation methods in LegacyMilestones to use `protected` visibility for consistency with inheritance patterns
+
 ## [1.1.3] - 2025-10-29
 
 ### Fixed
@@ -391,7 +406,8 @@ Each release will include:
 
 ---
 
-**[Unreleased]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.3...HEAD
+**[Unreleased]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.4...HEAD
+**[1.1.4]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.3...v1.1.4
 **[1.1.3]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.2...v1.1.3
 **[1.1.2]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.1...v1.1.2
 **[1.1.1]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.0-alpha...v1.1.1

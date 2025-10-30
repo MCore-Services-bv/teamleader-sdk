@@ -109,7 +109,7 @@ class LegacyMilestones extends Resource
      *
      * @throws InvalidArgumentException
      */
-    private function validateId(string $id): void
+    protected function validateId(string $id): void
     {
         if (empty($id)) {
             throw new InvalidArgumentException('Milestone ID cannot be empty');
@@ -143,7 +143,7 @@ class LegacyMilestones extends Resource
      *
      * @throws InvalidArgumentException
      */
-    private function validateCreateData(array $data): void
+    protected function validateCreateData(array $data): void
     {
         // Required fields
         $required = ['project_id', 'name', 'due_on', 'responsible_user_id'];
@@ -178,7 +178,7 @@ class LegacyMilestones extends Resource
     /**
      * Check if date is in valid format (Y-m-d)
      */
-    private function isValidDate(string $date): bool
+    protected function isValidDate(string $date): bool
     {
         $d = DateTime::createFromFormat('Y-m-d', $date);
 
