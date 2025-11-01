@@ -124,5 +124,3 @@ token_cache.json
 /examples/config.php
 /examples/tokens.php
 sandbox_test.php
-
-fix-pint.sh
