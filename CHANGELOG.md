@@ -15,6 +15,85 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Laravel Pulse integration for monitoring
 - CLI tool for quick API exploration
 
+## [1.1.5] - 2025-11-01
+
+### Fixed
+- **CRITICAL: Token Storage Schema Mismatch**
+    - Fixed critical bug where tokens were not persisting to database, only to cache
+    - Root cause: Migration file created incomplete schema missing `token_type` and `expires_in` columns
+    - **Impact**: Token refresh failures after cache expiry, lost authentication on app restart
+    - Removed migration-based table creation (introduced in v1.1.3)
+    - Reverted to automatic table creation via `TokenService::ensureTokensTableExists()`
+    - Table now created automatically on first OAuth flow with correct schema
+    - Affects files:
+        - Removed: `database/migrations/0001_01_01_999999_create_teamleader_tokens_table.php`
+        - Updated: `src/TeamleaderServiceProvider.php` (removed migration loading/publishing)
+
+### Changed
+- Simplified installation process - no `php artisan migrate` required
+- Removed `database/migrations/` directory from package
+- Updated `TeamleaderServiceProvider`:
+    - Removed `loadMigrationsFrom()` call
+    - Removed migration publishing from `publishes()`
+- SDK now automatically creates `teamleader_tokens` table when needed
+
+### Migration Guide
+
+**For existing installations with buggy table:**
+
+```bash
+# 1. Update SDK
+composer update mcore-services/teamleader-sdk
+
+# 2. Drop old table
+php artisan tinker
+>>> Schema::dropIfExists('teamleader_tokens');
+
+# 3. Clear caches
+php artisan cache:clear
+php artisan config:clear
+
+# 4. Re-authenticate
+# Visit /teamleader/authorize to trigger table recreation with correct schema
+```
+
+**For new installations:**
+- No action required - table created automatically on first OAuth flow ✅
+
+### Technical Details
+
+**Correct table schema (now auto-created):**
+```sql
+CREATE TABLE teamleader_tokens (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    access_token TEXT NOT NULL,
+    refresh_token TEXT,
+    token_type VARCHAR(50) DEFAULT 'Bearer',  -- Was missing in migration
+    expires_in INT NOT NULL,                   -- Was missing in migration  
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP,
+    INDEX expires_at_index (expires_at),
+    INDEX updated_at_index (updated_at)
+);
+```
+
+### Breaking Changes
+- None - existing installations continue to work
+- Users with incomplete table schema should follow migration guide above
+
+### Benefits
+- ✅ Automatic table creation - simpler user experience
+- ✅ Schema always correct - defined in single source of truth
+- ✅ Self-healing - recreates table if deleted
+- ✅ No migration files to manage
+- ✅ Fixes token persistence issues
+
+### Known Issues Resolved
+- Tokens not persisting to database (#issue-number-here)
+- Token refresh failing after cache expiry (#issue-number-here)
+- Silent database insert failures in TokenService (#issue-number-here)
+
 ## [1.1.4] - 2025-10-30
 
 ### Fixed
@@ -407,6 +486,7 @@ Each release will include:
 ---
 
 **[Unreleased]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.4...HEAD
+**[1.1.5]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.4...v1.1.5
 **[1.1.4]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.3...v1.1.4
 **[1.1.3]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.2...v1.1.3
 **[1.1.2]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.1...v1.1.2

@@ -36,14 +36,6 @@ class TeamleaderServiceProvider extends ServiceProvider
             __DIR__.'/../config/teamleader.php' => config_path('teamleader.php'),
         ], 'teamleader-config');
 
-        // Publish migrations
-        $this->publishes([
-            __DIR__.'/../database/migrations' => database_path('migrations'),
-        ], 'teamleader-migrations');
-
-        // Load migrations
-        $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
-
         // Register commands
         if ($this->app->runningInConsole()) {
             $this->commands([

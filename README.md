@@ -105,6 +105,8 @@ We're actively seeking feedback on:
 - **Extensions**: ext-json, ext-mbstring
 - **Database**: MySQL 5.7+, PostgreSQL 10+, or SQLite 3.8+
 
+---
+
 ## 🚀 Installation
 
 ### 1. Install via Composer
@@ -116,22 +118,12 @@ composer require mcore-services/teamleader-sdk
 ### 2. Publish Configuration
 
 ```bash
-php artisan vendor:publish --provider="McoreServices\TeamleaderSDK\TeamleaderServiceProvider"
+php artisan vendor:publish --tag=teamleader-config
 ```
 
 This creates `config/teamleader.php` with extensive configuration options.
 
-### 3. Run Migrations
-
-Create the tokens table for persistent OAuth token storage:
-
-```bash
-php artisan migrate
-```
-
-The SDK will create a `teamleader_tokens` table automatically.
-
-### 4. Configure Environment
+### 3. Configure Environment
 
 Add your Teamleader credentials to `.env`:
 
@@ -147,12 +139,39 @@ TEAMLEADER_CACHING_ENABLED=true
 TEAMLEADER_LOGGING_ENABLED=true
 ```
 
-### 5. Register Your Integration
+### 4. Set Up Authentication Routes
+
+Create routes for the OAuth flow:
+
+```php
+// routes/web.php
+use App\Http\Controllers\TeamleaderAuthController;
+
+Route::get('/teamleader/authorize', [TeamleaderAuthController::class, 'authorize'])
+    ->name('teamleader.authorize');
+    
+Route::get('/auth/teamleader/callback', [TeamleaderAuthController::class, 'callback'])
+    ->name('teamleader.callback');
+```
+
+### 5. Complete OAuth Flow
+
+The SDK automatically creates the required `teamleader_tokens` database table when you first authenticate with Teamleader. Simply visit the authorization URL:
+
+```
+https://your-app.test/teamleader/authorize
+```
+
+The table is created automatically with the correct schema on first use. No migrations required! ✅
+
+### 6. Register Your Integration
 
 1. Visit [Teamleader Marketplace](https://marketplace.teamleader.eu/)
 2. Create a new integration
 3. Configure your redirect URIs
 4. Set appropriate scopes for your needs
+
+---
 
 ## 📚 Quick Start
 
@@ -197,28 +216,12 @@ public function callback(Request $request)
             ->with('success', 'Successfully connected to Teamleader!');
     }
     
-    return redirect('/auth/error')
-        ->with('error', 'Failed to authenticate with Teamleader');
-}
-
-// Check authentication status
-public function dashboard()
-{
-    if (!$this->teamleader->isAuthenticated()) {
-        return redirect('/auth/teamleader');
-    }
-    
-    $user = $this->teamleader->users()->me();
-    return view('dashboard', compact('user'));
-}
-
-// Logout
-public function logout()
-{
-    $this->teamleader->logout();
-    return redirect('/')->with('success', 'Logged out successfully');
+    return redirect('/dashboard')
+        ->with('error', 'Failed to connect to Teamleader');
 }
 ```
+
+> **Note:** On successful authentication, the SDK automatically creates the `teamleader_tokens` table and stores your OAuth tokens. The table includes proper indexes for efficient token refresh operations.
 
 ## 💡 Usage Examples
 
