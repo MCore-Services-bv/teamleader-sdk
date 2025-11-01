@@ -15,6 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Laravel Pulse integration for monitoring
 - CLI tool for quick API exploration
 
+## [1.1.6] - 2025-11-01
+
+### Fixed
+- **Critical: Includes Parameter Name**
+    - Changed FilterTrait to use `includes` (plural) instead of `include` (singular)
+    - Fixes sideloading for all resources (companies.info, products.info, etc.)
+    - Aligns with official Teamleader API specification
+    - Affects: All resources supporting sideloading/includes
+    - Impact: Critical bug fix - previous implementation caused API errors
+
 ## [1.1.5] - 2025-11-01
 
 ### Fixed
@@ -485,7 +495,8 @@ Each release will include:
 
 ---
 
-**[Unreleased]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.4...HEAD
+**[Unreleased]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.6...HEAD
+**[1.1.6]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.5...v1.1.6
 **[1.1.5]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.4...v1.1.5
 **[1.1.4]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.3...v1.1.4
 **[1.1.3]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.2...v1.1.3

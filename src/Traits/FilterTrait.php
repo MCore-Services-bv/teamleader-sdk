@@ -91,7 +91,10 @@ trait FilterTrait
     }
 
     /**
-     * Apply includes for sideloading related resources (enhanced version).
+     * Apply includes for sideloading related resources (FIXED VERSION).
+     *
+     * CRITICAL FIX: Changed to use 'includes' (plural) instead of 'include' (singular)
+     * because the Teamleader API requires 'includes' for most endpoints (companies.info, products.info, etc.)
      *
      * @param  array  $params  The current parameters
      * @param  string|array  $includes  The includes to apply
@@ -107,13 +110,15 @@ trait FilterTrait
                 });
 
                 if (! empty($validIncludes)) {
-                    $params['include'] = implode(',', $validIncludes);
+                    // FIXED: Changed from 'include' to 'includes' (plural)
+                    $params['includes'] = implode(',', $validIncludes);
                 }
             } else {
                 // Single include string
                 $trimmedInclude = trim($includes);
                 if (! empty($trimmedInclude)) {
-                    $params['include'] = $trimmedInclude;
+                    // FIXED: Changed from 'include' to 'includes' (plural)
+                    $params['includes'] = $trimmedInclude;
                 }
             }
         }
@@ -192,6 +197,16 @@ trait FilterTrait
     }
 
     /**
+     * Include custom fields
+     *
+     * @return static
+     */
+    public function withCustomFields()
+    {
+        return $this->with('custom_fields');
+    }
+
+    /**
      * Include multiple common relationships at once
      *
      * @return static
@@ -218,7 +233,7 @@ trait FilterTrait
     }
 
     /**
-     * Get the current pending includes
+     * Get pending includes
      */
     protected function getPendingIncludes(): array
     {
@@ -255,7 +270,7 @@ trait FilterTrait
     protected function buildQueryParams(
         array $baseParams = [],
         array $filters = [],
-        $sort = null,
+              $sort = null,
         string $sortOrder = 'asc',
         int $pageSize = 20,
         int $pageNumber = 1,
