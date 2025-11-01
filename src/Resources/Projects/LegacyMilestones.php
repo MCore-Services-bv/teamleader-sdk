@@ -332,8 +332,8 @@ class LegacyMilestones extends Resource
 
     /**
      * Build sort array for the API request
-     * @param array $sort
-     * @param string $order
+     *
+     * @param  array  $sort
      */
     protected function buildSort($sort, string $order = 'desc'): array
     {

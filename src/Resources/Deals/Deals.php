@@ -127,16 +127,15 @@ class Deals extends Resource
     /**
      * List deals with enhanced filtering and sorting
      *
-     * @param array $filters Filters to apply
-     * @param array $options Additional options (sorting, pagination, includes)
-     * @return array
+     * @param  array  $filters  Filters to apply
+     * @param  array  $options  Additional options (sorting, pagination, includes)
      */
     public function list(array $filters = [], array $options = []): array
     {
         $params = [];
 
         // Add filters
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = $filters;
         }
 
@@ -163,7 +162,7 @@ class Deals extends Resource
         // Apply any pending includes from fluent interface
         $params = $this->applyPendingIncludes($params);
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**

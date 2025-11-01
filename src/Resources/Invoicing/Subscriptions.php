@@ -445,8 +445,8 @@ class Subscriptions extends Resource
 
     /**
      * Build sort array for API request
-     * @param array $sort
-     * @param string $order
+     *
+     * @param  array  $sort
      */
     protected function buildSort($sort, string $order = 'desc'): array
     {

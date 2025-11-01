@@ -87,7 +87,7 @@ class Files extends Resource
     protected function buildQueryParams(
         array $baseParams = [],
         array $filters = [],
-              $sort = null,
+        $sort = null,
         string $sortOrder = 'asc',
         int $pageSize = 20,
         int $pageNumber = 1,
@@ -96,7 +96,7 @@ class Files extends Resource
         $params = $baseParams;
 
         // Build filter object - Files API requires subject filter
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $filterObj = [];
 
             // Handle subject filter (required for Files API)
@@ -104,7 +104,7 @@ class Files extends Resource
                 $subject = $filters['subject'];
 
                 // Validate subject structure
-                if (!isset($subject['type']) || !isset($subject['id'])) {
+                if (! isset($subject['type']) || ! isset($subject['id'])) {
                     throw new InvalidArgumentException(
                         'subject filter must contain both type and id'
                     );
@@ -112,9 +112,9 @@ class Files extends Resource
 
                 // Validate subject type
                 $validTypes = ['company', 'contact', 'deal', 'invoice', 'creditNote', 'nextgenProject', 'ticket'];
-                if (!in_array($subject['type'], $validTypes)) {
+                if (! in_array($subject['type'], $validTypes)) {
                     throw new InvalidArgumentException(
-                        "Invalid subject type: {$subject['type']}. Must be one of: " . implode(', ', $validTypes)
+                        "Invalid subject type: {$subject['type']}. Must be one of: ".implode(', ', $validTypes)
                     );
                 }
 
@@ -125,7 +125,7 @@ class Files extends Resource
             }
 
             // Only add filter if we have something
-            if (!empty($filterObj)) {
+            if (! empty($filterObj)) {
                 $params['filter'] = $filterObj;
             }
         }
@@ -133,7 +133,7 @@ class Files extends Resource
         // Build sort object
         if ($sort !== null) {
             $direction = strtolower($sortOrder) === 'asc' ? '' : '-';
-            $params['sort'] = [$direction . $sort];
+            $params['sort'] = [$direction.$sort];
         }
 
         // Build page object
@@ -162,7 +162,7 @@ class Files extends Resource
             $options['include'] ?? null
         );
 
-        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
@@ -174,7 +174,7 @@ class Files extends Resource
             throw new InvalidArgumentException('File ID is required');
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.info', [
+        return $this->api->request('POST', $this->getBasePath().'.info', [
             'id' => $id,
         ]);
     }
@@ -203,8 +203,8 @@ class Files extends Resource
         }
 
         $validSubjectTypes = ['company', 'contact', 'deal', 'invoice', 'creditNote', 'nextgenProject', 'ticket'];
-        if (!in_array($subjectType, $validSubjectTypes)) {
-            throw new InvalidArgumentException('Invalid subject type. Must be one of: ' . implode(', ', $validSubjectTypes));
+        if (! in_array($subjectType, $validSubjectTypes)) {
+            throw new InvalidArgumentException('Invalid subject type. Must be one of: '.implode(', ', $validSubjectTypes));
         }
 
         $params = [
@@ -219,7 +219,7 @@ class Files extends Resource
             $params['folder'] = $folder;
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.upload', $params);
+        return $this->api->request('POST', $this->getBasePath().'.upload', $params);
     }
 
     /**
@@ -234,7 +234,7 @@ class Files extends Resource
             throw new InvalidArgumentException('File ID is required');
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.download', [
+        return $this->api->request('POST', $this->getBasePath().'.download', [
             'id' => $id,
         ]);
     }
@@ -250,7 +250,7 @@ class Files extends Resource
             throw new InvalidArgumentException('File ID is required');
         }
 
-        return $this->api->request('POST', $this->getBasePath() . '.delete', [
+        return $this->api->request('POST', $this->getBasePath().'.delete', [
             'id' => $id,
         ]);
     }

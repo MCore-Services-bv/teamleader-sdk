@@ -157,8 +157,7 @@ class Departments extends Resource
     /**
      * Build sort array for the API request
      *
-     * @param array|string $sort
-     * @param string $order
+     * @param  array|string  $sort
      */
     protected function buildSort($sort, string $order = 'desc'): array
     {
