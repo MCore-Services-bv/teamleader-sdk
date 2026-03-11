@@ -69,7 +69,7 @@ $orders = Teamleader::orders()->list([], [
 
 ### `info()`
 
-Get detailed information about a specific order.
+Get detailed information about a specific order, including full grouped line items.
 
 **Parameters:**
 - `id` (string): Order UUID
@@ -90,8 +90,6 @@ $order = Teamleader::orders()
 ```
 
 ## Helper Methods
-
-The Orders resource provides convenient helper methods:
 
 ### `byIds()`
 
@@ -131,7 +129,7 @@ $orders = Teamleader::orders()->list([
 
 ## Sideloading
 
-Load related data in a single request:
+Load related data in a single request.
 
 ### Available Includes
 
@@ -140,12 +138,12 @@ Load related data in a single request:
 ### Usage
 
 ```php
-// With custom fields
+// With custom fields on info()
 $order = Teamleader::orders()
     ->with('custom_fields')
     ->info('order-uuid');
 
-// In list() calls
+// With custom fields on list()
 $orders = Teamleader::orders()->list([], [
     'includes' => 'custom_fields'
 ]);
@@ -155,127 +153,248 @@ $orders = Teamleader::orders()->list([], [
 
 ### Order Object (List)
 
-```php
-[
-    'id' => 'order-uuid',
-    'name' => 'Order #O2024-001',
-    'order_date' => '2024-01-15',
-    'delivery_date' => '2024-01-22',
-    'payment_term' => [
-        'type' => 'cash',
-        'days' => null
-    ],
-    'total' => [
-        'tax_exclusive' => 1000.00,
-        'tax_inclusive' => 1210.00,
-        'taxes' => [
-            [
-                'rate' => 0.21,
-                'amount' => 210.00
-            ]
+The `list()` endpoint returns a summary of each order. Note that `total` sub-objects contain `amount` and `currency`.
+
+```json
+{
+  "data": [
+    {
+      "id": "order-uuid",
+      "name": "General costs",
+      "order_date": "2024-01-15",
+      "order_number": 32,
+      "delivery_date": "2024-01-22",
+      "payment_term": {
+        "type": "after_invoice_date",
+        "days": 30
+      },
+      "total": {
+        "tax_exclusive": {
+          "amount": 1000.00,
+          "currency": "EUR"
+        },
+        "tax_inclusive": {
+          "amount": 1210.00,
+          "currency": "EUR"
+        },
+        "purchase_price_tax_exclusive": {
+          "amount": 750.00,
+          "currency": "EUR"
+        },
+        "purchase_price_tax_inclusive": {
+          "amount": 907.50,
+          "currency": "EUR"
+        },
+        "taxes": [
+          {
+            "rate": 0.21,
+            "taxable": {
+              "amount": 1000.00,
+              "currency": "EUR"
+            },
+            "tax": {
+              "amount": 210.00,
+              "currency": "EUR"
+            }
+          }
         ]
-    ],
-    'supplier' => [
-        'type' => 'company',
-        'id' => 'company-uuid'
-    ],
-    'department' => [
-        'id' => 'department-uuid'
-    ],
-    'deal' => [
-        'id' => 'deal-uuid'
-    ],
-    'project' => [
-        'id' => 'project-uuid'
-    ],
-    'assignee' => [
-        'type' => 'user',
-        'id' => 'user-uuid'
-    ],
-    'web_url' => 'https://focus.teamleader.eu/order_detail.php?id=123'
-]
+      },
+      "web_url": "https://focus.teamleader.eu/order_detail.php?id=order-uuid",
+      "supplier": {
+        "type": "company",
+        "id": "company-uuid"
+      },
+      "department": {
+        "type": "department",
+        "id": "department-uuid"
+      },
+      "deal": {
+        "type": "deal",
+        "id": "deal-uuid"
+      },
+      "project": {
+        "type": "project",
+        "id": "project-uuid"
+      },
+      "assignee": {
+        "type": "user",
+        "id": "user-uuid"
+      }
+    }
+  ]
+}
 ```
 
 ### Order Object (Info)
 
-The `info()` endpoint returns more detailed information including:
+The `info()` endpoint returns full detail including `grouped_lines`. Line items now include `project`, `group`, and `purchase_price` per item, and each total sub-object includes before-discount variants.
 
-```php
-[
-    'id' => 'order-uuid',
-    'name' => 'Order #O2024-001',
-    'order_date' => '2024-01-15',
-    'delivery_date' => '2024-01-22',
-    'payment_term' => [
-        'type' => 'after_invoice_date',
-        'days' => 30
-    ],
-    'grouped_lines' => [
-        [
-            'section' => [
-                'title' => 'Products'
-            ],
-            'line_items' => [
-                [
-                    'product' => [
-                        'id' => 'product-uuid'
-                    ],
-                    'quantity' => 10,
-                    'description' => 'Premium Package',
-                    'unit_price' => [
-                        'amount' => 100.00,
-                        'tax' => 'excluding'
-                    ],
-                    'total' => [
-                        'tax_exclusive' => 1000.00,
-                        'tax_inclusive' => 1210.00
-                    ]
-                ]
-            ]
+```json
+{
+  "data": {
+    "id": "order-uuid",
+    "name": "General costs",
+    "order_date": "2024-01-15",
+    "order_number": 32,
+    "delivery_date": "2024-01-22",
+    "payment_term": {
+      "type": "after_invoice_date",
+      "days": 30
+    },
+    "grouped_lines": [
+      {
+        "section": {
+          "title": "Products"
+        },
+        "line_items": [
+          {
+            "product": {
+              "type": "product",
+              "id": "product-uuid"
+            },
+            "quantity": 10,
+            "description": "Premium Package",
+            "extended_description": "Some more information about this product",
+            "unit": {
+              "type": "unit",
+              "id": "unit-uuid"
+            },
+            "unit_price": {
+              "amount": 100.00,
+              "tax": "excluding"
+            },
+            "tax": {
+              "type": "taxRate",
+              "id": "tax-uuid"
+            },
+            "discount": {
+              "value": 10,
+              "type": "percentage"
+            },
+            "total": {
+              "tax_exclusive": {
+                "amount": 900.00,
+                "currency": "EUR"
+              },
+              "tax_exclusive_before_discount": {
+                "amount": 1000.00,
+                "currency": "EUR"
+              },
+              "tax_inclusive": {
+                "amount": 1089.00,
+                "currency": "EUR"
+              },
+              "tax_inclusive_before_discount": {
+                "amount": 1210.00,
+                "currency": "EUR"
+              }
+            },
+            "product_category": {
+              "type": "productCategory",
+              "id": "category-uuid"
+            },
+            "project": {
+              "type": "nextgenProject",
+              "id": "project-uuid"
+            },
+            "group": {
+              "type": "nextgenProjectGroup",
+              "id": "group-uuid"
+            },
+            "purchase_price": {
+              "amount": 75.00,
+              "currency": "EUR"
+            }
+          }
         ]
+      }
     ],
-    'total' => [
-        'tax_exclusive' => 1000.00,
-        'tax_inclusive' => 1210.00,
-        'taxes' => [
-            [
-                'rate' => 0.21,
-                'amount' => 210.00
-            ]
-        ]
-    ],
-    'purchase_price' => [
-        'amount' => 750.00,
-        'currency' => 'EUR'
-    ],
-    'supplier' => [
-        'type' => 'company',
-        'id' => 'company-uuid'
-    ],
-    'department' => [
-        'id' => 'department-uuid'
-    ],
-    'deal' => [
-        'id' => 'deal-uuid'
-    ],
-    'project' => [
-        'id' => 'project-uuid'
-    ],
-    'assignee' => [
-        'type' => 'user',
-        'id' => 'user-uuid'
-    ],
-    'custom_fields' => [
-        [
-            'id' => 'custom-field-uuid',
-            'value' => 'Custom Value'
-        ]
-    ],
-    'created_at' => '2024-01-15T10:30:00+00:00',
-    'updated_at' => '2024-01-20T14:45:00+00:00',
-    'web_url' => 'https://focus.teamleader.eu/order_detail.php?id=123'
-]
+    "total": {
+      "tax_exclusive": {
+        "amount": 900.00,
+        "currency": "EUR"
+      },
+      "tax_inclusive": {
+        "amount": 1089.00,
+        "currency": "EUR"
+      },
+      "purchase_price_tax_exclusive": {
+        "amount": 750.00,
+        "currency": "EUR"
+      },
+      "purchase_price_tax_inclusive": {
+        "amount": 907.50,
+        "currency": "EUR"
+      },
+      "taxes": [
+        {
+          "rate": 0.21,
+          "taxable": {
+            "amount": 900.00,
+            "currency": "EUR"
+          },
+          "tax": {
+            "amount": 189.00,
+            "currency": "EUR"
+          }
+        }
+      ]
+    },
+    "web_url": "https://focus.teamleader.eu/order_detail.php?id=order-uuid",
+    "supplier": {
+      "type": "company",
+      "id": "company-uuid"
+    },
+    "department": {
+      "type": "department",
+      "id": "department-uuid"
+    },
+    "deal": {
+      "type": "deal",
+      "id": "deal-uuid"
+    },
+    "project": {
+      "type": "project",
+      "id": "project-uuid"
+    },
+    "assignee": {
+      "type": "user",
+      "id": "user-uuid"
+    },
+    "custom_fields": [
+      {
+        "definition": {
+          "type": "customFieldDefinition",
+          "id": "field-def-uuid"
+        },
+        "value": "Custom value"
+      }
+    ]
+  }
+}
 ```
+
+### Key Response Fields
+
+| Field | Endpoint | Nullable | Notes |
+|---|---|---|---|
+| `id` | list, info | No | Order UUID |
+| `name` | list, info | No | Order name |
+| `order_date` | list, info | Yes | Format: YYYY-MM-DD |
+| `order_number` | list, info | Yes | Sequential number |
+| `delivery_date` | list, info | Yes | Format: YYYY-MM-DD |
+| `payment_term` | list, info | Yes | Object with `type` and `days` |
+| `total` | list, info | No | All sub-objects have `amount` + `currency` |
+| `total.purchase_price_tax_exclusive` | list, info | Yes | Aggregate purchase price |
+| `total.purchase_price_tax_inclusive` | list, info | Yes | Aggregate purchase price with tax |
+| `grouped_lines` | info only | No | Full line items |
+| `grouped_lines[].line_items[].project` | info only | Yes | Per-line project (`nextgenProject`) |
+| `grouped_lines[].line_items[].group` | info only | Yes | Per-line project group (`nextgenProjectGroup`) |
+| `grouped_lines[].line_items[].purchase_price` | info only | Yes | Per-line purchase cost |
+| `project` | list, info | Yes | Old projects module only |
+| `custom_fields` | list, info | Yes | Only with `includes=custom_fields` |
+
+> **Note:** `project` at the root level is only available for users with access to the old projects module. `project` and `group` on individual line items are the current nextgen project references.
 
 ## Usage Examples
 
@@ -285,9 +404,34 @@ The `info()` endpoint returns more detailed information including:
 $allOrders = Teamleader::orders()->list();
 
 foreach ($allOrders['data'] as $order) {
-    echo "Order: {$order['name']}\n";
-    echo "Total: €{$order['total']['tax_inclusive']}\n";
+    echo "Order #{$order['order_number']}: {$order['name']}\n";
+    echo "Total: €{$order['total']['tax_inclusive']['amount']}\n";
     echo "Order Date: {$order['order_date']}\n\n";
+}
+```
+
+### Get Order Details with Line Items
+
+```php
+$order = Teamleader::orders()->info('order-uuid');
+
+foreach ($order['data']['grouped_lines'] as $group) {
+    echo "Section: {$group['section']['title']}\n";
+
+    foreach ($group['line_items'] as $item) {
+        echo "  {$item['description']} x{$item['quantity']}";
+        echo " = €{$item['total']['tax_exclusive']['amount']}\n";
+
+        // Check for project assignment on this line
+        if (! empty($item['project'])) {
+            echo "  → Project: {$item['project']['id']}\n";
+        }
+
+        // Check for purchase cost
+        if (! empty($item['purchase_price'])) {
+            echo "  → Purchase price: €{$item['purchase_price']['amount']}\n";
+        }
+    }
 }
 ```
 
@@ -299,30 +443,10 @@ $order = Teamleader::orders()
     ->info('order-uuid');
 
 echo "Order: {$order['data']['name']}\n";
-echo "Supplier: {$order['data']['supplier']['type']} - {$order['data']['supplier']['id']}\n";
+echo "Order #: {$order['data']['order_number']}\n";
 
-// Process custom fields
 foreach ($order['data']['custom_fields'] ?? [] as $field) {
-    echo "Custom field: {$field['id']} = {$field['value']}\n";
-}
-```
-
-### Check Order Status
-
-```php
-function getOrderSummary($orderId)
-{
-    $order = Teamleader::orders()->info($orderId);
-    
-    return [
-        'name' => $order['data']['name'],
-        'order_date' => $order['data']['order_date'],
-        'delivery_date' => $order['data']['delivery_date'],
-        'total' => $order['data']['total']['tax_inclusive'],
-        'supplier' => $order['data']['supplier']['type'],
-        'has_deal' => !empty($order['data']['deal']),
-        'has_project' => !empty($order['data']['project'])
-    ];
+    echo "Custom field: {$field['definition']['id']} = {$field['value']}\n";
 }
 ```
 
@@ -333,27 +457,25 @@ function getOrdersNearingDelivery($days = 7)
 {
     $allOrders = Teamleader::orders()->list();
     $upcoming = [];
-    
+
     $targetDate = date('Y-m-d', strtotime("+{$days} days"));
-    
+
     foreach ($allOrders['data'] as $order) {
         if ($order['delivery_date'] && $order['delivery_date'] <= $targetDate) {
             $upcoming[] = [
-                'order_id' => $order['id'],
-                'name' => $order['name'],
-                'delivery_date' => $order['delivery_date'],
+                'order_id'           => $order['id'],
+                'order_number'       => $order['order_number'],
+                'name'               => $order['name'],
+                'delivery_date'      => $order['delivery_date'],
                 'days_until_delivery' => round(
                     (strtotime($order['delivery_date']) - time()) / 86400
-                )
+                ),
             ];
         }
     }
-    
-    // Sort by delivery date
-    usort($upcoming, function($a, $b) {
-        return strcmp($a['delivery_date'], $b['delivery_date']);
-    });
-    
+
+    usort($upcoming, fn ($a, $b) => strcmp($a['delivery_date'], $b['delivery_date']));
+
     return $upcoming;
 }
 ```
@@ -366,36 +488,28 @@ function getOrdersNearingDelivery($days = 7)
 function generateOrderReport($startDate, $endDate)
 {
     $allOrders = Teamleader::orders()->list();
-    
+
     $totalOrders = 0;
-    $totalValue = 0;
+    $totalValue  = 0;
     $ordersByMonth = [];
-    
+
     foreach ($allOrders['data'] as $order) {
-        $orderDate = $order['order_date'];
-        
-        if ($orderDate >= $startDate && $orderDate <= $endDate) {
+        if ($order['order_date'] >= $startDate && $order['order_date'] <= $endDate) {
             $totalOrders++;
-            $totalValue += $order['total']['tax_exclusive'];
-            
-            $month = date('Y-m', strtotime($orderDate));
-            if (!isset($ordersByMonth[$month])) {
-                $ordersByMonth[$month] = [
-                    'count' => 0,
-                    'value' => 0
-                ];
-            }
-            
+            $totalValue += $order['total']['tax_exclusive']['amount'];
+
+            $month = date('Y-m', strtotime($order['order_date']));
+            $ordersByMonth[$month] ??= ['count' => 0, 'value' => 0];
             $ordersByMonth[$month]['count']++;
-            $ordersByMonth[$month]['value'] += $order['total']['tax_exclusive'];
+            $ordersByMonth[$month]['value'] += $order['total']['tax_exclusive']['amount'];
         }
     }
-    
+
     return [
-        'total_orders' => $totalOrders,
-        'total_value' => $totalValue,
+        'total_orders'       => $totalOrders,
+        'total_value'        => $totalValue,
         'average_order_value' => $totalOrders > 0 ? $totalValue / $totalOrders : 0,
-        'monthly_breakdown' => $ordersByMonth
+        'monthly_breakdown'  => $ordersByMonth,
     ];
 }
 ```
@@ -407,243 +521,155 @@ function analyzeSupplierPerformance()
 {
     $allOrders = Teamleader::orders()->list();
     $supplierStats = [];
-    
+
     foreach ($allOrders['data'] as $order) {
-        if (!isset($order['supplier'])) {
+        if (empty($order['supplier'])) {
             continue;
         }
-        
+
         $supplierId = $order['supplier']['id'];
-        
-        if (!isset($supplierStats[$supplierId])) {
-            $supplierStats[$supplierId] = [
-                'type' => $order['supplier']['type'],
-                'order_count' => 0,
-                'total_value' => 0,
-                'orders' => []
-            ];
-        }
-        
+        $supplierStats[$supplierId] ??= [
+            'type'        => $order['supplier']['type'],
+            'order_count' => 0,
+            'total_value' => 0,
+            'orders'      => [],
+        ];
+
         $supplierStats[$supplierId]['order_count']++;
-        $supplierStats[$supplierId]['total_value'] += $order['total']['tax_exclusive'];
+        $supplierStats[$supplierId]['total_value'] += $order['total']['tax_exclusive']['amount'];
         $supplierStats[$supplierId]['orders'][] = $order['id'];
     }
-    
-    // Sort by total value
-    uasort($supplierStats, function($a, $b) {
-        return $b['total_value'] - $a['total_value'];
-    });
-    
+
+    uasort($supplierStats, fn ($a, $b) => $b['total_value'] - $a['total_value']);
+
     return $supplierStats;
 }
 ```
 
-### 3. Project Cost Tracking
+### 3. Project Cost Tracking (Line Item Level)
 
 ```php
-function getProjectOrderCosts($projectId)
+function getProjectLineItemCosts($projectId)
 {
     $allOrders = Teamleader::orders()->list();
-    $projectOrders = [];
+    $lineItems = [];
     $totalCost = 0;
-    
-    foreach ($allOrders['data'] as $order) {
-        if (isset($order['project']) && $order['project']['id'] === $projectId) {
-            $projectOrders[] = [
-                'order_name' => $order['name'],
-                'order_date' => $order['order_date'],
-                'amount' => $order['total']['tax_exclusive']
-            ];
-            
-            $totalCost += $order['total']['tax_exclusive'];
+
+    foreach ($allOrders['data'] as $orderSummary) {
+        $order = Teamleader::orders()->info($orderSummary['id']);
+
+        foreach ($order['data']['grouped_lines'] as $group) {
+            foreach ($group['line_items'] as $item) {
+                if (isset($item['project']['id']) && $item['project']['id'] === $projectId) {
+                    $amount = $item['total']['tax_exclusive']['amount'];
+                    $lineItems[] = [
+                        'order_number' => $order['data']['order_number'],
+                        'description'  => $item['description'],
+                        'quantity'     => $item['quantity'],
+                        'amount'       => $amount,
+                        'group'        => $item['group']['id'] ?? null,
+                    ];
+                    $totalCost += $amount;
+                }
+            }
         }
     }
-    
+
     return [
-        'project_id' => $projectId,
-        'order_count' => count($projectOrders),
-        'total_cost' => $totalCost,
-        'orders' => $projectOrders
+        'project_id'  => $projectId,
+        'line_count'  => count($lineItems),
+        'total_cost'  => $totalCost,
+        'line_items'  => $lineItems,
     ];
 }
 ```
 
-### 4. Payment Term Analysis
+### 4. Margin Analysis Using Purchase Price
 
 ```php
-function analyzePaymentTerms()
+function analyzeOrderMargins()
 {
     $allOrders = Teamleader::orders()->list();
-    $termStats = [];
-    
+    $results = [];
+
     foreach ($allOrders['data'] as $order) {
-        $termType = $order['payment_term']['type'] ?? 'unknown';
-        
-        if (!isset($termStats[$termType])) {
-            $termStats[$termType] = [
-                'count' => 0,
-                'total_value' => 0
+        $revenue      = $order['total']['tax_exclusive']['amount'];
+        $purchaseCost = $order['total']['purchase_price_tax_exclusive']['amount'] ?? null;
+
+        if ($purchaseCost !== null && $revenue > 0) {
+            $results[] = [
+                'order_number' => $order['order_number'],
+                'name'         => $order['name'],
+                'revenue'      => $revenue,
+                'cost'         => $purchaseCost,
+                'margin'       => $revenue - $purchaseCost,
+                'margin_pct'   => round((($revenue - $purchaseCost) / $revenue) * 100, 2),
             ];
         }
-        
-        $termStats[$termType]['count']++;
-        $termStats[$termType]['total_value'] += $order['total']['tax_exclusive'];
     }
-    
-    return $termStats;
+
+    return $results;
 }
 ```
 
-### 5. Order to Deal Conversion Tracking
+### 5. Export Orders for Accounting
 
 ```php
-function trackOrderConversions()
+function exportOrdersForAccounting($startDate, $endDate)
 {
     $allOrders = Teamleader::orders()->list();
-    
-    $withDeals = 0;
-    $withoutDeals = 0;
-    
+    $export = [];
+
     foreach ($allOrders['data'] as $order) {
-        if (!empty($order['deal'])) {
-            $withDeals++;
-        } else {
-            $withoutDeals++;
+        if ($order['order_date'] >= $startDate && $order['order_date'] <= $endDate) {
+            $export[] = [
+                'Order ID'        => $order['id'],
+                'Order Number'    => $order['order_number'] ?? '',
+                'Order Name'      => $order['name'],
+                'Order Date'      => $order['order_date'],
+                'Delivery Date'   => $order['delivery_date'] ?? '',
+                'Supplier Type'   => $order['supplier']['type'] ?? '',
+                'Supplier ID'     => $order['supplier']['id'] ?? '',
+                'Tax Exclusive'   => $order['total']['tax_exclusive']['amount'],
+                'Tax Inclusive'   => $order['total']['tax_inclusive']['amount'],
+                'Currency'        => $order['total']['tax_exclusive']['currency'],
+            ];
         }
     }
-    
-    return [
-        'total_orders' => count($allOrders['data']),
-        'orders_from_deals' => $withDeals,
-        'orders_without_deals' => $withoutDeals,
-        'conversion_rate' => count($allOrders['data']) > 0 
-            ? ($withDeals / count($allOrders['data'])) * 100 
-            : 0
-    ];
+
+    return $export;
 }
 ```
 
 ## Best Practices
 
-### 1. Cache Order Data for Reports
-
+1. **Cache Order Data for Reports**: Order data changes infrequently, so caching is beneficial.
 ```php
-// Good: Cache order list for reporting
 use Illuminate\Support\Facades\Cache;
 
-$orders = Cache::remember('orders_list', 300, function() {
+$orders = Cache::remember('orders_list', 300, function () {
     return Teamleader::orders()->list();
 });
 ```
 
-### 2. Handle Missing Optional Fields
-
+2. **Handle Missing Optional Fields**: Many fields are nullable.
 ```php
-// Good: Check for optional fields
-function displayOrder($orderId)
-{
-    $order = Teamleader::orders()->info($orderId);
-    
-    return [
-        'name' => $order['data']['name'],
-        'order_date' => $order['data']['order_date'] ?? 'Not set',
-        'delivery_date' => $order['data']['delivery_date'] ?? 'Not set',
-        'supplier' => $order['data']['supplier']['id'] ?? 'Unknown',
-        'deal_id' => $order['data']['deal']['id'] ?? null,
-        'project_id' => $order['data']['project']['id'] ?? null
-    ];
-}
+$order = Teamleader::orders()->info($orderId);
+
+return [
+    'name'          => $order['data']['name'],
+    'order_number'  => $order['data']['order_number'] ?? 'Not assigned',
+    'order_date'    => $order['data']['order_date'] ?? 'Not set',
+    'delivery_date' => $order['data']['delivery_date'] ?? 'Not set',
+    'supplier'      => $order['data']['supplier']['id'] ?? 'Unknown',
+];
 ```
 
-### 3. Use Custom Fields for Integration
+3. **Use `order_number` for Display**: Use `order_number` (sequential integer) for human-readable references rather than the UUID `id`.
 
-```php
-// Good: Store external system IDs in custom fields
-function syncOrderWithExternalSystem($orderId)
-{
-    $order = Teamleader::orders()
-        ->with('custom_fields')
-        ->info($orderId);
-    
-    // Look for external system ID in custom fields
-    $externalId = null;
-    foreach ($order['data']['custom_fields'] ?? [] as $field) {
-        if ($field['id'] === 'external-system-id-field-uuid') {
-            $externalId = $field['value'];
-            break;
-        }
-    }
-    
-    if ($externalId) {
-        // Sync with external system
-        ExternalSystem::syncOrder($externalId, $order['data']);
-    }
-}
-```
+4. **`total` Values Are Objects**: Remember that all amounts in `total` are objects — access them as `$order['total']['tax_exclusive']['amount']`, not `$order['total']['tax_exclusive']`.
 
-### 4. Track Order Delivery Compliance
-
-```php
-// Good: Monitor delivery date performance
-function checkDeliveryCompliance()
-{
-    $allOrders = Teamleader::orders()->list();
-    $today = date('Y-m-d');
-    
-    $onTime = 0;
-    $late = 0;
-    $pending = 0;
-    
-    foreach ($allOrders['data'] as $order) {
-        if ($order['delivery_date']) {
-            if ($order['delivery_date'] > $today) {
-                $pending++;
-            } elseif ($order['delivery_date'] <= $today) {
-                // Would need additional status field to determine if delivered
-                $onTime++; // Assuming delivered
-            }
-        }
-    }
-    
-    return [
-        'on_time' => $onTime,
-        'late' => $late,
-        'pending' => $pending,
-        'compliance_rate' => ($onTime + $late) > 0 
-            ? ($onTime / ($onTime + $late)) * 100 
-            : 0
-    ];
-}
-```
-
-### 5. Generate Order Export
-
-```php
-// Good: Export order data for accounting
-function exportOrdersForAccounting($startDate, $endDate)
-{
-    $allOrders = Teamleader::orders()->list();
-    $export = [];
-    
-    foreach ($allOrders['data'] as $order) {
-        if ($order['order_date'] >= $startDate && $order['order_date'] <= $endDate) {
-            $export[] = [
-                'Order ID' => $order['id'],
-                'Order Number' => $order['name'],
-                'Order Date' => $order['order_date'],
-                'Delivery Date' => $order['delivery_date'] ?? '',
-                'Supplier Type' => $order['supplier']['type'] ?? '',
-                'Supplier ID' => $order['supplier']['id'] ?? '',
-                'Tax Exclusive' => $order['total']['tax_exclusive'],
-                'Tax Inclusive' => $order['total']['tax_inclusive'],
-                'Tax Amount' => $order['total']['taxes'][0]['amount'] ?? 0
-            ];
-        }
-    }
-    
-    return $export;
-}
-```
+5. **Line Item `project` vs Root `project`**: `project` on individual line items (type `nextgenProject`) is the current project reference. `project` at the order root level is only available for accounts using the old projects module.
 
 ## Error Handling
 
@@ -655,10 +681,9 @@ try {
 } catch (TeamleaderException $e) {
     Log::error('Error fetching orders', [
         'error' => $e->getMessage(),
-        'code' => $e->getCode()
+        'code'  => $e->getCode(),
     ]);
-    
-    // Provide fallback
+
     return ['data' => []];
 }
 
@@ -667,51 +692,32 @@ try {
     $order = Teamleader::orders()->info('order-uuid');
 } catch (TeamleaderException $e) {
     if ($e->getCode() === 404) {
-        return response()->json([
-            'error' => 'Order not found'
-        ], 404);
+        return response()->json(['error' => 'Order not found'], 404);
     }
-    
+
     throw $e;
 }
 ```
 
 ## Payment Term Types
 
-Orders can have different payment term types:
-
-- **cash** - Payment on delivery
-- **end_of_month** - Payment at the end of the month
-- **after_invoice_date** - Payment X days after invoice date (days specified in `payment_term.days`)
+| Type | Description |
+|---|---|
+| `cash` | Payment on delivery (no `days` field) |
+| `end_of_month` | Payment at end of month |
+| `after_invoice_date` | Payment X days after invoice date (`days` field required) |
 
 ## Limitations
 
-1. **Read-Only**: You cannot create, update, or delete orders via this endpoint
-2. **No Pagination**: All orders are returned in a single request
-3. **Limited Filtering**: Can only filter by IDs
-4. **No Status Field**: Orders don't have an explicit status field
-5. **No Sorting**: Cannot sort orders by date or other fields
-
-```php
-// Cannot do this:
-// Teamleader::orders()->create([...]); // ❌ Not supported
-// Teamleader::orders()->update('uuid', [...]); // ❌ Not supported
-// Teamleader::orders()->delete('uuid'); // ❌ Not supported
-
-// Can only do this:
-Teamleader::orders()->list(); // ✅ Supported
-Teamleader::orders()->info('uuid'); // ✅ Supported
-Teamleader::orders()->list(['ids' => ['uuid']]); // ✅ Supported
-```
+1. **Read-Only**: You cannot create, update, or delete orders via this endpoint.
+2. **No Pagination**: All orders are returned in a single request.
+3. **Limited Filtering**: Can only filter by IDs.
+4. **No Status Field**: Orders don't have an explicit status field.
+5. **No Sorting**: Cannot sort orders by date or other fields.
 
 ## Related Resources
 
-- [Quotations](quotations.md) - Quotations become orders when accepted
+- [Quotations](quotations.md) - Quotations that become orders when accepted
 - [Invoices](../invoicing/invoices.md) - Orders can be converted to invoices
 - [Deals](deals.md) - Orders may be linked to deals
 - [Projects](../projects/projects.md) - Orders may be linked to projects
-
-## See Also
-
-- [Usage Guide](../usage.md) - General SDK usage
-- [Sideloading](../sideloading.md) - Efficiently load related data
