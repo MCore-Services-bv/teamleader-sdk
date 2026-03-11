@@ -9,16 +9,16 @@ class Materials extends Resource
 {
     protected string $description = 'Manage materials in Teamleader Focus projects';
 
-    // Resource capabilities - Materials support full CRUD operations plus special operations
+    // Resource capabilities based on API documentation
     protected bool $supportsCreation = true;
 
     protected bool $supportsUpdate = true;
 
-    protected bool $supportsDeletion = true;
+    protected bool $supportsDeletion = false;
 
     protected bool $supportsBatch = false;
 
-    protected bool $supportsPagination = false; // No pagination mentioned in API docs
+    protected bool $supportsPagination = false;
 
     protected bool $supportsSorting = false;
 
@@ -61,12 +61,13 @@ class Materials extends Resource
     // Usage examples specific to materials
     protected array $usageExamples = [
         'create_material' => [
-            'description' => 'Create a new material with unit pricing',
+            'description' => 'Create a new material with unit pricing and quantity tracking',
             'code' => '$material = $teamleader->materials()->create([
                 "project_id" => "49b403be-a32e-0901-9b1c-25214f9027c6",
                 "title" => "WD-40 Multi-Use Product",
                 "description" => "Industrial size lubricant",
                 "billing_method" => "unit_price",
+                "quantity_estimated" => 12,
                 "quantity" => 10,
                 "unit_price" => [
                     "amount" => 25.50,
@@ -81,7 +82,8 @@ class Materials extends Resource
                 [
                     "title" => "Updated Material Name",
                     "status" => "in_progress",
-                    "quantity" => 15
+                    "quantity" => 15,
+                    "quantity_estimated" => 20
                 ]
             );',
         ],
@@ -95,29 +97,20 @@ class Materials extends Resource
                 "ids" => ["uuid1", "uuid2"]
             ]);',
         ],
-        'assign_user' => [
-            'description' => 'Assign a user to a material',
-            'code' => '$result = $teamleader->materials()->assign(
-                "material-uuid",
-                "user",
-                "user-uuid"
-            );',
-        ],
-        'unassign_user' => [
-            'description' => 'Unassign a user from a material',
-            'code' => '$result = $teamleader->materials()->unassign(
-                "material-uuid",
-                "user",
-                "user-uuid"
-            );',
-        ],
-        'duplicate_material' => [
-            'description' => 'Duplicate an existing material',
-            'code' => '$newMaterial = $teamleader->materials()->duplicate("material-uuid");',
-        ],
-        'delete_material' => [
-            'description' => 'Delete a material',
-            'code' => '$result = $teamleader->materials()->delete("material-uuid");',
+        'track_quantity_vs_estimate' => [
+            'description' => 'Create a material with an estimate then update with actual quantity',
+            'code' => '$result = $teamleader->materials()->create([
+                "project_id" => "project-uuid",
+                "title" => "Copper pipe (meters)",
+                "billing_method" => "unit_price",
+                "quantity_estimated" => 25,
+                "unit_price" => ["amount" => 8.50, "currency" => "EUR"],
+            ]);
+            // Later, update with actual usage
+            $teamleader->materials()->update($result["data"]["id"], [
+                "quantity" => 22,
+                "status" => "done",
+            ]);',
         ],
     ];
 
@@ -130,13 +123,35 @@ class Materials extends Resource
     }
 
     /**
-     * List materials with filtering
+     * List materials with optional filtering by IDs
+     *
+     * Note: The only available filter is `ids`. No pagination or sorting is supported.
+     *
+     * Response fields per item:
+     * - id, project {id, type}, group (nullable) {id, type: nextgenProjectGroup}
+     * - title, description (nullable), status, billing_method, billing_status
+     * - quantity (nullable number): actual quantity used
+     * - quantity_estimated (nullable number): estimated quantity
+     * - unit_price (nullable) {amount, currency}
+     * - unit_cost (nullable) {amount, currency}
+     * - unit (nullable) {id, type: priceunit} — null if default unit is used
+     * - amount_billed (nullable) {amount, currency}
+     * - external_budget (nullable) {amount, currency}
+     * - external_budget_spent (nullable) {amount, currency}
+     * - internal_budget (nullable) {amount, currency}
+     * - price (nullable) {amount, currency}
+     * - fixed_price (nullable) {amount, currency}
+     * - cost (nullable) {amount, currency}
+     * - margin (nullable) {amount, currency}
+     * - margin_percentage (nullable number) — null if no "Costs on projects" access
+     * - assignees [{assignee: {type, id}, assign_type}]
+     * - start_date (nullable string), end_date (nullable string)
+     * - product (nullable) {id, type: product}
      */
     public function list(array $filters = [], array $options = []): array
     {
         $params = [];
 
-        // Build filter object
         if (! empty($filters)) {
             $params['filter'] = [];
 
@@ -150,6 +165,13 @@ class Materials extends Resource
 
     /**
      * Get material information
+     *
+     * Response fields (identical to list items, see list() docblock):
+     * Full details including billing, budget, assignees, product linkage,
+     * quantity (actual) and quantity_estimated (planned).
+     *
+     * - quantity (nullable number): actual quantity used
+     * - quantity_estimated (nullable number): estimated quantity at planning phase
      */
     public function info($id, $includes = null): array
     {
@@ -161,7 +183,29 @@ class Materials extends Resource
     /**
      * Create a new material
      *
-     * Required fields: project_id, title
+     * Required fields:
+     * - project_id (string): Project UUID
+     * - title (string): Material title
+     *
+     * Optional fields:
+     * - group_id (string): Group UUID — if omitted, material is not added to a group
+     * - after_id (string|null): UUID to position after; null = top; omit = bottom
+     * - description (string): Free-text description
+     * - billing_method (string): fixed_price|unit_price|non_billable
+     * - quantity (number): Actual quantity used
+     * - quantity_estimated (number): Estimated quantity
+     * - unit_price (object|null): {amount, currency}
+     * - unit_cost (object|null): {amount, currency}
+     * - unit_id (string): Price unit UUID
+     * - fixed_price (object|null): {amount, currency} — for fixed_price billing
+     * - external_budget (object|null): {amount, currency}
+     * - internal_budget (object|null): {amount, currency}
+     * - start_date (string): YYYY-MM-DD
+     * - end_date (string): YYYY-MM-DD
+     * - product_id (string): Product UUID to couple to this material
+     * - assignees (array): [{type: team|user, id: uuid}]
+     *
+     * Returns HTTP 201 with data.{id, type}
      */
     public function create(array $data): array
     {
@@ -173,7 +217,27 @@ class Materials extends Resource
     /**
      * Update an existing material
      *
-     * All fields except id are optional. Providing null will clear nullable values.
+     * Only `id` is required. All other fields are optional.
+     * Providing null for a nullable field will clear that value.
+     *
+     * Updatable fields:
+     * - title (string)
+     * - description (string|null)
+     * - status (string): to_do|in_progress|on_hold|done
+     * - billing_method (string): fixed_price|unit_price|non_billable
+     * - quantity (number|null): Actual quantity used
+     * - quantity_estimated (number|null): Estimated quantity
+     * - unit_price (object|null): {amount, currency}
+     * - unit_cost (object|null): {amount, currency}
+     * - unit_id (string|null): Price unit UUID
+     * - fixed_price (object|null): {amount, currency}
+     * - external_budget (object|null): {amount, currency}
+     * - internal_budget (object|null): {amount, currency}
+     * - start_date (string|null): YYYY-MM-DD
+     * - end_date (string|null): YYYY-MM-DD
+     * - product_id (string|null): Product UUID
+     *
+     * Returns HTTP 204 (no body)
      */
     public function update($id, array $data): array
     {
@@ -181,68 +245,6 @@ class Materials extends Resource
         $this->validateMaterialData($data, 'update');
 
         return $this->api->request('POST', $this->getBasePath().'.update', $data);
-    }
-
-    /**
-     * Delete a material
-     */
-    public function delete($id, ...$additionalParams): array
-    {
-        return $this->api->request('POST', $this->getBasePath().'.delete', [
-            'id' => $id,
-        ]);
-    }
-
-    /**
-     * Assign a user or team to a material
-     *
-     * @param  string  $materialId  Material UUID
-     * @param  string  $assigneeType  Type of assignee ('user' or 'team')
-     * @param  string  $assigneeId  Assignee UUID
-     */
-    public function assign(string $materialId, string $assigneeType, string $assigneeId): array
-    {
-        $this->validateAssigneeType($assigneeType);
-
-        return $this->api->request('POST', $this->getBasePath().'.assign', [
-            'id' => $materialId,
-            'assignee' => [
-                'type' => $assigneeType,
-                'id' => $assigneeId,
-            ],
-        ]);
-    }
-
-    /**
-     * Unassign a user or team from a material
-     *
-     * @param  string  $materialId  Material UUID
-     * @param  string  $assigneeType  Type of assignee ('user' or 'team')
-     * @param  string  $assigneeId  Assignee UUID
-     */
-    public function unassign(string $materialId, string $assigneeType, string $assigneeId): array
-    {
-        $this->validateAssigneeType($assigneeType);
-
-        return $this->api->request('POST', $this->getBasePath().'.unassign', [
-            'id' => $materialId,
-            'assignee' => [
-                'type' => $assigneeType,
-                'id' => $assigneeId,
-            ],
-        ]);
-    }
-
-    /**
-     * Duplicate a material
-     *
-     * @param  string  $originId  The UUID of the material to duplicate
-     */
-    public function duplicate(string $originId): array
-    {
-        return $this->api->request('POST', $this->getBasePath().'.duplicate', [
-            'origin_id' => $originId,
-        ]);
     }
 
     /**
@@ -293,13 +295,6 @@ class Materials extends Resource
             );
         }
 
-        // Validate quantity can only be provided with unit_price billing method
-        if (isset($data['quantity']) && isset($data['billing_method']) && $data['billing_method'] !== 'unit_price') {
-            throw new InvalidArgumentException(
-                'quantity can only be provided when billing_method is unit_price'
-            );
-        }
-
         // Validate assignees structure if provided
         if (isset($data['assignees']) && is_array($data['assignees'])) {
             foreach ($data['assignees'] as $assignee) {
@@ -328,64 +323,58 @@ class Materials extends Resource
     }
 
     /**
-     * Validate assignee type
-     *
-     * @throws InvalidArgumentException
-     */
-    protected function validateAssigneeType(string $type): void
-    {
-        if (! in_array($type, $this->assigneeTypes)) {
-            throw new InvalidArgumentException(
-                'Invalid assignee type. Must be one of: '.implode(', ', $this->assigneeTypes)
-            );
-        }
-    }
-
-    /**
      * Get response structure documentation
      */
     public function getResponseStructure(): array
     {
         return [
             'create' => [
-                'description' => 'Response contains the created material ID and type',
+                'description' => 'Response contains the created material ID and type (HTTP 201)',
                 'fields' => [
                     'data.id' => 'UUID of the created material',
-                    'data.type' => 'Resource type (always "material")',
+                    'data.type' => 'Resource type',
                 ],
             ],
             'info' => [
                 'description' => 'Complete material information',
                 'fields' => [
                     'data.id' => 'Material UUID',
-                    'data.project' => 'Project reference',
-                    'data.group' => 'Group reference (nullable)',
+                    'data.project' => 'Project reference {id, type}',
+                    'data.group' => 'Group reference (nullable) {id, type: nextgenProjectGroup}',
                     'data.title' => 'Material title',
                     'data.description' => 'Material description (nullable)',
                     'data.status' => 'Material status (to_do, in_progress, on_hold, done)',
                     'data.billing_method' => 'Billing method (fixed_price, unit_price, non_billable)',
-                    'data.billing_status' => 'Billing status',
-                    'data.quantity' => 'Quantity (nullable)',
-                    'data.unit_price' => 'Unit price (nullable)',
-                    'data.unit_cost' => 'Unit cost (nullable)',
-                    'data.unit' => 'Unit of measure (nullable)',
-                    'data.fixed_price' => 'Fixed price (nullable)',
-                    'data.external_budget' => 'External budget (nullable)',
-                    'data.internal_budget' => 'Internal budget (nullable)',
-                    'data.price' => 'Calculated price (nullable)',
-                    'data.cost' => 'Calculated cost (nullable)',
-                    'data.margin' => 'Calculated margin (nullable)',
-                    'data.assignees' => 'Array of assigned users/teams',
-                    'data.start_date' => 'Start date (nullable)',
-                    'data.end_date' => 'End date (nullable)',
-                    'data.product' => 'Associated product (nullable)',
+                    'data.billing_status' => 'Billing status (not_billable, not_billed, partially_billed, fully_billed)',
+                    'data.quantity' => 'Actual quantity used (nullable number)',
+                    'data.quantity_estimated' => 'Estimated quantity (nullable number)',
+                    'data.unit_price' => 'Unit price (nullable) {amount, currency}',
+                    'data.unit_cost' => 'Unit cost (nullable) {amount, currency}',
+                    'data.unit' => 'Price unit reference (nullable) {id, type: priceunit} — null = default unit',
+                    'data.amount_billed' => 'Amount already billed (nullable) {amount, currency}',
+                    'data.external_budget' => 'External budget (nullable) {amount, currency}',
+                    'data.external_budget_spent' => 'External budget spent (nullable) {amount, currency}',
+                    'data.internal_budget' => 'Internal budget (nullable) {amount, currency}',
+                    'data.price' => 'Calculated total price (nullable) {amount, currency}',
+                    'data.fixed_price' => 'Fixed price (nullable) {amount, currency}',
+                    'data.cost' => 'Calculated total cost (nullable) {amount, currency}',
+                    'data.margin' => 'Calculated margin (nullable) {amount, currency}',
+                    'data.margin_percentage' => 'Margin percentage (nullable) — null if no "Costs on projects" access',
+                    'data.assignees' => 'Array of assignees [{assignee: {type, id}, assign_type}]',
+                    'data.start_date' => 'Start date YYYY-MM-DD (nullable)',
+                    'data.end_date' => 'End date YYYY-MM-DD (nullable)',
+                    'data.product' => 'Coupled product reference (nullable) {id, type: product}',
                 ],
             ],
             'list' => [
-                'description' => 'Array of materials',
+                'description' => 'Array of material objects (same fields as info)',
                 'fields' => [
-                    'data' => 'Array of material objects with structure similar to info endpoint',
+                    'data' => 'Array of material objects with structure identical to info endpoint',
                 ],
+            ],
+            'update' => [
+                'description' => 'Empty response on success (HTTP 204 No Content)',
+                'fields' => [],
             ],
         ];
     }
