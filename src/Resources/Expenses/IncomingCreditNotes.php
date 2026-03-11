@@ -49,7 +49,7 @@ class IncomingCreditNotes extends Resource
         'refused',
     ];
 
-    // Valid payment statuses
+    // Valid payment statuses (returned by info endpoint)
     protected array $validPaymentStatuses = [
         'unknown',
         'paid',
@@ -60,19 +60,7 @@ class IncomingCreditNotes extends Resource
     protected array $usageExamples = [
         'create_basic' => [
             'description' => 'Create a basic incoming credit note',
-            'code' => '$creditNote = $teamleader->incomingCreditNotes()->add([\'title\' => \'Credit Note\', \'currency\' => [\'code\' => \'EUR\'], \'total\' => [\'tax_exclusive\' => [\'amount\' => 500]]]);',
-        ],
-        'create_complete' => [
-            'description' => 'Create a complete incoming credit note with all details',
-            'code' => '$creditNote = $teamleader->incomingCreditNotes()->add([\'title\' => \'Return Credit\', \'supplier_id\' => \'uuid\', \'document_number\' => \'CN-001\', \'invoice_date\' => \'2024-01-15\', \'due_date\' => \'2024-02-15\', \'currency\' => [\'code\' => \'EUR\'], \'total\' => [\'tax_exclusive\' => [\'amount\' => 750]]]);',
-        ],
-        'get_info' => [
-            'description' => 'Get credit note details',
-            'code' => '$creditNote = $teamleader->incomingCreditNotes()->info(\'creditnote-uuid\');',
-        ],
-        'update_creditnote' => [
-            'description' => 'Update an existing credit note',
-            'code' => '$teamleader->incomingCreditNotes()->update(\'creditnote-uuid\', [\'title\' => \'Updated Title\', \'due_date\' => \'2024-03-15\']);',
+            'code' => '$creditNote = $teamleader->incomingCreditNotes()->add([\'title\' => \'Credit Note\', \'currency\' => [\'code\' => \'EUR\'], \'total\' => [\'tax_exclusive\' => [\'amount\' => 500.00]]]);',
         ],
         'approve_creditnote' => [
             'description' => 'Approve a credit note',
@@ -104,7 +92,7 @@ class IncomingCreditNotes extends Resource
         ],
         'update_payment' => [
             'description' => 'Update an existing payment on a credit note',
-            'code' => '$teamleader->incomingCreditNotes()->updatePayment(\'creditnote-uuid\', \'payment-uuid\', [\'amount\' => 250.00, \'currency\' => \'EUR\']);',
+            'code' => '$teamleader->incomingCreditNotes()->updatePayment(\'creditnote-uuid\', \'payment-uuid\', [\'amount\' => 450.00, \'currency\' => \'EUR\']);',
         ],
     ];
 
@@ -126,38 +114,16 @@ class IncomingCreditNotes extends Resource
      */
     public function add(array $data): array
     {
-        // Validate required fields
-        if (empty($data['title'])) {
-            throw new InvalidArgumentException('title is required for incoming credit notes');
-        }
-
-        if (empty($data['currency']['code'])) {
-            throw new InvalidArgumentException('currency.code is required for incoming credit notes');
-        }
-
-        if (empty($data['total'])) {
-            throw new InvalidArgumentException('total is required for incoming credit notes');
-        }
-
-        // Validate that either tax_exclusive or tax_inclusive is provided
-        if (empty($data['total']['tax_exclusive']) && empty($data['total']['tax_inclusive'])) {
-            throw new InvalidArgumentException('Either total.tax_exclusive or total.tax_inclusive is required');
-        }
-
-        // Validate currency code
-        if (! in_array($data['currency']['code'], $this->validCurrencyCodes)) {
-            throw new InvalidArgumentException(
-                'Invalid currency code. Must be one of: '.implode(', ', $this->validCurrencyCodes)
-            );
-        }
+        $data = $this->validateCreditNoteData($data);
 
         return $this->api->request('POST', $this->getBasePath().'.add', $data);
     }
 
     /**
-     * Alias for add() method to maintain consistency with other resources
+     * Alias for add()
      *
      * @param  array  $data  Credit note data
+     * @return array Created credit note response
      */
     public function create(array $data): array
     {
@@ -168,10 +134,10 @@ class IncomingCreditNotes extends Resource
      * Update an existing incoming credit note
      *
      * @param  string  $id  Credit note UUID
-     * @param  array  $data  Data to update
+     * @param  array  $data  Credit note data to update
      * @return array Update response
      *
-     * @throws InvalidArgumentException When ID is empty
+     * @throws InvalidArgumentException When ID is empty or data is invalid
      */
     public function update(string $id, array $data): array
     {
@@ -179,12 +145,7 @@ class IncomingCreditNotes extends Resource
             throw new InvalidArgumentException('Credit note ID is required');
         }
 
-        // Validate currency code if provided
-        if (isset($data['currency']['code']) && ! in_array($data['currency']['code'], $this->validCurrencyCodes)) {
-            throw new InvalidArgumentException(
-                'Invalid currency code. Must be one of: '.implode(', ', $this->validCurrencyCodes)
-            );
-        }
+        $data = $this->validateCreditNoteData($data, true);
 
         $params = array_merge(['id' => $id], $data);
 
@@ -193,10 +154,6 @@ class IncomingCreditNotes extends Resource
 
     /**
      * Get information about a specific incoming credit note
-     *
-     * Response includes: id, title, origin, supplier, document_number, invoice_date, due_date,
-     * currency, total (tax_exclusive, tax_inclusive), company_entity, file, payment_reference,
-     * review_status, iban_number, payment_status
      *
      * @param  string  $id  Credit note UUID
      * @param  mixed  $includes  Not used for incoming credit notes
@@ -300,6 +257,15 @@ class IncomingCreditNotes extends Resource
 
     /**
      * List payments for an incoming credit note
+     *
+     * Returns an array of payment objects, each containing:
+     * - id (string): Payment UUID
+     * - payment.amount (float): Payment amount
+     * - payment.currency (string): Currency code
+     * - paid_at (datetime): When the payment was made
+     * - payment_method (object|null): Payment method reference (type + id)
+     * - remark (string|null): Optional remark
+     * Also includes meta.total.amount for the total paid amount.
      *
      * @param  string  $id  Credit note UUID
      * @return array List of payments with meta.total
@@ -489,7 +455,6 @@ class IncomingCreditNotes extends Resource
      */
     protected function validateCreditNoteData(array $data, bool $isUpdate = false): array
     {
-        // For updates, required fields are not mandatory
         if (! $isUpdate) {
             if (empty($data['title'])) {
                 throw new InvalidArgumentException('title is required');
@@ -508,7 +473,6 @@ class IncomingCreditNotes extends Resource
             }
         }
 
-        // Validate currency code if provided
         if (isset($data['currency']['code']) && ! in_array($data['currency']['code'], $this->validCurrencyCodes)) {
             throw new InvalidArgumentException(
                 'Invalid currency code. Must be one of: '.implode(', ', $this->validCurrencyCodes)
@@ -582,12 +546,11 @@ class IncomingCreditNotes extends Resource
                 'fields' => [
                     'data' => 'Array of payment objects',
                     'data[].id' => 'Payment UUID',
-                    'data[].payment' => 'Payment details object',
                     'data[].payment.amount' => 'Payment amount (number)',
                     'data[].payment.currency' => 'Payment currency code',
-                    'data[].payment.paid_at' => 'Payment datetime (ISO 8601)',
-                    'data[].payment.payment_method' => 'Payment method reference (nullable) with type and id',
-                    'data[].payment.remark' => 'Payment remark (nullable)',
+                    'data[].paid_at' => 'Payment datetime (ISO 8601)',
+                    'data[].payment_method' => 'Payment method reference (nullable) with type and id',
+                    'data[].remark' => 'Payment remark (nullable)',
                     'meta.total.amount' => 'Total amount across all payments',
                 ],
             ],

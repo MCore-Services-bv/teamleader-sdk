@@ -44,6 +44,7 @@ The Incoming Credit Notes resource allows you to manage credit notes received fr
 - **Creation**: ✅ Supported
 - **Update**: ✅ Supported
 - **Deletion**: ✅ Supported
+- **Payment Management**: ✅ Supported
 
 ## Available Methods
 
@@ -213,7 +214,7 @@ $payments = Teamleader::incomingCreditNotes()->listPayments('credit-note-uuid');
 foreach ($payments['data'] as $payment) {
     echo "Payment ID: {$payment['id']}\n";
     echo "Amount: {$payment['payment']['amount']} {$payment['payment']['currency']}\n";
-    echo "Paid at: {$payment['payment']['paid_at']}\n";
+    echo "Paid at: {$payment['paid_at']}\n";
 }
 
 // Total amount paid
