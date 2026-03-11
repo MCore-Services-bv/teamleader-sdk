@@ -49,6 +49,13 @@ class IncomingCreditNotes extends Resource
         'refused',
     ];
 
+    // Valid payment statuses
+    protected array $validPaymentStatuses = [
+        'unknown',
+        'paid',
+        'not_paid',
+    ];
+
     // Usage examples specific to incoming credit notes
     protected array $usageExamples = [
         'create_basic' => [
@@ -82,6 +89,22 @@ class IncomingCreditNotes extends Resource
         'delete_creditnote' => [
             'description' => 'Delete a credit note',
             'code' => '$teamleader->incomingCreditNotes()->delete(\'creditnote-uuid\');',
+        ],
+        'list_payments' => [
+            'description' => 'List all payments for a credit note',
+            'code' => '$payments = $teamleader->incomingCreditNotes()->listPayments(\'creditnote-uuid\');',
+        ],
+        'register_payment' => [
+            'description' => 'Register a payment for a credit note',
+            'code' => '$payment = $teamleader->incomingCreditNotes()->registerPayment(\'creditnote-uuid\', [\'amount\' => 500.00, \'currency\' => \'EUR\'], \'2024-01-20T10:00:00+00:00\');',
+        ],
+        'remove_payment' => [
+            'description' => 'Remove a specific payment from a credit note',
+            'code' => '$teamleader->incomingCreditNotes()->removePayment(\'creditnote-uuid\', \'payment-uuid\');',
+        ],
+        'update_payment' => [
+            'description' => 'Update an existing payment on a credit note',
+            'code' => '$teamleader->incomingCreditNotes()->updatePayment(\'creditnote-uuid\', \'payment-uuid\', [\'amount\' => 250.00, \'currency\' => \'EUR\']);',
         ],
     ];
 
@@ -171,9 +194,13 @@ class IncomingCreditNotes extends Resource
     /**
      * Get information about a specific incoming credit note
      *
+     * Response includes: id, title, origin, supplier, document_number, invoice_date, due_date,
+     * currency, total (tax_exclusive, tax_inclusive), company_entity, file, payment_reference,
+     * review_status, iban_number, payment_status
+     *
      * @param  string  $id  Credit note UUID
      * @param  mixed  $includes  Not used for incoming credit notes
-     * @return array Credit note information
+     * @return array Credit note information including payment_status and iban_number
      *
      * @throws InvalidArgumentException When ID is empty
      */
@@ -272,6 +299,146 @@ class IncomingCreditNotes extends Resource
     }
 
     /**
+     * List payments for an incoming credit note
+     *
+     * @param  string  $id  Credit note UUID
+     * @return array List of payments with meta.total
+     *
+     * @throws InvalidArgumentException When ID is empty
+     */
+    public function listPayments(string $id): array
+    {
+        if (empty($id)) {
+            throw new InvalidArgumentException('Credit note ID is required');
+        }
+
+        return $this->api->request('POST', $this->getBasePath().'.listPayments', ['id' => $id]);
+    }
+
+    /**
+     * Register a payment for an incoming credit note
+     *
+     * @param  string  $id  Credit note UUID
+     * @param  array  $payment  Payment data — must contain 'amount' (number) and 'currency' (CurrencyCode)
+     * @param  string  $paidAt  ISO 8601 datetime of when the payment was made
+     * @param  string|null  $paymentMethodId  Optional payment method UUID
+     * @param  string|null  $remark  Optional remark/note
+     * @return array Created payment response with data.type and data.id
+     *
+     * @throws InvalidArgumentException When required fields are missing or invalid
+     */
+    public function registerPayment(
+        string $id,
+        array $payment,
+        string $paidAt,
+        ?string $paymentMethodId = null,
+        ?string $remark = null
+    ): array {
+        if (empty($id)) {
+            throw new InvalidArgumentException('Credit note ID is required');
+        }
+
+        if (empty($paidAt)) {
+            throw new InvalidArgumentException('paid_at is required when registering a payment');
+        }
+
+        $this->validatePaymentData($payment);
+
+        $data = [
+            'id' => $id,
+            'payment' => $payment,
+            'paid_at' => $paidAt,
+        ];
+
+        if (! empty($paymentMethodId)) {
+            $data['payment_method_id'] = $paymentMethodId;
+        }
+
+        if (! empty($remark)) {
+            $data['remark'] = $remark;
+        }
+
+        return $this->api->request('POST', $this->getBasePath().'.registerPayment', $data);
+    }
+
+    /**
+     * Remove a specific payment from an incoming credit note
+     *
+     * @param  string  $id  Credit note UUID
+     * @param  string  $paymentId  Payment UUID to remove
+     * @return array Response
+     *
+     * @throws InvalidArgumentException When ID or payment ID is empty
+     */
+    public function removePayment(string $id, string $paymentId): array
+    {
+        if (empty($id)) {
+            throw new InvalidArgumentException('Credit note ID is required');
+        }
+
+        if (empty($paymentId)) {
+            throw new InvalidArgumentException('Payment ID is required');
+        }
+
+        return $this->api->request('POST', $this->getBasePath().'.removePayment', [
+            'id' => $id,
+            'payment_id' => $paymentId,
+        ]);
+    }
+
+    /**
+     * Update an existing payment on an incoming credit note
+     *
+     * @param  string  $id  Credit note UUID
+     * @param  string  $paymentId  Payment UUID to update
+     * @param  array  $payment  Payment data — must contain 'amount' (number) and 'currency' (CurrencyCode)
+     * @param  string|null  $paidAt  Optional ISO 8601 datetime of when the payment was made
+     * @param  string|null  $paymentMethodId  Optional payment method UUID
+     * @param  string|null  $remark  Optional remark/note
+     * @return array Response
+     *
+     * @throws InvalidArgumentException When required fields are missing or invalid
+     */
+    public function updatePayment(
+        string $id,
+        string $paymentId,
+        array $payment,
+        ?string $paidAt = null,
+        ?string $paymentMethodId = null,
+        ?string $remark = null
+    ): array {
+        if (empty($id)) {
+            throw new InvalidArgumentException('Credit note ID is required');
+        }
+
+        if (empty($paymentId)) {
+            throw new InvalidArgumentException('Payment ID is required');
+        }
+
+        $this->validatePaymentData($payment);
+
+        $data = [
+            'id' => $id,
+            'payment_id' => $paymentId,
+            'payment' => $payment,
+        ];
+
+        if (! empty($paidAt)) {
+            $data['paid_at'] = $paidAt;
+        }
+
+        if (! empty($paymentMethodId)) {
+            $data['payment_method_id'] = $paymentMethodId;
+        }
+
+        if (! empty($remark)) {
+            $data['remark'] = $remark;
+        }
+
+        return $this->api->request('POST', $this->getBasePath().'.updatePayment', $data);
+    }
+
+    /**
      * List method is not supported for incoming credit notes
      *
      * @throws InvalidArgumentException
@@ -301,6 +468,16 @@ class IncomingCreditNotes extends Resource
     public function getValidReviewStatuses(): array
     {
         return $this->validReviewStatuses;
+    }
+
+    /**
+     * Get valid payment statuses for incoming credit notes
+     *
+     * @return array Array of valid payment statuses
+     */
+    public function getValidPaymentStatuses(): array
+    {
+        return $this->validPaymentStatuses;
     }
 
     /**
@@ -339,5 +516,88 @@ class IncomingCreditNotes extends Resource
         }
 
         return $data;
+    }
+
+    /**
+     * Validate payment data (amount and currency are required)
+     *
+     * @param  array  $payment  Payment data to validate
+     *
+     * @throws InvalidArgumentException When required payment fields are missing or invalid
+     */
+    protected function validatePaymentData(array $payment): void
+    {
+        if (! isset($payment['amount']) || ! is_numeric($payment['amount'])) {
+            throw new InvalidArgumentException('Payment amount is required and must be numeric');
+        }
+
+        if (empty($payment['currency'])) {
+            throw new InvalidArgumentException('Payment currency is required');
+        }
+
+        if (! in_array($payment['currency'], $this->validCurrencyCodes)) {
+            throw new InvalidArgumentException(
+                'Invalid payment currency. Must be one of: '.implode(', ', $this->validCurrencyCodes)
+            );
+        }
+    }
+
+    /**
+     * Get response structure documentation
+     */
+    public function getResponseStructure(): array
+    {
+        return [
+            'add' => [
+                'description' => 'Response contains the created credit note reference',
+                'fields' => [
+                    'data.type' => 'Resource type',
+                    'data.id' => 'UUID of the created credit note',
+                ],
+            ],
+            'info' => [
+                'description' => 'Complete incoming credit note information',
+                'fields' => [
+                    'data.id' => 'Credit note UUID',
+                    'data.title' => 'Credit note title',
+                    'data.origin' => 'Origin object',
+                    'data.supplier' => 'Supplier reference (nullable)',
+                    'data.document_number' => 'Document/reference number (nullable)',
+                    'data.invoice_date' => 'Invoice date (nullable)',
+                    'data.due_date' => 'Payment due date (nullable)',
+                    'data.currency' => 'Currency object with code',
+                    'data.total' => 'Total amounts object',
+                    'data.total.tax_exclusive' => 'Tax-exclusive total (nullable) with amount',
+                    'data.total.tax_inclusive' => 'Tax-inclusive total (nullable) with amount',
+                    'data.company_entity' => 'Company entity reference with type and id',
+                    'data.file' => 'Attached file reference (nullable) with type and id',
+                    'data.payment_reference' => 'Payment reference (nullable)',
+                    'data.review_status' => 'Review status: pending, approved, or refused',
+                    'data.iban_number' => 'IBAN number (nullable)',
+                    'data.payment_status' => 'Payment status: unknown, paid, or not_paid',
+                ],
+            ],
+            'listPayments' => [
+                'description' => 'Array of payments for the credit note',
+                'fields' => [
+                    'data' => 'Array of payment objects',
+                    'data[].id' => 'Payment UUID',
+                    'data[].payment' => 'Payment details object',
+                    'data[].payment.amount' => 'Payment amount (number)',
+                    'data[].payment.currency' => 'Payment currency code',
+                    'data[].payment.paid_at' => 'Payment datetime (ISO 8601)',
+                    'data[].payment.payment_method' => 'Payment method reference (nullable) with type and id',
+                    'data[].payment.remark' => 'Payment remark (nullable)',
+                    'meta.total.amount' => 'Total amount across all payments',
+                ],
+            ],
+            'registerPayment' => [
+                'description' => 'Response contains the created payment reference',
+                'fields' => [
+                    'data.type' => 'Resource type',
+                    'data.id' => 'UUID of the created payment',
+                ],
+            ],
+        ];
     }
 }
