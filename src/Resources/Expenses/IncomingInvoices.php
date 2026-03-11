@@ -49,39 +49,31 @@ class IncomingInvoices extends Resource
         'refused',
     ];
 
+    // Valid payment statuses (returned by info endpoint)
+    protected array $validPaymentStatuses = [
+        'unknown',
+        'paid',
+        'partially_paid',
+        'not_paid',
+    ];
+
     // Usage examples specific to incoming invoices
     protected array $usageExamples = [
         'create_basic' => [
             'description' => 'Create a basic incoming invoice',
-            'code' => '$invoice = $teamleader->incomingInvoices()->add([\'title\' => \'Invoice\', \'currency\' => [\'code\' => \'EUR\'], \'total\' => [\'tax_exclusive\' => [\'amount\' => 1000]]]);',
+            'code' => '$invoice = $teamleader->incomingInvoices()->add([\'title\' => \'Invoice\', \'currency\' => [\'code\' => \'EUR\'], \'total\' => [\'tax_exclusive\' => [\'amount\' => 500.00]]]);',
         ],
-        'create_complete' => [
-            'description' => 'Create a complete incoming invoice with all details',
-            'code' => '$invoice = $teamleader->incomingInvoices()->add([\'title\' => \'Monthly Services\', \'supplier_id\' => \'uuid\', \'document_number\' => \'INV-001\', \'invoice_date\' => \'2024-01-15\', \'due_date\' => \'2024-02-15\', \'currency\' => [\'code\' => \'EUR\'], \'total\' => [\'tax_exclusive\' => [\'amount\' => 2500]]]);',
+        'register_payment' => [
+            'description' => 'Register a payment for an invoice',
+            'code' => '$teamleader->incomingInvoices()->registerPayment(\'invoice-uuid\', [\'amount\' => 500.00, \'currency\' => \'EUR\'], \'2024-01-15T10:00:00Z\');',
         ],
-        'get_info' => [
-            'description' => 'Get invoice details',
-            'code' => '$invoice = $teamleader->incomingInvoices()->info(\'invoice-uuid\');',
+        'remove_payment' => [
+            'description' => 'Remove a payment from an invoice',
+            'code' => '$teamleader->incomingInvoices()->removePayment(\'invoice-uuid\', \'payment-uuid\');',
         ],
-        'update_invoice' => [
-            'description' => 'Update an existing invoice',
-            'code' => '$teamleader->incomingInvoices()->update(\'invoice-uuid\', [\'title\' => \'Updated Title\', \'due_date\' => \'2024-03-15\']);',
-        ],
-        'approve_invoice' => [
-            'description' => 'Approve an invoice',
-            'code' => '$teamleader->incomingInvoices()->approve(\'invoice-uuid\');',
-        ],
-        'refuse_invoice' => [
-            'description' => 'Refuse an invoice',
-            'code' => '$teamleader->incomingInvoices()->refuse(\'invoice-uuid\');',
-        ],
-        'send_to_bookkeeping' => [
-            'description' => 'Send invoice to bookkeeping',
-            'code' => '$teamleader->incomingInvoices()->sendToBookkeeping(\'invoice-uuid\');',
-        ],
-        'delete_invoice' => [
-            'description' => 'Delete an invoice',
-            'code' => '$teamleader->incomingInvoices()->delete(\'invoice-uuid\');',
+        'update_payment' => [
+            'description' => 'Update a payment on an invoice',
+            'code' => '$teamleader->incomingInvoices()->updatePayment(\'invoice-uuid\', \'payment-uuid\', [\'amount\' => 600.00, \'currency\' => \'EUR\']);',
         ],
     ];
 
@@ -103,7 +95,6 @@ class IncomingInvoices extends Resource
      */
     public function add(array $data): array
     {
-        // Validate required fields
         if (empty($data['title'])) {
             throw new InvalidArgumentException('title is required for incoming invoices');
         }
@@ -116,12 +107,10 @@ class IncomingInvoices extends Resource
             throw new InvalidArgumentException('total is required for incoming invoices');
         }
 
-        // Validate that either tax_exclusive or tax_inclusive is provided
         if (empty($data['total']['tax_exclusive']) && empty($data['total']['tax_inclusive'])) {
             throw new InvalidArgumentException('Either total.tax_exclusive or total.tax_inclusive is required');
         }
 
-        // Validate currency code
         if (! in_array($data['currency']['code'], $this->validCurrencyCodes)) {
             throw new InvalidArgumentException(
                 'Invalid currency code. Must be one of: '.implode(', ', $this->validCurrencyCodes)
@@ -132,9 +121,10 @@ class IncomingInvoices extends Resource
     }
 
     /**
-     * Alias for add() method to maintain consistency with other resources
+     * Alias for add()
      *
      * @param  array  $data  Invoice data
+     * @return array Created invoice response
      */
     public function create(array $data): array
     {
@@ -145,10 +135,10 @@ class IncomingInvoices extends Resource
      * Update an existing incoming invoice
      *
      * @param  string  $id  Invoice UUID
-     * @param  array  $data  Data to update
+     * @param  array  $data  Invoice data to update
      * @return array Update response
      *
-     * @throws InvalidArgumentException When ID is empty
+     * @throws InvalidArgumentException When ID is empty or data is invalid
      */
     public function update(string $id, array $data): array
     {
@@ -156,7 +146,6 @@ class IncomingInvoices extends Resource
             throw new InvalidArgumentException('Invoice ID is required');
         }
 
-        // Validate currency code if provided
         if (isset($data['currency']['code']) && ! in_array($data['currency']['code'], $this->validCurrencyCodes)) {
             throw new InvalidArgumentException(
                 'Invalid currency code. Must be one of: '.implode(', ', $this->validCurrencyCodes)
@@ -272,6 +261,155 @@ class IncomingInvoices extends Resource
     }
 
     /**
+     * List all payments for an incoming invoice
+     *
+     * Returns an array of payment objects, each containing:
+     * - id (string): Payment UUID
+     * - payment.amount (float): Payment amount
+     * - payment.currency (string): Currency code
+     * - paid_at (datetime): When the payment was made
+     * - payment_method (object|null): Payment method reference (type + id)
+     * - remark (string|null): Optional remark
+     * Also includes meta.total.amount for the total paid amount.
+     *
+     * @param  string  $id  Invoice UUID
+     * @return array List of payments with meta totals
+     *
+     * @throws InvalidArgumentException When ID is empty
+     */
+    public function listPayments(string $id): array
+    {
+        if (empty($id)) {
+            throw new InvalidArgumentException('Invoice ID is required');
+        }
+
+        return $this->api->request('POST', $this->getBasePath().'.listPayments', ['id' => $id]);
+    }
+
+    /**
+     * Register a payment for an incoming invoice
+     *
+     * @param  string  $id  Invoice UUID
+     * @param  array  $payment  Payment details with required 'amount' (float) and 'currency' (string)
+     * @param  string  $paidAt  ISO 8601 datetime when the payment was made
+     * @param  string|null  $paymentMethodId  Optional payment method UUID
+     * @param  string|null  $remark  Optional remark
+     * @return array Created payment response with data.type and data.id
+     *
+     * @throws InvalidArgumentException When required fields are missing or invalid
+     */
+    public function registerPayment(
+        string $id,
+        array $payment,
+        string $paidAt,
+        ?string $paymentMethodId = null,
+        ?string $remark = null
+    ): array {
+        if (empty($id)) {
+            throw new InvalidArgumentException('Invoice ID is required');
+        }
+
+        if (empty($paidAt)) {
+            throw new InvalidArgumentException('paid_at is required when registering a payment');
+        }
+
+        $this->validatePaymentData($payment);
+
+        $data = [
+            'id' => $id,
+            'payment' => $payment,
+            'paid_at' => $paidAt,
+        ];
+
+        if (! empty($paymentMethodId)) {
+            $data['payment_method_id'] = $paymentMethodId;
+        }
+
+        if (! empty($remark)) {
+            $data['remark'] = $remark;
+        }
+
+        return $this->api->request('POST', $this->getBasePath().'.registerPayment', $data);
+    }
+
+    /**
+     * Remove a specific payment from an incoming invoice
+     *
+     * @param  string  $id  Invoice UUID
+     * @param  string  $paymentId  Payment UUID to remove
+     * @return array Response
+     *
+     * @throws InvalidArgumentException When ID or payment ID is empty
+     */
+    public function removePayment(string $id, string $paymentId): array
+    {
+        if (empty($id)) {
+            throw new InvalidArgumentException('Invoice ID is required');
+        }
+
+        if (empty($paymentId)) {
+            throw new InvalidArgumentException('Payment ID is required');
+        }
+
+        return $this->api->request('POST', $this->getBasePath().'.removePayment', [
+            'id' => $id,
+            'payment_id' => $paymentId,
+        ]);
+    }
+
+    /**
+     * Update an existing payment on an incoming invoice
+     *
+     * @param  string  $id  Invoice UUID
+     * @param  string  $paymentId  Payment UUID to update
+     * @param  array  $payment  Updated payment details with required 'amount' (float) and 'currency' (string)
+     * @param  string|null  $paidAt  Optional ISO 8601 datetime override
+     * @param  string|null  $paymentMethodId  Optional payment method UUID
+     * @param  string|null  $remark  Optional remark
+     * @return array Response
+     *
+     * @throws InvalidArgumentException When required fields are missing or invalid
+     */
+    public function updatePayment(
+        string $id,
+        string $paymentId,
+        array $payment,
+        ?string $paidAt = null,
+        ?string $paymentMethodId = null,
+        ?string $remark = null
+    ): array {
+        if (empty($id)) {
+            throw new InvalidArgumentException('Invoice ID is required');
+        }
+
+        if (empty($paymentId)) {
+            throw new InvalidArgumentException('Payment ID is required');
+        }
+
+        $this->validatePaymentData($payment);
+
+        $data = [
+            'id' => $id,
+            'payment_id' => $paymentId,
+            'payment' => $payment,
+        ];
+
+        if (! empty($paidAt)) {
+            $data['paid_at'] = $paidAt;
+        }
+
+        if (! empty($paymentMethodId)) {
+            $data['payment_method_id'] = $paymentMethodId;
+        }
+
+        if (! empty($remark)) {
+            $data['remark'] = $remark;
+        }
+
+        return $this->api->request('POST', $this->getBasePath().'.updatePayment', $data);
+    }
+
+    /**
      * List method is not supported for incoming invoices
      *
      * @throws InvalidArgumentException
@@ -304,6 +442,16 @@ class IncomingInvoices extends Resource
     }
 
     /**
+     * Get valid payment statuses for incoming invoices
+     *
+     * @return array Array of valid payment statuses
+     */
+    public function getValidPaymentStatuses(): array
+    {
+        return $this->validPaymentStatuses;
+    }
+
+    /**
      * Validate invoice data before creating or updating
      *
      * @param  array  $data  Invoice data to validate
@@ -312,7 +460,6 @@ class IncomingInvoices extends Resource
      */
     protected function validateInvoiceData(array $data, bool $isUpdate = false): array
     {
-        // For updates, required fields are not mandatory
         if (! $isUpdate) {
             if (empty($data['title'])) {
                 throw new InvalidArgumentException('title is required');
@@ -331,7 +478,6 @@ class IncomingInvoices extends Resource
             }
         }
 
-        // Validate currency code if provided
         if (isset($data['currency']['code']) && ! in_array($data['currency']['code'], $this->validCurrencyCodes)) {
             throw new InvalidArgumentException(
                 'Invalid currency code. Must be one of: '.implode(', ', $this->validCurrencyCodes)
@@ -339,5 +485,84 @@ class IncomingInvoices extends Resource
         }
 
         return $data;
+    }
+
+    /**
+     * Validate payment data (amount and currency are required)
+     *
+     * @param  array  $payment  Payment data to validate
+     *
+     * @throws InvalidArgumentException When required payment fields are missing or invalid
+     */
+    protected function validatePaymentData(array $payment): void
+    {
+        if (! isset($payment['amount']) || ! is_numeric($payment['amount'])) {
+            throw new InvalidArgumentException('Payment amount is required and must be numeric');
+        }
+
+        if (empty($payment['currency'])) {
+            throw new InvalidArgumentException('Payment currency is required');
+        }
+
+        if (! in_array($payment['currency'], $this->validCurrencyCodes)) {
+            throw new InvalidArgumentException(
+                'Invalid payment currency. Must be one of: '.implode(', ', $this->validCurrencyCodes)
+            );
+        }
+    }
+
+    /**
+     * Get response structure documentation
+     */
+    public function getResponseStructure(): array
+    {
+        return [
+            'add' => [
+                'description' => 'Response contains the created invoice ID and type',
+                'fields' => [
+                    'data.id' => 'UUID of the created invoice',
+                    'data.type' => 'Resource type (always "incomingInvoice")',
+                ],
+            ],
+            'info' => [
+                'description' => 'Complete incoming invoice information',
+                'fields' => [
+                    'data.id' => 'Invoice UUID',
+                    'data.title' => 'Invoice title',
+                    'data.origin' => 'Origin of the invoice (user or peppolIncomingDocument)',
+                    'data.supplier' => 'Supplier reference (type: company|contact, id)',
+                    'data.document_number' => 'Invoice document number (nullable)',
+                    'data.invoice_date' => 'Invoice date (nullable)',
+                    'data.due_date' => 'Due date (nullable)',
+                    'data.currency' => 'Currency object with code',
+                    'data.total' => 'Total amounts (tax_exclusive and tax_inclusive)',
+                    'data.company_entity' => 'Company entity reference',
+                    'data.file' => 'Attached file reference (nullable)',
+                    'data.payment_reference' => 'Payment reference (nullable)',
+                    'data.review_status' => 'Review status (pending, approved, refused)',
+                    'data.iban_number' => 'IBAN number (nullable)',
+                    'data.payment_status' => 'Payment status (unknown, paid, partially_paid, not_paid)',
+                ],
+            ],
+            'listPayments' => [
+                'description' => 'Array of payment objects for the invoice',
+                'fields' => [
+                    'data[].id' => 'Payment UUID',
+                    'data[].payment.amount' => 'Payment amount',
+                    'data[].payment.currency' => 'Currency code',
+                    'data[].paid_at' => 'Payment datetime',
+                    'data[].payment_method' => 'Payment method reference (nullable)',
+                    'data[].remark' => 'Optional remark (nullable)',
+                    'meta.total.amount' => 'Total amount paid across all payments',
+                ],
+            ],
+            'registerPayment' => [
+                'description' => 'Response contains the created payment ID and type',
+                'fields' => [
+                    'data.id' => 'UUID of the created payment',
+                    'data.type' => 'Resource type',
+                ],
+            ],
+        ];
     }
 }
