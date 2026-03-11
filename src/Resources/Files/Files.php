@@ -52,6 +52,10 @@ class Files extends Resource
             'description' => 'Upload a file to a company',
             'code' => '$upload = $teamleader->files()->upload(\'document.pdf\', \'company\', \'company-uuid\', \'Documents\');',
         ],
+        'upload_temporary' => [
+            'description' => 'Upload a temporary file (no subject id required)',
+            'code' => '$upload = $teamleader->files()->upload(\'attachment.pdf\', \'temporary\');',
+        ],
         'download_file' => [
             'description' => 'Get download link for a file',
             'code' => '$link = $teamleader->files()->download(\'file-uuid\');',
@@ -87,7 +91,7 @@ class Files extends Resource
     protected function buildQueryParams(
         array $baseParams = [],
         array $filters = [],
-        $sort = null,
+              $sort = null,
         string $sortOrder = 'asc',
         int $pageSize = 20,
         int $pageNumber = 1,
@@ -111,7 +115,7 @@ class Files extends Resource
                 }
 
                 // Validate subject type
-                $validTypes = ['company', 'contact', 'deal', 'invoice', 'creditNote', 'nextgenProject', 'ticket'];
+                $validTypes = ['company', 'contact', 'deal', 'invoice', 'creditNote', 'nextgenProject', 'ticket', 'temporary'];
                 if (! in_array($subject['type'], $validTypes)) {
                     throw new InvalidArgumentException(
                         "Invalid subject type: {$subject['type']}. Must be one of: ".implode(', ', $validTypes)
@@ -183,12 +187,17 @@ class Files extends Resource
      * Request upload link for a file
      *
      * @param  string  $name  File name with extension
-     * @param  string  $subjectType  Subject type (company, contact, deal, invoice, creditNote, nextgenProject, ticket)
-     * @param  string  $subjectId  Subject UUID
-     * @param  string|null  $folder  Optional folder name
+     * @param  string  $subjectType  Subject type (company, contact, deal, invoice, creditNote, nextgenProject, ticket, temporary)
+     * @param  string|null  $subjectId  Subject UUID — not required when subjectType is 'temporary'
+     * @param  string|null  $folder  Optional folder name (defaults to General in account language)
      * @return array Upload location and expires_at
+     *
+     * Note on temporary files:
+     * - They exist for a maximum of 24 hours if not linked to an entity
+     * - Do not show up in any file overview
+     * - Are not included in external syncs
      */
-    public function upload(string $name, string $subjectType, string $subjectId, ?string $folder = null): array
+    public function upload(string $name, string $subjectType, ?string $subjectId = null, ?string $folder = null): array
     {
         if (empty($name)) {
             throw new InvalidArgumentException('File name is required');
@@ -198,22 +207,26 @@ class Files extends Resource
             throw new InvalidArgumentException('Subject type is required');
         }
 
-        if (empty($subjectId)) {
-            throw new InvalidArgumentException('Subject ID is required');
-        }
-
-        $validSubjectTypes = ['company', 'contact', 'deal', 'invoice', 'creditNote', 'nextgenProject', 'ticket'];
+        $validSubjectTypes = ['company', 'contact', 'deal', 'invoice', 'creditNote', 'nextgenProject', 'ticket', 'temporary'];
         if (! in_array($subjectType, $validSubjectTypes)) {
             throw new InvalidArgumentException('Invalid subject type. Must be one of: '.implode(', ', $validSubjectTypes));
+        }
+
+        // subject.id is required for all types except temporary
+        if ($subjectType !== 'temporary' && empty($subjectId)) {
+            throw new InvalidArgumentException('Subject ID is required for subject type: '.$subjectType);
         }
 
         $params = [
             'name' => $name,
             'subject' => [
                 'type' => $subjectType,
-                'id' => $subjectId,
             ],
         ];
+
+        if (! empty($subjectId)) {
+            $params['subject']['id'] = $subjectId;
+        }
 
         if ($folder !== null) {
             $params['folder'] = $folder;

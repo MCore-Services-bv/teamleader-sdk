@@ -102,8 +102,8 @@ Request an upload link for a file. This returns a temporary URL where you can up
 **Parameters:**
 - `name` (string): File name with extension
 - `subjectType` (string): Subject type (validated against allowed types)
-- `subjectId` (string): Subject UUID
-- `folder` (string|null): Optional folder name
+- `subjectId` (string|null): Subject UUID — **not required** when `subjectType` is `temporary`
+- `folder` (string|null): Optional folder name (defaults to General in account language)
 
 **Returns:** Array with `location` (upload URL) and `expires_at`
 
@@ -111,12 +111,18 @@ Request an upload link for a file. This returns a temporary URL where you can up
 
 **Example:**
 ```php
-// Request upload link
+// Request upload link for a company
 $uploadData = Teamleader::files()->upload(
     'document.pdf',
     'company',
     'company-uuid',
     'Contracts'
+);
+
+// Upload a temporary file — no subject id required
+$uploadData = Teamleader::files()->upload(
+    'attachment.pdf',
+    'temporary'
 );
 
 // Upload file to the returned URL
@@ -229,15 +235,36 @@ $files = Teamleader::files()->forDeal('deal-uuid', [
 
 Valid subject types for file attachments (automatically validated by the SDK):
 
-- `company` - Attach to companies
-- `contact` - Attach to contacts
-- `deal` - Attach to deals
-- `invoice` - Attach to invoices
-- `creditNote` - Attach to credit notes
-- `nextgenProject` - Attach to projects
-- `ticket` - Attach to tickets
+| Type | Description |
+|------|-------------|
+| `company` | Attach to companies |
+| `contact` | Attach to contacts |
+| `deal` | Attach to deals |
+| `invoice` | Attach to invoices |
+| `creditNote` | Attach to credit notes |
+| `nextgenProject` | Attach to projects |
+| `ticket` | Attach to tickets |
+| `temporary` | Temporary file — no subject id required (see below) |
 
 **Note**: The SDK validates subject types and will throw an `InvalidArgumentException` if an invalid type is provided.
+
+### Temporary Files
+
+When `subjectType` is `temporary`, the `subjectId` parameter is **not required**. Temporary files have the following constraints:
+
+- They exist for a maximum of **24 hours** if not linked to an entity
+- They do **not** show up in any file overview
+- They are **not** included in external syncs
+
+Temporary files are useful for staging an upload before associating it with a specific entity (for example, using the file UUID returned by another API that accepts a `file_id`).
+
+```php
+// Upload a temporary file — no subject id needed
+$uploadData = Teamleader::files()->upload('attachment.pdf', 'temporary');
+
+$uploadUrl = $uploadData['data']['location'];
+// ... PUT the file content to $uploadUrl
+```
 
 ## Filters
 
@@ -970,7 +997,7 @@ try {
         'uuid'
     );
 } catch (InvalidArgumentException $e) {
-    // Message: "Invalid subject type. Must be one of: company, contact, deal, invoice, creditNote, nextgenProject, ticket"
+    // Message: "Invalid subject type. Must be one of: company, contact, deal, invoice, creditNote, nextgenProject, ticket, temporary"
     Log::error('Invalid subject type', ['error' => $e->getMessage()]);
 }
 
@@ -1113,7 +1140,7 @@ The Files resource now includes automatic validation:
 
 ### 4. Subject Types
 
-Not all entity types support file attachments. Only the documented subject types (`company`, `contact`, `deal`, `invoice`, `creditNote`, `nextgenProject`, `ticket`) are supported.
+Not all entity types support file attachments. Only the documented subject types (`company`, `contact`, `deal`, `invoice`, `creditNote`, `nextgenProject`, `ticket`, `temporary`) are supported. For `temporary` uploads, the subject `id` is not required.
 
 ### 5. File Organization
 
