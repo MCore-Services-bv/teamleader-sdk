@@ -4,9 +4,9 @@ Manage custom field definitions in Teamleader Focus.
 
 ## Overview
 
-The Custom Fields resource provides read-only access to custom field definitions in your Teamleader account. Custom fields allow you to extend standard Teamleader objects (contacts, companies, deals, etc.) with your own data fields.
+The Custom Fields resource provides access to custom field definitions in your Teamleader account. Custom fields allow you to extend standard Teamleader objects (contacts, companies, deals, etc.) with your own data fields.
 
-**Important:** The Custom Fields resource is read-only. You cannot create, update, or delete custom field definitions through the API. Custom fields must be managed through the Teamleader interface.
+As of January 2026, the API supports **creating** custom field definitions programmatically. The `create` endpoint requires the `settings` OAuth scope.
 
 ## Navigation
 
@@ -15,6 +15,7 @@ The Custom Fields resource provides read-only access to custom field definitions
 - [Available Methods](#available-methods)
     - [list()](#list)
     - [info()](#info)
+    - [create()](#create)
 - [Helper Methods](#helper-methods)
 - [Filters](#filters)
 - [Available Contexts](#available-contexts)
@@ -32,13 +33,15 @@ The Custom Fields resource provides read-only access to custom field definitions
 
 ## Capabilities
 
-- **Pagination**: ❌ Not Supported
-- **Filtering**: ✅ Supported
-- **Sorting**: ❌ Not Supported
-- **Sideloading**: ❌ Not Supported
-- **Creation**: ❌ Not Supported
-- **Update**: ❌ Not Supported
-- **Deletion**: ❌ Not Supported
+| Feature    | Supported |
+|------------|-----------|
+| Pagination | ✅ Supported (page size + number) |
+| Filtering  | ✅ Supported |
+| Sorting    | ✅ Supported (label, context) |
+| Sideloading | ❌ Not Supported |
+| Creation   | ✅ Supported (requires `settings` scope) |
+| Update     | ❌ Not Supported |
+| Deletion   | ❌ Not Supported |
 
 ## Available Methods
 
@@ -47,7 +50,7 @@ The Custom Fields resource provides read-only access to custom field definitions
 Get all custom field definitions with optional filtering.
 
 **Parameters:**
-- `filters` (array): Filters to apply
+- `filters` (array): Filters to apply — see [Filters](#filters)
 
 **Example:**
 ```php
@@ -61,11 +64,13 @@ $contactFields = Teamleader::customFields()->list([
     'context' => 'contact'
 ]);
 
-// Get custom fields by type
-$selectFields = Teamleader::customFields()->list([
-    'type' => 'single_select'
+// Get specific fields by UUID
+$fields = Teamleader::customFields()->list([
+    'ids' => ['uuid-1', 'uuid-2']
 ]);
 ```
+
+---
 
 ### `info()`
 
@@ -76,71 +81,166 @@ Get detailed information about a specific custom field definition.
 
 **Example:**
 ```php
-// Get custom field definition
 $field = Teamleader::customFields()->info('field-uuid');
 
-// Access field properties
 $fieldName = $field['data']['label'];
 $fieldType = $field['data']['type'];
-$fieldContext = $field['data']['configuration']['context'];
 ```
 
-## Helper Methods
+---
 
-The Custom Fields resource provides convenient helper methods for common operations:
+### `create()`
+
+Create a new custom field definition. Requires the `settings` OAuth scope.
+
+**Parameters:**
+- `data` (array): Field definition data
+
+**Required keys:**
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `label` | string | Display label for the custom field |
+| `type` | string | Field type — see [Field Types](#field-types) |
+| `context` | string | Entity context — see [Available Contexts](#available-contexts) |
+
+**Optional keys:**
+
+| Key | Type | Applies to |
+|-----|------|------------|
+| `configuration.options` | string[] | `single_select`, `multi_select` only |
+| `configuration.default_value` | mixed | `auto_increment` only |
+| `configuration.searchable` | bool | `single_line`, `company`, `integer`, `number`, `auto_increment`, `email`, `telephone` |
+
+**Returns:** `data.id` and `data.type` of the newly created field (HTTP 201).
+
+**Examples:**
+
+```php
+// Create a simple text field on contacts
+$field = Teamleader::customFields()->create([
+    'label'   => 'VAT Number',
+    'type'    => 'single_line',
+    'context' => 'contact',
+]);
+
+$newFieldId = $field['data']['id'];
+
+// Create a searchable text field
+$field = Teamleader::customFields()->create([
+    'label'         => 'Reference Code',
+    'type'          => 'single_line',
+    'context'       => 'deal',
+    'configuration' => [
+        'searchable' => true,
+    ],
+]);
+
+// Create a single-select dropdown with options
+$field = Teamleader::customFields()->create([
+    'label'         => 'Lead Source',
+    'type'          => 'single_select',
+    'context'       => 'deal',
+    'configuration' => [
+        'options' => ['Referral', 'Website', 'Cold Call', 'Event'],
+    ],
+]);
+
+// Create an auto-incrementing field
+$field = Teamleader::customFields()->create([
+    'label'         => 'Customer Number',
+    'type'          => 'auto_increment',
+    'context'       => 'company',
+    'configuration' => [
+        'default_value' => 1000,
+    ],
+]);
+```
+
+**Validation errors thrown by the SDK:**
+
+```php
+// Missing required field
+Teamleader::customFields()->create([
+    'type'    => 'single_line',
+    'context' => 'contact',
+    // label missing — throws InvalidArgumentException
+]);
+
+// Invalid type
+Teamleader::customFields()->create([
+    'label'   => 'Test',
+    'type'    => 'auto_number', // invalid — correct value is 'auto_increment'
+    'context' => 'contact',
+]);
+
+// Invalid configuration key for type
+Teamleader::customFields()->create([
+    'label'         => 'Test',
+    'type'          => 'date',
+    'context'       => 'contact',
+    'configuration' => [
+        'options' => ['A', 'B'], // invalid — 'options' only for single_select / multi_select
+    ],
+]);
+```
+
+---
+
+## Helper Methods
 
 ### Context-Specific Methods
 
 ```php
-// Get custom fields for contacts
 $fields = Teamleader::customFields()->forContacts();
-
-// Get custom fields for companies
 $fields = Teamleader::customFields()->forCompanies();
-
-// Get custom fields for deals
 $fields = Teamleader::customFields()->forDeals();
-
-// Get custom fields for projects
 $fields = Teamleader::customFields()->forProjects();
-
-// Get custom fields for invoices
 $fields = Teamleader::customFields()->forInvoices();
-
-// Get custom fields for products
 $fields = Teamleader::customFields()->forProducts();
-
-// Get custom fields for milestones
 $fields = Teamleader::customFields()->forMilestones();
-
-// Get custom fields for tickets
 $fields = Teamleader::customFields()->forTickets();
+$fields = Teamleader::customFields()->forSubscriptions();
 ```
 
 ### Type-Specific Methods
 
 ```php
-// Get custom fields by type
 $selectFields = Teamleader::customFields()->byType('single_select');
-$textFields = Teamleader::customFields()->byType('single_line');
-$dateFields = Teamleader::customFields()->byType('date');
+$textFields   = Teamleader::customFields()->byType('single_line');
+$dateFields   = Teamleader::customFields()->byType('date');
 ```
 
 ### ID-Based Methods
 
 ```php
-// Get specific custom fields by their UUIDs
 $fields = Teamleader::customFields()->byIds([
     'field-uuid-1',
     'field-uuid-2'
 ]);
 ```
 
+### Type Capability Checks
+
+```php
+// Does this type use an options list?
+Teamleader::customFields()->typeHasOptions('single_select'); // true
+Teamleader::customFields()->typeHasOptions('single_line');   // false
+
+// Does this type support the searchable flag?
+Teamleader::customFields()->typeIsSearchable('single_line'); // true
+Teamleader::customFields()->typeIsSearchable('date');        // false
+
+// Is this type a reference to another entity?
+Teamleader::customFields()->typeIsReference('company'); // true
+Teamleader::customFields()->typeIsReference('date');    // false
+```
+
+---
+
 ## Filters
 
-### Available Filters
-
-#### `ids`
+### `ids`
 Filter by specific custom field UUIDs.
 
 ```php
@@ -149,243 +249,156 @@ $fields = Teamleader::customFields()->list([
 ]);
 ```
 
-#### `context`
-Filter by the resource context where the custom field is used.
+### `context`
+Filter by the entity context where the custom field is used.
 
-**Values:** `contact`, `company`, `deal`, `project`, `invoice`, `product`, `milestone`, `ticket`
-
-```php
-// Get contact custom fields
-$fields = Teamleader::customFields()->list([
-    'context' => 'contact'
-]);
-
-// Get deal custom fields
-$fields = Teamleader::customFields()->list([
-    'context' => 'deal'
-]);
-```
-
-#### `type`
-Filter by custom field type.
-
-**Values:** `single_line`, `multi_line`, `single_select`, `multi_select`, `checkbox`, `date`, `number`, `auto_number`
+**Valid values:** `contact`, `company`, `deal`, `project`, `milestone`, `product`, `invoice`, `subscription`, `ticket`
 
 ```php
-// Get all dropdown fields
-$fields = Teamleader::customFields()->list([
-    'type' => 'single_select'
-]);
-
-// Get all date fields
-$fields = Teamleader::customFields()->list([
-    'type' => 'date'
-]);
+$fields = Teamleader::customFields()->list(['context' => 'deal']);
 ```
+
+---
 
 ## Available Contexts
 
-The SDK provides helper methods to get the list of available contexts:
+| Context | Description |
+|---------|-------------|
+| `contact` | Contact custom fields |
+| `company` | Company custom fields |
+| `deal` | Deal custom fields |
+| `project` | Project custom fields |
+| `milestone` | Milestone custom fields |
+| `product` | Product custom fields |
+| `invoice` | Invoice custom fields |
+| `subscription` | Subscription custom fields |
+| `ticket` | Ticket custom fields |
 
 ```php
 $contexts = Teamleader::customFields()->getAvailableContexts();
-
-// Returns:
-// [
-//     'contact' => 'Contact custom fields',
-//     'company' => 'Company custom fields',
-//     'deal' => 'Deal custom fields',
-//     'project' => 'Project custom fields',
-//     'invoice' => 'Invoice custom fields',
-//     'product' => 'Product custom fields',
-//     'milestone' => 'Milestone custom fields',
-//     'ticket' => 'Ticket custom fields'
-// ]
 ```
+
+---
 
 ## Field Types
 
-Get available field types:
+| Type | Description | Supports options | Supports searchable |
+|------|-------------|:---:|:---:|
+| `single_line` | Single line text | | ✅ |
+| `multi_line` | Multi-line text | | |
+| `single_select` | Dropdown (one value) | ✅ | |
+| `multi_select` | Dropdown (multiple values) | ✅ | |
+| `date` | Date field | | |
+| `money` | Money / currency field | | |
+| `auto_increment` | Auto-incrementing number | | ✅ |
+| `integer` | Integer number | | ✅ |
+| `number` | Decimal number | | ✅ |
+| `boolean` | Boolean (yes/no) | | |
+| `email` | Email address | | ✅ |
+| `telephone` | Telephone number | | ✅ |
+| `url` | URL | | |
+| `company` | Company reference | | ✅ |
+| `contact` | Contact reference | | |
+| `product` | Product reference | | |
+| `user` | User reference | | |
 
 ```php
 $types = Teamleader::customFields()->getAvailableTypes();
-
-// Returns:
-// [
-//     'single_line' => 'Single line text field',
-//     'multi_line' => 'Multi-line text field',
-//     'single_select' => 'Single selection dropdown',
-//     'multi_select' => 'Multiple selection field',
-//     'checkbox' => 'Checkbox field',
-//     'date' => 'Date field',
-//     'number' => 'Number field',
-//     'auto_number' => 'Auto-incrementing number field'
-// ]
 ```
 
-### Check Field Type Capabilities
-
-```php
-// Check if a field type has options (for dropdowns)
-$hasOptions = Teamleader::customFields()->typeHasOptions('single_select'); // true
-$hasOptions = Teamleader::customFields()->typeHasOptions('single_line'); // false
-```
+---
 
 ## Response Structure
 
-### Custom Field Object
+### `list()` / `info()` — Field Object
 
 ```php
 [
-    'id' => 'field-uuid',
-    'label' => 'Industry',
-    'type' => 'single_select',
+    'id'       => '74855f4a-2b61-429c-81d8-c79ad3675a76',
+    'context'  => 'company',
+    'type'     => 'single_select',
+    'label'    => 'Industry',
+    'group'    => 'Company Details',    // string or null
+    'required' => false,
     'configuration' => [
-        'context' => 'company',
-        'required' => false,
+        // Only present for single_select and multi_select:
         'options' => [
-            ['value' => 'tech', 'label' => 'Technology'],
-            ['value' => 'retail', 'label' => 'Retail'],
-            ['value' => 'finance', 'label' => 'Finance']
-        ]
+            ['id' => 'uuid', 'value' => 'Technology'],
+            ['id' => 'uuid', 'value' => 'Retail'],
+        ],
+        'extra_option_allowed' => true,
     ],
-    'group' => [
-        'id' => 'group-uuid',
-        'label' => 'Company Details'
+]
+```
+
+### `create()` — Response
+
+```php
+[
+    'data' => [
+        'id'   => 'eab232c6-49b2-4b7e-a977-5e1148dad471',
+        'type' => 'customFieldDefinition',
     ]
 ]
 ```
 
+---
+
 ## Usage Examples
 
-### Get All Custom Fields
+### Create and Immediately Use a Custom Field
 
 ```php
-$allFields = Teamleader::customFields()->list();
-
-foreach ($allFields['data'] as $field) {
-    echo $field['label'] . ' (' . $field['type'] . ')' . PHP_EOL;
-}
-```
-
-### Get Custom Fields for a Specific Context
-
-```php
-// Using filter
-$contactFields = Teamleader::customFields()->list([
-    'context' => 'contact'
+// 1. Create the field
+$response = Teamleader::customFields()->create([
+    'label'   => 'LinkedIn URL',
+    'type'    => 'url',
+    'context' => 'contact',
 ]);
 
-// Using helper method (recommended)
-$contactFields = Teamleader::customFields()->forContacts();
+$fieldId = $response['data']['id'];
+
+// 2. Use it when creating a contact
+$contact = Teamleader::contacts()->create([
+    'first_name' => 'Jane',
+    'last_name'  => 'Doe',
+    'custom_fields' => [
+        ['id' => $fieldId, 'value' => 'https://linkedin.com/in/janedoe']
+    ],
+]);
 ```
 
 ### Build Dynamic Forms
 
 ```php
-class DynamicFormBuilder
-{
-    public function buildContactForm()
-    {
-        $customFields = Teamleader::customFields()->forContacts();
-        
-        $formFields = [];
-        foreach ($customFields['data'] as $field) {
-            $formFields[] = [
-                'name' => 'custom_' . $field['id'],
-                'label' => $field['label'],
-                'type' => $this->mapFieldType($field['type']),
-                'required' => $field['configuration']['required'] ?? false,
-                'options' => $field['configuration']['options'] ?? null
-            ];
-        }
-        
-        return $formFields;
-    }
-    
-    private function mapFieldType($teamleaderType)
-    {
-        return match($teamleaderType) {
-            'single_line' => 'text',
-            'multi_line' => 'textarea',
-            'single_select' => 'select',
-            'multi_select' => 'multiselect',
-            'checkbox' => 'checkbox',
-            'date' => 'date',
-            'number' => 'number',
-            default => 'text'
-        };
-    }
+$customFields = Teamleader::customFields()->forContacts();
+
+$formFields = [];
+foreach ($customFields['data'] as $field) {
+    $formFields[] = [
+        'name'     => 'custom_' . $field['id'],
+        'label'    => $field['label'],
+        'type'     => $field['type'],
+        'required' => $field['required'],
+        'options'  => $field['configuration']['options'] ?? [],
+    ];
 }
 ```
-
-### Get Dropdown Options
-
-```php
-$fields = Teamleader::customFields()->forCompanies();
-
-foreach ($fields['data'] as $field) {
-    if ($field['type'] === 'single_select') {
-        echo "Field: " . $field['label'] . PHP_EOL;
-        echo "Options:" . PHP_EOL;
-        
-        foreach ($field['configuration']['options'] as $option) {
-            echo "  - " . $option['label'] . PHP_EOL;
-        }
-    }
-}
-```
-
-### Filter by Multiple Criteria
-
-```php
-// Get all dropdown fields for deals
-$dealDropdowns = Teamleader::customFields()->list([
-    'context' => 'deal',
-    'type' => 'single_select'
-]);
-```
-
-## Common Use Cases
 
 ### Validate Custom Field Values
 
 ```php
-class CustomFieldValidator
-{
-    public function validate($fieldId, $value)
-    {
-        $field = Teamleader::customFields()->info($fieldId);
-        $fieldData = $field['data'];
-        
-        // Check required
-        if ($fieldData['configuration']['required'] && empty($value)) {
-            throw new \Exception("Field {$fieldData['label']} is required");
-        }
-        
-        // Validate type
-        switch ($fieldData['type']) {
-            case 'number':
-                if (!is_numeric($value)) {
-                    throw new \Exception("Field {$fieldData['label']} must be numeric");
-                }
-                break;
-                
-            case 'single_select':
-                $validOptions = array_column($fieldData['configuration']['options'], 'value');
-                if (!in_array($value, $validOptions)) {
-                    throw new \Exception("Invalid option for {$fieldData['label']}");
-                }
-                break;
-                
-            case 'date':
-                if (!strtotime($value)) {
-                    throw new \Exception("Field {$fieldData['label']} must be a valid date");
-                }
-                break;
-        }
-        
-        return true;
+$field = Teamleader::customFields()->info($fieldId);
+$fieldData = $field['data'];
+
+if ($fieldData['required'] && empty($value)) {
+    throw new \Exception("Field {$fieldData['label']} is required");
+}
+
+if ($fieldData['type'] === 'single_select') {
+    $validOptions = array_column($fieldData['configuration']['options'], 'value');
+    if (! in_array($value, $validOptions)) {
+        throw new \Exception("Invalid option for {$fieldData['label']}");
     }
 }
 ```
@@ -397,82 +410,11 @@ use Illuminate\Support\Facades\Cache;
 
 class CustomFieldService
 {
-    public function getFieldsForContext(string $context)
+    public function getFieldsForContext(string $context): array
     {
-        $cacheKey = "custom_fields.{$context}";
-        
-        return Cache::remember($cacheKey, 7200, function() use ($context) {
+        return Cache::remember("custom_fields.{$context}", 7200, function () use ($context) {
             return Teamleader::customFields()->forContext($context);
         });
-    }
-    
-    public function getFieldById(string $fieldId)
-    {
-        $cacheKey = "custom_field.{$fieldId}";
-        
-        return Cache::remember($cacheKey, 7200, function() use ($fieldId) {
-            return Teamleader::customFields()->info($fieldId);
-        });
-    }
-}
-```
-
-### Generate Form HTML
-
-```php
-class CustomFieldRenderer
-{
-    public function renderField($field, $value = null)
-    {
-        $html = '<div class="form-group">';
-        $html .= '<label>' . htmlspecialchars($field['label']);
-        
-        if ($field['configuration']['required']) {
-            $html .= ' <span class="required">*</span>';
-        }
-        
-        $html .= '</label>';
-        
-        switch ($field['type']) {
-            case 'single_line':
-                $html .= '<input type="text" name="custom_' . $field['id'] . '" 
-                         value="' . htmlspecialchars($value ?? '') . '" class="form-control">';
-                break;
-                
-            case 'multi_line':
-                $html .= '<textarea name="custom_' . $field['id'] . '" 
-                         class="form-control">' . htmlspecialchars($value ?? '') . '</textarea>';
-                break;
-                
-            case 'single_select':
-                $html .= '<select name="custom_' . $field['id'] . '" class="form-control">';
-                $html .= '<option value="">-- Select --</option>';
-                foreach ($field['configuration']['options'] as $option) {
-                    $selected = ($value === $option['value']) ? 'selected' : '';
-                    $html .= '<option value="' . $option['value'] . '" ' . $selected . '>' 
-                           . htmlspecialchars($option['label']) . '</option>';
-                }
-                $html .= '</select>';
-                break;
-                
-            case 'checkbox':
-                $checked = $value ? 'checked' : '';
-                $html .= '<input type="checkbox" name="custom_' . $field['id'] . '" ' . $checked . '>';
-                break;
-                
-            case 'date':
-                $html .= '<input type="date" name="custom_' . $field['id'] . '" 
-                         value="' . htmlspecialchars($value ?? '') . '" class="form-control">';
-                break;
-                
-            case 'number':
-                $html .= '<input type="number" name="custom_' . $field['id'] . '" 
-                         value="' . htmlspecialchars($value ?? '') . '" class="form-control">';
-                break;
-        }
-        
-        $html .= '</div>';
-        return $html;
     }
 }
 ```
@@ -485,35 +427,37 @@ use Illuminate\Console\Command;
 class SyncCustomFieldsCommand extends Command
 {
     protected $signature = 'teamleader:sync-custom-fields';
-    
-    public function handle()
+
+    public function handle(): void
     {
-        $contexts = ['contact', 'company', 'deal', 'project', 'invoice'];
-        
+        $contexts = ['contact', 'company', 'deal', 'project', 'invoice', 'subscription'];
+
         foreach ($contexts as $context) {
             $this->info("Syncing {$context} custom fields...");
-            
+
             $fields = Teamleader::customFields()->forContext($context);
-            
+
             foreach ($fields['data'] as $fieldData) {
                 \App\Models\CustomField::updateOrCreate(
                     ['teamleader_id' => $fieldData['id']],
                     [
-                        'label' => $fieldData['label'],
-                        'type' => $fieldData['type'],
-                        'context' => $context,
-                        'required' => $fieldData['configuration']['required'] ?? false,
-                        'options' => json_encode($fieldData['configuration']['options'] ?? []),
-                        'group_label' => $fieldData['group']['label'] ?? null,
+                        'label'       => $fieldData['label'],
+                        'type'        => $fieldData['type'],
+                        'context'     => $fieldData['context'],
+                        'required'    => $fieldData['required'] ?? false,
+                        'options'     => json_encode($fieldData['configuration']['options'] ?? []),
+                        'group_label' => $fieldData['group'] ?? null,
                     ]
                 );
             }
         }
-        
+
         $this->info('Custom fields synced successfully!');
     }
 }
 ```
+
+---
 
 ## Best Practices
 
@@ -522,66 +466,50 @@ class SyncCustomFieldsCommand extends Command
 Custom fields rarely change, so cache them aggressively:
 
 ```php
-// Good: Cache for 2 hours
-$fields = Cache::remember('custom_fields.contact', 7200, function() {
-    return Teamleader::customFields()->forContacts();
-});
-
-// Bad: Fetching on every request
-$fields = Teamleader::customFields()->forContacts();
+// Good: cache for 2 hours
+$fields = Cache::remember('custom_fields.contact', 7200, fn () =>
+    Teamleader::customFields()->forContacts()
+);
 ```
 
-### 2. Use Helper Methods
+### 2. Use Helper Methods for Context Filtering
 
 ```php
-// Good: Clear and readable
+// Preferred
 $contactFields = Teamleader::customFields()->forContacts();
 
-// Less ideal: Manual filtering
+// Also valid
 $contactFields = Teamleader::customFields()->list(['context' => 'contact']);
 ```
 
-### 3. Validate Against Field Definitions
+### 3. Validate Configuration Before Creating
 
-Always validate user input against custom field definitions:
-
-```php
-$field = Teamleader::customFields()->info($fieldId);
-
-if ($field['data']['type'] === 'single_select') {
-    $validOptions = array_column($field['data']['configuration']['options'], 'value');
-    if (!in_array($userInput, $validOptions)) {
-        // Invalid value
-    }
-}
-```
-
-### 4. Group Fields by Context
-
-When displaying forms, group fields by their context:
+Use the SDK's type capability methods before building the `configuration` array:
 
 ```php
-$fieldsByContext = [];
+$type = 'single_select';
 
-$allFields = Teamleader::customFields()->list();
+$data = ['label' => 'Status', 'type' => $type, 'context' => 'deal'];
 
-foreach ($allFields['data'] as $field) {
-    $context = $field['configuration']['context'];
-    $fieldsByContext[$context][] = $field;
+if (Teamleader::customFields()->typeHasOptions($type)) {
+    $data['configuration']['options'] = ['Open', 'Won', 'Lost'];
 }
+
+$field = Teamleader::customFields()->create($data);
 ```
 
-### 5. Handle Missing Field Gracefully
+### 4. Handle Missing Fields Gracefully
 
 ```php
 try {
     $field = Teamleader::customFields()->info($fieldId);
 } catch (TeamleaderException $e) {
-    // Field might have been deleted
     Log::warning("Custom field not found: {$fieldId}");
     return null;
 }
 ```
+
+---
 
 ## Error Handling
 
@@ -589,49 +517,53 @@ try {
 use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
 
 try {
-    $fields = Teamleader::customFields()->forContacts();
-} catch (TeamleaderException $e) {
-    Log::error('Error fetching custom fields', [
-        'error' => $e->getMessage(),
-        'code' => $e->getCode()
+    $field = Teamleader::customFields()->create([
+        'label'   => 'Test Field',
+        'type'    => 'single_line',
+        'context' => 'contact',
     ]);
-    
-    // Provide fallback
-    $fields = ['data' => []];
+} catch (\InvalidArgumentException $e) {
+    // SDK validation failed before the API was called
+    Log::error('Invalid custom field data: ' . $e->getMessage());
+} catch (TeamleaderException $e) {
+    // API returned an error (e.g. missing settings scope)
+    Log::error('Teamleader API error', [
+        'message' => $e->getMessage(),
+        'code'    => $e->getCode(),
+    ]);
 }
 ```
 
+---
+
 ## Working with Custom Field Values
 
-While this resource manages field _definitions_, you'll set custom field values when creating or updating resources:
+This resource manages field _definitions_. Set custom field values when creating or updating entities:
 
 ```php
-// Get custom field definition
-$customFields = Teamleader::customFields()->forContacts();
-$industryField = $customFields['data'][0]; // Assume first field is "Industry"
+$customFields  = Teamleader::customFields()->forContacts();
+$industryField = $customFields['data'][0];
 
-// Create contact with custom field value
 $contact = Teamleader::contacts()->create([
-    'first_name' => 'John',
-    'last_name' => 'Doe',
+    'first_name'    => 'John',
+    'last_name'     => 'Doe',
     'custom_fields' => [
-        [
-            'id' => $industryField['id'],
-            'value' => 'technology'
-        ]
-    ]
+        ['id' => $industryField['id'], 'value' => 'technology']
+    ],
 ]);
 ```
 
+---
+
 ## Related Resources
 
-- [Contacts](../crm/contacts.md) - Use custom fields with contacts
-- [Companies](../crm/companies.md) - Use custom fields with companies
-- [Deals](../deals/deals.md) - Use custom fields with deals
-- [Projects](../projects/projects.md) - Use custom fields with projects
-- [Invoices](../invoicing/invoices.md) - Use custom fields with invoices
+- [Contacts](../crm/contacts.md) — Use custom fields with contacts
+- [Companies](../crm/companies.md) — Use custom fields with companies
+- [Deals](../deals/deals.md) — Use custom fields with deals
+- [Projects](../projects/projects.md) — Use custom fields with projects
+- [Invoices](../invoicing/invoices.md) — Use custom fields with invoices
 
 ## See Also
 
-- [Usage Guide](../usage.md) - General SDK usage
-- [Filtering](../filtering.md) - Advanced filtering techniques
+- [Usage Guide](../usage.md) — General SDK usage
+- [Filtering](../filtering.md) — Advanced filtering techniques
