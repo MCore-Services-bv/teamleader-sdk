@@ -63,6 +63,23 @@ class Creditnotes extends Resource
         'PEN', 'PLN', 'RON', 'SEK', 'TRY', 'USD', 'ZAR',
     ];
 
+    // Valid Peppol submission statuses
+    protected array $validPeppolStatuses = [
+        'sending',
+        'sending_failed',
+        'sent',
+        'application_acknowledged',
+        'application_accepted',
+        'application_rejected',
+        'receiver_acknowledged',
+        'receiver_accepted',
+        'receiver_rejected',
+        'receiver_is_processing',
+        'receiver_awaits_feedback',
+        'receiver_conditionally_accepted',
+        'receiver_paid',
+    ];
+
     // Usage examples specific to credit notes
     protected array $usageExamples = [
         'list_all' => [
@@ -100,6 +117,17 @@ class Creditnotes extends Resource
         'send_peppol' => [
             'description' => 'Send credit note via Peppol network',
             'code' => '$result = $teamleader->creditnotes()->sendViaPeppol(\'credit-note-uuid\');',
+        ],
+        'check_peppol_status' => [
+            'description' => 'Send via Peppol and check submission status',
+            'code' => <<<'PHP'
+$teamleader->creditnotes()->sendViaPeppol('credit-note-uuid');
+
+// Poll info() until peppol_status is no longer 'sending'
+$creditNote = $teamleader->creditnotes()->info('credit-note-uuid');
+$peppolStatus = $creditNote['data']['peppol_status'] ?? null;
+// e.g. 'sent', 'sending_failed', 'receiver_accepted', etc.
+PHP,
         ],
         'get_booked' => [
             'description' => 'Get only booked credit notes',
@@ -152,6 +180,17 @@ class Creditnotes extends Resource
     /**
      * Get detailed information about a specific credit note
      *
+     * Response includes:
+     * - id, department, credit_note_number, credit_note_date, status
+     * - invoice (object|null): related invoice {id, type}
+     * - paid (bool), paid_at (string|null)
+     * - invoicee: name, vat_number, customer {email, national_identification_number}
+     * - discounts, total, taxes, grouped_lines
+     * - currency, currency_exchange_rate
+     * - created_at, updated_at
+     * - document_template: {id, type}
+     * - peppol_status (string|null): Peppol submission status, populated after sendViaPeppol()
+     *
      * @param  string  $id  Credit note UUID
      * @param  mixed  $includes  Optional includes (not used for credit notes)
      */
@@ -185,6 +224,9 @@ class Creditnotes extends Resource
 
     /**
      * Send a credit note via the Peppol network
+     *
+     * After calling this method, use info() to poll peppol_status until
+     * it transitions from 'sending' to a final state (e.g. 'sent', 'sending_failed').
      *
      * @param  string  $id  Credit note UUID
      */
@@ -417,7 +459,8 @@ class Creditnotes extends Resource
                     'data.currency_exchange_rate' => 'Exchange rate information (nullable)',
                     'data.created_at' => 'Creation timestamp',
                     'data.updated_at' => 'Last update timestamp',
-                    'data.document_template' => 'Document template reference',
+                    'data.document_template' => 'Document template reference {id, type}',
+                    'data.peppol_status' => 'Peppol submission status (string|null) — populated after sendViaPeppol()',
                 ],
             ],
             'download' => [
