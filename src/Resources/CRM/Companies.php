@@ -33,6 +33,8 @@ class Companies extends Resource
         'responsible_user',
         'added_by',
         'tags',
+        'custom_fields',
+        'price_list',
     ];
 
     // Default includes
@@ -41,16 +43,18 @@ class Companies extends Resource
         'addresses',
     ];
 
-    // Common filters based on API documentation - UPDATED WITH CORRECT STRUCTURE
+    // Common filters based on API documentation
     protected array $commonFilters = [
-        'ids' => 'Array of company UUIDs',
-        'email' => 'Email address (requires type and email fields)',
-        'name' => 'Company name (fuzzy search)',
-        'vat_number' => 'VAT number',
-        'term' => 'Search term (searches name, VAT, emails, phones)',
-        'tags' => 'Array of tag names',
-        'updated_since' => 'ISO 8601 datetime',
-        'status' => 'Company status (active, deactivated)',
+        'ids'                           => 'Array of company UUIDs',
+        'email'                         => 'Email address (requires type and email fields)',
+        'name'                          => 'Company name (fuzzy search)',
+        'vat_number'                    => 'VAT number',
+        'national_identification_number' => 'National identification number',
+        'term'                          => 'Search term (searches name, VAT, emails, phones)',
+        'tags'                          => 'Array of tag names',
+        'updated_since'                 => 'ISO 8601 datetime',
+        'status'                        => 'Company status (active, deactivated)',
+        'marketing_mails_consent'       => 'Marketing mails consent (boolean)',
     ];
 
     /**
@@ -58,7 +62,6 @@ class Companies extends Resource
      */
     public function search(string $term, array $options = []): array
     {
-        // Use 'term' filter which searches across multiple fields
         return $this->list(
             array_merge(['term' => $term], $options['filters'] ?? []),
             $options
@@ -108,12 +111,23 @@ class Companies extends Resource
     }
 
     /**
-     * Search by VAT number (fixed)
+     * Search by VAT number
      */
     public function byVatNumber(string $vatNumber, array $options = []): array
     {
         return $this->list(
             array_merge(['vat_number' => $vatNumber], $options['filters'] ?? []),
+            $options
+        );
+    }
+
+    /**
+     * Search by national identification number
+     */
+    public function byNationalIdentificationNumber(string $number, array $options = []): array
+    {
+        return $this->list(
+            array_merge(['national_identification_number' => $number], $options['filters'] ?? []),
             $options
         );
     }
@@ -151,13 +165,10 @@ class Companies extends Resource
             $params = $this->applyIncludes($params, $includes);
         }
 
-        // Apply any pending includes from fluent interface
         $params = $this->applyPendingIncludes($params);
 
         return $this->api->request('POST', $this->getBasePath().'.info', $params);
     }
-
-    // ... (keep all your existing methods like create, update, delete, tag, etc.)
 
     /**
      * Create a new company
@@ -174,19 +185,16 @@ class Companies extends Resource
      */
     protected function validateCompanyData(array $data, string $operation = 'create'): array
     {
-        // Required fields for creation
         if ($operation === 'create') {
             if (empty($data['name'])) {
                 throw new InvalidArgumentException('Company name is required');
             }
         }
 
-        // Clean up empty values
         $data = array_filter($data, function ($value) {
             return $value !== '' && $value !== null && $value !== [];
         });
 
-        // Validate email format if provided
         if (isset($data['emails']) && is_array($data['emails'])) {
             foreach ($data['emails'] as $email) {
                 if (isset($email['email']) && ! filter_var($email['email'], FILTER_VALIDATE_EMAIL)) {
@@ -195,7 +203,6 @@ class Companies extends Resource
             }
         }
 
-        // Validate website URL if provided
         if (isset($data['website']) && ! empty($data['website'])) {
             if (! filter_var($data['website'], FILTER_VALIDATE_URL)) {
                 throw new InvalidArgumentException('Invalid website URL format: '.$data['website']);
@@ -222,6 +229,27 @@ class Companies extends Resource
     public function delete($id, ...$additionalParams): array
     {
         return $this->api->request('POST', $this->getBasePath().'.delete', ['id' => $id]);
+    }
+
+    /**
+     * Upload or remove a company logo.
+     * Pass a base64 data URI string to set the logo, or null to remove it.
+     *
+     * @param  string  $id    Company UUID
+     * @param  string|null  $image  Base64 data URI (e.g. data:image/png;base64,...) or null to remove
+     */
+    public function uploadLogo(string $id, ?string $image): array
+    {
+        if ($image !== null && ! str_starts_with($image, 'data:image/')) {
+            throw new InvalidArgumentException(
+                'Image must be a base64 data URI (e.g. data:image/png;base64,...) or null to remove the logo'
+            );
+        }
+
+        return $this->api->request('POST', $this->getBasePath().'.uploadLogo', [
+            'id'    => $id,
+            'image' => $image,
+        ]);
     }
 
     /**
@@ -252,7 +280,7 @@ class Companies extends Resource
         }
 
         return $this->api->request('POST', $this->getBasePath().'.tag', [
-            'id' => $id,
+            'id'   => $id,
             'tags' => $tags,
         ]);
     }
@@ -267,7 +295,7 @@ class Companies extends Resource
         }
 
         return $this->api->request('POST', $this->getBasePath().'.untag', [
-            'id' => $id,
+            'id'   => $id,
             'tags' => $tags,
         ]);
     }
@@ -321,6 +349,16 @@ class Companies extends Resource
         return $this->with('added_by');
     }
 
+    public function withCustomFields()
+    {
+        return $this->with('custom_fields');
+    }
+
+    public function withPriceList()
+    {
+        return $this->with('price_list');
+    }
+
     public function withCommonRelationships()
     {
         return $this->with([
@@ -337,14 +375,14 @@ class Companies extends Resource
     public function getAvailableSortFields(): array
     {
         return [
-            'added_at' => 'Date company was added',
+            'added_at'   => 'Date company was added',
             'updated_at' => 'Date company was last updated',
-            'name' => 'Company name',
+            'name'       => 'Company name',
         ];
     }
 
     /**
-     * FIXED: Build filters array for the API request with correct structure
+     * Build filters array for the API request with correct structure
      */
     protected function applyFilters(array $params = [], array $filters = [])
     {
@@ -367,32 +405,32 @@ class Companies extends Resource
                     break;
 
                 case 'email':
-                    // FIXED: Email filter requires nested structure
                     if (is_string($value)) {
                         $apiFilters['email'] = [
-                            'type' => 'primary', // API only accepts 'primary'
+                            'type'  => 'primary',
                             'email' => $value,
                         ];
                     } elseif (is_array($value) && isset($value['email'])) {
                         $apiFilters['email'] = [
-                            'type' => $value['type'] ?? 'primary',
+                            'type'  => $value['type'] ?? 'primary',
                             'email' => $value['email'],
                         ];
                     }
                     break;
 
                 case 'name':
-                    // Fuzzy search by company name
                     $apiFilters['name'] = $value;
                     break;
 
                 case 'vat_number':
-                    // FIXED: Direct mapping for VAT number
                     $apiFilters['vat_number'] = $value;
                     break;
 
+                case 'national_identification_number':
+                    $apiFilters['national_identification_number'] = $value;
+                    break;
+
                 case 'term':
-                    // Search across name, VAT, emails, phones
                     $apiFilters['term'] = $value;
                     break;
 
@@ -410,22 +448,22 @@ class Companies extends Resource
 
                 case 'status':
                     if (is_array($value)) {
-                        $apiFilters['status'] = $value[0]; // API expects single value, not array
+                        $apiFilters['status'] = $value[0];
                     } else {
                         $apiFilters['status'] = $value;
                     }
                     break;
 
-                    // Handle legacy/alternative field names
+                case 'marketing_mails_consent':
+                    $apiFilters['marketing_mails_consent'] = (bool) $value;
+                    break;
+
                 case 'search':
                 case 'general_search':
-                    // Map general search to 'term' which searches multiple fields
                     $apiFilters['term'] = $value;
                     break;
 
                 case 'company_number':
-                    // This might not be supported by the API based on docs
-                    // but we'll pass it through in case it works
                     $apiFilters['company_number'] = $value;
                     break;
             }

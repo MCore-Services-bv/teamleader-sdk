@@ -16,6 +16,7 @@ The Companies resource provides full CRUD (Create, Read, Update, Delete) operati
     - [create()](#create)
     - [update()](#update)
     - [delete()](#delete)
+    - [uploadLogo()](#uploadlogo)
 - [Helper Methods](#helper-methods)
 - [Filters](#filters)
 - [Sorting](#sorting)
@@ -168,6 +169,28 @@ Delete a company.
 Teamleader::companies()->delete('company-uuid');
 ```
 
+### `uploadLogo()`
+
+Upload or remove the logo of a company. The image must be provided as a base64-encoded data URI. Pass `null` to remove an existing logo.
+
+Returns a 204 No Content response on success (empty array).
+
+**Parameters:**
+- `id` (string): Company UUID
+- `image` (string|null): Base64 data URI (e.g. `data:image/png;base64,...`) or `null` to remove the logo
+
+**Example:**
+```php
+// Upload a logo from a file on disk
+$imageData = base64_encode(file_get_contents('/path/to/logo.png'));
+$dataUri = 'data:image/png;base64,' . $imageData;
+
+Teamleader::companies()->uploadLogo('company-uuid', $dataUri);
+
+// Remove an existing logo
+Teamleader::companies()->uploadLogo('company-uuid', null);
+```
+
 ## Helper Methods
 
 The Companies resource provides convenient helper methods for common operations:
@@ -183,6 +206,9 @@ $companies = Teamleader::companies()->byEmail('info@acme.com');
 
 // Search by VAT number
 $companies = Teamleader::companies()->byVatNumber('BE0123456789');
+
+// Search by national identification number
+$companies = Teamleader::companies()->byNationalIdentificationNumber('63326426');
 
 // Search by name
 $companies = Teamleader::companies()->byName('Acme');
@@ -235,7 +261,7 @@ $companies = Teamleader::companies()->list([
 ```
 
 #### `email`
-Filter by email address. Requires both type and email fields.
+Filter by email address. Requires both type and email fields. Only `primary` is accepted as type.
 
 ```php
 $companies = Teamleader::companies()->list([
@@ -261,6 +287,15 @@ Filter by VAT number.
 ```php
 $companies = Teamleader::companies()->list([
     'vat_number' => 'BE0123456789'
+]);
+```
+
+#### `national_identification_number`
+Filter by national identification number.
+
+```php
+$companies = Teamleader::companies()->list([
+    'national_identification_number' => '63326426'
 ]);
 ```
 
@@ -302,6 +337,21 @@ $companies = Teamleader::companies()->list([
 ]);
 ```
 
+#### `marketing_mails_consent`
+Filter by marketing mails consent status.
+
+```php
+// Companies that have given consent
+$companies = Teamleader::companies()->list([
+    'marketing_mails_consent' => true
+]);
+
+// Companies that have not given consent
+$companies = Teamleader::companies()->list([
+    'marketing_mails_consent' => false
+]);
+```
+
 ## Sorting
 
 Companies can be sorted by various fields:
@@ -320,17 +370,23 @@ $companies = Teamleader::companies()->list([], [
 ]);
 ```
 
+**Available sort fields:** `name`, `added_at`, `updated_at`
+
 ## Sideloading
 
 Load related data in a single request:
 
 ### Available Includes
 
-- `addresses` - Company addresses
-- `business_type` - Business type/legal structure
-- `responsible_user` - User responsible for the company
-- `added_by` - User who created the company
-- `tags` - Company tags
+| Include | Description |
+|---|---|
+| `addresses` | Company addresses |
+| `business_type` | Business type / legal structure |
+| `responsible_user` | User responsible for the company |
+| `added_by` | User who created the company |
+| `tags` | Company tags |
+| `custom_fields` | Custom field values (requires `includes=custom_fields`) |
+| `price_list` | Assigned price list (requires `includes=price_list`) |
 
 ### Usage
 
@@ -340,66 +396,95 @@ $company = Teamleader::companies()
     ->with('responsible_user')
     ->info('company-uuid');
 
-// Multiple includes
+// Multiple includes via fluent interface
 $company = Teamleader::companies()
-    ->with('responsible_user,addresses,business_type,tags')
+    ->withResponsibleUser()
+    ->withAddresses()
+    ->withCustomFields()
     ->info('company-uuid');
 
-// In list() calls
+// Include custom fields
+$company = Teamleader::companies()
+    ->withCustomFields()
+    ->info('company-uuid');
+
+// Include price list
+$company = Teamleader::companies()
+    ->withPriceList()
+    ->info('company-uuid');
+
+// Include in list()
 $companies = Teamleader::companies()->list([], [
-    'include' => 'responsible_user,addresses'
+    'include' => 'responsible_user,addresses,custom_fields'
 ]);
 ```
 
+### Fluent Include Methods
+
+| Method | Include |
+|---|---|
+| `->withAddresses()` | `addresses` |
+| `->withBusinessType()` | `business_type` |
+| `->withResponsibleUser()` | `responsible_user` |
+| `->withAddedBy()` | `added_by` |
+| `->withCustomFields()` | `custom_fields` |
+| `->withPriceList()` | `price_list` |
+| `->withCommonRelationships()` | `addresses`, `responsible_user`, `business_type`, `tags` |
+
 ## Response Structure
 
-### Company Object
+A typical company response includes:
 
 ```php
 [
-    'id' => 'company-uuid',
-    'name' => 'Acme Corporation',
-    'business_type' => [
-        'id' => 'business-type-uuid'
-    ],
-    'vat_number' => 'BE0123456789',
-    'national_identification_number' => null,
-    'emails' => [
+    'data' => [
         [
-            'type' => 'primary',
-            'email' => 'info@acme.com'
-        ]
-    ],
-    'telephones' => [
-        [
-            'type' => 'phone',
-            'number' => '+32 2 123 45 67'
-        ]
-    ],
-    'website' => 'https://www.acme.com',
-    'addresses' => [
-        [
-            'type' => 'primary',
-            'address' => [
-                'line_1' => '123 Business Street',
-                'postal_code' => '1000',
-                'city' => 'Brussels',
-                'country' => 'BE'
+            'id' => '96a38bbf-24ed-4083-8a5c-20db92aa471e',
+            'name' => 'Pied Piper',
+            'status' => 'active',
+            'business_type' => [
+                'id' => 'eab232c6-49b2-4b7e-a977-5e1148dad471',
+                'type' => 'businessType'
+            ],
+            'vat_number' => 'BE0899623035',
+            'national_identification_number' => '63326426',
+            'emails' => [
+                ['type' => 'primary', 'email' => 'info@piedpiper.eu']
+            ],
+            'telephones' => [
+                ['type' => 'phone', 'number' => '092980615']
+            ],
+            'website' => 'https://piedpiper.com',
+            'primary_address' => [...],
+            'iban' => 'BE12123412341234',
+            'bic' => 'BICBANK',
+            'language' => 'nl',
+            'preferred_currency' => 'EUR',
+            'payment_term' => [
+                'type' => 'after_invoice_date',
+                'days' => 30
+            ],
+            'invoicing_preferences' => [
+                'electronic_invoicing_address' => null
+            ],
+            'responsible_user' => [
+                'id' => 'eab232c6-49b2-4b7e-a977-5e1148dad471',
+                'type' => 'user'
+            ],
+            'added_at' => '2016-02-04T16:44:33+00:00',
+            'updated_at' => '2016-02-05T16:44:33+00:00',
+            'web_url' => 'https://focus.teamleader.eu/company_detail.php?id=...',
+            'tags' => ['expo', 'lead'],
+            'marketing_mails_consent' => false,
+            // Only with includes=custom_fields:
+            'custom_fields' => [...],
+            // Only with includes=price_list:
+            'price_list' => [
+                'type' => 'priceList',
+                'id' => '27261187-19c9-081f-b833-021fa5873129'
             ]
         ]
-    ],
-    'iban' => 'BE68539007547034',
-    'bic' => 'GKCCBEBB',
-    'language' => 'nl',
-    'responsible_user' => [
-        'type' => 'user',
-        'id' => 'user-uuid'
-    ],
-    'remarks' => 'Important client',
-    'added_at' => '2024-01-15T10:30:00+00:00',
-    'updated_at' => '2024-01-20T14:45:00+00:00',
-    'web_url' => 'https://focus.teamleader.eu/company_detail.php?id=123',
-    'status' => 'active'
+    ]
 ]
 ```
 
@@ -413,24 +498,11 @@ $company = Teamleader::companies()->create([
     'business_type_id' => 'business-type-uuid',
     'vat_number' => 'BE0987654321',
     'emails' => [
-        [
-            'type' => 'primary',
-            'email' => 'contact@techsolutions.be'
-        ],
-        [
-            'type' => 'invoicing',
-            'email' => 'invoices@techsolutions.be'
-        ]
+        ['type' => 'primary', 'email' => 'contact@techsolutions.be'],
+        ['type' => 'invoicing', 'email' => 'invoices@techsolutions.be']
     ],
     'telephones' => [
-        [
-            'type' => 'phone',
-            'number' => '+32 3 456 78 90'
-        ],
-        [
-            'type' => 'mobile',
-            'number' => '+32 475 12 34 56'
-        ]
+        ['type' => 'phone', 'number' => '+32 3 456 78 90']
     ],
     'website' => 'https://www.techsolutions.be',
     'addresses' => [
@@ -442,22 +514,12 @@ $company = Teamleader::companies()->create([
                 'city' => 'Antwerp',
                 'country' => 'BE'
             ]
-        ],
-        [
-            'type' => 'invoicing',
-            'address' => [
-                'line_1' => 'PO Box 123',
-                'postal_code' => '2000',
-                'city' => 'Antwerp',
-                'country' => 'BE'
-            ]
         ]
     ],
     'iban' => 'BE71096123456769',
     'bic' => 'GKCCBEBB',
     'language' => 'nl',
     'responsible_user_id' => 'user-uuid',
-    'remarks' => 'Key technology partner',
     'tags' => ['Technology', 'Partner']
 ]);
 ```
@@ -471,16 +533,42 @@ $companies = Teamleader::companies()->byEmail('info@example.com');
 // Find companies by VAT
 $companies = Teamleader::companies()->byVatNumber('BE0123456789');
 
+// Find by national identification number
+$companies = Teamleader::companies()->byNationalIdentificationNumber('63326426');
+
 // Search across multiple fields
 $companies = Teamleader::companies()->search('Tech Solutions');
 
 // Get active companies with specific tags
-$companies = Teamleader::companies()
-    ->active()
-    ->withTags(['VIP']);
+$companies = Teamleader::companies()->list([
+    'status' => 'active',
+    'tags' => ['VIP']
+]);
 
 // Get recently updated companies
 $companies = Teamleader::companies()->updatedSince('2024-01-01');
+
+// Get companies with marketing consent
+$companies = Teamleader::companies()->list([
+    'marketing_mails_consent' => true
+]);
+```
+
+### Upload a Company Logo
+
+```php
+// Upload from a file on disk
+$imageData = base64_encode(file_get_contents(storage_path('logos/acme.png')));
+Teamleader::companies()->uploadLogo('company-uuid', 'data:image/png;base64,' . $imageData);
+
+// Upload from a Laravel uploaded file
+$file = $request->file('logo');
+$imageData = base64_encode(file_get_contents($file->getRealPath()));
+$mimeType = $file->getMimeType();
+Teamleader::companies()->uploadLogo('company-uuid', "data:{$mimeType};base64,{$imageData}");
+
+// Remove existing logo
+Teamleader::companies()->uploadLogo('company-uuid', null);
 ```
 
 ### Update Company Information
@@ -495,20 +583,6 @@ Teamleader::companies()->update('company-uuid', [
 // Change responsible user
 Teamleader::companies()->update('company-uuid', [
     'responsible_user_id' => 'new-user-uuid'
-]);
-
-// Add new email
-Teamleader::companies()->update('company-uuid', [
-    'emails' => [
-        [
-            'type' => 'primary',
-            'email' => 'info@techsolutions.be'
-        ],
-        [
-            'type' => 'support',
-            'email' => 'support@techsolutions.be'
-        ]
-    ]
 ]);
 ```
 
@@ -529,6 +603,26 @@ Teamleader::companies()->manageTags(
 );
 ```
 
+### Load Custom Fields and Price List
+
+```php
+// Get a company with custom fields
+$company = Teamleader::companies()
+    ->withCustomFields()
+    ->info('company-uuid');
+
+foreach ($company['data']['custom_fields'] as $field) {
+    echo $field['definition']['id'] . ': ' . $field['value'] . "\n";
+}
+
+// Get a company's assigned price list
+$company = Teamleader::companies()
+    ->withPriceList()
+    ->info('company-uuid');
+
+$priceListId = $company['data']['price_list']['id'] ?? null;
+```
+
 ## Common Use Cases
 
 ### 1. Synchronize Companies from External System
@@ -537,11 +631,9 @@ Teamleader::companies()->manageTags(
 function syncCompanies(array $externalCompanies)
 {
     foreach ($externalCompanies as $externalCompany) {
-        // Check if company exists by VAT number
         $existing = Teamleader::companies()->byVatNumber($externalCompany['vat']);
-        
+
         if (empty($existing['data'])) {
-            // Create new company
             Teamleader::companies()->create([
                 'name' => $externalCompany['name'],
                 'vat_number' => $externalCompany['vat'],
@@ -550,7 +642,6 @@ function syncCompanies(array $externalCompanies)
                 ]
             ]);
         } else {
-            // Update existing company
             Teamleader::companies()->update($existing['data'][0]['id'], [
                 'name' => $externalCompany['name']
             ]);
@@ -566,7 +657,7 @@ function generateCompanyReport()
 {
     $allCompanies = [];
     $page = 1;
-    
+
     do {
         $response = Teamleader::companies()
             ->with('responsible_user,tags')
@@ -575,11 +666,11 @@ function generateCompanyReport()
                 'page_number' => $page,
                 'sort' => 'name'
             ]);
-        
+
         $allCompanies = array_merge($allCompanies, $response['data']);
         $page++;
     } while (!empty($response['data']) && count($response['data']) === 100);
-    
+
     return $allCompanies;
 }
 ```
@@ -588,16 +679,12 @@ function generateCompanyReport()
 
 ```php
 $companies = Teamleader::companies()
-    ->with('responsible_user')
+    ->withResponsibleUser()
     ->list(['status' => 'active']);
 
-$unassigned = array_filter($companies['data'], function($company) {
+$unassigned = array_filter($companies['data'], function ($company) {
     return empty($company['responsible_user']);
 });
-
-foreach ($unassigned as $company) {
-    echo "Company '{$company['name']}' has no responsible user\n";
-}
 ```
 
 ### 4. Bulk Tag Companies
@@ -606,7 +693,7 @@ foreach ($unassigned as $company) {
 function bulkTagCompanies(array $companyIds, array $tags)
 {
     $results = [];
-    
+
     foreach ($companyIds as $companyId) {
         try {
             $result = Teamleader::companies()->tag($companyId, $tags);
@@ -618,7 +705,7 @@ function bulkTagCompanies(array $companyIds, array $tags)
             ];
         }
     }
-    
+
     return $results;
 }
 ```
@@ -655,52 +742,31 @@ function getAllActiveCompanies()
 {
     $allCompanies = [];
     $page = 1;
-    
+
     do {
         $response = Teamleader::companies()->list(
             ['status' => 'active'],
             ['page_size' => 100, 'page_number' => $page]
         );
-        
+
         $allCompanies = array_merge($allCompanies, $response['data']);
         $page++;
     } while (!empty($response['data']) && count($response['data']) === 100);
-    
+
     return $allCompanies;
 }
 ```
 
-### 4. Validate Data Before Creating
+### 4. Use `null` to Remove a Logo
+
+When removing a logo, always pass `null` explicitly rather than an empty string:
 
 ```php
-function createCompanySafely(array $data)
-{
-    // Check if company already exists
-    if (!empty($data['vat_number'])) {
-        $existing = Teamleader::companies()->byVatNumber($data['vat_number']);
-        if (!empty($existing['data'])) {
-            throw new \Exception('Company with this VAT number already exists');
-        }
-    }
-    
-    // Validate required fields
-    if (empty($data['name'])) {
-        throw new \Exception('Company name is required');
-    }
-    
-    return Teamleader::companies()->create($data);
-}
-```
+// Correct
+Teamleader::companies()->uploadLogo('company-uuid', null);
 
-### 5. Use Tags for Organization
-
-```php
-// Organize companies by tier
-$premiumCompanies = Teamleader::companies()->withTags(['Premium']);
-$standardCompanies = Teamleader::companies()->withTags(['Standard']);
-
-// Organize by industry
-$techCompanies = Teamleader::companies()->withTags(['Technology']);
+// Wrong — will throw InvalidArgumentException
+Teamleader::companies()->uploadLogo('company-uuid', '');
 ```
 
 ## Error Handling
@@ -717,10 +783,8 @@ try {
         'error' => $e->getMessage(),
         'code' => $e->getCode()
     ]);
-    
-    // Handle specific error cases
+
     if ($e->getCode() === 422) {
-        // Validation error
         return response()->json([
             'error' => 'Invalid company data provided'
         ], 422);
