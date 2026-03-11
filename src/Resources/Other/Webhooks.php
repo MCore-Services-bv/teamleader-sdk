@@ -54,6 +54,8 @@ class Webhooks extends Resource
         'contact.updated',
         'creditNote.booked',
         'creditNote.deleted',
+        'creditNote.peppolSubmissionFailed',
+        'creditNote.peppolSubmissionSucceeded',
         'creditNote.sent',
         'creditNote.updated',
         'deal.created',
@@ -81,25 +83,27 @@ class Webhooks extends Resource
         'invoice.drafted',
         'invoice.paymentRegistered',
         'invoice.paymentRemoved',
+        'invoice.peppolSubmissionFailed',
+        'invoice.peppolSubmissionSucceeded',
         'invoice.sent',
         'invoice.updated',
-        'meeting.created',
         'meeting.completed',
+        'meeting.created',
         'meeting.deleted',
         'meeting.updated',
         'milestone.created',
         'milestone.updated',
-        'nextgenProject.created',
-        'nextgenProject.updated',
         'nextgenProject.closed',
+        'nextgenProject.created',
         'nextgenProject.deleted',
+        'nextgenProject.updated',
         'nextgenTask.completed',
         'nextgenTask.created',
         'nextgenTask.deleted',
         'nextgenTask.updated',
         'product.added',
-        'product.updated',
         'product.deleted',
+        'product.updated',
         'project.created',
         'project.deleted',
         'project.updated',
@@ -211,7 +215,6 @@ class Webhooks extends Resource
      *
      * @param  string  $url  Your webhook URL (must be a valid HTTPS URL)
      * @param  array  $types  Array of event types that should trigger this webhook
-     * @return array Response with 204 status on success
      *
      * @throws InvalidArgumentException
      */
@@ -219,12 +222,10 @@ class Webhooks extends Resource
     {
         $this->validateWebhookData($url, $types);
 
-        $data = [
+        return $this->api->request('POST', $this->getBasePath().'.register', [
             'url' => $url,
             'types' => $types,
-        ];
-
-        return $this->api->request('POST', $this->getBasePath().'.register', $data);
+        ]);
     }
 
     /**
@@ -233,7 +234,6 @@ class Webhooks extends Resource
      *
      * @param  string  $url  Your webhook URL
      * @param  array  $types  Array of event types to unregister
-     * @return array Response with 204 status on success
      *
      * @throws InvalidArgumentException
      */
@@ -241,12 +241,10 @@ class Webhooks extends Resource
     {
         $this->validateWebhookData($url, $types);
 
-        $data = [
+        return $this->api->request('POST', $this->getBasePath().'.unregister', [
             'url' => $url,
             'types' => $types,
-        ];
-
-        return $this->api->request('POST', $this->getBasePath().'.unregister', $data);
+        ]);
     }
 
     /**
@@ -256,7 +254,6 @@ class Webhooks extends Resource
      */
     protected function validateWebhookData(string $url, array $types): void
     {
-        // Validate URL
         if (empty($url)) {
             throw new InvalidArgumentException('Webhook URL is required');
         }
@@ -265,12 +262,10 @@ class Webhooks extends Resource
             throw new InvalidArgumentException('Invalid webhook URL format');
         }
 
-        // Validate URL is HTTPS
         if (! str_starts_with($url, 'https://')) {
             throw new InvalidArgumentException('Webhook URL must use HTTPS protocol');
         }
 
-        // Validate types
         if (empty($types)) {
             throw new InvalidArgumentException('At least one event type is required');
         }
@@ -279,7 +274,6 @@ class Webhooks extends Resource
             throw new InvalidArgumentException('Event types must be an array');
         }
 
-        // Validate each event type
         foreach ($types as $type) {
             if (! in_array($type, $this->eventTypes)) {
                 throw new InvalidArgumentException(
@@ -298,10 +292,9 @@ class Webhooks extends Resource
     }
 
     /**
-     * Get event types filtered by category
+     * Get event types filtered by category prefix
      *
-     * @param  string  $category  Category name (e.g., 'invoice', 'contact', 'deal')
-     * @return array Array of event types for the specified category
+     * @param  string  $category  Category prefix (e.g. 'invoice', 'contact', 'deal')
      */
     public function getEventTypesByCategory(string $category): array
     {
@@ -313,13 +306,24 @@ class Webhooks extends Resource
     }
 
     /**
-     * Get all invoice-related event types
+     * Get all invoice-related event types (invoice + incomingInvoice)
      */
     public function getInvoiceEventTypes(): array
     {
         return array_merge(
             $this->getEventTypesByCategory('invoice'),
             $this->getEventTypesByCategory('incomingInvoice')
+        );
+    }
+
+    /**
+     * Get all credit note-related event types (creditNote + incomingCreditNote)
+     */
+    public function getCreditNoteEventTypes(): array
+    {
+        return array_merge(
+            $this->getEventTypesByCategory('creditNote'),
+            $this->getEventTypesByCategory('incomingCreditNote')
         );
     }
 
@@ -348,7 +352,7 @@ class Webhooks extends Resource
     }
 
     /**
-     * Get all project-related event types
+     * Get all project-related event types (project + nextgenProject)
      */
     public function getProjectEventTypes(): array
     {
@@ -359,13 +363,24 @@ class Webhooks extends Resource
     }
 
     /**
-     * Get all task-related event types
+     * Get all task-related event types (task + nextgenTask)
      */
     public function getTaskEventTypes(): array
     {
         return array_merge(
             $this->getEventTypesByCategory('task'),
             $this->getEventTypesByCategory('nextgenTask')
+        );
+    }
+
+    /**
+     * Get all ticket-related event types
+     */
+    public function getTicketEventTypes(): array
+    {
+        return array_merge(
+            $this->getEventTypesByCategory('ticket'),
+            $this->getEventTypesByCategory('ticketMessage')
         );
     }
 
