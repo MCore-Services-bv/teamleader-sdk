@@ -33,6 +33,7 @@ class Quotations extends Resource
     // Common filters based on API documentation
     protected array $commonFilters = [
         'ids' => 'Array of quotation UUIDs to filter by',
+        'status' => 'Filter by status(es): open, accepted, expired, rejected, closed',
     ];
 
     // Quotation status values
@@ -97,7 +98,7 @@ class Quotations extends Resource
      * List quotations with enhanced filtering and pagination
      *
      * @param  array  $filters  Filters to apply
-     * @param  array  $options  Additional options (pagination)
+     * @param  array  $options  Additional options (pagination via page.size / page.number)
      */
     public function list(array $filters = [], array $options = []): array
     {
@@ -259,6 +260,13 @@ class Quotations extends Resource
             $apiFilters['ids'] = $filters['ids'];
         }
 
+        // Handle status filter
+        if (isset($filters['status'])) {
+            $apiFilters['status'] = is_string($filters['status'])
+                ? [$filters['status']]
+                : $filters['status'];
+        }
+
         return $apiFilters;
     }
 
@@ -346,23 +354,90 @@ class Quotations extends Resource
                 'fields' => [
                     'data.id' => 'Quotation UUID',
                     'data.deal' => 'Deal reference object',
+                    'data.deal.id' => 'Deal UUID',
+                    'data.deal.type' => 'Deal type string',
                     'data.grouped_lines' => 'Array of line item groups',
-                    'data.currency' => 'Currency code (e.g., "EUR")',
-                    'data.currency_exchange_rate' => 'Exchange rate information',
-                    'data.total' => 'Total amounts (tax_exclusive, tax_inclusive, taxes)',
-                    'data.purchase_price' => 'Purchase price (nullable)',
-                    'data.created_at' => 'Creation timestamp',
-                    'data.updated_at' => 'Last update timestamp',
+                    'data.grouped_lines[].section' => 'Section object',
+                    'data.grouped_lines[].section.title' => 'Section title',
+                    'data.grouped_lines[].line_items' => 'Array of line items',
+                    'data.grouped_lines[].line_items[].product' => 'Product reference (nullable)',
+                    'data.grouped_lines[].line_items[].product.id' => 'Product UUID',
+                    'data.grouped_lines[].line_items[].product.type' => 'Product type string',
+                    'data.grouped_lines[].line_items[].quantity' => 'Item quantity',
+                    'data.grouped_lines[].line_items[].description' => 'Item description',
+                    'data.grouped_lines[].line_items[].extended_description' => 'Extended description with Markdown (nullable)',
+                    'data.grouped_lines[].line_items[].unit' => 'Unit of measure (nullable)',
+                    'data.grouped_lines[].line_items[].unit.id' => 'Unit UUID',
+                    'data.grouped_lines[].line_items[].unit.type' => 'Unit type string',
+                    'data.grouped_lines[].line_items[].unit_price' => 'Unit price object',
+                    'data.grouped_lines[].line_items[].unit_price.amount' => 'Price amount',
+                    'data.grouped_lines[].line_items[].unit_price.currency' => 'Currency code',
+                    'data.grouped_lines[].line_items[].unit_price.tax' => 'Tax inclusion (excluding)',
+                    'data.grouped_lines[].line_items[].tax' => 'Tax rate reference',
+                    'data.grouped_lines[].line_items[].tax.id' => 'Tax rate UUID',
+                    'data.grouped_lines[].line_items[].tax.type' => 'Tax type string',
+                    'data.grouped_lines[].line_items[].discount' => 'Discount (nullable)',
+                    'data.grouped_lines[].line_items[].discount.value' => 'Discount value (0–100)',
+                    'data.grouped_lines[].line_items[].discount.type' => 'Discount type (percentage)',
+                    'data.grouped_lines[].line_items[].total' => 'Line item totals',
+                    'data.grouped_lines[].line_items[].total.tax_exclusive' => 'Total excluding tax',
+                    'data.grouped_lines[].line_items[].total.tax_exclusive.amount' => 'Amount',
+                    'data.grouped_lines[].line_items[].total.tax_exclusive.currency' => 'Currency code',
+                    'data.grouped_lines[].line_items[].total.tax_exclusive_before_discount' => 'Total excluding tax before discount',
+                    'data.grouped_lines[].line_items[].total.tax_exclusive_before_discount.amount' => 'Amount',
+                    'data.grouped_lines[].line_items[].total.tax_exclusive_before_discount.currency' => 'Currency code',
+                    'data.grouped_lines[].line_items[].total.tax_inclusive' => 'Total including tax',
+                    'data.grouped_lines[].line_items[].total.tax_inclusive.amount' => 'Amount',
+                    'data.grouped_lines[].line_items[].total.tax_inclusive.currency' => 'Currency code',
+                    'data.grouped_lines[].line_items[].total.tax_inclusive_before_discount' => 'Total including tax before discount',
+                    'data.grouped_lines[].line_items[].total.tax_inclusive_before_discount.amount' => 'Amount',
+                    'data.grouped_lines[].line_items[].total.tax_inclusive_before_discount.currency' => 'Currency code',
+                    'data.grouped_lines[].line_items[].purchase_price' => 'Purchase price for this line item (nullable)',
+                    'data.grouped_lines[].line_items[].purchase_price.amount' => 'Purchase price amount',
+                    'data.grouped_lines[].line_items[].purchase_price.currency' => 'Currency code',
+                    'data.grouped_lines[].line_items[].periodicity' => 'Recurring period for this line item (nullable)',
+                    'data.grouped_lines[].line_items[].periodicity.unit' => 'Period unit (week, month, year)',
+                    'data.grouped_lines[].line_items[].periodicity.period' => 'Period multiplier',
+                    'data.currency' => 'Quotation currency code (e.g. EUR)',
+                    'data.currency_exchange_rate' => 'Exchange rate object (when currency differs from account currency)',
+                    'data.currency_exchange_rate.from' => 'Source currency code',
+                    'data.currency_exchange_rate.to' => 'Target currency code',
+                    'data.currency_exchange_rate.rate' => 'Exchange rate (e.g. 1.1234)',
+                    'data.text' => 'Rich text content of the quotation in Markdown',
+                    'data.total' => 'Quotation totals',
+                    'data.total.tax_exclusive' => 'Total excluding tax',
+                    'data.total.tax_exclusive.amount' => 'Amount',
+                    'data.total.tax_exclusive.currency' => 'Currency code',
+                    'data.total.tax_inclusive' => 'Total including tax',
+                    'data.total.tax_inclusive.amount' => 'Amount',
+                    'data.total.tax_inclusive.currency' => 'Currency code',
+                    'data.total.taxes' => 'Tax breakdown array',
+                    'data.total.taxes[].rate' => 'Tax rate (e.g. 0.21 for 21%)',
+                    'data.total.taxes[].taxable' => 'Taxable amount object',
+                    'data.total.taxes[].tax' => 'Tax amount object',
+                    'data.total.purchase_price' => 'Total purchase price (nullable)',
+                    'data.total.purchase_price.amount' => 'Amount',
+                    'data.total.purchase_price.currency' => 'Currency code',
+                    'data.discounts' => 'Document-level discounts array',
+                    'data.discounts[].type' => 'Discount type (percentage)',
+                    'data.discounts[].value' => 'Discount value (0–100)',
+                    'data.discounts[].description' => 'Discount description (e.g. winter promotion)',
+                    'data.created_at' => 'Creation timestamp (nullable)',
+                    'data.updated_at' => 'Last update timestamp (nullable)',
                     'data.status' => 'Quotation status (open, accepted, expired, rejected, closed)',
                     'data.name' => 'Quotation name',
-                    'data.document_template' => 'Document template reference (nullable)',
-                    'data.expiry' => 'Expiry information (if includes=expiry is requested)',
+                    'data.document_template' => 'Document template reference',
+                    'data.document_template.id' => 'Template UUID',
+                    'data.document_template.type' => 'Template type string',
+                    'data.expiry' => 'Expiry info — only with includes=expiry and if user has access',
+                    'data.expiry.expires_after' => 'Expiry date (YYYY-MM-DD)',
+                    'data.expiry.action_after_expiry' => 'Action on expiry (lock, none)',
                 ],
             ],
             'list' => [
-                'description' => 'Array of quotations',
+                'description' => 'Array of quotations with the same structure as info',
                 'fields' => [
-                    'data' => 'Array of quotation objects with structure similar to info endpoint',
+                    'data' => 'Array of quotation objects',
                 ],
             ],
             'download' => [
