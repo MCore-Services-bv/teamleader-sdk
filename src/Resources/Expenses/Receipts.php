@@ -9,7 +9,7 @@ class Receipts extends Resource
 {
     protected string $description = 'Manage expense receipts in Teamleader Focus';
 
-    // Resource capabilities - Receipts support create, update, delete, and info
+    // Resource capabilities - Receipts support create, update, delete, info, and payment management
     protected bool $supportsCreation = true;
 
     protected bool $supportsUpdate = true;
@@ -49,6 +49,13 @@ class Receipts extends Resource
         'refused',
     ];
 
+    // Valid payment statuses (returned by info endpoint)
+    protected array $validPaymentStatuses = [
+        'unknown',
+        'paid',
+        'not_paid',
+    ];
+
     // Usage examples specific to receipts
     protected array $usageExamples = [
         'create_basic' => [
@@ -75,9 +82,29 @@ class Receipts extends Resource
             'description' => 'Refuse a receipt',
             'code' => '$teamleader->receipts()->refuse(\'receipt-uuid\');',
         ],
+        'mark_pending_review' => [
+            'description' => 'Mark a receipt as pending review',
+            'code' => '$teamleader->receipts()->markAsPendingReview(\'receipt-uuid\');',
+        ],
         'send_to_bookkeeping' => [
             'description' => 'Send receipt to bookkeeping',
             'code' => '$teamleader->receipts()->sendToBookkeeping(\'receipt-uuid\');',
+        ],
+        'list_payments' => [
+            'description' => 'List payments for a receipt',
+            'code' => '$payments = $teamleader->receipts()->listPayments(\'receipt-uuid\');',
+        ],
+        'register_payment' => [
+            'description' => 'Register a payment for a receipt',
+            'code' => '$teamleader->receipts()->registerPayment(\'receipt-uuid\', [\'amount\' => 45.50, \'currency\' => \'EUR\'], \'2024-01-15T10:00:00Z\');',
+        ],
+        'remove_payment' => [
+            'description' => 'Remove a payment from a receipt',
+            'code' => '$teamleader->receipts()->removePayment(\'receipt-uuid\', \'payment-uuid\');',
+        ],
+        'update_payment' => [
+            'description' => 'Update a payment on a receipt',
+            'code' => '$teamleader->receipts()->updatePayment(\'receipt-uuid\', \'payment-uuid\', [\'amount\' => 50.00, \'currency\' => \'EUR\']);',
         ],
         'delete_receipt' => [
             'description' => 'Delete a receipt',
@@ -267,6 +294,155 @@ class Receipts extends Resource
     }
 
     /**
+     * List all payments for a receipt
+     *
+     * Returns an array of payment objects, each containing:
+     * - id (string): Payment UUID
+     * - payment.amount (float): Payment amount
+     * - payment.currency (string): Currency code
+     * - paid_at (datetime): When the payment was made
+     * - payment_method (object|null): Payment method reference (type + id)
+     * - remark (string|null): Optional remark
+     * Also includes meta.total.amount for the total paid amount.
+     *
+     * @param  string  $id  Receipt UUID
+     * @return array List of payments with meta totals
+     *
+     * @throws InvalidArgumentException When ID is empty
+     */
+    public function listPayments(string $id): array
+    {
+        if (empty($id)) {
+            throw new InvalidArgumentException('Receipt ID is required');
+        }
+
+        return $this->api->request('POST', $this->getBasePath().'.listPayments', ['id' => $id]);
+    }
+
+    /**
+     * Register a payment for a receipt
+     *
+     * @param  string  $id  Receipt UUID
+     * @param  array  $payment  Payment details with required 'amount' (float) and 'currency' (string)
+     * @param  string  $paidAt  ISO 8601 datetime when the payment was made
+     * @param  string|null  $paymentMethodId  Optional payment method UUID
+     * @param  string|null  $remark  Optional remark
+     * @return array Created payment response with data.type and data.id
+     *
+     * @throws InvalidArgumentException When required fields are missing or invalid
+     */
+    public function registerPayment(
+        string $id,
+        array $payment,
+        string $paidAt,
+        ?string $paymentMethodId = null,
+        ?string $remark = null
+    ): array {
+        if (empty($id)) {
+            throw new InvalidArgumentException('Receipt ID is required');
+        }
+
+        if (empty($paidAt)) {
+            throw new InvalidArgumentException('paid_at is required when registering a payment');
+        }
+
+        $this->validatePaymentData($payment);
+
+        $data = [
+            'id' => $id,
+            'payment' => $payment,
+            'paid_at' => $paidAt,
+        ];
+
+        if (! empty($paymentMethodId)) {
+            $data['payment_method_id'] = $paymentMethodId;
+        }
+
+        if (! empty($remark)) {
+            $data['remark'] = $remark;
+        }
+
+        return $this->api->request('POST', $this->getBasePath().'.registerPayment', $data);
+    }
+
+    /**
+     * Remove a specific payment from a receipt
+     *
+     * @param  string  $id  Receipt UUID
+     * @param  string  $paymentId  Payment UUID to remove
+     * @return array Response
+     *
+     * @throws InvalidArgumentException When ID or payment ID is empty
+     */
+    public function removePayment(string $id, string $paymentId): array
+    {
+        if (empty($id)) {
+            throw new InvalidArgumentException('Receipt ID is required');
+        }
+
+        if (empty($paymentId)) {
+            throw new InvalidArgumentException('Payment ID is required');
+        }
+
+        return $this->api->request('POST', $this->getBasePath().'.removePayment', [
+            'id' => $id,
+            'payment_id' => $paymentId,
+        ]);
+    }
+
+    /**
+     * Update an existing payment on a receipt
+     *
+     * @param  string  $id  Receipt UUID
+     * @param  string  $paymentId  Payment UUID to update
+     * @param  array  $payment  Updated payment details with required 'amount' (float) and 'currency' (string)
+     * @param  string|null  $paidAt  Optional ISO 8601 datetime override
+     * @param  string|null  $paymentMethodId  Optional payment method UUID
+     * @param  string|null  $remark  Optional remark
+     * @return array Response
+     *
+     * @throws InvalidArgumentException When required fields are missing or invalid
+     */
+    public function updatePayment(
+        string $id,
+        string $paymentId,
+        array $payment,
+        ?string $paidAt = null,
+        ?string $paymentMethodId = null,
+        ?string $remark = null
+    ): array {
+        if (empty($id)) {
+            throw new InvalidArgumentException('Receipt ID is required');
+        }
+
+        if (empty($paymentId)) {
+            throw new InvalidArgumentException('Payment ID is required');
+        }
+
+        $this->validatePaymentData($payment);
+
+        $data = [
+            'id' => $id,
+            'payment_id' => $paymentId,
+            'payment' => $payment,
+        ];
+
+        if (! empty($paidAt)) {
+            $data['paid_at'] = $paidAt;
+        }
+
+        if (! empty($paymentMethodId)) {
+            $data['payment_method_id'] = $paymentMethodId;
+        }
+
+        if (! empty($remark)) {
+            $data['remark'] = $remark;
+        }
+
+        return $this->api->request('POST', $this->getBasePath().'.updatePayment', $data);
+    }
+
+    /**
      * List method is not supported for receipts
      *
      * @throws InvalidArgumentException
@@ -296,6 +472,16 @@ class Receipts extends Resource
     public function getValidReviewStatuses(): array
     {
         return $this->validReviewStatuses;
+    }
+
+    /**
+     * Get valid payment statuses for receipts
+     *
+     * @return array Array of valid payment statuses
+     */
+    public function getValidPaymentStatuses(): array
+    {
+        return $this->validPaymentStatuses;
     }
 
     /**
@@ -330,5 +516,29 @@ class Receipts extends Resource
         }
 
         return $data;
+    }
+
+    /**
+     * Validate payment data (amount and currency are required)
+     *
+     * @param  array  $payment  Payment data to validate
+     *
+     * @throws InvalidArgumentException When required payment fields are missing or invalid
+     */
+    protected function validatePaymentData(array $payment): void
+    {
+        if (! isset($payment['amount']) || ! is_numeric($payment['amount'])) {
+            throw new InvalidArgumentException('Payment amount is required and must be numeric');
+        }
+
+        if (empty($payment['currency'])) {
+            throw new InvalidArgumentException('Payment currency is required');
+        }
+
+        if (! in_array($payment['currency'], $this->validCurrencyCodes)) {
+            throw new InvalidArgumentException(
+                'Invalid payment currency. Must be one of: '.implode(', ', $this->validCurrencyCodes)
+            );
+        }
     }
 }
