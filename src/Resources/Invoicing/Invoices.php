@@ -93,6 +93,23 @@ class Invoices extends Resource
         'credit_card',
     ];
 
+    // Valid Peppol submission statuses (returned in info/list responses)
+    protected array $validPeppolStatuses = [
+        'sending',
+        'sending_failed',
+        'sent',
+        'application_acknowledged',
+        'application_accepted',
+        'application_rejected',
+        'receiver_acknowledged',
+        'receiver_accepted',
+        'receiver_rejected',
+        'receiver_is_processing',
+        'receiver_awaits_feedback',
+        'receiver_conditionally_accepted',
+        'receiver_paid',
+    ];
+
     // Usage examples specific to invoices
     protected array $usageExamples = [
         'list_all' => [
@@ -102,6 +119,10 @@ class Invoices extends Resource
         'create_draft' => [
             'description' => 'Draft a new invoice',
             'code' => '$invoice = $teamleader->invoices()->create([...]);',
+        ],
+        'create_draft_with_delivery_date' => [
+            'description' => 'Draft a new invoice with a delivery date',
+            'code' => '$invoice = $teamleader->invoices()->create([..., \'delivery_date\' => \'2025-12-08\']);',
         ],
         'filter_by_status' => [
             'description' => 'Get outstanding invoices',
@@ -130,6 +151,10 @@ class Invoices extends Resource
         'update_draft' => [
             'description' => 'Update a draft invoice',
             'code' => '$result = $teamleader->invoices()->update(\'invoice-uuid\', [...]);',
+        ],
+        'update_draft_delivery_date' => [
+            'description' => 'Update the delivery date on a draft invoice',
+            'code' => '$result = $teamleader->invoices()->update(\'invoice-uuid\', [\'delivery_date\' => \'2025-12-08\']);',
         ],
         'update_booked' => [
             'description' => 'Update a booked invoice (if allowed in settings)',
@@ -180,6 +205,12 @@ class Invoices extends Resource
     /**
      * List invoices with filtering and sorting
      *
+     * Response includes: id, department, invoice_number, invoice_date, status, due_on,
+     * paid, paid_at, sent, purchase_order_number, payment_reference, invoicee, total,
+     * currency_exchange_rate, created_at, updated_at, web_url, file, deal, project,
+     * subscription (nullable object: {id, type}), delivery_date (nullable),
+     * peppol_status (nullable)
+     *
      * @param  array  $filters  Filter parameters
      * @param  array  $options  Pagination and sorting options
      */
@@ -218,6 +249,11 @@ class Invoices extends Resource
     /**
      * Get detailed information about a specific invoice
      *
+     * Response includes all list fields plus: discounts, grouped_lines (with full line
+     * item detail), payment_term, payments, payment_reference, note, currency,
+     * currency_exchange_rate, expected_payment_method, on_hold_since, custom_fields,
+     * document_template, delivery_date (nullable), peppol_status (nullable)
+     *
      * @param  string  $id  Invoice UUID
      * @param  mixed  $includes  Optional includes (e.g., 'late_fees')
      */
@@ -237,6 +273,24 @@ class Invoices extends Resource
     /**
      * Draft a new invoice
      *
+     * Required fields:
+     * - invoicee (object): customer {type, id} and optional for_attention_of
+     * - department_id (string): Department UUID
+     * - payment_term (object): type and optional days
+     * - grouped_lines (array): sections with line_items
+     *
+     * Optional fields:
+     * - currency (object): code and optional exchange_rate
+     * - project_id (string): Project UUID
+     * - purchase_order_number (string)
+     * - invoice_date (string): YYYY-MM-DD
+     * - discounts (array)
+     * - note (string)
+     * - expected_payment_method (object): method and optional reference
+     * - custom_fields (array)
+     * - document_template_id (string)
+     * - delivery_date (string|null): YYYY-MM-DD — the delivery/service date shown on the invoice
+     *
      * @param  array  $data  Invoice data
      */
     public function create(array $data): array
@@ -249,6 +303,21 @@ class Invoices extends Resource
     /**
      * Update a draft invoice
      * Note: Booked invoices cannot be updated with this method
+     *
+     * Updatable fields:
+     * - invoicee (object): customer {type, id} and optional for_attention_of
+     * - payment_term (object): nullable, type and optional days
+     * - currency (object): code and optional exchange_rate
+     * - project_id (string)
+     * - purchase_order_number (string)
+     * - grouped_lines (array): sections with line_items
+     * - invoice_date (string): YYYY-MM-DD
+     * - note (string|null)
+     * - discounts (array)
+     * - expected_payment_method (object|null)
+     * - custom_fields (array)
+     * - document_template_id (string)
+     * - delivery_date (string|null): YYYY-MM-DD — the delivery/service date shown on the invoice
      *
      * @param  string  $id  Invoice UUID
      * @param  array  $data  Invoice data to update
