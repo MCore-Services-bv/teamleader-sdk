@@ -245,10 +245,22 @@ $entries = Teamleader::timeTracking()->relatedTo(
     'milestone'
 );
 
-// Get entries related to project
+// Get entries related to a classic project
 $entries = Teamleader::timeTracking()->relatedTo(
     'project-uuid',
     'project'
+);
+
+// Get entries related to a new project (projects-v2)
+$entries = Teamleader::timeTracking()->relatedTo(
+    'nextgen-project-uuid',
+    'nextgenProject'
+);
+
+// Get entries related to a new project group (projects-v2)
+$entries = Teamleader::timeTracking()->relatedTo(
+    'nextgen-group-uuid',
+    'nextgenProjectGroup'
 );
 ```
 
@@ -329,7 +341,7 @@ Available filters for the `list()` method:
 | `started_before` | string | Entries started before datetime |
 | `ended_after` | string | Entries ended after datetime |
 | `ended_before` | string | Entries ended before datetime |
-| `relates_to` | object | Filter by related milestone or project |
+| `relates_to` | object | Filter by related entity (milestone, project, nextgenProject, or nextgenProjectGroup) |
 | `invoiced` | boolean | Filter by invoiced status |
 | `invoiceable` | boolean | Filter by invoiceable status |
 

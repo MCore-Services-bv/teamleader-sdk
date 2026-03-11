@@ -56,7 +56,15 @@ class TimeTracking extends Resource
         'ended_before' => 'End of period for ended entries (ISO 8601 datetime)',
         'subject' => 'Filter by subject (id and type)',
         'subject_types' => 'Filter by subject types array',
-        'relates_to' => 'Filter by related entity (milestone or project)',
+        'relates_to' => 'Filter by related entity (milestone, project, nextgenProject, nextgenProjectGroup)',
+    ];
+
+    // Valid relates_to type values for the relates_to filter
+    protected array $validRelatesToTypes = [
+        'milestone',
+        'project',
+        'nextgenProject',
+        'nextgenProjectGroup',
     ];
 
     // Usage examples
@@ -259,14 +267,15 @@ class TimeTracking extends Resource
     }
 
     /**
-     * Filter entries related to a milestone or project
+     * Filter entries related to a milestone, project, or new projects entity
+     *
+     * Valid type values: milestone, project, nextgenProject, nextgenProjectGroup
      */
     public function relatedTo(string $entityId, string $entityType, array $options = []): array
     {
-        $validTypes = ['milestone', 'project'];
-        if (! in_array($entityType, $validTypes)) {
+        if (! in_array($entityType, $this->validRelatesToTypes)) {
             throw new InvalidArgumentException(
-                'Invalid relates_to type. Must be one of: '.implode(', ', $validTypes)
+                'Invalid relates_to type. Must be one of: '.implode(', ', $this->validRelatesToTypes)
             );
         }
 
