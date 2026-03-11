@@ -25,7 +25,7 @@ use McoreServices\TeamleaderSDK\Resources\General\Users;
  * @method static array getApiCalls()
  * @method static void resetApiCallStats()
  *
- * @see \McoreServices\TeamleaderSDK\TeamleaderSDK
+ * @see McoreServices\TeamleaderSDK\TeamleaderSDK
  */
 class Teamleader extends Facade
 {
