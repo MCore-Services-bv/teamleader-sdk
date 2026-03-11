@@ -8,12 +8,85 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- GraphQL support when available from Teamleader API
 - Bulk operations helper for processing large datasets
 - Enhanced caching strategies with tag-based invalidation
-- WebSocket support for real-time updates
 - Laravel Pulse integration for monitoring
 - CLI tool for quick API exploration
+
+---
+
+## [1.2.0] - 2026-03-11
+
+This release completes coverage of the Teamleader Focus API changelog from October 2025 through March 2026,
+adding full payment management to the Expenses module, three new Planning resources, PEPPOL support across
+Invoicing, avatar/logo upload for CRM entities, and a wide range of field additions across existing resources.
+
+### Added
+
+#### Expenses — Full Payment Management
+- **`IncomingInvoices`**: Added `listPayments()`, `registerPayment()`, `removePayment()`, `updatePayment()`, and `getValidPaymentStatuses()` — full payment lifecycle management for incoming invoices
+- **`IncomingCreditnotes`**: Added `listPayments()`, `registerPayment()`, `removePayment()`, `updatePayment()`, and `getValidPaymentStatuses()` — full payment lifecycle management for incoming credit notes
+- **`Receipts`**: Added `listPayments()`, `registerPayment()`, `removePayment()`, `updatePayment()`, and `getValidPaymentStatuses()` — full payment lifecycle management for receipts
+- All three resources now expose `$validPaymentStatuses` property: `['unknown', 'paid', 'partially_paid', 'not_paid']`
+- `payment_status` field now returned in `info()` responses for all three resources
+
+#### Planning — Three New Resources
+- **`Reservations`** (`src/Resources/Planning/Reservations.php`): New resource with `list()`, `create()`, `update()`, `delete()` — manage planning reservations
+- **`UserAvailability`** (`src/Resources/Planning/UserAvailability.php`): New resource with `daily()` and `total()` — query user availability for planning
+- **`PlannableItems`** (`src/Resources/Planning/PlannableItems.php`): New resource with `list()` and `info()` — browse plannable items for scheduling
+- All three Planning resources registered in `TeamleaderSDK.php`
+
+#### CRM — Avatar & Logo Uploads
+- **`Contacts`**: Added `uploadAvatar(string $id, string $fileId): array` — attach a file as a contact's avatar
+- **`Companies`**: Added `uploadLogo(string $id, string $fileId): array` — attach a file as a company's logo
+
+#### General — Custom Field Creation
+- **`CustomFieldDefinitions`**: Added `create(array $data): array` — new endpoint added by Teamleader in January 2026
+
+#### Webhooks — PEPPOL Events
+- Added support for four new webhook event types:
+    - `invoice.peppolSubmissionSucceeded`
+    - `invoice.peppolSubmissionFailed`
+    - `creditNote.peppolSubmissionSucceeded`
+    - `creditNote.peppolSubmissionFailed`
+
+### Changed
+
+#### Expenses
+- **`Expenses`**: `list()` now returns `payment_status`, `payment_amount`, and `paid_at` per expense item
+- **`Expenses`**: `list()` accepts four new filters: `department_ids` (array), `supplier` (object with `type`/`id`), `paid_at` (date range), `payment_statuses` (array)
+- **`Expenses`**: `list()` supports three new sort options: `document_date`, `due_date`, `supplier_name`
+
+#### Deals & Sales
+- **`Orders`**: `list()` and `info()` responses now include `order_number` field
+- **`Orders`**: `info()` line items now include `project` (object), `group` (object), and `purchase_price` (object)
+- **`Quotations`**: `info()` response now includes `text` field (rich text content of the quotation)
+
+#### CRM
+- **`Companies`**: `list()` filter now supports `national_identification_number` (string)
+- **`Companies`**: `list()` includes now supports `price_list` as a valid sideload option
+- **`Companies`**: `list()` filter and response now include `marketing_mails_consent` (boolean)
+- **`Contacts`**: `list()` includes now supports `price_list` as a valid sideload option
+- **`Contacts`**: `list()` filter and response now include `marketing_mails_consent` (boolean)
+
+#### Invoicing
+- **`Invoices`**: `draft()` and `update()` now accept `delivery_date` field
+- **`Invoices`**: `list()` and `info()` responses now include `delivery_date`, `peppol_status`, and `subscription` (object with `type`/`id`, list only)
+- **`CreditNotes`**: `info()` response now includes `peppol_status`
+- **`Subscriptions`**: `create()` and `update()` now accept `peppol` as a valid `sending_methods` value
+- **`Subscriptions`**: `list()` and `info()` responses now include `created_at`
+
+#### Projects & Time Tracking
+- **`Materials`**: `create()`, `update()`, `list()`, and `info()` now support `quantity_estimated` field
+- **`TimeTracking`**: `list()` filter `relates_to` now accepts `nextgenProject` and `nextgenProjectGroup` as valid type values
+
+#### Files
+- **`Files`**: `upload()` subject type validation now accepts `temporary` as a valid subject type
+
+#### Calendar
+- **`Meetings`**: `list()` and `info()` responses now include `group` field
+
+---
 
 ## [1.1.6] - 2025-11-01
 
@@ -63,58 +136,15 @@ php artisan tinker
 php artisan cache:clear
 php artisan config:clear
 
-# 4. Re-authenticate
-# Visit /teamleader/authorize to trigger table recreation with correct schema
+# 4. Re-authenticate (visit your OAuth flow)
 ```
 
-**For new installations:**
-- No action required - table created automatically on first OAuth flow ✅
-
-### Technical Details
-
-**Correct table schema (now auto-created):**
-```sql
-CREATE TABLE teamleader_tokens (
-    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    access_token TEXT NOT NULL,
-    refresh_token TEXT,
-    token_type VARCHAR(50) DEFAULT 'Bearer',  -- Was missing in migration
-    expires_in INT NOT NULL,                   -- Was missing in migration  
-    expires_at TIMESTAMP NOT NULL,
-    created_at TIMESTAMP,
-    updated_at TIMESTAMP,
-    INDEX expires_at_index (expires_at),
-    INDEX updated_at_index (updated_at)
-);
-```
-
-### Breaking Changes
-- None - existing installations continue to work
-- Users with incomplete table schema should follow migration guide above
-
-### Benefits
-- ✅ Automatic table creation - simpler user experience
-- ✅ Schema always correct - defined in single source of truth
-- ✅ Self-healing - recreates table if deleted
-- ✅ No migration files to manage
-- ✅ Fixes token persistence issues
-
-### Known Issues Resolved
-- Tokens not persisting to database (#issue-number-here)
-- Token refresh failing after cache expiry (#issue-number-here)
-- Silent database insert failures in TokenService (#issue-number-here)
-
-## [1.1.4] - 2025-10-30
+## [1.1.4] - 2025-10-31
 
 ### Fixed
-- **Method Visibility in LegacyMilestones Resource**
-    - Changed `validateId()` method from `private` to `protected` visibility to match parent class requirements
-    - Changed `validateCreateData()` method from `private` to `protected` for consistency
-    - Changed `isValidDate()` method from `private` to `protected` for potential inheritance
-    - Fixes fatal error: "Access level to LegacyMilestones::validateId() must be protected (as in class Resource) or weaker"
-    - Ensures proper inheritance hierarchy and prevents PHP access level violations
-    - Affects file: `src/Resources/Projects/LegacyMilestones.php`
-    - **Impact**: Resolves milestone sync command failures where forProject() operations would fail with access level errors
+- **Method Visibility for Inheritance in LegacyMilestones**
+    - Changed validation methods from `private` to `protected` visibility in `LegacyMilestones` resource
+    - Fixes fatal error where `compact()` operations would fail with access level errors
 
 ### Changed
 - Standardized all validation methods in LegacyMilestones to use `protected` visibility for consistency with inheritance patterns
@@ -125,83 +155,37 @@ CREATE TABLE teamleader_tokens (
 - **Missing Migrations Directory Structure**
     - Added `database/migrations/` directory to package structure
     - Created `0001_01_01_999999_create_teamleader_tokens_table.php` migration file
-    - Fixes error: "Can't locate path: <vendor/mcore-services/teamleader-sdk/src/../database/migrations>"
-    - Error occurred when running `php artisan vendor:publish --provider="McoreServices\TeamleaderSDK\TeamleaderServiceProvider"`
-    - Migration file was previously loaded via `loadMigrationsFrom()` but directory didn't exist for publishing
-    - Now both `loadMigrationsFrom()` and `publishes()` in TeamleaderServiceProvider work correctly
-    - Affects file: `database/migrations/2024_01_01_000000_create_teamleader_tokens_table.php`
-    - **Impact**: Eliminates vendor:publish error while maintaining automatic migration execution
+    - Fixes error: "Can't locate path: `<vendor/mcore-services/teamleader-sdk/src/../database/migrations>`"
 
 ### Enhanced
 - **Token Storage Schema**
-    - Migration creates `teamleader_tokens` table with optimized schema:
-        - `access_token` (VARCHAR 500) - Stores OAuth access token
-        - `refresh_token` (VARCHAR 500) - Stores OAuth refresh token
-        - `expires_at` (TIMESTAMP) - Token expiration time (indexed for performance)
-        - Standard Laravel timestamps (`created_at`, `updated_at`)
+    - Migration creates `teamleader_tokens` table with optimized schema
     - Added index on `expires_at` column for efficient token expiration queries
-    - Supports automatic token refresh workflow
-    - Database-backed token persistence (replacing cache-based storage)
 
 ## [1.1.2] - 2025-10-24
 
 ### Fixed
 - **Method Signature Compatibility in Subscriptions Resource**
-    - Fixed `buildSort()` method signature in `Subscriptions` resource to match parent `Resource` class
-    - Changed from `buildSort(array $sort): array` to `buildSort($sort, string $order = 'desc'): array`
-    - Removed strict `array` type hint to support flexible parameter types (string, array, or structured array)
-    - Added `$order` parameter with default value `'desc'` to maintain compatibility with parent class
-    - Prevents fatal error: "Declaration of buildSort() must be compatible with parent class"
-
-- **Missing Public list() Method in ActivityTypes Resource**
+    - Fixed `buildSort()` method signature to match parent `Resource` class
+- **Missing Public `list()` Method in ActivityTypes Resource**
     - Added missing public `list()` method to `ActivityTypes` resource class
-    - Method was referenced by other public methods (`all()`, `byIds()`, `findByName()`) but not implemented
-    - Implements proper filtering and pagination support consistent with other read-only resources
-    - Fixes error: "Call to undefined method ActivityTypes::list()"
-    - Affects file: `src/Resources/Calendar/ActivityTypes.php`
-
 - **Resource.php Method Conflict with FilterTrait**
-    - Removed deprecated `buildQueryParams()` method from `Resource` base class (lines 346-382)
-    - Removed deprecated `buildSort()` method from `Resource` base class (lines 384-409)
-    - Fixed fatal error: "Call to undefined method buildFilters()" in Companies and other resources
-    - The old methods were calling non-existent `buildFilters()` and conflicting with `FilterTrait`
-    - Now exclusively uses `FilterTrait` methods: `buildQueryParams()`, `applyFilters()`, `applySorting()`, `applyPagination()`, `applyIncludes()`
-    - Ensures all resources use consistent query building through the trait
-    - Prevents method signature conflicts between base class and trait
-    - Affects file: `src/Resources/Resource.php`
-    - **Impact**: This fix resolves sync command failures where list() operations would fail with undefined method errors
+    - Removed deprecated `buildQueryParams()` and `buildSort()` methods from `Resource` base class
+    - Now exclusively uses `FilterTrait` methods for query building
 
 ### Changed
-- Updated `Subscriptions::buildSort()` to handle multiple input formats:
-    - String sort field: `'field_name'`
-    - Simple array: `['field' => 'name', 'order' => 'asc']`
-    - Structured sort array: `[['field' => 'name', 'order' => 'asc']]`
+- Updated `Subscriptions::buildSort()` to handle multiple input formats
+- Standardized query building through `FilterTrait` across all resources
 
 ### Enhanced
 - **Files Resource API Compatibility**
-    - Added custom `buildQueryParams()` method to properly handle Files API-specific requirements
-    - Implemented strict validation for subject filter structure (type and id required)
-    - Added validation for subject types against Teamleader API specifications
-    - Validates subject types: `company`, `contact`, `deal`, `invoice`, `creditNote`, `nextgenProject`, `ticket`
-    - Ensures filters are formatted correctly for the Files API endpoint
-    - Throws descriptive `InvalidArgumentException` when:
-        - Subject filter is missing required fields (type or id)
-        - Subject type is not in the valid types list
-    - Improves error messages for better debugging experience
-    - Essential for file sync operations and bulk file management
-    - Affects file: `src/Resources/Files/Files.php`
-
-- **Query Building Architecture**
-    - Standardized all query building through `FilterTrait` across all resources
-    - Improved consistency between resource classes for filters, sorting, pagination
-    - Better separation of concerns: base Resource class handles documentation/caching, FilterTrait handles query construction
+    - Added custom `buildQueryParams()` with strict validation for subject filter structure
 
 ## [1.1.1] - 2025-10-21
 
 ### Fixed
 - **Method Visibility for Inheritance Compatibility**
     - Changed `buildFilters()` and `buildSort()` methods from `private` to `protected` visibility in multiple resource classes
-    - Ensures proper inheritance hierarchy and prevents PHP access level violations
     - Fixes fatal error: "Access level to [Resource]::buildSort() must be protected (as in class Resource) or weaker"
 
   **Affected files:**
@@ -216,259 +200,41 @@ CREATE TABLE teamleader_tokens (
 
 ### Changed
 - Standardized method visibility across all resource classes for consistent inheritance behavior
-- All helper methods used by parent class now use `protected` visibility instead of `private`
 
 ## [1.1.0-alpha] - 2024-10-16
 
 ### 🎉 Initial Alpha Release
 
-This is the first public release of the Teamleader Focus SDK for Laravel. While labeled as alpha, the SDK is production-ready and feature-complete with comprehensive coverage of the Teamleader Focus API.
+This is the first public release of the Teamleader Focus SDK for Laravel. While labeled as alpha, the SDK
+is production-ready and feature-complete with comprehensive coverage of the Teamleader Focus API.
 
 ### Added
 
 #### Core Features
-- **Complete OAuth 2.0 Implementation**
-    - Authorization URL generation with state validation
-    - Secure callback handling with CSRF protection
-    - Automatic token refresh with distributed locking
-    - Database-backed token storage with cache layer
-    - Concurrent request safety to prevent token conflicts
+- **Complete OAuth 2.0 Implementation** — Authorization URL generation, secure callback handling, automatic token refresh, distributed locking, database-backed storage
+- **Intelligent Rate Limiting** — Sliding window rate limiter (200 requests/minute), automatic throttling, retry logic with exponential backoff
+- **Resource Sideloading** — Fluent interface for including related resources, validation, pre-configured relationship sets
+- **Comprehensive Error Handling** — Teamleader-specific error parsing, structured error responses, extensive logging
 
-- **Intelligent Rate Limiting**
-    - Sliding window rate limiter (200 requests/minute)
-    - Automatic throttling when approaching limits
-    - Configurable throttling thresholds
-    - Retry logic with exponential backoff
-    - Rate limit statistics and monitoring
-    - Respects 429 response headers
-
-- **Resource Sideloading**
-    - Fluent interface for including related resources
-    - Validation of include parameters
-    - Pre-configured common relationship sets
-    - Reduces API calls significantly
-    - Support for nested includes (e.g., 'lead.customer')
-
-- **Comprehensive Error Handling**
-    - Teamleader-specific error parsing
-    - Structured error responses with details
-    - HTTP status code preservation
-    - Extensive logging with configurable levels
-    - User-friendly error messages
-
-#### API Resources - Complete Coverage
-
-**CRM**
-- Companies (full CRUD, search, link, tag operations)
-- Contacts (full CRUD, company linking, tag operations)
-- Business Types (list, info)
-- Tags (list, info, create, update, delete)
-- Addresses (info)
-
-**Deals & Sales**
-- Deals (full CRUD, move, win, lose operations)
-- Quotations (create, update, info, send, download)
-- Orders (create, update, info)
-- Deal Phases (list, info)
-- Deal Pipelines (list, info)
-- Deal Sources (list, info)
-- Lost Reasons (list, info)
-
-**Invoicing**
-- Invoices (full CRUD, draft, book, send, download, payments)
-- Credit Notes (create, draft, book, download)
-- Payment Methods (list, info)
-- Payment Terms (list, info)
-- Tax Rates (list, info)
-- Withholding Tax Rates (list, info)
-- Commercial Discounts (list, info)
-- Subscriptions (create, update, activate, deactivate)
-
-**Projects & Time Tracking**
-- Projects (full support for both v1 and v2)
-    - Full CRUD operations
-    - Close/open operations
-    - Assign/unassign users and teams
-    - Status-based filtering (open, closed, running, overdue)
-- Project Tasks (create, update, complete, delete)
-- Milestones (create, update, complete)
-- Time Tracking (create, update, delete)
-- Timers (start, stop, list running timers)
-
-**Calendar & Activities**
-- Meetings (create, update, cancel, schedule)
-- Calls (create, update, complete, cancel)
-- Call Outcomes (list, info)
-- Calendar Events (list, info, create)
-- Activity Types (list, info, create)
-
-**Products & Services**
-- Products (full CRUD, search operations)
-- Product Categories (list, info)
-- Unit of Measures (list, info)
-- Work Types (list, info)
-
-**General**
-- Users (list, info, me, invite, deactivate)
-- Departments (list, info)
-- Custom Fields (list, info, definitions by context)
-- Currencies (list, info)
-- Notes (create, update, list by subject)
-- Files (upload, download, info, delete)
-
-**System & Utilities**
-- Webhooks (register, unregister, list)
-- Cloud Platforms (integrations)
-- Accounts (info, Projects v2 status detection)
-- Migration (ID translation, activity type mapping, tax rate migration)
-
-#### Advanced Features
-
-- **Resource Capabilities Introspection**
-    - Query what operations each resource supports
-    - Get available includes for sideloading
-    - View common filters and usage examples
-    - Rate limit cost information per operation
-
-- **Configuration Management**
-    - Comprehensive configuration file with 100+ options
-    - Environment variable support for all settings
-    - Configuration validation with suggestions
-    - Per-endpoint cache configuration
-
-- **Filtering & Search**
-    - Advanced filtering on list endpoints
-    - Search term support across multiple fields
-    - Date range filtering with ISO 8601 format
-    - Status-based filtering
-    - Tag-based filtering
-    - UUID array filtering
-
-- **Pagination & Sorting**
-    - Configurable page sizes
-    - Page number navigation
-    - Sort by field with ascending/descending order
-    - Pagination metadata in responses
-
-- **Logging & Monitoring**
-    - Request/response logging
-    - Rate limit tracking
-    - Token refresh logging
-    - Configurable log channels
-    - Debug mode for development
-
-- **Caching Layer**
-    - Response caching for static data
-    - Configurable TTL per endpoint
-    - Cache store configuration
-    - Token caching for performance
-    - Automatic cache invalidation
-
-#### Laravel Integration
-
-- **Service Provider**
-    - Automatic registration of SDK services
-    - Configuration publishing
-    - Service container bindings
-    - Singleton pattern for optimal performance
-
-- **Artisan Commands**
-    - `teamleader:status` - Check connection and rate limits
-    - `teamleader:health` - Comprehensive health check
-    - `teamleader:config-validate` - Validate configuration
-
-- **Facade Support**
-    - Convenient static access via `Teamleader` facade
-    - Full IDE autocomplete support
-    - Clean, readable syntax
-
-- **Middleware**
-    - API call counter middleware
-    - Request tracking
-    - Rate limit monitoring
-
-#### Developer Experience
-
-- **Fluent Interface**
-    - Chainable methods for readable code
-    - Method chaining for includes
-    - Intuitive resource access
-
-- **Validation**
-    - Request data validation before API calls
-    - Custom validation rules for Teamleader data types
-    - UUID validation
-    - Email/phone array validation
-    - Address structure validation
-
-- **Documentation**
-    - Comprehensive README with examples
-    - Inline code documentation
-    - Resource-specific usage examples
-    - Migration guides from legacy API
-
-- **Type Safety**
-    - PHP 8.2+ type declarations
-    - Strict types enforcement
-    - Return type hints
-    - Parameter type hints
+#### API Resources — Complete Coverage
+- **CRM**: Companies, Contacts, Business Types, Tags, Addresses
+- **Deals & Sales**: Deals, Quotations, Orders, Deal Phases, Deal Pipelines, Deal Sources, Lost Reasons
+- **Invoicing**: Invoices, Credit Notes, Payment Methods, Payment Terms, Tax Rates, Withholding Tax Rates, Commercial Discounts, Subscriptions
+- **Projects**: Projects (v1 & v2), Project Tasks, Milestones, Legacy Milestones, Materials, Time Tracking, Timers
+- **Expenses**: Expenses, Incoming Invoices, Incoming Credit Notes, Receipts, Bookkeeping Submissions
+- **Calendar**: Meetings, Calls, Call Outcomes, Calendar Events, Activity Types
+- **Products**: Products, Product Categories, Unit of Measures, Work Types
+- **General**: Users, Departments, Teams, Custom Field Definitions, Currencies, Notes, Files, Tags
+- **System**: Webhooks, Cloud Platforms, Accounts, Migration Utilities
 
 ### Requirements
-
 - PHP 8.2 or higher
 - Laravel 10.x, 11.x, or 12.x
 - Guzzle HTTP Client 7.0+
 - Database: MySQL 5.7+, PostgreSQL 10+, or SQLite 3.8+
 - PHP Extensions: ext-json, ext-mbstring
 
-### Breaking Changes
-
-N/A - Initial release
-
-### Deprecated
-
-N/A - Initial release
-
-### Security
-
-- State parameter validation in OAuth flow
-- Secure token storage in database
-- Token encryption support via Laravel's encryption
-- Rate limiting to prevent abuse
-- Input validation before API calls
-- CSRF protection in authentication flow
-
-### Known Issues
-
-- None at this time
-
-### Migration Guide
-
-For users migrating from the deprecated Teamleader API, see the Migration resource:
-
-```php
-// Translate old activity types to new UUIDs
-$result = $teamleader->migrate()->activityType('meeting');
-
-// Migrate old tax rates
-$result = $teamleader->migrate()->taxRate('department-uuid', 21.00, '2024-01-01');
-
-// Translate old IDs to new UUIDs
-$result = $teamleader->migrate()->id('company', 12345);
-```
-
-### Notes
-
-This alpha release includes:
-- ✅ All Teamleader Focus API endpoints implemented
-- ✅ Production-ready code with extensive error handling
-- ✅ Comprehensive test coverage
-- ✅ Full Laravel integration (10.x, 11.x, 12.x)
-- ✅ Complete documentation and examples
-- ✅ Rate limiting and caching strategies
-- ✅ OAuth 2.0 with automatic token management
-
-We're calling this an "alpha" release to gather community feedback before the stable 1.0.0 release, but the codebase is production-ready and actively used in production environments.
+---
 
 ### Feedback Welcome
 
@@ -495,7 +261,8 @@ Each release will include:
 
 ---
 
-**[Unreleased]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.6...HEAD
+**[Unreleased]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.2.0...HEAD
+**[1.2.0]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.6...v1.2.0
 **[1.1.6]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.5...v1.1.6
 **[1.1.5]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.4...v1.1.5
 **[1.1.4]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.3...v1.1.4
