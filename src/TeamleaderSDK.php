@@ -105,6 +105,11 @@ class TeamleaderSDK
         'projects' => Resources\Projects\Projects::class,
         'projectTasks' => Resources\Projects\ProjectTasks::class,
 
+        // Pganning
+        'plannable_items' => Resources\Planning\PlannableItems::class,
+        'reservations' => Resources\Planning\Reservations::class,
+        'user_availability' => Resources\Planning\UserAvailability::class,
+
         // Tasks
         'tasks' => Resources\Tasks\Tasks::class,
 
