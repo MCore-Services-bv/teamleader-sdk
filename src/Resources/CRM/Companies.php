@@ -45,16 +45,16 @@ class Companies extends Resource
 
     // Common filters based on API documentation
     protected array $commonFilters = [
-        'ids'                           => 'Array of company UUIDs',
-        'email'                         => 'Email address (requires type and email fields)',
-        'name'                          => 'Company name (fuzzy search)',
-        'vat_number'                    => 'VAT number',
+        'ids' => 'Array of company UUIDs',
+        'email' => 'Email address (requires type and email fields)',
+        'name' => 'Company name (fuzzy search)',
+        'vat_number' => 'VAT number',
         'national_identification_number' => 'National identification number',
-        'term'                          => 'Search term (searches name, VAT, emails, phones)',
-        'tags'                          => 'Array of tag names',
-        'updated_since'                 => 'ISO 8601 datetime',
-        'status'                        => 'Company status (active, deactivated)',
-        'marketing_mails_consent'       => 'Marketing mails consent (boolean)',
+        'term' => 'Search term (searches name, VAT, emails, phones)',
+        'tags' => 'Array of tag names',
+        'updated_since' => 'ISO 8601 datetime',
+        'status' => 'Company status (active, deactivated)',
+        'marketing_mails_consent' => 'Marketing mails consent (boolean)',
     ];
 
     /**
@@ -235,7 +235,7 @@ class Companies extends Resource
      * Upload or remove a company logo.
      * Pass a base64 data URI string to set the logo, or null to remove it.
      *
-     * @param  string  $id    Company UUID
+     * @param  string  $id  Company UUID
      * @param  string|null  $image  Base64 data URI (e.g. data:image/png;base64,...) or null to remove
      */
     public function uploadLogo(string $id, ?string $image): array
@@ -247,7 +247,7 @@ class Companies extends Resource
         }
 
         return $this->api->request('POST', $this->getBasePath().'.uploadLogo', [
-            'id'    => $id,
+            'id' => $id,
             'image' => $image,
         ]);
     }
@@ -280,7 +280,7 @@ class Companies extends Resource
         }
 
         return $this->api->request('POST', $this->getBasePath().'.tag', [
-            'id'   => $id,
+            'id' => $id,
             'tags' => $tags,
         ]);
     }
@@ -295,7 +295,7 @@ class Companies extends Resource
         }
 
         return $this->api->request('POST', $this->getBasePath().'.untag', [
-            'id'   => $id,
+            'id' => $id,
             'tags' => $tags,
         ]);
     }
@@ -375,9 +375,9 @@ class Companies extends Resource
     public function getAvailableSortFields(): array
     {
         return [
-            'added_at'   => 'Date company was added',
+            'added_at' => 'Date company was added',
             'updated_at' => 'Date company was last updated',
-            'name'       => 'Company name',
+            'name' => 'Company name',
         ];
     }
 
@@ -407,12 +407,12 @@ class Companies extends Resource
                 case 'email':
                     if (is_string($value)) {
                         $apiFilters['email'] = [
-                            'type'  => 'primary',
+                            'type' => 'primary',
                             'email' => $value,
                         ];
                     } elseif (is_array($value) && isset($value['email'])) {
                         $apiFilters['email'] = [
-                            'type'  => $value['type'] ?? 'primary',
+                            'type' => $value['type'] ?? 'primary',
                             'email' => $value['email'],
                         ];
                     }

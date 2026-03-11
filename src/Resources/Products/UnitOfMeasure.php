@@ -2,6 +2,7 @@
 
 namespace McoreServices\TeamleaderSDK\Resources\Products;
 
+use Illuminate\Support\Collection;
 use McoreServices\TeamleaderSDK\Resources\Resource;
 
 class UnitOfMeasure extends Resource
@@ -140,10 +141,8 @@ class UnitOfMeasure extends Resource
 
     /**
      * Get units of measure as collection for easier manipulation
-     *
-     * @return \Illuminate\Support\Collection
      */
-    public function asCollection()
+    public function asCollection(): Collection
     {
         $response = $this->list();
 

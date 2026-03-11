@@ -2,6 +2,7 @@
 
 namespace McoreServices\TeamleaderSDK\Resources\Deals;
 
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
 
@@ -68,8 +69,8 @@ class Pipelines extends Resource
         }
 
         // Debug logging
-        if (function_exists('Log') && class_exists('Illuminate\Support\Facades\Log')) {
-            \Illuminate\Support\Facades\Log::debug('DealPipelines list request', [
+        if (function_exists('Log') && class_exists(Log::class)) {
+            Log::debug('DealPipelines list request', [
                 'filters' => $filters,
                 'options' => $options,
                 'final_params' => $params,
@@ -79,8 +80,8 @@ class Pipelines extends Resource
         $response = $this->api->request('POST', $this->getBasePath().'.list', $params);
 
         // Debug logging for response
-        if (function_exists('Log') && class_exists('Illuminate\Support\Facades\Log')) {
-            \Illuminate\Support\Facades\Log::debug('DealPipelines list response', [
+        if (function_exists('Log') && class_exists(Log::class)) {
+            Log::debug('DealPipelines list response', [
                 'has_error' => isset($response['error']),
                 'response_keys' => array_keys($response),
                 'data_count' => isset($response['data']) ? count($response['data']) : 0,

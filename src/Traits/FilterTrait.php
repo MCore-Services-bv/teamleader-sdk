@@ -12,13 +12,13 @@ trait FilterTrait
         // Remove null or empty array values to avoid invalid filters
         $filters = array_filter($filters, function ($value) {
             if (is_array($value)) {
-                return !empty($value);
+                return ! empty($value);
             }
 
             return $value !== null && $value !== '';
         });
 
-        if (!empty($filters)) {
+        if (! empty($filters)) {
             $params['filter'] = $filters;
         }
 
@@ -81,14 +81,14 @@ trait FilterTrait
      */
     protected function applyIncludes(array $params = [], $includes = null)
     {
-        if (!empty($includes)) {
+        if (! empty($includes)) {
             if (is_array($includes)) {
                 // Filter out empty includes and join with comma
                 $validIncludes = array_filter($includes, function ($include) {
-                    return !empty($include) && is_string($include);
+                    return ! empty($include) && is_string($include);
                 });
 
-                if (!empty($validIncludes)) {
+                if (! empty($validIncludes)) {
                     $params['include'] = implode(',', $validIncludes);
                 }
             } elseif (is_string($includes)) {
@@ -114,7 +114,7 @@ trait FilterTrait
     {
         $pendingIncludes = $this->getPendingIncludes();
 
-        if (!empty($pendingIncludes)) {
+        if (! empty($pendingIncludes)) {
             $params = $this->applyIncludes($params, $pendingIncludes);
             $this->pendingIncludes = []; // Clear after applying
         }
@@ -128,7 +128,7 @@ trait FilterTrait
     protected function buildQueryParams(
         array $baseParams = [],
         array $filters = [],
-              $sort = null,
+        $sort = null,
         string $sortOrder = 'asc',
         int $pageSize = 20,
         int $pageNumber = 1,

@@ -37,13 +37,13 @@ class Contacts extends Resource
 
     // Common filters based on API documentation
     protected array $commonFilters = [
-        'ids'                     => 'Array of contact UUIDs',
-        'email'                   => 'Email address (requires type and email fields)',
-        'company_id'              => 'Filter by company UUID',
-        'term'                    => 'Search term (searches first_name, last_name, email and telephone)',
-        'updated_since'           => 'ISO 8601 datetime',
-        'tags'                    => 'Array of tag names (filters on contacts coupled to all given tags)',
-        'status'                  => 'Contact status (active, deactivated)',
+        'ids' => 'Array of contact UUIDs',
+        'email' => 'Email address (requires type and email fields)',
+        'company_id' => 'Filter by company UUID',
+        'term' => 'Search term (searches first_name, last_name, email and telephone)',
+        'updated_since' => 'ISO 8601 datetime',
+        'tags' => 'Array of tag names (filters on contacts coupled to all given tags)',
+        'status' => 'Contact status (active, deactivated)',
         'marketing_mails_consent' => 'Marketing mails consent (boolean)',
     ];
 
@@ -151,7 +151,7 @@ class Contacts extends Resource
      * Upload or remove a contact avatar.
      * Pass a base64 data URI string to set the avatar, or null to remove it.
      *
-     * @param  string  $id    Contact UUID
+     * @param  string  $id  Contact UUID
      * @param  string|null  $image  Base64 data URI (e.g. data:image/png;base64,...) or null to remove
      */
     public function uploadAvatar(string $id, ?string $image): array
@@ -163,7 +163,7 @@ class Contacts extends Resource
         }
 
         return $this->api->request('POST', $this->getBasePath().'.uploadAvatar', [
-            'id'    => $id,
+            'id' => $id,
             'image' => $image,
         ]);
     }
@@ -264,7 +264,7 @@ class Contacts extends Resource
         }
 
         return $this->api->request('POST', $this->getBasePath().'.tag', [
-            'id'   => $id,
+            'id' => $id,
             'tags' => $tags,
         ]);
     }
@@ -279,7 +279,7 @@ class Contacts extends Resource
         }
 
         return $this->api->request('POST', $this->getBasePath().'.untag', [
-            'id'   => $id,
+            'id' => $id,
             'tags' => $tags,
         ]);
     }
@@ -308,7 +308,7 @@ class Contacts extends Resource
     public function linkToCompany(string $id, string $companyId, array $data = []): array
     {
         $params = [
-            'id'         => $id,
+            'id' => $id,
             'company_id' => $companyId,
         ];
 
@@ -329,7 +329,7 @@ class Contacts extends Resource
     public function unlinkFromCompany(string $id, string $companyId): array
     {
         return $this->api->request('POST', $this->getBasePath().'.unlinkFromCompany', [
-            'id'         => $id,
+            'id' => $id,
             'company_id' => $companyId,
         ]);
     }
@@ -340,7 +340,7 @@ class Contacts extends Resource
     public function updateCompanyLink(string $id, string $companyId, array $data = []): array
     {
         $params = [
-            'id'         => $id,
+            'id' => $id,
             'company_id' => $companyId,
         ];
 
@@ -436,12 +436,12 @@ class Contacts extends Resource
                 case 'email':
                     if (is_string($value)) {
                         $apiFilters['email'] = [
-                            'type'  => 'primary',
+                            'type' => 'primary',
                             'email' => $value,
                         ];
                     } elseif (is_array($value) && isset($value['email'])) {
                         $apiFilters['email'] = [
-                            'type'  => $value['type'] ?? 'primary',
+                            'type' => $value['type'] ?? 'primary',
                             'email' => $value['email'],
                         ];
                     }
@@ -495,8 +495,8 @@ class Contacts extends Resource
     public function getAvailableSortFields(): array
     {
         return [
-            'added_at'   => 'Date contact was added',
-            'name'       => 'Contact name (first_name + last_name)',
+            'added_at' => 'Date contact was added',
+            'name' => 'Contact name (first_name + last_name)',
             'updated_at' => 'Date contact was last updated',
         ];
     }

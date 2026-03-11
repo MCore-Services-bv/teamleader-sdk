@@ -3,6 +3,7 @@
 namespace McoreServices\TeamleaderSDK\Tests\Feature;
 
 use McoreServices\TeamleaderSDK\Services\ConfigurationValidator;
+use McoreServices\TeamleaderSDK\Services\ValidationResult;
 use McoreServices\TeamleaderSDK\Tests\TestCase;
 
 class ConfigurationValidatorTest extends TestCase
@@ -19,7 +20,7 @@ class ConfigurationValidatorTest extends TestCase
     {
         $result = $this->validator->validate();
 
-        $this->assertInstanceOf(\McoreServices\TeamleaderSDK\Services\ValidationResult::class, $result);
+        $this->assertInstanceOf(ValidationResult::class, $result);
         $this->assertTrue($result->isValid());
     }
 

@@ -91,7 +91,7 @@ class Files extends Resource
     protected function buildQueryParams(
         array $baseParams = [],
         array $filters = [],
-              $sort = null,
+        $sort = null,
         string $sortOrder = 'asc',
         int $pageSize = 20,
         int $pageNumber = 1,
@@ -191,11 +191,6 @@ class Files extends Resource
      * @param  string|null  $subjectId  Subject UUID — not required when subjectType is 'temporary'
      * @param  string|null  $folder  Optional folder name (defaults to General in account language)
      * @return array Upload location and expires_at
-     *
-     * Note on temporary files:
-     * - They exist for a maximum of 24 hours if not linked to an entity
-     * - Do not show up in any file overview
-     * - Are not included in external syncs
      */
     public function upload(string $name, string $subjectType, ?string $subjectId = null, ?string $folder = null): array
     {

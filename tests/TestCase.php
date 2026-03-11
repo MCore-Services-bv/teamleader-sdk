@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace McoreServices\TeamleaderSDK\Tests;
 
+use Illuminate\Foundation\Application;
 use McoreServices\TeamleaderSDK\TeamleaderServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
 
@@ -22,7 +23,7 @@ abstract class TestCase extends Orchestra
     /**
      * Get package providers
      *
-     * @param  \Illuminate\Foundation\Application  $app
+     * @param  Application  $app
      * @return array<int, class-string>
      */
     protected function getPackageProviders($app): array
@@ -35,7 +36,7 @@ abstract class TestCase extends Orchestra
     /**
      * Define environment setup
      *
-     * @param  \Illuminate\Foundation\Application  $app
+     * @param  Application  $app
      */
     protected function getEnvironmentSetUp($app): void
     {

@@ -2,7 +2,9 @@
 
 namespace McoreServices\TeamleaderSDK\Services;
 
+use Carbon\Carbon;
 use Exception;
+use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use McoreServices\TeamleaderSDK\TeamleaderSDK;
@@ -289,10 +291,10 @@ class HealthCheckService
         $checks['laravel_version_current'] = $laravelVersion;
 
         // Check Guzzle availability
-        $checks['guzzle_available'] = class_exists(\GuzzleHttp\Client::class);
+        $checks['guzzle_available'] = class_exists(Client::class);
 
         // Check Carbon availability
-        $checks['carbon_available'] = class_exists(\Carbon\Carbon::class);
+        $checks['carbon_available'] = class_exists(Carbon::class);
 
         return [
             'status' => $overallStatus,

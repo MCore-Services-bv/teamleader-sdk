@@ -2,6 +2,7 @@
 
 namespace McoreServices\TeamleaderSDK\Resources\General;
 
+use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
 
 class CustomFields extends Resource
@@ -77,7 +78,7 @@ class CustomFields extends Resource
 
     // Common filters based on API documentation
     protected array $commonFilters = [
-        'ids'     => 'Array of custom field UUIDs to filter by',
+        'ids' => 'Array of custom field UUIDs to filter by',
         'context' => 'Filter by context (contact, company, deal, project, milestone, product, invoice, subscription, ticket)',
     ];
 
@@ -85,27 +86,27 @@ class CustomFields extends Resource
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all custom fields',
-            'code'        => '$customFields = $teamleader->customFields()->list();',
+            'code' => '$customFields = $teamleader->customFields()->list();',
         ],
         'list_by_context' => [
             'description' => 'Get custom fields for specific context',
-            'code'        => '$contactFields = $teamleader->customFields()->list([\'context\' => \'contact\']);',
+            'code' => '$contactFields = $teamleader->customFields()->list([\'context\' => \'contact\']);',
         ],
         'list_specific' => [
             'description' => 'Get specific custom fields by ID',
-            'code'        => '$fields = $teamleader->customFields()->list([\'ids\' => [\'uuid1\', \'uuid2\']]);',
+            'code' => '$fields = $teamleader->customFields()->list([\'ids\' => [\'uuid1\', \'uuid2\']]);',
         ],
         'get_single' => [
             'description' => 'Get a single custom field',
-            'code'        => '$field = $teamleader->customFields()->info(\'field-uuid-here\');',
+            'code' => '$field = $teamleader->customFields()->info(\'field-uuid-here\');',
         ],
         'create_text' => [
             'description' => 'Create a single-line text custom field for contacts',
-            'code'        => '$field = $teamleader->customFields()->create([\'label\' => \'VAT Number\', \'type\' => \'single_line\', \'context\' => \'contact\']);',
+            'code' => '$field = $teamleader->customFields()->create([\'label\' => \'VAT Number\', \'type\' => \'single_line\', \'context\' => \'contact\']);',
         ],
         'create_select' => [
             'description' => 'Create a single-select dropdown for deals with options',
-            'code'        => '$field = $teamleader->customFields()->create([\'label\' => \'Lead Source\', \'type\' => \'single_select\', \'context\' => \'deal\', \'configuration\' => [\'options\' => [\'Referral\', \'Website\', \'Cold Call\']]]);',
+            'code' => '$field = $teamleader->customFields()->create([\'label\' => \'Lead Source\', \'type\' => \'single_select\', \'context\' => \'deal\', \'configuration\' => [\'options\' => [\'Referral\', \'Website\', \'Cold Call\']]]);',
         ],
     ];
 
@@ -158,17 +159,6 @@ class CustomFields extends Resource
      * Requires the 'settings' OAuth scope.
      *
      * @param  array  $data  Custom field data
-     *   Required keys:
-     *     - label    (string) The display label for the field
-     *     - type     (string) Field type — see getAvailableTypes() for all valid values
-     *     - context  (string) The entity context — see getAvailableContexts() for all valid values
-     *   Optional keys:
-     *     - configuration (array) Type-specific configuration:
-     *         - options       (string[]) Valid for single_select / multi_select only
-     *         - default_value (mixed)    Valid for auto_increment only
-     *         - searchable    (bool)     Valid for single_line, company, integer, number,
-     *                                    auto_increment, email, telephone
-     *
      * @return array API response containing data.id and data.type of the created field
      */
     public function create(array $data): array
@@ -184,33 +174,33 @@ class CustomFields extends Resource
      * @param  array  $data  Input data
      * @return array Validated and cleaned data
      *
-     * @throws \InvalidArgumentException When required fields are missing or values are invalid
+     * @throws InvalidArgumentException When required fields are missing or values are invalid
      */
     protected function validateCreateData(array $data): array
     {
         // Validate required: label
         if (empty($data['label']) || ! is_string($data['label'])) {
-            throw new \InvalidArgumentException('Custom field label is required and must be a non-empty string.');
+            throw new InvalidArgumentException('Custom field label is required and must be a non-empty string.');
         }
 
         // Validate required: type
         if (empty($data['type'])) {
-            throw new \InvalidArgumentException('Custom field type is required.');
+            throw new InvalidArgumentException('Custom field type is required.');
         }
 
         if (! in_array($data['type'], $this->validTypes, true)) {
-            throw new \InvalidArgumentException(
+            throw new InvalidArgumentException(
                 "Invalid custom field type '{$data['type']}'. Valid types: ".implode(', ', $this->validTypes)
             );
         }
 
         // Validate required: context
         if (empty($data['context'])) {
-            throw new \InvalidArgumentException('Custom field context is required.');
+            throw new InvalidArgumentException('Custom field context is required.');
         }
 
         if (! in_array($data['context'], $this->validContexts, true)) {
-            throw new \InvalidArgumentException(
+            throw new InvalidArgumentException(
                 "Invalid custom field context '{$data['context']}'. Valid contexts: ".implode(', ', $this->validContexts)
             );
         }
@@ -226,30 +216,30 @@ class CustomFields extends Resource
     /**
      * Validate the configuration object based on the field type
      *
-     * @param  array   $configuration  The configuration array
-     * @param  string  $type           The field type
+     * @param  array  $configuration  The configuration array
+     * @param  string  $type  The field type
      * @return array Validated configuration
      *
-     * @throws \InvalidArgumentException When configuration keys are invalid for the given type
+     * @throws InvalidArgumentException When configuration keys are invalid for the given type
      */
     protected function validateConfiguration(array $configuration, string $type): array
     {
         // Validate 'options' — only for single_select and multi_select
         if (isset($configuration['options'])) {
             if (! in_array($type, $this->typesWithOptions, true)) {
-                throw new \InvalidArgumentException(
+                throw new InvalidArgumentException(
                     "Configuration key 'options' is only valid for types: ".implode(', ', $this->typesWithOptions).". Got '{$type}'."
                 );
             }
 
             if (! is_array($configuration['options'])) {
-                throw new \InvalidArgumentException("Configuration 'options' must be an array of strings.");
+                throw new InvalidArgumentException("Configuration 'options' must be an array of strings.");
             }
         }
 
         // Validate 'default_value' — only for auto_increment
         if (isset($configuration['default_value']) && $type !== 'auto_increment') {
-            throw new \InvalidArgumentException(
+            throw new InvalidArgumentException(
                 "Configuration key 'default_value' is only valid for type 'auto_increment'. Got '{$type}'."
             );
         }
@@ -257,13 +247,13 @@ class CustomFields extends Resource
         // Validate 'searchable' — only for specific types
         if (isset($configuration['searchable'])) {
             if (! in_array($type, $this->typesWithSearchable, true)) {
-                throw new \InvalidArgumentException(
+                throw new InvalidArgumentException(
                     "Configuration key 'searchable' is only valid for types: ".implode(', ', $this->typesWithSearchable).". Got '{$type}'."
                 );
             }
 
             if (! is_bool($configuration['searchable'])) {
-                throw new \InvalidArgumentException("Configuration 'searchable' must be a boolean.");
+                throw new InvalidArgumentException("Configuration 'searchable' must be a boolean.");
             }
         }
 
@@ -420,15 +410,15 @@ class CustomFields extends Resource
     public function getAvailableContexts(): array
     {
         return [
-            'contact'      => 'Contact custom fields',
-            'company'      => 'Company custom fields',
-            'deal'         => 'Deal custom fields',
-            'project'      => 'Project custom fields',
-            'milestone'    => 'Milestone custom fields',
-            'product'      => 'Product custom fields',
-            'invoice'      => 'Invoice custom fields',
+            'contact' => 'Contact custom fields',
+            'company' => 'Company custom fields',
+            'deal' => 'Deal custom fields',
+            'project' => 'Project custom fields',
+            'milestone' => 'Milestone custom fields',
+            'product' => 'Product custom fields',
+            'invoice' => 'Invoice custom fields',
             'subscription' => 'Subscription custom fields',
-            'ticket'       => 'Ticket custom fields',
+            'ticket' => 'Ticket custom fields',
         ];
     }
 
@@ -438,23 +428,23 @@ class CustomFields extends Resource
     public function getAvailableTypes(): array
     {
         return [
-            'single_line'    => 'Single line text field',
-            'multi_line'     => 'Multi-line text field',
-            'single_select'  => 'Single selection dropdown',
-            'multi_select'   => 'Multiple selection field',
-            'date'           => 'Date field',
-            'money'          => 'Money / currency field',
+            'single_line' => 'Single line text field',
+            'multi_line' => 'Multi-line text field',
+            'single_select' => 'Single selection dropdown',
+            'multi_select' => 'Multiple selection field',
+            'date' => 'Date field',
+            'money' => 'Money / currency field',
             'auto_increment' => 'Auto-incrementing number field',
-            'integer'        => 'Integer number field',
-            'number'         => 'Decimal number field',
-            'boolean'        => 'Boolean (yes/no) field',
-            'email'          => 'Email address field',
-            'telephone'      => 'Telephone number field',
-            'url'            => 'URL field',
-            'company'        => 'Company reference field',
-            'contact'        => 'Contact reference field',
-            'product'        => 'Product reference field',
-            'user'           => 'User reference field',
+            'integer' => 'Integer number field',
+            'number' => 'Decimal number field',
+            'boolean' => 'Boolean (yes/no) field',
+            'email' => 'Email address field',
+            'telephone' => 'Telephone number field',
+            'url' => 'URL field',
+            'company' => 'Company reference field',
+            'contact' => 'Contact reference field',
+            'product' => 'Product reference field',
+            'user' => 'User reference field',
         ];
     }
 

@@ -2,6 +2,7 @@
 
 namespace McoreServices\TeamleaderSDK\Console\Commands;
 
+use Carbon\Carbon;
 use Illuminate\Console\Command;
 use McoreServices\TeamleaderSDK\Services\HealthCheckService;
 use McoreServices\TeamleaderSDK\TeamleaderSDK;
@@ -87,7 +88,7 @@ class TeamleaderStatusCommand extends Command
         }
 
         if ($tokenInfo['expires_at']) {
-            $expiresAt = \Carbon\Carbon::parse($tokenInfo['expires_at']);
+            $expiresAt = Carbon::parse($tokenInfo['expires_at']);
             $timeLeft = $expiresAt->diffForHumans();
             $color = $expiresAt->isPast() ? 'red' : ($expiresAt->diffInMinutes() < 30 ? 'yellow' : 'green');
             $this->line("  Expires: <fg={$color}>{$timeLeft}</>");

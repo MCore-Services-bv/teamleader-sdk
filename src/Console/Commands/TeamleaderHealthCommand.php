@@ -3,7 +3,9 @@
 namespace McoreServices\TeamleaderSDK\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 use McoreServices\TeamleaderSDK\Services\HealthCheckService;
+use McoreServices\TeamleaderSDK\Services\TokenService;
 
 class TeamleaderHealthCommand extends Command
 {
@@ -205,7 +207,7 @@ class TeamleaderHealthCommand extends Command
     private function attemptTokenSync(): bool
     {
         try {
-            $tokenService = app(\McoreServices\TeamleaderSDK\Services\TokenService::class);
+            $tokenService = app(TokenService::class);
 
             return $tokenService->syncTokensToCache();
         } catch (\Exception $e) {
@@ -216,7 +218,7 @@ class TeamleaderHealthCommand extends Command
     private function attemptCacheClear(): bool
     {
         try {
-            \Illuminate\Support\Facades\Cache::flush();
+            Cache::flush();
 
             return true;
         } catch (\Exception $e) {
