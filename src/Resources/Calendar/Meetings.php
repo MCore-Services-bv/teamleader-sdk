@@ -28,12 +28,12 @@ class Meetings extends Resource
 
     // Common filters based on API documentation
     protected array $commonFilters = [
-        'ids' => 'Array of meeting UUIDs to filter by',
-        'employee_id' => 'Filter by assigned employee UUID',
-        'start_date' => 'Filter meetings from this date (YYYY-MM-DD)',
-        'end_date' => 'Filter meetings up to this date (YYYY-MM-DD)',
-        'milestone_id' => 'Filter by project milestone UUID',
-        'term' => 'Search meetings by title or description',
+        'ids'           => 'Array of meeting UUIDs to filter by',
+        'employee_id'   => 'Filter by assigned employee UUID',
+        'start_date'    => 'Filter meetings from this date (YYYY-MM-DD)',
+        'end_date'      => 'Filter meetings up to this date (YYYY-MM-DD)',
+        'milestone_id'  => 'Filter by project milestone UUID',
+        'term'          => 'Search meetings by title or description',
         'recurrence_id' => 'Filter by recurring meeting series UUID',
     ];
 
@@ -41,28 +41,70 @@ class Meetings extends Resource
     protected array $usageExamples = [
         'list_meetings' => [
             'description' => 'Get list of meetings with filtering',
-            'code' => '$meetings = $teamleader->meetings()->list([\'employee_id\' => \'employee-uuid\']);',
+            'code'        => '$meetings = $teamleader->meetings()->list([\'employee_id\' => \'employee-uuid\']);',
         ],
         'get_meeting_details' => [
             'description' => 'Get meeting details with tracked time',
-            'code' => '$meeting = $teamleader->meetings()->withTrackedTime()->info(\'meeting-uuid\');',
+            'code'        => '$meeting = $teamleader->meetings()->withTrackedTime()->info(\'meeting-uuid\');',
         ],
         'create_meeting' => [
             'description' => 'Schedule a new meeting',
-            'code' => '$meeting = $teamleader->meetings()->schedule([...]);',
+            'code'        => '$meeting = $teamleader->meetings()->schedule([...]);',
         ],
         'complete_meeting' => [
             'description' => 'Mark a meeting as complete',
-            'code' => '$teamleader->meetings()->complete(\'meeting-uuid\');',
+            'code'        => '$teamleader->meetings()->complete(\'meeting-uuid\');',
         ],
         'create_report' => [
             'description' => 'Create a report for completed meeting',
-            'code' => '$report = $teamleader->meetings()->createReport(\'meeting-uuid\', [...]);',
+            'code'        => '$report = $teamleader->meetings()->createReport(\'meeting-uuid\', [...]);',
         ],
     ];
 
     /**
-     * Get meeting information
+     * Get the base path for the meetings resource
+     */
+    protected function getBasePath(): string
+    {
+        return 'meetings';
+    }
+
+    /**
+     * List meetings with optional filtering, pagination and sorting.
+     *
+     * Response fields per item include:
+     *   id, title, description, created_at, scheduled_at, duration,
+     *   tracked_time (sideloaded), estimated_time (sideloaded),
+     *   customer (nullable), project (nullable), milestone (nullable),
+     *   group (nullable) { id, type },
+     *   attendees[], status, recurrence (nullable)
+     *
+     * Sorting: field='scheduled_at', order='asc'|'desc' (default: scheduled_at asc)
+     *
+     * @param  array  $filters  Filters to apply (ids, employee_id, start_date, end_date, milestone_id, term, recurrence_id)
+     * @param  array  $options  Pagination and sort options (page_size, page_number, sort, include)
+     */
+    public function list(array $filters = [], array $options = []): array
+    {
+        $params = $this->buildFilterParams($filters, $options);
+
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
+    }
+
+    /**
+     * Get information about a specific meeting.
+     *
+     * Response fields include:
+     *   id, title, description, created_at, scheduled_at, duration,
+     *   tracked_time (sideloaded), estimated_time (sideloaded),
+     *   customer (nullable), project (nullable), milestone (nullable),
+     *   group (nullable) { id, type },
+     *   deal (nullable), location, online_meeting_room (nullable),
+     *   attendees[], custom_fields[], status, recurrence (nullable),
+     *   workOrder (nullable)
+     *
+     * @param  string  $id       Meeting UUID
+     * @param  mixed   $includes Optional sideloads: 'tracked_time', 'estimated_time'
      */
     public function info($id, $includes = null): array
     {
@@ -76,14 +118,6 @@ class Meetings extends Resource
         $params = $this->applyPendingIncludes($params);
 
         return $this->api->request('POST', $this->getBasePath().'.info', $params);
-    }
-
-    /**
-     * Get the base path for the meetings resource
-     */
-    protected function getBasePath(): string
-    {
-        return 'meetings';
     }
 
     /**
@@ -101,7 +135,6 @@ class Meetings extends Resource
      */
     protected function validateScheduleData(array $data): array
     {
-        // Required fields
         if (empty($data['title'])) {
             throw new InvalidArgumentException('Meeting title is required');
         }
@@ -118,7 +151,6 @@ class Meetings extends Resource
             throw new InvalidArgumentException('Customer information is required');
         }
 
-        // Validate attendees
         $hasUserAttendee = false;
         foreach ($data['attendees'] as $attendee) {
             if (isset($attendee['type']) && $attendee['type'] === 'user') {
@@ -153,7 +185,6 @@ class Meetings extends Resource
             throw new InvalidArgumentException('Meeting ID is required for updates');
         }
 
-        // If attendees are provided, validate them
         if (isset($data['attendees']) && ! empty($data['attendees'])) {
             $hasUserAttendee = false;
             foreach ($data['attendees'] as $attendee) {
@@ -245,16 +276,6 @@ class Meetings extends Resource
     }
 
     /**
-     * List meetings with enhanced filtering and sorting
-     */
-    public function list(array $filters = [], array $options = []): array
-    {
-        $params = $this->buildFilterParams($filters, $options);
-
-        return $this->api->request('POST', $this->getBasePath().'.list', $params);
-    }
-
-    /**
      * Build filter parameters for API request
      */
     protected function buildFilterParams(array $filters, array $options): array
@@ -268,7 +289,7 @@ class Meetings extends Resource
         // Pagination
         if (isset($options['page_size']) || isset($options['page_number'])) {
             $params['page'] = [
-                'size' => $options['page_size'] ?? 20,
+                'size'   => $options['page_size'] ?? 20,
                 'number' => $options['page_number'] ?? 1,
             ];
         }
@@ -306,7 +327,7 @@ class Meetings extends Resource
     {
         return $this->list(array_merge([
             'start_date' => $startDate,
-            'end_date' => $endDate,
+            'end_date'   => $endDate,
         ], $options['filters'] ?? []), $options);
     }
 
