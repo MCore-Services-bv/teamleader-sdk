@@ -1,764 +1,475 @@
 # Subscriptions
 
-Manage recurring subscriptions in Teamleader Focus.
-
-## Overview
-
-The Subscriptions resource provides comprehensive management of recurring subscriptions in your Teamleader account. Subscriptions automatically generate invoices on a recurring basis based on configured billing cycles.
-
-## Navigation
-
-- [Endpoint](#endpoint)
-- [Capabilities](#capabilities)
-- [Available Methods](#available-methods)
-    - [list()](#list)
-    - [info()](#info)
-    - [create()](#create)
-    - [update()](#update)
-    - [activate()](#activate)
-    - [deactivate()](#deactivate)
-- [Helper Methods](#helper-methods)
-- [Billing Cycles](#billing-cycles)
-- [Invoice Generation](#invoice-generation)
-- [Filtering](#filtering)
-- [Sorting](#sorting)
-- [Response Structure](#response-structure)
-- [Usage Examples](#usage-examples)
-- [Common Use Cases](#common-use-cases)
-- [Best Practices](#best-practices)
-- [Error Handling](#error-handling)
-- [Related Resources](#related-resources)
-
-## Endpoint
-
-`subscriptions`
+Manage recurring subscriptions in Teamleader Focus. Subscriptions automatically generate invoices on a billing cycle and can be sent via email, Peppol, or postal service.
 
 ## Capabilities
 
-- **Pagination**: ✅ Supported
-- **Filtering**: ✅ Supported
-- **Sorting**: ✅ Supported
-- **Sideloading**: ❌ Not Supported
-- **Creation**: ✅ Supported
-- **Update**: ✅ Supported
-- **Deletion**: ❌ Not Supported (use deactivate)
+| Feature | Supported |
+|---------|-----------|
+| List | ✅ |
+| Info | ✅ |
+| Create | ✅ |
+| Update | ✅ |
+| Delete | ❌ (use `deactivate()`) |
+| Pagination | ✅ |
+| Filtering | ✅ |
+| Sorting | ✅ (`title`, `created_at`, `status`) |
+| Sideloading | ❌ |
 
-## Available Methods
+---
 
-### `list()`
+## Methods
 
-Get a list of subscriptions with optional filtering, sorting, and pagination.
+### `list(array $filters = [], array $options = []): array`
 
-**Parameters:**
-- `filters` (array): Optional filters to apply
-- `options` (array): Additional options for sorting and pagination
+Returns a paginated, filterable, sortable list of subscriptions.
 
-**Example:**
-```php
-use McoreServices\TeamleaderSDK\Facades\Teamleader;
+**Filter parameters:**
 
-// Get all subscriptions
-$subscriptions = Teamleader::subscriptions()->list();
+| Filter | Type | Description |
+|--------|------|-------------|
+| `ids` | array | Array of subscription UUIDs |
+| `invoice_id` | string | Find subscriptions that generated a specific invoice |
+| `deal_id` | string | Subscriptions created from a specific deal |
+| `department_id` | string | Filter by department UUID |
+| `customer` | array | `{type: contact\|company, id: uuid}` |
+| `status` | array | `['active']`, `['deactivated']`, or both |
 
-// Get active subscriptions
-$subscriptions = Teamleader::subscriptions()->list([
-    'status' => ['active']
-]);
+**Options:**
 
-// With sorting and pagination
-$subscriptions = Teamleader::subscriptions()->list([], [
-    'sort' => 'title',
-    'sort_order' => 'asc',
-    'page_size' => 50,
-    'page_number' => 1
-]);
-```
-
-### `info()`
-
-Get detailed information about a specific subscription.
-
-**Parameters:**
-- `id` (string): The subscription UUID
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `page_size` | int | 20 | Results per page |
+| `page_number` | int | 1 | Page number |
+| `sort` | array | — | `{field: title\|created_at\|status, order: asc\|desc}` |
 
 **Example:**
-```php
-$subscription = Teamleader::subscriptions()->info('subscription-uuid');
-```
-
-### `create()`
-
-Create a new subscription.
-
-**Required fields:**
-- `title` (string): Subscription title
-- `invoicee` (object): Invoice recipient information
-    - `customer` (object): Customer reference
-        - `type` (string): 'contact' or 'company'
-        - `id` (string): Customer UUID
-- `billing_cycle` (object): Billing cycle configuration
-    - `periodicity` (object): How often to bill
-        - `unit` (string): 'day', 'week', 'month', or 'year'
-        - `value` (integer): Number of units
-    - `starts_on` (string): Start date (YYYY-MM-DD)
-- `grouped_lines` (array): Subscription line items
-
-**Optional fields:**
-- `department_id` (string): Department UUID
-- `billing_cycle.ends_on` (string): End date (YYYY-MM-DD)
-- `invoice_generation` (object): Invoice generation settings
-- `payment_term` (object): Payment terms
-- `discounts` (array): Discounts to apply
-- Many more configuration options
-
-**Example:**
-```php
-$subscription = Teamleader::subscriptions()->create([
-    'title' => 'Monthly SaaS Subscription',
-    'department_id' => 'dept-uuid',
-    'invoicee' => [
-        'customer' => [
-            'type' => 'company',
-            'id' => 'company-uuid'
-        ],
-        'for_attention_of' => [
-            'name' => 'John Doe',
-            'contact_id' => 'contact-uuid'
-        ]
-    ],
-    'billing_cycle' => [
-        'periodicity' => [
-            'unit' => 'month',
-            'value' => 1
-        ],
-        'starts_on' => '2024-02-01'
-    ],
-    'grouped_lines' => [
-        [
-            'section' => [
-                'title' => 'Services'
-            ],
-            'line_items' => [
-                [
-                    'quantity' => 1,
-                    'description' => 'Monthly subscription fee',
-                    'unit_price' => [
-                        'amount' => 99.00,
-                        'tax' => 'excluding'
-                    ],
-                    'tax_rate_id' => 'tax-rate-uuid'
-                ]
-            ]
-        ]
-    ],
-    'payment_term' => [
-        'type' => 'after_invoice_date',
-        'days' => 14
-    ],
-    'invoice_generation' => [
-        'action' => 'book',
-        'offset_days' => 0
-    ]
-]);
-```
-
-### `update()`
-
-Update an existing subscription.
-
-**Parameters:**
-- `id` (string): Subscription UUID
-- `data` (array): Fields to update
-
-**Example:**
-```php
-$result = Teamleader::subscriptions()->update('subscription-uuid', [
-    'title' => 'Updated Subscription Title',
-    'grouped_lines' => [
-        [
-            'line_items' => [
-                [
-                    'quantity' => 1,
-                    'description' => 'Updated subscription fee',
-                    'unit_price' => [
-                        'amount' => 129.00,
-                        'tax' => 'excluding'
-                    ],
-                    'tax_rate_id' => 'tax-rate-uuid'
-                ]
-            ]
-        ]
-    ]
-]);
-```
-
-### `activate()`
-
-Activate a deactivated subscription.
-
-**Parameters:**
-- `id` (string): Subscription UUID
-
-**Example:**
-```php
-$result = Teamleader::subscriptions()->activate('subscription-uuid');
-```
-
-### `deactivate()`
-
-Deactivate an active subscription (stops invoice generation).
-
-**Parameters:**
-- `id` (string): Subscription UUID
-
-**Example:**
-```php
-$result = Teamleader::subscriptions()->deactivate('subscription-uuid');
-```
-
-## Helper Methods
-
-The Subscriptions resource provides convenient helper methods:
-
-### Status-based Methods
 
 ```php
-// Get active subscriptions
-$active = Teamleader::subscriptions()->active();
-
-// Get deactivated subscriptions
-$deactivated = Teamleader::subscriptions()->deactivated();
+// All active subscriptions sorted by creation date
+$subscriptions = $teamleader->subscriptions()->list(
+    ['status' => ['active']],
+    ['sort' => ['field' => 'created_at', 'order' => 'desc']]
+);
 ```
 
-### Customer-based Methods
-
-```php
-// Get subscriptions for a company
-$subscriptions = Teamleader::subscriptions()->forCompany('company-uuid');
-
-// Get subscriptions for a contact
-$subscriptions = Teamleader::subscriptions()->forContact('contact-uuid');
-
-// Get subscriptions for any customer type
-$subscriptions = Teamleader::subscriptions()->forCustomer('company', 'company-uuid');
-```
-
-### Department Method
-
-```php
-// Get subscriptions for a department
-$subscriptions = Teamleader::subscriptions()->forDepartment('dept-uuid');
-```
-
-## Billing Cycles
-
-Subscriptions support various billing cycles:
-
-### Periodicity Units
-
-- `day` - Daily billing
-- `week` - Weekly billing
-- `month` - Monthly billing
-- `year` - Yearly billing
-
-**Examples:**
-
-```php
-// Monthly billing
-'billing_cycle' => [
-    'periodicity' => [
-        'unit' => 'month',
-        'value' => 1
-    ],
-    'starts_on' => '2024-02-01'
-]
-
-// Quarterly billing (every 3 months)
-'billing_cycle' => [
-    'periodicity' => [
-        'unit' => 'month',
-        'value' => 3
-    ],
-    'starts_on' => '2024-01-01'
-]
-
-// Annual billing
-'billing_cycle' => [
-    'periodicity' => [
-        'unit' => 'year',
-        'value' => 1
-    ],
-    'starts_on' => '2024-01-01'
-]
-
-// With end date
-'billing_cycle' => [
-    'periodicity' => [
-        'unit' => 'month',
-        'value' => 1
-    ],
-    'starts_on' => '2024-01-01',
-    'ends_on' => '2024-12-31'
-]
-```
-
-## Invoice Generation
-
-Configure how invoices are automatically generated:
-
-### Generation Actions
-
-- `draft` - Create invoices as drafts (requires manual booking)
-- `book` - Automatically book invoices
-
-### Offset Days
-
-Control when invoices are generated relative to the billing date:
-
-```php
-'invoice_generation' => [
-    'action' => 'book',
-    'offset_days' => 0  // Generate on billing date
-]
-
-// Generate 7 days before billing date
-'invoice_generation' => [
-    'action' => 'draft',
-    'offset_days' => -7
-]
-
-// Generate 5 days after billing date
-'invoice_generation' => [
-    'action' => 'book',
-    'offset_days' => 5
-]
-```
-
-## Filtering
-
-Available filters for subscriptions:
-
-- `ids` - Array of subscription UUIDs
-- `status` - Array of statuses ('active', 'deactivated')
-- `customer` - Filter by customer (object with type and id)
-- `department_id` - Filter by department UUID
-- `updated_since` - ISO 8601 datetime
-
-**Example:**
-```php
-$subscriptions = Teamleader::subscriptions()->list([
-    'status' => ['active'],
-    'department_id' => 'dept-uuid',
-    'customer' => [
-        'type' => 'company',
-        'id' => 'company-uuid'
-    ]
-]);
-```
-
-## Sorting
-
-Available sort fields:
-
-- `title` - Sort by subscription title
-- `starts_on` - Sort by start date
-
-**Example:**
-```php
-$subscriptions = Teamleader::subscriptions()->list([], [
-    'sort' => 'starts_on',
-    'sort_order' => 'desc'
-]);
-```
-
-## Response Structure
-
-### List Response
+**List response fields (per item):**
 
 ```json
 {
   "data": [
     {
-      "id": "uuid",
-      "department": {
-        "type": "department",
-        "id": "uuid"
-      },
-      "title": "Monthly SaaS Subscription",
+      "id": "e2314517-3cab-4aa9-8471-450e73449041",
+      "title": "Monthly support",
+      "note": null,                                   // nullable
       "status": "active",
+      "department": { "id": "...", "type": "department" },
       "invoicee": {
-        "name": "Company Name",
-        "customer": {
-          "type": "company",
-          "id": "uuid"
-        }
+        "customer": { "type": "company", "id": "..." },
+        "for_attention_of": null                      // nullable
       },
+      "project": null,                                // nullable
+      "starts_on": "2024-01-01",
+      "ends_on": null,                                // nullable
+      "next_renewal_date": "2024-02-01",              // nullable
       "billing_cycle": {
-        "periodicity": {
-          "unit": "month",
-          "value": 1
-        },
-        "starts_on": "2024-02-01",
-        "ends_on": null
+        "periodicity": { "unit": "month", "period": 1 },
+        "days_in_advance": 7
       },
       "total": {
-        "tax_exclusive": {
-          "amount": 99.00,
-          "currency": "EUR"
-        },
-        "tax_inclusive": {
-          "amount": 119.79,
-          "currency": "EUR"
-        }
+        "tax_exclusive": { "amount": 500.00, "currency": "EUR" },
+        "tax_inclusive": { "amount": 605.00, "currency": "EUR" },
+        "taxes": []
       },
-      "created_at": "2024-01-15T10:00:00+00:00",
-      "updated_at": "2024-01-15T10:00:00+00:00"
+      "web_url": "https://focus.teamleader.eu/subscription_detail.php?id=...",
+      "created_at": "2024-01-01T09:00:00+00:00"      // nullable
     }
   ]
 }
 ```
 
-### Info Response
+---
 
-Contains complete subscription information including all fields from the list response plus detailed line items, payment terms, and invoice generation settings.
+### `info(string $id): array`
 
-## Usage Examples
+Returns complete details for a single subscription, including line items, invoice generation settings, custom fields, and document template.
 
-### Create Monthly Subscription
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | ✅ | Subscription UUID |
+
+**Example:**
 
 ```php
-$subscription = Teamleader::subscriptions()->create([
-    'title' => 'Premium Plan - Monthly',
+$subscription = $teamleader->subscriptions()->info('e2314517-3cab-4aa9-8471-450e73449041');
+```
+
+**Info response fields** (superset of list, adds):
+
+```json
+{
+  "data": {
+    "billing_cycle": {
+      "periodicity": { "unit": "month", "period": 1 },
+      "days_in_advance": 7,
+      "payment_term": {
+        "type": "after_invoice_date",
+        "days": 30
+      }
+    },
+    "grouped_lines": [
+      {
+        "section": { "title": "Support" },
+        "line_items": [
+          {
+            "product": null,
+            "quantity": 1,
+            "description": "Monthly support fee",
+            "extended_description": null,
+            "unit": null,
+            "unit_price": { "amount": 500.00, "tax": "excluding" },
+            "tax": { "id": "...", "type": "taxRate" },
+            "discount": null,
+            "total": {
+              "tax_exclusive": { "amount": 500.00, "currency": "EUR" },
+              "tax_exclusive_before_discount": { "amount": 500.00, "currency": "EUR" },
+              "tax_inclusive": { "amount": 605.00, "currency": "EUR" },
+              "tax_inclusive_before_discount": { "amount": 605.00, "currency": "EUR" }
+            },
+            "product_category": null,
+            "withheld_tax": null
+          }
+        ]
+      }
+    ],
+    "invoice_generation": {
+      "action": "book_and_send",
+      "sending_methods": [
+        { "method": "peppol" }
+      ]
+    },
+    "payment_method": null,
+    "custom_fields": [],
+    "document_template": { "id": "...", "type": "documentTemplate" },
+    "currency": "EUR",
+    "created_at": "2024-01-01T09:00:00+00:00"        // nullable
+  }
+}
+```
+
+---
+
+### `create(array $data): array`
+
+Creates a new subscription. Returns HTTP 201 with `data.{id, type}`.
+
+**Required fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `invoicee` | object | Customer reference — see structure below |
+| `department_id` | string | Department UUID |
+| `starts_on` | string | YYYY-MM-DD |
+| `billing_cycle` | object | Periodicity + days_in_advance — see structure below |
+| `title` | string | Subscription title |
+| `grouped_lines` | array | Line items — see structure below |
+| `payment_term` | object | `{type: cash\|end_of_month\|after_invoice_date, days?}` |
+| `invoice_generation` | object | `{action: draft\|book\|book_and_send, ...}` |
+
+**Optional fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `ends_on` | string\|null | YYYY-MM-DD end date |
+| `deal_id` | string\|null | Associated deal UUID |
+| `project_id` | string\|null | Associated project UUID |
+| `note` | string\|null | Markdown-formatted note |
+| `payment_method` | string | `direct_debit` |
+| `custom_fields` | array | `[{id, value}]` |
+| `document_template_id` | string | Template UUID |
+
+**`invoice_generation` structure:**
+
+When `action` is `book_and_send`, you must supply `sending_methods`:
+
+```php
+'invoice_generation' => [
+    'action' => 'book_and_send',
+    'sending_methods' => [
+        ['method' => 'email'],          // Send by email
+        ['method' => 'peppol'],         // Send via Peppol network
+        ['method' => 'postal_service'], // Send by post
+    ],
+],
+```
+
+Valid methods: `email`, `peppol`, `postal_service`. Multiple methods can be combined.
+
+**Billing cycle periodicity options:**
+
+| Unit | Valid periods | Example |
+|------|--------------|---------|
+| `week` | 1, 2 | Every 1 or 2 weeks |
+| `month` | 1–12 | Every N months |
+| `year` | 1+ | Every N years |
+
+**Example — monthly subscription via Peppol:**
+
+```php
+$result = $teamleader->subscriptions()->create([
+    'invoicee' => [
+        'customer' => ['type' => 'company', 'id' => 'company-uuid'],
+    ],
     'department_id' => 'dept-uuid',
-    'invoicee' => [
-        'customer' => [
-            'type' => 'company',
-            'id' => 'company-uuid'
-        ]
-    ],
+    'starts_on' => '2024-01-01',
     'billing_cycle' => [
-        'periodicity' => [
-            'unit' => 'month',
-            'value' => 1
+        'periodicity' => ['unit' => 'month', 'period' => 1],
+        'days_in_advance' => 7,
+    ],
+    'title' => 'Monthly support',
+    'grouped_lines' => [
+        [
+            'section' => ['title' => 'Support'],
+            'line_items' => [
+                [
+                    'quantity' => 1,
+                    'description' => 'Monthly support fee',
+                    'unit_price' => ['amount' => 500.00, 'tax' => 'excluding'],
+                    'tax_rate_id' => 'tax-rate-uuid',
+                ],
+            ],
         ],
-        'starts_on' => date('Y-m-d')
     ],
-    'grouped_lines' => [
-        [
-            'line_items' => [
-                [
-                    'quantity' => 1,
-                    'description' => 'Premium Plan',
-                    'unit_price' => [
-                        'amount' => 99.00,
-                        'tax' => 'excluding'
-                    ],
-                    'tax_rate_id' => 'tax-rate-uuid'
-                ]
-            ]
-        ]
-    ],
+    'payment_term' => ['type' => 'after_invoice_date', 'days' => 30],
     'invoice_generation' => [
-        'action' => 'book',
-        'offset_days' => 0
-    ]
-]);
-```
-
-### Create Annual Subscription with Discount
-
-```php
-$discount = Teamleader::commercialDiscounts()->findByName('Annual discount');
-
-$subscription = Teamleader::subscriptions()->create([
-    'title' => 'Premium Plan - Annual',
-    'invoicee' => [
-        'customer' => [
-            'type' => 'company',
-            'id' => 'company-uuid'
-        ]
-    ],
-    'billing_cycle' => [
-        'periodicity' => [
-            'unit' => 'year',
-            'value' => 1
+        'action' => 'book_and_send',
+        'sending_methods' => [
+            ['method' => 'peppol'],
         ],
-        'starts_on' => '2024-01-01'
     ],
-    'grouped_lines' => [
-        [
-            'line_items' => [
-                [
-                    'quantity' => 1,
-                    'description' => 'Premium Plan - Annual',
-                    'unit_price' => [
-                        'amount' => 1188.00,
-                        'tax' => 'excluding'
-                    ],
-                    'tax_rate_id' => 'tax-rate-uuid'
-                ]
-            ]
-        ]
-    ],
-    'discounts' => [
-        [
-            'type' => 'commercial_discount',
-            'commercial_discount_id' => $discount['id']
-        ]
-    ],
+]);
+
+$subscriptionId = $result['data']['id'];
+```
+
+---
+
+### `update(string $id, array $data): array`
+
+Updates an existing subscription. Returns HTTP 204 (no body).
+
+**Important constraints:**
+- `starts_on` and `billing_cycle` can only be updated if **no invoices have been generated yet**
+- All fields are optional
+
+Updatable fields mirror the `create()` fields. `invoice_generation` follows the same structure:
+
+```php
+$teamleader->subscriptions()->update('subscription-uuid', [
+    'title' => 'Updated title',
     'invoice_generation' => [
-        'action' => 'book',
-        'offset_days' => -7  // Generate 7 days before
-    ]
+        'action' => 'book_and_send',
+        'sending_methods' => [
+            ['method' => 'email'],
+            ['method' => 'peppol'],
+        ],
+    ],
 ]);
 ```
 
-### Update Subscription Pricing
+---
+
+### `deactivate(string $id): array`
+
+Deactivates a subscription. The subscription will no longer generate invoices. Returns HTTP 204.
 
 ```php
-// Price increase
-$subscription = Teamleader::subscriptions()->update('subscription-uuid', [
-    'grouped_lines' => [
-        [
-            'line_items' => [
-                [
-                    'quantity' => 1,
-                    'description' => 'Premium Plan (New Pricing)',
-                    'unit_price' => [
-                        'amount' => 129.00,
-                        'tax' => 'excluding'
-                    ],
-                    'tax_rate_id' => 'tax-rate-uuid'
-                ]
-            ]
-        ]
-    ]
-]);
+$teamleader->subscriptions()->deactivate('subscription-uuid');
 ```
 
-### Manage Subscription Lifecycle
+---
+
+## Convenience Methods
+
+### `active(array $additionalFilters = [], array $options = []): array`
+
+Returns active subscriptions (`status = ['active']`).
 
 ```php
-// Create new subscription
-$subscription = Teamleader::subscriptions()->create($data);
-$subscriptionId = $subscription['data']['id'];
+$active = $teamleader->subscriptions()->active();
+```
 
-// Later: Temporarily suspend
-Teamleader::subscriptions()->deactivate($subscriptionId);
+### `deactivated(array $additionalFilters = [], array $options = []): array`
 
-// Resume subscription
-Teamleader::subscriptions()->activate($subscriptionId);
+Returns deactivated subscriptions.
 
-// Update end date to cancel at end of period
-Teamleader::subscriptions()->update($subscriptionId, [
-    'billing_cycle' => [
-        'ends_on' => date('Y-m-d', strtotime('+1 month'))
-    ]
+```php
+$inactive = $teamleader->subscriptions()->deactivated();
+```
+
+### `forCustomer(string $type, string $id, array $options = []): array`
+
+Returns subscriptions for a specific customer.
+
+```php
+$subscriptions = $teamleader->subscriptions()->forCustomer('company', 'company-uuid');
+```
+
+### `forDepartment(string $departmentId, array $options = []): array`
+
+Returns subscriptions for a specific department.
+
+```php
+$subscriptions = $teamleader->subscriptions()->forDepartment('dept-uuid');
+```
+
+### `forDeal(string $dealId, array $options = []): array`
+
+Returns subscriptions created from a specific deal.
+
+```php
+$subscriptions = $teamleader->subscriptions()->forDeal('deal-uuid');
+```
+
+### `forInvoice(string $invoiceId, array $options = []): array`
+
+Returns subscriptions that generated a specific invoice. Useful for tracing which subscription produced an invoice.
+
+```php
+$subscriptions = $teamleader->subscriptions()->forInvoice('invoice-uuid');
+```
+
+### `byIds(array $ids, array $options = []): array`
+
+Returns subscriptions matching an array of UUIDs.
+
+```php
+$subscriptions = $teamleader->subscriptions()->byIds([
+    'uuid-1',
+    'uuid-2',
 ]);
 ```
+
+---
+
+## Sending Methods
+
+The `invoice_generation.sending_methods` array controls how invoices are delivered when `action` is `book_and_send`. Multiple methods can be combined.
+
+| Method | Description |
+|--------|-------------|
+| `email` | Deliver invoice by email |
+| `peppol` | Deliver invoice via the Peppol e-invoicing network |
+| `postal_service` | Deliver invoice by post |
+
+**Combining methods:**
+
+```php
+'sending_methods' => [
+    ['method' => 'email'],
+    ['method' => 'peppol'],
+],
+```
+
+---
 
 ## Common Use Cases
 
-### 1. SaaS Subscription Management
+### Audit All Active Subscriptions
 
 ```php
-// Create tiered subscriptions
-$plans = [
-    'basic' => ['price' => 29.00, 'description' => 'Basic Plan'],
-    'premium' => ['price' => 99.00, 'description' => 'Premium Plan'],
-    'enterprise' => ['price' => 299.00, 'description' => 'Enterprise Plan']
-];
+$active = $teamleader->subscriptions()->active(
+    [],
+    ['sort' => ['field' => 'created_at', 'order' => 'asc']]
+);
 
-foreach ($plans as $tier => $details) {
-    Teamleader::subscriptions()->create([
-        'title' => $details['description'],
-        'invoicee' => ['customer' => [...]],
-        'billing_cycle' => [
-            'periodicity' => ['unit' => 'month', 'value' => 1],
-            'starts_on' => date('Y-m-d')
+foreach ($active['data'] as $sub) {
+    echo "{$sub['title']} — next renewal: {$sub['next_renewal_date']}\n";
+}
+```
+
+### Find Which Subscription Generated an Invoice
+
+```php
+// When you receive an invoice with a subscription reference
+$invoice = $teamleader->invoices()->info('invoice-uuid');
+
+if (isset($invoice['data']['subscription'])) {
+    $sub = $teamleader->subscriptions()->info(
+        $invoice['data']['subscription']['id']
+    );
+    echo "Generated by: {$sub['data']['title']}";
+}
+
+// Or look it up from the subscription side
+$subscriptions = $teamleader->subscriptions()->forInvoice('invoice-uuid');
+```
+
+### Migrate a Subscription to Peppol Delivery
+
+```php
+// Get current settings
+$sub = $teamleader->subscriptions()->info('subscription-uuid');
+
+// Switch delivery to Peppol
+$teamleader->subscriptions()->update('subscription-uuid', [
+    'invoice_generation' => [
+        'action' => 'book_and_send',
+        'sending_methods' => [
+            ['method' => 'peppol'],
         ],
-        'grouped_lines' => [[
-            'line_items' => [[
-                'quantity' => 1,
-                'description' => $details['description'],
-                'unit_price' => [
-                    'amount' => $details['price'],
-                    'tax' => 'excluding'
-                ],
-                'tax_rate_id' => 'tax-rate-uuid'
-            ]]
-        ]],
-        'invoice_generation' => [
-            'action' => 'book',
-            'offset_days' => 0
-        ]
-    ]);
-}
+    ],
+]);
 ```
 
-### 2. Monitor Subscription Revenue
+### List Subscriptions Created This Year
 
 ```php
-$activeSubscriptions = Teamleader::subscriptions()->active();
+$all = $teamleader->subscriptions()->active();
 
-$monthlyRevenue = 0;
-$annualRevenue = 0;
-
-foreach ($activeSubscriptions['data'] as $subscription) {
-    $amount = $subscription['total']['tax_exclusive']['amount'];
-    $unit = $subscription['billing_cycle']['periodicity']['unit'];
-    $value = $subscription['billing_cycle']['periodicity']['value'];
-    
-    // Convert to monthly revenue
-    if ($unit === 'month') {
-        $monthlyAmount = $amount / $value;
-    } elseif ($unit === 'year') {
-        $monthlyAmount = $amount / (12 * $value);
-    } elseif ($unit === 'week') {
-        $monthlyAmount = ($amount * 4.33) / $value;
-    } elseif ($unit === 'day') {
-        $monthlyAmount = ($amount * 30) / $value;
-    }
-    
-    $monthlyRevenue += $monthlyAmount;
-}
-
-$annualRevenue = $monthlyRevenue * 12;
-
-echo "Monthly Recurring Revenue: €" . number_format($monthlyRevenue, 2) . "\n";
-echo "Annual Recurring Revenue: €" . number_format($annualRevenue, 2) . "\n";
-```
-
-### 3. Upcoming Renewals Report
-
-```php
-$subscriptions = Teamleader::subscriptions()->active();
-$upcomingRenewals = [];
-
-$today = new DateTime();
-$nextMonth = (new DateTime())->modify('+30 days');
-
-foreach ($subscriptions['data'] as $subscription) {
-    $startsOn = new DateTime($subscription['billing_cycle']['starts_on']);
-    $unit = $subscription['billing_cycle']['periodicity']['unit'];
-    $value = $subscription['billing_cycle']['periodicity']['value'];
-    
-    // Calculate next billing date
-    $nextBilling = clone $startsOn;
-    while ($nextBilling < $today) {
-        $nextBilling->modify("+{$value} {$unit}");
-    }
-    
-    if ($nextBilling <= $nextMonth) {
-        $upcomingRenewals[] = [
-            'title' => $subscription['title'],
-            'customer' => $subscription['invoicee']['name'],
-            'next_billing' => $nextBilling->format('Y-m-d'),
-            'amount' => $subscription['total']['tax_inclusive']['amount']
-        ];
-    }
-}
-
-// Sort by date
-usort($upcomingRenewals, function($a, $b) {
-    return strtotime($a['next_billing']) - strtotime($b['next_billing']);
+$thisYear = array_filter($all['data'], function ($sub) {
+    return $sub['created_at'] !== null &&
+        str_starts_with($sub['created_at'], date('Y'));
 });
 ```
 
-## Best Practices
-
-### 1. Set End Dates for Fixed-Term Subscriptions
+### Deactivate Expired Subscriptions
 
 ```php
-// 12-month contract
-$subscription = Teamleader::subscriptions()->create([
-    'title' => '12-Month Contract',
-    'billing_cycle' => [
-        'periodicity' => ['unit' => 'month', 'value' => 1],
-        'starts_on' => '2024-01-01',
-        'ends_on' => '2024-12-31'
-    ],
-    // ... other fields
-]);
-```
+$active = $teamleader->subscriptions()->active();
 
-### 2. Use Appropriate Invoice Generation Settings
-
-```php
-// For manual review: draft invoices
-'invoice_generation' => [
-    'action' => 'draft',
-    'offset_days' => -3  // Generate 3 days early for review
-]
-
-// For automated billing: book invoices
-'invoice_generation' => [
-    'action' => 'book',
-    'offset_days' => 0  // Generate on billing date
-]
-```
-
-### 3. Track Subscription Changes
-
-```php
-// Before updating, log the change
-$oldSubscription = Teamleader::subscriptions()->info($subscriptionId);
-
-$this->logSubscriptionChange([
-    'subscription_id' => $subscriptionId,
-    'old_amount' => $oldSubscription['data']['total']['tax_exclusive']['amount'],
-    'new_amount' => $newAmount,
-    'changed_at' => now()
-]);
-
-// Then update
-Teamleader::subscriptions()->update($subscriptionId, $newData);
-```
-
-### 4. Handle Subscription Upgrades/Downgrades
-
-```php
-// Deactivate old subscription
-Teamleader::subscriptions()->deactivate($oldSubscriptionId);
-
-// Create new subscription with new terms
-$newSubscription = Teamleader::subscriptions()->create([
-    'title' => 'Upgraded Plan',
-    'billing_cycle' => [
-        'starts_on' => date('Y-m-d')  // Start immediately
-    ],
-    // ... new plan details
-]);
-
-// Store the relationship
-$this->storeUpgradeRelation($oldSubscriptionId, $newSubscription['data']['id']);
-```
-
-## Error Handling
-
-```php
-use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
-
-try {
-    $subscription = Teamleader::subscriptions()->create($data);
-} catch (TeamleaderException $e) {
-    if ($e->getCode() === 422) {
-        // Validation error
-        Log::error('Invalid subscription data', $e->getErrors());
-    } else {
-        // Other error
-        Log::error('Failed to create subscription', [
-            'error' => $e->getMessage()
-        ]);
+foreach ($active['data'] as $sub) {
+    if ($sub['ends_on'] !== null && $sub['ends_on'] < date('Y-m-d')) {
+        $teamleader->subscriptions()->deactivate($sub['id']);
     }
 }
 ```
 
+---
+
+## Validation
+
+The SDK validates the following before sending requests:
+
+| Field | Validation |
+|-------|-----------|
+| `invoicee.customer.type` | Must be `contact` or `company` |
+| `billing_cycle.periodicity.unit` | Must be `week`, `month`, or `year` |
+| `payment_term.type` | Must be `cash`, `end_of_month`, or `after_invoice_date` |
+| `invoice_generation.action` | Must be `draft`, `book`, or `book_and_send` |
+| `invoice_generation.sending_methods[].method` | Must be `email`, `peppol`, or `postal_service` |
+| `grouped_lines` | Must be non-empty; each group must have non-empty `line_items` |
+| Line items | Must have `quantity`, `description`, `unit_price.amount`, `unit_price.tax`, `tax_rate_id` |
+| `filter.status` | Values must be `active` or `deactivated` |
+
+---
+
 ## Related Resources
 
-- [Invoices](invoices.md) - Invoice management (generated by subscriptions)
-- [Payment Terms](payment-terms.md) - Payment term configuration
-- [Tax Rates](tax-rates.md) - Tax rate information
-- [Commercial Discounts](commercial-discounts.md) - Discount management
-- [Companies](../crm/companies.md) - Customer management
-- [Contacts](../crm/contacts.md) - Contact management
+- **Invoices** — Invoices generated by subscriptions carry a `subscription` reference
+- **Deals** — Subscriptions can be created from a deal (`deal_id`)
+- **Projects** — Subscriptions can be linked to a project (`project_id`)
+- **Departments** — Each subscription belongs to a department
+- **Companies / Contacts** — Subscription invoicee is a CRM entity

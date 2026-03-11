@@ -83,6 +83,13 @@ class Subscriptions extends Resource
         'book_and_send',
     ];
 
+    // Valid sending methods for invoice_generation when action is 'book_and_send'
+    protected array $validSendingMethods = [
+        'email',
+        'peppol',
+        'postal_service',
+    ];
+
     // Usage examples specific to subscriptions
     protected array $usageExamples = [
         'list_all' => [
@@ -104,6 +111,39 @@ class Subscriptions extends Resource
         'create_subscription' => [
             'description' => 'Create a new subscription',
             'code' => '$subscription = $teamleader->subscriptions()->create([...]);',
+        ],
+        'create_with_peppol' => [
+            'description' => 'Create a subscription that sends invoices via Peppol',
+            'code' => <<<'PHP'
+$subscription = $teamleader->subscriptions()->create([
+    'invoicee' => [
+        'customer' => ['type' => 'company', 'id' => 'company-uuid'],
+    ],
+    'department_id' => 'dept-uuid',
+    'starts_on' => '2024-01-01',
+    'billing_cycle' => [
+        'periodicity' => ['unit' => 'month', 'period' => 1],
+        'days_in_advance' => 7,
+    ],
+    'title' => 'Monthly support',
+    'grouped_lines' => [[
+        'section' => ['title' => 'Support'],
+        'line_items' => [[
+            'quantity' => 1,
+            'description' => 'Monthly support fee',
+            'unit_price' => ['amount' => 500.00, 'tax' => 'excluding'],
+            'tax_rate_id' => 'tax-rate-uuid',
+        ]],
+    ]],
+    'payment_term' => ['type' => 'cash'],
+    'invoice_generation' => [
+        'action' => 'book_and_send',
+        'sending_methods' => [
+            ['method' => 'peppol'],
+        ],
+    ],
+]);
+PHP,
         ],
         'update_subscription' => [
             'description' => 'Update an existing subscription',
@@ -129,6 +169,12 @@ class Subscriptions extends Resource
 
     /**
      * List subscriptions with filtering, sorting, and pagination
+     *
+     * Response includes per item:
+     * - id, title, note, status, department, invoicee, project
+     * - starts_on, ends_on (nullable), next_renewal_date (nullable)
+     * - billing_cycle, total, taxes, web_url
+     * - created_at (string|null): ISO 8601 creation timestamp
      */
     public function list(array $filters = [], array $options = []): array
     {
@@ -157,6 +203,16 @@ class Subscriptions extends Resource
 
     /**
      * Get detailed information about a subscription
+     *
+     * Response includes:
+     * - id, title, note (nullable), status, department, invoicee, project (nullable)
+     * - starts_on, ends_on (nullable), next_renewal_date (nullable)
+     * - billing_cycle (periodicity, days_in_advance, payment_term)
+     * - total (tax_exclusive, tax_inclusive, taxes)
+     * - grouped_lines, invoice_generation (action, sending_methods, payment_method)
+     * - custom_fields, document_template, currency
+     * - web_url
+     * - created_at (string|null): ISO 8601 creation timestamp
      */
     public function info($id, $includes = null): array
     {
@@ -168,7 +224,28 @@ class Subscriptions extends Resource
     /**
      * Create a new subscription
      *
-     * Required fields: invoicee, starts_on, billing_cycle, title, grouped_lines, payment_term, invoice_generation
+     * Required fields:
+     * - invoicee (object): customer {type, id}, optional for_attention_of
+     * - department_id (string): department UUID
+     * - starts_on (string): YYYY-MM-DD
+     * - billing_cycle (object): periodicity {unit, period}, days_in_advance
+     * - title (string)
+     * - grouped_lines (array): sections with line_items
+     * - payment_term (object): type (cash|end_of_month|after_invoice_date), days
+     * - invoice_generation (object): action (draft|book|book_and_send)
+     *   - sending_methods: required when action is 'book_and_send'
+     *     - method: email|peppol|postal_service
+     *
+     * Optional fields:
+     * - ends_on (string|null): YYYY-MM-DD
+     * - deal_id (string|null)
+     * - project_id (string|null)
+     * - note (string|null)
+     * - payment_method: direct_debit
+     * - custom_fields (array)
+     * - document_template_id (string)
+     *
+     * Returns HTTP 201 with data.{id, type}
      */
     public function create(array $data): array
     {
@@ -180,7 +257,29 @@ class Subscriptions extends Resource
     /**
      * Update an existing subscription
      *
-     * All fields except id are optional
+     * All fields except id are optional. Note:
+     * - starts_on and billing_cycle can only be updated if no invoices have been generated yet
+     *
+     * Updatable fields:
+     * - starts_on (string): YYYY-MM-DD (only if no invoices created yet)
+     * - billing_cycle (object): only if no invoices created yet
+     * - ends_on (string|null): YYYY-MM-DD
+     * - title (string)
+     * - invoicee (object)
+     * - department_id (string)
+     * - payment_term (object|null)
+     * - project_id (string|null)
+     * - deal_id (string|null)
+     * - note (string|null)
+     * - grouped_lines (array)
+     * - invoice_generation (object): action (draft|book|book_and_send)
+     *   - sending_methods: required when action is 'book_and_send'
+     *     - method: email|peppol|postal_service
+     * - payment_method: direct_debit
+     * - custom_fields (array)
+     * - document_template_id (string)
+     *
+     * Returns HTTP 204 (no body)
      */
     public function update($id, array $data): array
     {
@@ -329,6 +428,11 @@ class Subscriptions extends Resource
             $this->validateInvoiceGenerationAction($data['invoice_generation']['action']);
         }
 
+        // Validate sending methods if provided (only used when action is 'book_and_send')
+        if (isset($data['invoice_generation']['sending_methods'])) {
+            $this->validateSendingMethods($data['invoice_generation']['sending_methods']);
+        }
+
         // Validate grouped_lines structure if provided
         if (isset($data['grouped_lines'])) {
             $this->validateGroupedLines($data['grouped_lines']);
@@ -380,6 +484,31 @@ class Subscriptions extends Resource
             throw new InvalidArgumentException(
                 'Invalid invoice generation action. Must be one of: '.implode(', ', $this->invoiceGenerationActions)
             );
+        }
+    }
+
+    /**
+     * Validate sending methods array
+     *
+     * @throws InvalidArgumentException
+     */
+    protected function validateSendingMethods(array $methods): void
+    {
+        if (empty($methods)) {
+            throw new InvalidArgumentException('Sending methods cannot be empty when provided');
+        }
+
+        foreach ($methods as $item) {
+            if (! isset($item['method'])) {
+                throw new InvalidArgumentException('Each sending method entry must have a "method" key');
+            }
+
+            if (! in_array($item['method'], $this->validSendingMethods)) {
+                throw new InvalidArgumentException(
+                    "Invalid sending method '{$item['method']}'. Must be one of: ".
+                    implode(', ', $this->validSendingMethods)
+                );
+            }
         }
     }
 
@@ -489,6 +618,7 @@ class Subscriptions extends Resource
                     'data.status' => 'Status (active, deactivated)',
                     'data.department' => 'Department reference',
                     'data.invoicee' => 'Invoicee information with customer and for_attention_of',
+                    'data.project' => 'Project reference (nullable)',
                     'data.starts_on' => 'Start date',
                     'data.ends_on' => 'End date (nullable)',
                     'data.next_renewal_date' => 'Next renewal date (nullable)',
@@ -496,17 +626,32 @@ class Subscriptions extends Resource
                     'data.total' => 'Total amounts (tax_exclusive, tax_inclusive, taxes)',
                     'data.payment_term' => 'Payment term information',
                     'data.grouped_lines' => 'Array of grouped line items',
-                    'data.invoice_generation' => 'Invoice generation settings',
-                    'data.custom_fields' => 'Custom fields (nullable)',
+                    'data.invoice_generation' => 'Invoice generation settings (action, sending_methods, payment_method)',
+                    'data.custom_fields' => 'Custom fields',
                     'data.document_template' => 'Document template reference',
                     'data.currency' => 'Currency code',
                     'data.web_url' => 'Web URL to the subscription',
+                    'data.created_at' => 'Creation timestamp ISO 8601 (nullable)',
                 ],
             ],
             'list' => [
                 'description' => 'Array of subscriptions with pagination',
                 'fields' => [
-                    'data' => 'Array of subscription objects (similar to info endpoint)',
+                    'data' => 'Array of subscription objects',
+                    'data[].id' => 'Subscription UUID',
+                    'data[].title' => 'Subscription title',
+                    'data[].note' => 'Note (nullable)',
+                    'data[].status' => 'Status (active, deactivated)',
+                    'data[].department' => 'Department reference',
+                    'data[].invoicee' => 'Invoicee with customer and for_attention_of',
+                    'data[].project' => 'Project reference (nullable)',
+                    'data[].starts_on' => 'Start date',
+                    'data[].ends_on' => 'End date (nullable)',
+                    'data[].next_renewal_date' => 'Next renewal date (nullable)',
+                    'data[].billing_cycle' => 'Billing cycle details',
+                    'data[].total' => 'Total amounts',
+                    'data[].web_url' => 'Web URL to the subscription',
+                    'data[].created_at' => 'Creation timestamp ISO 8601 (nullable)',
                 ],
             ],
             'deactivate' => [
