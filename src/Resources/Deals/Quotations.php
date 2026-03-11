@@ -2,6 +2,7 @@
 
 namespace McoreServices\TeamleaderSDK\Resources\Deals;
 
+use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
 
 class Quotations extends Resource
@@ -87,6 +88,27 @@ class Quotations extends Resource
     ];
 
     /**
+     * Get quotation information
+     *
+     * @param string $id Quotation UUID
+     * @param mixed $includes Includes to load (e.g., 'expiry')
+     */
+    public function info($id, $includes = null): array
+    {
+        $params = ['id' => $id];
+
+        // Apply includes
+        if (!empty($includes)) {
+            $params = $this->applyIncludes($params, $includes);
+        }
+
+        // Apply any pending includes from fluent interface
+        $params = $this->applyPendingIncludes($params);
+
+        return $this->api->request('POST', $this->getBasePath() . '.info', $params);
+    }
+
+    /**
      * Get the base path for the quotations resource
      */
     protected function getBasePath(): string
@@ -95,122 +117,126 @@ class Quotations extends Resource
     }
 
     /**
-     * List quotations with enhanced filtering and pagination
-     *
-     * @param  array  $filters  Filters to apply
-     * @param  array  $options  Additional options (pagination via page.size / page.number)
-     */
-    public function list(array $filters = [], array $options = []): array
-    {
-        $params = [];
-
-        // Apply filters
-        if (! empty($filters)) {
-            $params['filter'] = $this->buildFilters($filters);
-        }
-
-        // Apply pagination
-        if (isset($options['page'])) {
-            $params['page'] = $this->buildPagination($options['page']);
-        }
-
-        return $this->api->request('POST', $this->getBasePath().'.list', $params);
-    }
-
-    /**
-     * Get quotation information
-     *
-     * @param  string  $id  Quotation UUID
-     * @param  mixed  $includes  Includes to load (e.g., 'expiry')
-     */
-    public function info($id, $includes = null): array
-    {
-        $params = ['id' => $id];
-
-        // Apply includes
-        if (! empty($includes)) {
-            $params = $this->applyIncludes($params, $includes);
-        }
-
-        // Apply any pending includes from fluent interface
-        $params = $this->applyPendingIncludes($params);
-
-        return $this->api->request('POST', $this->getBasePath().'.info', $params);
-    }
-
-    /**
      * Create a new quotation
      *
-     * @param  array  $data  Quotation data
+     * @param array $data Quotation data
      */
     public function create(array $data): array
     {
         $this->validateCreateData($data);
 
-        return $this->api->request('POST', $this->getBasePath().'.create', $data);
+        return $this->api->request('POST', $this->getBasePath() . '.create', $data);
+    }
+
+    /**
+     * Validate data for creating a quotation
+     *
+     * @throws InvalidArgumentException
+     */
+    private function validateCreateData(array $data): void
+    {
+        if (!isset($data['deal_id'])) {
+            throw new InvalidArgumentException('deal_id is required to create a quotation');
+        }
+
+        if (!isset($data['grouped_lines']) && !isset($data['text'])) {
+            throw new InvalidArgumentException('A quotation needs either grouped_lines or text to be valid');
+        }
     }
 
     /**
      * Update a quotation
      *
-     * @param  string  $id  Quotation UUID
-     * @param  array  $data  Updated quotation data
+     * @param string $id Quotation UUID
+     * @param array $data Updated quotation data
      */
     public function update(string $id, array $data): array
     {
         $data['id'] = $id;
 
-        return $this->api->request('POST', $this->getBasePath().'.update', $data);
+        return $this->api->request('POST', $this->getBasePath() . '.update', $data);
     }
 
     /**
      * Delete a quotation
      *
-     * @param  string  $id  Quotation UUID
+     * @param string $id Quotation UUID
      */
     public function delete(string $id): array
     {
-        return $this->api->request('POST', $this->getBasePath().'.delete', ['id' => $id]);
+        return $this->api->request('POST', $this->getBasePath() . '.delete', ['id' => $id]);
     }
 
     /**
      * Mark a quotation as accepted
      *
-     * @param  string  $id  Quotation UUID
+     * @param string $id Quotation UUID
      */
     public function accept(string $id): array
     {
-        return $this->api->request('POST', $this->getBasePath().'.accept', ['id' => $id]);
+        return $this->api->request('POST', $this->getBasePath() . '.accept', ['id' => $id]);
     }
 
     /**
      * Send one or more quotations via email
      *
-     * @param  array  $data  Send parameters including quotations, sender, recipients, subject, content, and language
+     * @param array $data Send parameters including quotations, sender, recipients, subject, content, and language
      */
     public function send(array $data): array
     {
         $this->validateSendData($data);
 
-        return $this->api->request('POST', $this->getBasePath().'.send', $data);
+        return $this->api->request('POST', $this->getBasePath() . '.send', $data);
+    }
+
+    /**
+     * Validate data for sending quotations
+     *
+     * @throws InvalidArgumentException
+     */
+    private function validateSendData(array $data): void
+    {
+        if (!isset($data['quotations']) || !is_array($data['quotations']) || empty($data['quotations'])) {
+            throw new InvalidArgumentException('quotations array is required and must not be empty');
+        }
+
+        if (!isset($data['from']) || !isset($data['from']['sender'])) {
+            throw new InvalidArgumentException('from.sender is required');
+        }
+
+        if (!isset($data['recipients']) || !isset($data['recipients']['to']) || empty($data['recipients']['to'])) {
+            throw new InvalidArgumentException('recipients.to is required and must not be empty');
+        }
+
+        if (!isset($data['subject'])) {
+            throw new InvalidArgumentException('subject is required');
+        }
+
+        if (!isset($data['content'])) {
+            throw new InvalidArgumentException('content is required');
+        }
+
+        if (!isset($data['language'])) {
+            throw new InvalidArgumentException('language is required');
+        }
     }
 
     /**
      * Download a quotation in a specific format
      *
-     * @param  string  $id  Quotation UUID
-     * @param  string  $format  Download format (default: 'pdf')
+     * @param string $id Quotation UUID
+     * @param string $format Download format (default: 'pdf')
      * @return array Returns location URL and expiration time
      */
     public function download(string $id, string $format = 'pdf'): array
     {
-        if (! in_array($format, $this->supportedFormats)) {
-            throw new \InvalidArgumentException(
-                "Invalid format '{$format}'. Supported formats: ".implode(', ', $this->supportedFormats)
+        if (!in_array($format, $this->supportedFormats)) {
+            throw new InvalidArgumentException(
+                "Invalid format '{$format}'. Supported formats: " . implode(', ', $this->supportedFormats)
             );
         }
 
-        return $this->api->request('POST', $this->getBasePath().'.download', [
+        return $this->api->request('POST', $this->getBasePath() . '.download', [
             'id' => $id,
             'format' => $format,
         ]);
@@ -219,7 +245,7 @@ class Quotations extends Resource
     /**
      * Get quotations by specific IDs
      *
-     * @param  array  $ids  Array of quotation UUIDs
+     * @param array $ids Array of quotation UUIDs
      */
     public function byIds(array $ids): array
     {
@@ -227,25 +253,26 @@ class Quotations extends Resource
     }
 
     /**
-     * Get quotations by status
+     * List quotations with enhanced filtering and pagination
      *
-     * @param  string|array  $status  Single status or array of statuses
+     * @param array $filters Filters to apply
+     * @param array $options Additional options (pagination via page.size / page.number)
      */
-    public function byStatus($status): array
+    public function list(array $filters = [], array $options = []): array
     {
-        if (is_string($status)) {
-            $status = [$status];
+        $params = [];
+
+        // Apply filters
+        if (!empty($filters)) {
+            $params['filter'] = $this->buildFilters($filters);
         }
 
-        foreach ($status as $s) {
-            if (! in_array($s, $this->validStatuses)) {
-                throw new \InvalidArgumentException(
-                    "Invalid status '{$s}'. Must be one of: ".implode(', ', $this->validStatuses)
-                );
-            }
+        // Apply pagination
+        if (isset($options['page'])) {
+            $params['page'] = $this->buildPagination($options['page']);
         }
 
-        return $this->list(['status' => $status]);
+        return $this->api->request('POST', $this->getBasePath() . '.list', $params);
     }
 
     /**
@@ -278,62 +305,36 @@ class Quotations extends Resource
         $page = [];
 
         if (isset($pagination['size'])) {
-            $page['size'] = (int) $pagination['size'];
+            $page['size'] = (int)$pagination['size'];
         }
 
         if (isset($pagination['number'])) {
-            $page['number'] = (int) $pagination['number'];
+            $page['number'] = (int)$pagination['number'];
         }
 
         return $page;
     }
 
     /**
-     * Validate data for creating a quotation
+     * Get quotations by status
      *
-     * @throws \InvalidArgumentException
+     * @param string|array $status Single status or array of statuses
      */
-    private function validateCreateData(array $data): void
+    public function byStatus($status): array
     {
-        if (! isset($data['deal_id'])) {
-            throw new \InvalidArgumentException('deal_id is required to create a quotation');
+        if (is_string($status)) {
+            $status = [$status];
         }
 
-        if (! isset($data['grouped_lines']) && ! isset($data['text'])) {
-            throw new \InvalidArgumentException('A quotation needs either grouped_lines or text to be valid');
-        }
-    }
-
-    /**
-     * Validate data for sending quotations
-     *
-     * @throws \InvalidArgumentException
-     */
-    private function validateSendData(array $data): void
-    {
-        if (! isset($data['quotations']) || ! is_array($data['quotations']) || empty($data['quotations'])) {
-            throw new \InvalidArgumentException('quotations array is required and must not be empty');
+        foreach ($status as $s) {
+            if (!in_array($s, $this->validStatuses)) {
+                throw new InvalidArgumentException(
+                    "Invalid status '{$s}'. Must be one of: " . implode(', ', $this->validStatuses)
+                );
+            }
         }
 
-        if (! isset($data['from']) || ! isset($data['from']['sender'])) {
-            throw new \InvalidArgumentException('from.sender is required');
-        }
-
-        if (! isset($data['recipients']) || ! isset($data['recipients']['to']) || empty($data['recipients']['to'])) {
-            throw new \InvalidArgumentException('recipients.to is required and must not be empty');
-        }
-
-        if (! isset($data['subject'])) {
-            throw new \InvalidArgumentException('subject is required');
-        }
-
-        if (! isset($data['content'])) {
-            throw new \InvalidArgumentException('content is required');
-        }
-
-        if (! isset($data['language'])) {
-            throw new \InvalidArgumentException('language is required');
-        }
+        return $this->list(['status' => $status]);
     }
 
     /**
