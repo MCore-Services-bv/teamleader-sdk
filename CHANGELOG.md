@@ -15,6 +15,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.3] - 2026-03-12
+
+### Fixed
+
+#### Critical: Sideloading Broken for All Resources — `includes` Parameter Name
+
+- **`FilterTrait`** (`src/Traits/FilterTrait.php`): Corrected `applyIncludes()` to send `includes`
+  (plural) instead of `include` (singular) in the POST body, aligning with the Teamleader API
+  specification for all `.list` and `.info` endpoints.
+- **Impact**: All resources supporting sideloading were silently receiving no included data.
+  The API ignores unknown body keys without returning an error, so responses appeared successful
+  but `custom_fields`, `price_list`, `responsible_user`, and all other sideloaded relationships
+  were always absent.
+- **Affected resources**: All resources using `FilterTrait::applyIncludes()`, which includes
+  Companies, Contacts, Deals, Invoices, Products, and every other resource supporting sideloading.
+- **Note**: A CHANGELOG entry in v1.1.6 incorrectly claimed this fix had been applied. That code
+  change was never committed. This release contains the actual fix.
+
+### Changed
+
+#### Documentation — Filtering and Sideloading
+
+- **`docs/filtering.md`**: Added a dedicated _Sideloading Related Data (Includes)_ section
+  documenting the `include` option key, the `with()` fluent interface, per-resource include
+  tables, and a custom fields usage example. Clarified the SDK's internal translation from
+  `include` (options key) to `includes` (API body parameter).
+- **`docs/sideloading.md`**: Added a prominent _How the API Parameter Works_ section at the top
+  explaining the `includes` (plural) API requirement and how the SDK handles it transparently.
+  Added a custom fields structure reference, a dedicated _Avoid Per-Record Info Calls_ example,
+  and a _Syncing with Custom Fields_ pattern.
+
+---
+
 ## [1.2.2] - 2026-03-12
 
 ### Fixed
@@ -22,7 +55,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### General — Custom Fields Pagination Bug
 - **`CustomFields`**: Fixed `list()` silently ignoring the `$options` parameter — `page_size` and `page_number` were accepted by the method signature but never forwarded to the API request, causing the Teamleader API to always return its default page of 20 records regardless of how many custom fields exist
 - **`CustomFields`**: Corrected `$supportsPagination` capability flag from `false` to `true` to accurately reflect that the `customFieldDefinitions.list` endpoint does paginate
-- **Impact**: Any account with more than 20 custom fields would silently receive an incomplete sync. The `SyncReferenceDataJob` already implemented correct pagination logic (100 per page, loop until exhausted) — it now works as intended
 
 ---
 
@@ -111,13 +143,12 @@ Invoicing, avatar/logo upload for CRM entities, and a wide range of field additi
 
 ## [1.1.6] - 2025-11-01
 
+## [1.1.6] - 2025-11-01
+
 ### Fixed
-- **Critical: Includes Parameter Name**
-    - Changed FilterTrait to use `includes` (plural) instead of `include` (singular)
-    - Fixes sideloading for all resources (companies.info, products.info, etc.)
-    - Aligns with official Teamleader API specification
-    - Affects: All resources supporting sideloading/includes
-    - Impact: Critical bug fix - previous implementation caused API errors
+- **Critical: Includes Parameter Name** *(note: this fix was not correctly applied in this release — see v1.2.3)*
+    - Identified that `FilterTrait::applyIncludes()` was sending `include` (singular) instead
+      of `includes` (plural), causing sideloading to silently return no data for all resources.
 
 ## [1.1.5] - 2025-11-01
 

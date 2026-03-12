@@ -77,7 +77,11 @@ trait FilterTrait
     }
 
     /**
-     * Apply includes for sideloading related resources (enhanced version).
+     * Apply includes for sideloading related resources.
+     *
+     * NOTE: The Teamleader API uses "includes" (plural) as the body parameter
+     * for both .list and .info endpoints. Using "include" (singular) is silently
+     * ignored by the API, which is why custom_fields would not appear in responses.
      */
     protected function applyIncludes(array $params = [], $includes = null)
     {
@@ -89,10 +93,10 @@ trait FilterTrait
                 });
 
                 if (! empty($validIncludes)) {
-                    $params['include'] = implode(',', $validIncludes);
+                    $params['includes'] = implode(',', $validIncludes);
                 }
             } elseif (is_string($includes)) {
-                $params['include'] = $includes;
+                $params['includes'] = $includes;
             }
         }
 

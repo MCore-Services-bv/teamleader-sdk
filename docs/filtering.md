@@ -119,527 +119,185 @@ $companies = Teamleader::companies()->byEmail('info@example.com');
 
 ### Search Filters
 
-Use the `term` filter for full-text search:
-
-```php
-// Search across multiple fields
-$contacts = Teamleader::contacts()->list([
-    'term' => 'john@example.com'
-]);
-
-// Using the helper method (recommended)
-$contacts = Teamleader::contacts()->search('john@example.com');
-```
-
-### Relationship Filters
-
-Filter by related resources:
-
-```php
-// Contacts for a specific company
-$contacts = Teamleader::contacts()->list([
-    'company_id' => 'company-uuid'
-]);
-
-// Using the helper method (recommended)
-$contacts = Teamleader::contacts()->forCompany('company-uuid');
-
-// Deals for a customer
-$deals = Teamleader::deals()->list([
-    'customer' => [
-        'type' => 'company',
-        'id' => 'company-uuid'
-    ]
-]);
-```
-
-### Custom Field Filters
-
-Filter by custom field values:
+Use the `term` filter for full-text search across multiple fields:
 
 ```php
 $companies = Teamleader::companies()->list([
-    'custom_fields' => [
-        [
-            'id' => 'custom-field-uuid',
-            'value' => 'specific-value'
-        ]
-    ]
+    'term' => 'Acme'
 ]);
 ```
 
-## Resource-Specific Filters
+## Sideloading Related Data (Includes)
 
-Different resources support different filters. Here are some common examples:
+Use the `include` option to request related data alongside your results in a single API call.
+The SDK translates this into the `includes` parameter that the Teamleader API expects.
 
-### Companies
+> **Important:** The Teamleader API uses `includes` (plural) in the POST body. The SDK handles
+> this translation automatically — always pass `'include'` in your options array and the SDK
+> will send the correct key.
+
+### Requesting Includes in `list()` Calls
+
+Pass `include` as part of the options (second parameter):
 
 ```php
-// By VAT number
-$companies = Teamleader::companies()->byVatNumber('BE0123456789');
-
-// By name (fuzzy search)
-$companies = Teamleader::companies()->byName('Acme');
-
-// By business type
-$companies = Teamleader::companies()->list([
-    'business_type_id' => 'business-type-uuid'
+// Single include
+$companies = Teamleader::companies()->list([], [
+    'include' => 'custom_fields'
 ]);
 
-// By responsible user
-$companies = Teamleader::companies()->list([
-    'responsible_user_id' => 'user-uuid'
-]);
-
-// By national identification number (new in v1.2)
-$companies = Teamleader::companies()->list([
-    'national_identification_number' => 'BE0123456789'
-]);
-
-// By marketing mail consent status (new in v1.2)
-$companies = Teamleader::companies()->list([
-    'marketing_mails_consent' => true
+// Multiple includes (comma-separated)
+$companies = Teamleader::companies()->list([], [
+    'include' => 'custom_fields,price_list'
 ]);
 ```
 
-### Contacts
+### Requesting Includes in `info()` Calls
+
+Pass includes as the second argument:
 
 ```php
-// By email
-$contacts = Teamleader::contacts()->byEmail('john@example.com');
-
-// For a specific company
-$contacts = Teamleader::contacts()->forCompany('company-uuid');
-
-// With specific tags
-$contacts = Teamleader::contacts()->withTags(['vip', 'active']);
-
-// By decision maker status
-$contacts = Teamleader::contacts()->list([
-    'decision_maker' => true
-]);
-
-// By marketing mail consent status (new in v1.2)
-$contacts = Teamleader::contacts()->list([
-    'marketing_mails_consent' => true
-]);
+$company = Teamleader::companies()->info('company-uuid', 'custom_fields,responsible_user');
 ```
 
-### Deals
+### Using the Fluent `with()` Interface
+
+The `with()` method is the recommended approach for readability:
 
 ```php
-// By phase
-$deals = Teamleader::deals()->list([
-    'phase_id' => 'phase-uuid'
-]);
+// Single relationship
+$company = Teamleader::companies()
+    ->with('custom_fields')
+    ->info('company-uuid');
 
-// By pipeline
-$deals = Teamleader::deals()->list([
-    'pipeline_id' => 'pipeline-uuid'
-]);
+// Multiple relationships
+$company = Teamleader::companies()
+    ->with('custom_fields,responsible_user,addresses')
+    ->info('company-uuid');
 
-// By value range
-$deals = Teamleader::deals()->list([
-    'estimated_value_min' => 1000,
-    'estimated_value_max' => 10000,
-    'currency' => 'EUR'
-]);
+// Chaining
+$company = Teamleader::companies()
+    ->with('custom_fields')
+    ->with('responsible_user')
+    ->info('company-uuid');
 
-// By responsible user
-$deals = Teamleader::deals()->list([
-    'responsible_user_id' => 'user-uuid'
-]);
+// Works with list() too
+$companies = Teamleader::companies()
+    ->with('custom_fields,price_list')
+    ->list(['status' => 'active']);
 ```
 
-### Invoices
+### Available Includes per Resource
+
+#### Companies
+
+| Include | Description |
+|---|---|
+| `custom_fields` | Custom field values defined for companies |
+| `price_list` | The assigned price list |
+| `responsible_user` | The user responsible for the company |
+| `addresses` | Company address records |
+| `business_type` | Business type information |
+| `tags` | Associated tags |
+
+#### Contacts
+
+| Include | Description |
+|---|---|
+| `custom_fields` | Custom field values defined for contacts |
+| `price_list` | The assigned price list |
+| `responsible_user` | The user responsible for the contact |
+| `addresses` | Contact address records |
+
+### Working with Custom Fields
+
+Custom fields are only returned when explicitly requested via `include`:
 
 ```php
-// By status
-$invoices = Teamleader::invoices()->list([
-    'status' => 'booked'
+$companies = Teamleader::companies()->list([], [
+    'page_size' => 100,
+    'include'   => 'custom_fields',
 ]);
 
-// By payment status
-$invoices = Teamleader::invoices()->list([
-    'payment_status' => 'paid'
-]);
+foreach ($companies['data'] as $company) {
+    $customFields = $company['custom_fields'] ?? [];
 
-// By customer
-$invoices = Teamleader::invoices()->list([
-    'customer' => [
-        'type' => 'company',
-        'id' => 'company-uuid'
-    ]
-]);
-
-// By date range
-$invoices = Teamleader::invoices()->list([
-    'invoice_date_from' => '2024-01-01',
-    'invoice_date_to' => '2024-12-31'
-]);
+    foreach ($customFields as $field) {
+        $definitionId = $field['definition']['id'];
+        $value        = $field['value'];
+        // Process field...
+    }
+}
 ```
 
-### Projects
+Custom field values follow this structure:
 
-```php
-// By status
-$projects = Teamleader::projects()->list([
-    'status' => 'active'
-]);
-
-// By customer
-$projects = Teamleader::projects()->list([
-    'customer' => [
-        'type' => 'company',
-        'id' => 'company-uuid'
-    ]
-]);
-
-// By start date
-$projects = Teamleader::projects()->list([
-    'starts_after' => '2024-01-01'
-]);
-```
-
-### Expenses
-
-```php
-// By department
-$expenses = Teamleader::expenses()->list([
-    'department_ids' => ['dept-uuid-1', 'dept-uuid-2']
-]);
-
-// By supplier
-$expenses = Teamleader::expenses()->list([
-    'supplier' => [
-        'type' => 'company',
-        'id' => 'company-uuid'
-    ]
-]);
-
-// By payment status
-$expenses = Teamleader::expenses()->list([
-    'payment_statuses' => ['paid', 'not_paid']
-]);
-
-// By paid date range
-$expenses = Teamleader::expenses()->list([
-    'paid_at' => [
-        'from' => '2024-01-01',
-        'to'   => '2024-12-31'
-    ]
-]);
-```
-
-Expenses also support sorting by `document_date`, `due_date`, and `supplier_name`:
-
-```php
-$expenses = Teamleader::expenses()->list([], [
-    'sort' => 'due_date',
-    'sort_order' => 'asc'
-]);
-```
-
-## Combining Filters with Options
-
-Filters can be combined with pagination, sorting, and sideloading:
-
-```php
-// Complex query with multiple options
-$companies = Teamleader::companies()->list(
-    // Filters
-    [
-        'status' => 'active',
-        'tags' => ['vip'],
-        'updated_since' => '2024-01-01'
-    ],
-    // Options
-    [
-        'page_size' => 50,
-        'page_number' => 1,
-        'sort' => 'name',
-        'sort_order' => 'asc',
-        'include' => 'responsible_user,addresses'
-    ]
-);
-```
-
-## Helper Methods
-
-The SDK provides convenient helper methods for common filtering patterns:
-
-### Active/Deactivated Status
-
-```php
-// Get only active resources
-$companies = Teamleader::companies()->active();
-
-// Get only deactivated resources
-$companies = Teamleader::companies()->deactivated();
-```
-
-### Updated Since
-
-```php
-// Get resources updated since a date
-$contacts = Teamleader::contacts()->updatedSince('2024-01-01');
-```
-
-### Search Methods
-
-```php
-// Search contacts by term
-$contacts = Teamleader::contacts()->search('john');
-
-// Search companies by email
-$companies = Teamleader::companies()->byEmail('info@acme.com');
-
-// Search companies by VAT
-$companies = Teamleader::companies()->byVatNumber('BE0123456789');
-
-// Search companies by name
-$companies = Teamleader::companies()->byName('Acme');
+```json
+{
+  "definition": {
+    "type": "customFieldDefinition",
+    "id": "bf6765de-56eb-40ec-ad14-9096c5dc5fe1"
+  },
+  "value": "some value"
+}
 ```
 
 ## Filter Validation
 
-The SDK automatically validates filters to prevent invalid API calls:
+The SDK automatically removes null, empty string, and empty array values:
 
 ```php
 // Invalid filters are automatically removed
 $companies = Teamleader::companies()->list([
-    'status' => 'active',
-    'invalid_filter' => null,      // Removed (null value)
-    'empty_array' => [],           // Removed (empty array)
-    'empty_string' => '',          // Removed (empty string)
-    'valid_filter' => 'value'      // Kept
+    'status'         => 'active',
+    'invalid_filter' => null,   // Removed (null value)
+    'empty_array'    => [],     // Removed (empty array)
+    'empty_string'   => '',     // Removed (empty string)
+    'valid_filter'   => 'value' // Kept
 ]);
+```
+
+## Combining Filters, Pagination, and Includes
+
+All options can be combined freely:
+
+```php
+$companies = Teamleader::companies()->list(
+    // Filters (first argument)
+    [
+        'status'        => 'active',
+        'tags'          => ['vip'],
+        'updated_since' => '2024-01-01',
+    ],
+    // Options (second argument)
+    [
+        'page_size'   => 50,
+        'page_number' => 1,
+        'sort'        => 'name',
+        'sort_order'  => 'asc',
+        'include'     => 'custom_fields,price_list',
+    ]
+);
 ```
 
 ## Checking Resource Capabilities
 
-Not all resources support all filtering options. Check capabilities before filtering:
+Not all resources support all filtering or sideloading options:
 
 ```php
-// Get resource capabilities
 $capabilities = Teamleader::companies()->getCapabilities();
 
 if ($capabilities['supports_filtering']) {
-    // Resource supports filtering
+    // This resource supports filtering
 }
 
-if ($capabilities['supports_sorting']) {
-    // Resource supports sorting
-}
-```
-
-## Pagination with Filters
-
-When working with filtered results, remember to handle pagination:
-
-```php
-public function getAllFilteredCompanies($filters)
-{
-    $allCompanies = [];
-    $page = 1;
-    
-    do {
-        $response = Teamleader::companies()->list($filters, [
-            'page_size' => 100,
-            'page_number' => $page
-        ]);
-        
-        $allCompanies = array_merge($allCompanies, $response['data']);
-        $hasMore = count($response['data']) === 100;
-        $page++;
-        
-    } while ($hasMore);
-    
-    return $allCompanies;
+if ($capabilities['supports_sideloading']) {
+    $availableIncludes = $capabilities['available_includes'];
 }
 ```
 
-## Dynamic Filtering
+## See Also
 
-Build filters dynamically based on user input:
-
-```php
-public function searchCompanies(Request $request)
-{
-    $filters = [];
-    
-    // Add filters based on request parameters
-    if ($request->has('status')) {
-        $filters['status'] = $request->status;
-    }
-    
-    if ($request->has('tags')) {
-        $filters['tags'] = explode(',', $request->tags);
-    }
-    
-    if ($request->has('updated_since')) {
-        $filters['updated_since'] = $request->updated_since;
-    }
-    
-    if ($request->has('search')) {
-        $filters['term'] = $request->search;
-    }
-    
-    // Add pagination options
-    $options = [
-        'page_size' => $request->get('per_page', 20),
-        'page_number' => $request->get('page', 1)
-    ];
-    
-    return Teamleader::companies()->list($filters, $options);
-}
-```
-
-## Best Practices
-
-### 1. Use Helper Methods When Available
-
-```php
-// Instead of this:
-$companies = Teamleader::companies()->list([
-    'email' => [
-        'type' => 'primary',
-        'email' => 'info@acme.com'
-    ]
-]);
-
-// Do this:
-$companies = Teamleader::companies()->byEmail('info@acme.com');
-```
-
-### 2. Filter at the API Level
-
-Filter data at the API level instead of in your application to reduce data transfer:
-
-```php
-// Good: Filter at API level
-$activeCompanies = Teamleader::companies()->list([
-    'status' => 'active'
-]);
-
-// Bad: Fetch all and filter in PHP
-$allCompanies = Teamleader::companies()->list();
-$activeCompanies = array_filter($allCompanies['data'], function($company) {
-    return $company['status'] === 'active';
-});
-```
-
-### 3. Combine Filters for Specific Results
-
-Use multiple filters to get exactly what you need:
-
-```php
-$deals = Teamleader::deals()->list([
-    'phase_id' => 'active-phase-uuid',
-    'responsible_user_id' => auth()->user()->teamleader_id,
-    'estimated_value_min' => 5000,
-    'updated_since' => now()->subDays(30)->toIso8601String()
-]);
-```
-
-### 4. Cache Filtered Results
-
-Cache frequently-used filtered results:
-
-```php
-use Illuminate\Support\Facades\Cache;
-
-public function getActiveVIPCompanies()
-{
-    return Cache::remember('active_vip_companies', 3600, function () {
-        return Teamleader::companies()->list([
-            'status' => 'active',
-            'tags' => ['vip']
-        ]);
-    });
-}
-```
-
-### 5. Document Available Filters
-
-When building services, document which filters are available:
-
-```php
-/**
- * Get companies matching the given criteria
- * 
- * Available filters:
- * - status: 'active' | 'deactivated'
- * - tags: array of tag names
- * - business_type_id: UUID
- * - responsible_user_id: UUID
- * - updated_since: ISO 8601 date string
- * - term: search term
- */
-public function searchCompanies(array $filters): array
-{
-    return Teamleader::companies()->list($filters);
-}
-```
-
-## Error Handling
-
-Handle cases where filters might produce no results:
-
-```php
-$companies = Teamleader::companies()->list([
-    'vat_number' => $vatNumber
-]);
-
-if (empty($companies['data'])) {
-    // No companies found with this VAT number
-    return response()->json([
-        'message' => 'No companies found matching the criteria'
-    ], 404);
-}
-
-return $companies['data'][0];
-```
-
-## Testing Filters
-
-When testing, verify filters are applied correctly:
-
-```php
-use Tests\TestCase;
-
-class CompanyFilterTest extends TestCase
-{
-    public function test_can_filter_by_status()
-    {
-        $companies = Teamleader::companies()->list([
-            'status' => 'active'
-        ]);
-        
-        // Verify all returned companies are active
-        foreach ($companies['data'] as $company) {
-            $this->assertEquals('active', $company['status']);
-        }
-    }
-    
-    public function test_can_filter_by_tags()
-    {
-        $companies = Teamleader::companies()->list([
-            'tags' => ['vip']
-        ]);
-        
-        // Verify all returned companies have the VIP tag
-        foreach ($companies['data'] as $company) {
-            $this->assertContains('vip', 
-                array_column($company['tags'] ?? [], 'name')
-            );
-        }
-    }
-}
-```
-
-## Next Steps
-
-- Learn about [Sideloading](sideloading.md) to efficiently load related data
-- Check individual resource documentation for available filters
-- See [Usage Guide](usage.md) for general SDK usage
+- [Sideloading Guide](sideloading.md) — in-depth guide to loading related data
+- [Usage Guide](usage.md) — general SDK usage
+- [Resources](resources.md) — resource architecture overview
