@@ -18,7 +18,7 @@ class CustomFields extends Resource
 
     protected bool $supportsBatch = false;
 
-    protected bool $supportsPagination = false;
+    protected bool $supportsPagination = true; // FIX: API does paginate (default page size = 20)
 
     // Available includes for sideloading
     protected array $availableIncludes = [
@@ -119,18 +119,28 @@ class CustomFields extends Resource
     }
 
     /**
-     * List custom fields with optional filtering
+     * List custom fields with optional filtering and pagination.
+     *
+     * The Teamleader API defaults to a page size of 20. Always pass
+     * page_size and page_number via $options to retrieve all records.
      *
      * @param  array  $filters  Filters to apply (ids, context)
-     * @param  array  $options  Additional options (not used for custom fields)
+     * @param  array  $options  Pagination options: page_size, page_number
      */
     public function list(array $filters = [], array $options = []): array
     {
         $params = [];
 
+        // Apply filters
         if (! empty($filters)) {
             $params['filter'] = $this->buildFilters($filters);
         }
+
+        // Apply pagination — required to retrieve more than the default 20 records
+        $params['page'] = [
+            'size' => $options['page_size'] ?? 20,
+            'number' => $options['page_number'] ?? 1,
+        ];
 
         return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }

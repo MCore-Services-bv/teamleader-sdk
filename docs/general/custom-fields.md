@@ -47,16 +47,24 @@ As of January 2026, the API supports **creating** custom field definitions progr
 
 ### `list()`
 
-Get all custom field definitions with optional filtering.
+Get all custom field definitions with optional filtering and pagination.
 
 **Parameters:**
 - `filters` (array): Filters to apply — see [Filters](#filters)
+- `options` (array): Pagination options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `page_size` | int | `20` | Number of results per page (max 100) |
+| `page_number` | int | `1` | Page number to retrieve |
+
+> **Important:** The Teamleader API defaults to a page size of 20. If you have more than 20 custom fields, you must paginate through pages to retrieve all of them. The `SyncReferenceDataJob` handles this automatically — use `page_size: 100` and loop until a page returns fewer results than requested.
 
 **Example:**
 ```php
 use McoreServices\TeamleaderSDK\Facades\Teamleader;
 
-// Get all custom fields
+// Get all custom fields (first page of 20)
 $customFields = Teamleader::customFields()->list();
 
 // Get custom fields for contacts
@@ -68,6 +76,21 @@ $contactFields = Teamleader::customFields()->list([
 $fields = Teamleader::customFields()->list([
     'ids' => ['uuid-1', 'uuid-2']
 ]);
+
+// Paginate through all custom fields
+$allFields = [];
+$page = 1;
+
+do {
+    $response = Teamleader::customFields()->list([], [
+        'page_size'   => 100,
+        'page_number' => $page,
+    ]);
+
+    $allFields = array_merge($allFields, $response['data']);
+    $hasMore   = count($response['data']) === 100;
+    $page++;
+} while ($hasMore);
 ```
 
 ---
@@ -430,14 +453,15 @@ class SyncCustomFieldsCommand extends Command
 
     public function handle(): void
     {
-        $contexts = ['contact', 'company', 'deal', 'project', 'invoice', 'subscription'];
+        $page = 1;
 
-        foreach ($contexts as $context) {
-            $this->info("Syncing {$context} custom fields...");
+        do {
+            $response = Teamleader::customFields()->list([], [
+                'page_size'   => 100,
+                'page_number' => $page,
+            ]);
 
-            $fields = Teamleader::customFields()->forContext($context);
-
-            foreach ($fields['data'] as $fieldData) {
+            foreach ($response['data'] as $fieldData) {
                 \App\Models\CustomField::updateOrCreate(
                     ['teamleader_id' => $fieldData['id']],
                     [
@@ -450,7 +474,10 @@ class SyncCustomFieldsCommand extends Command
                     ]
                 );
             }
-        }
+
+            $hasMore = count($response['data']) === 100;
+            $page++;
+        } while ($hasMore);
 
         $this->info('Custom fields synced successfully!');
     }

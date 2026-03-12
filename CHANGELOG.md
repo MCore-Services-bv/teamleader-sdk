@@ -15,6 +15,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.2] - 2026-03-12
+
+### Fixed
+
+#### General — Custom Fields Pagination Bug
+- **`CustomFields`**: Fixed `list()` silently ignoring the `$options` parameter — `page_size` and `page_number` were accepted by the method signature but never forwarded to the API request, causing the Teamleader API to always return its default page of 20 records regardless of how many custom fields exist
+- **`CustomFields`**: Corrected `$supportsPagination` capability flag from `false` to `true` to accurately reflect that the `customFieldDefinitions.list` endpoint does paginate
+- **Impact**: Any account with more than 20 custom fields would silently receive an incomplete sync. The `SyncReferenceDataJob` already implemented correct pagination logic (100 per page, loop until exhausted) — it now works as intended
+
+---
+
 ## [1.2.1] - 2026-03-12
 
 ### Fixed
@@ -271,7 +282,8 @@ Each release will include:
 
 ---
 
-**[Unreleased]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.2.1...HEAD
+**[Unreleased]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.2.2...HEAD
+**[1.2.2]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.2.1...v1.2.2
 **[1.2.1]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.2.0...v1.2.1
 **[1.2.0]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.6...v1.2.0
 **[1.1.6]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.5...v1.1.6
