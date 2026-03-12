@@ -226,14 +226,14 @@ $events = Teamleader::events()->forAttendee('user', 'user-uuid');
 $events = Teamleader::events()->forAttendee('contact', 'contact-uuid');
 ```
 
-### `linkedTo()`
+### `forLink()`
 
 Get events linked to a specific entity.
 
 ```php
-$events = Teamleader::events()->linkedTo('company', 'company-uuid');
-$events = Teamleader::events()->linkedTo('deal', 'deal-uuid');
-$events = Teamleader::events()->linkedTo('contact', 'contact-uuid');
+$events = Teamleader::events()->forLink('company', 'company-uuid');
+$events = Teamleader::events()->forLink('deal', 'deal-uuid');
+$events = Teamleader::events()->forLink('contact', 'contact-uuid');
 ```
 
 ### `forTask()`
@@ -473,7 +473,7 @@ echo "Event rescheduled to {$event['data']['starts_at']}";
 ### Find All Events for a Deal
 
 ```php
-$dealEvents = Teamleader::events()->linkedTo('deal', 'deal-uuid');
+$dealEvents = Teamleader::events()->forLink('deal', 'deal-uuid');
 
 echo "Found " . count($dealEvents['data']) . " events for this deal:\n";
 foreach ($dealEvents['data'] as $event) {

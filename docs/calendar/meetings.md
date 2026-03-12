@@ -18,6 +18,7 @@ The Meetings resource provides comprehensive management of meeting activities in
     - [complete()](#complete)
     - [uncomplete()](#uncomplete)
     - [delete()](#delete)
+    - [createReport()](#createreport)
 - [Helper Methods](#helper-methods)
 - [Sideloading](#sideloading)
 - [Filtering](#filtering)
@@ -193,6 +194,30 @@ Delete a meeting.
 **Example:**
 ```php
 $result = Teamleader::meetings()->delete('meeting-uuid');
+```
+
+### `createReport()`
+
+Create a report for a completed meeting and attach it to a related entity.
+
+**Parameters:**
+- `meetingId` (string): The meeting UUID
+- `reportData` (array): Report data
+
+**Required fields in reportData:**
+- `attach_to` (object): Entity to attach the report to
+    - `type` (string): `'contact'`, `'company'`, or `'deal'`
+    - `id` (string): Entity UUID
+
+**Example:**
+```php
+$report = Teamleader::meetings()->createReport('meeting-uuid', [
+    'attach_to' => [
+        'type' => 'company',
+        'id'   => 'company-uuid'
+    ],
+    'description' => 'Discussed Q2 goals. Client agreed to proceed with full proposal.'
+]);
 ```
 
 ## Helper Methods

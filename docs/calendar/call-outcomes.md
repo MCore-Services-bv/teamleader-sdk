@@ -15,6 +15,7 @@ The Call Outcomes resource provides read-only access to call outcome definitions
 - [Available Methods](#available-methods)
     - [list()](#list)
     - [info()](#info)
+- [Helper Methods](#helper-methods)
 - [Response Structure](#response-structure)
 - [Usage Examples](#usage-examples)
 - [Common Use Cases](#common-use-cases)
@@ -28,8 +29,8 @@ The Call Outcomes resource provides read-only access to call outcome definitions
 
 ## Capabilities
 
-- **Pagination**: ❌ Not Supported
-- **Filtering**: ❌ Not Supported
+- **Pagination**: ✅ Supported
+- **Filtering**: ✅ Supported (`ids` only)
 - **Sorting**: ❌ Not Supported
 - **Sideloading**: ❌ Not Supported
 - **Creation**: ❌ Not Supported
@@ -43,7 +44,8 @@ The Call Outcomes resource provides read-only access to call outcome definitions
 Get all call outcome definitions available in your Teamleader account.
 
 **Parameters:**
-- None
+- `filters` (array): Optional filters to apply
+- `options` (array): Optional pagination options
 
 **Example:**
 ```php
@@ -55,6 +57,17 @@ $outcomes = Teamleader::callOutcomes()->list();
 foreach ($outcomes['data'] as $outcome) {
     echo "{$outcome['name']}\n";
 }
+
+// Filter by specific IDs
+$outcomes = Teamleader::callOutcomes()->list([
+    'ids' => ['outcome-uuid-1', 'outcome-uuid-2']
+]);
+
+// With pagination
+$outcomes = Teamleader::callOutcomes()->list([], [
+    'page_size' => 50,
+    'page_number' => 1
+]);
 ```
 
 ### `info()`
@@ -69,6 +82,30 @@ Get detailed information about a specific call outcome.
 $outcome = Teamleader::callOutcomes()->info('outcome-uuid');
 
 echo "Outcome: {$outcome['data']['name']}";
+```
+
+## Helper Methods
+
+The Call Outcomes resource provides convenient helper methods for common operations:
+
+### `byIds()`
+
+Get specific call outcomes by their UUIDs.
+
+```php
+$outcomes = Teamleader::callOutcomes()->byIds([
+    'outcome-uuid-1',
+    'outcome-uuid-2'
+]);
+```
+
+### `findByName()`
+
+Find a call outcome by name (case-insensitive).
+
+```php
+$outcome = Teamleader::callOutcomes()->findByName('Successful');
+// Returns the matching outcome array, or null if not found
 ```
 
 ## Response Structure

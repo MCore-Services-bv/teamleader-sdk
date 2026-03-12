@@ -15,6 +15,7 @@ The Activity Types resource provides read-only access to activity type definitio
 - [Available Methods](#available-methods)
     - [list()](#list)
     - [info()](#info)
+- [Helper Methods](#helper-methods)
 - [Response Structure](#response-structure)
 - [Usage Examples](#usage-examples)
 - [Common Use Cases](#common-use-cases)
@@ -28,8 +29,8 @@ The Activity Types resource provides read-only access to activity type definitio
 
 ## Capabilities
 
-- **Pagination**: ❌ Not Supported
-- **Filtering**: ❌ Not Supported
+- **Pagination**: ✅ Supported
+- **Filtering**: ✅ Supported (`ids` only)
 - **Sorting**: ❌ Not Supported
 - **Sideloading**: ❌ Not Supported
 - **Creation**: ❌ Not Supported
@@ -43,7 +44,8 @@ The Activity Types resource provides read-only access to activity type definitio
 Get all activity type definitions available in your Teamleader account.
 
 **Parameters:**
-- None
+- `filters` (array): Optional filters to apply
+- `options` (array): Optional pagination options
 
 **Example:**
 ```php
@@ -55,6 +57,17 @@ $activityTypes = Teamleader::activityTypes()->list();
 foreach ($activityTypes['data'] as $type) {
     echo "{$type['name']}\n";
 }
+
+// Filter by specific IDs
+$activityTypes = Teamleader::activityTypes()->list([
+    'ids' => ['type-uuid-1', 'type-uuid-2']
+]);
+
+// With pagination
+$activityTypes = Teamleader::activityTypes()->list([], [
+    'page_size' => 50,
+    'page_number' => 1
+]);
 ```
 
 ### `info()`
@@ -69,6 +82,56 @@ Get detailed information about a specific activity type.
 $activityType = Teamleader::activityTypes()->info('activity-type-uuid');
 
 echo "Activity Type: {$activityType['data']['name']}";
+```
+
+## Helper Methods
+
+The Activity Types resource provides convenient helper methods for common operations:
+
+### `byIds()`
+
+Get specific activity types by their UUIDs.
+
+```php
+$activityTypes = Teamleader::activityTypes()->byIds([
+    'type-uuid-1',
+    'type-uuid-2'
+]);
+```
+
+### `findByName()`
+
+Find an activity type by name (case-insensitive).
+
+```php
+$type = Teamleader::activityTypes()->findByName('Meeting');
+// Returns the matching activity type array, or null if not found
+```
+
+### `all()`
+
+Get all activity types (fetches with a large page size in one call).
+
+```php
+$all = Teamleader::activityTypes()->all();
+```
+
+### `exists()`
+
+Check if an activity type exists by ID.
+
+```php
+$exists = Teamleader::activityTypes()->exists('type-uuid');
+// Returns: true or false
+```
+
+### `selectOptions()`
+
+Get activity types formatted for form dropdowns.
+
+```php
+$options = Teamleader::activityTypes()->selectOptions();
+// Returns: [['value' => 'uuid', 'label' => 'Meeting'], ...]
 ```
 
 ## Response Structure

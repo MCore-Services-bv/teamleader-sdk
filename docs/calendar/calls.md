@@ -15,6 +15,7 @@ The Calls resource provides management of call activities in your Teamleader acc
     - [info()](#info)
     - [create()](#create)
     - [update()](#update)
+    - [complete()](#complete)
 - [Helper Methods](#helper-methods)
 - [Filtering](#filtering)
 - [Response Structure](#response-structure)
@@ -85,30 +86,34 @@ $call = Teamleader::calls()->info('call-uuid');
 Create a new call record.
 
 **Required fields:**
-- `subject` (string): Call subject/title
-- `relates_to` (object): Related entity
-    - `type` (string): 'company'
-    - `id` (string): Company UUID
+- `participant` (object): The participant in the call
+    - `customer` (object): Related customer entity
+        - `type` (string): `'company'`
+        - `id` (string): Company UUID
+- `due_at` (string): Scheduled datetime in ISO 8601 format
+- `assignee` (object): The user responsible for the call
+    - `type` (string): `'user'`
+    - `id` (string): User UUID
 
 **Optional fields:**
 - `description` (string): Call description/notes
-- `scheduled_at` (string): Scheduled datetime in ISO 8601 format
-- `duration` (integer): Call duration in minutes
 - `call_outcome_id` (string): Call outcome UUID (for completed calls)
-- `assigned_to` (string): User UUID assigned to the call
 
 **Example:**
 ```php
 $call = Teamleader::calls()->create([
-    'subject' => 'Follow-up on proposal',
-    'description' => 'Discuss pricing and timeline',
-    'scheduled_at' => '2025-02-20T14:00:00+00:00',
-    'duration' => 30,
-    'relates_to' => [
-        'type' => 'company',
-        'id' => 'company-uuid'
+    'participant' => [
+        'customer' => [
+            'type' => 'company',
+            'id'   => 'company-uuid'
+        ]
     ],
-    'assigned_to' => 'user-uuid'
+    'due_at'      => '2025-02-20T14:00:00+00:00',
+    'assignee'    => [
+        'type' => 'user',
+        'id'   => 'user-uuid'
+    ],
+    'description' => 'Follow-up on proposal — discuss pricing and timeline'
 ]);
 ```
 
@@ -123,10 +128,31 @@ Update an existing call.
 **Example:**
 ```php
 $call = Teamleader::calls()->update('call-uuid', [
-    'subject' => 'Updated call subject',
-    'scheduled_at' => '2025-02-20T15:00:00+00:00',
+    'description'     => 'Updated notes',
     'call_outcome_id' => 'outcome-uuid'
 ]);
+```
+
+### `complete()`
+
+Mark a call as complete, optionally recording an outcome.
+
+**Parameters:**
+- `id` (string): The call UUID
+- `outcomeId` (string|null): Optional call outcome UUID
+- `outcomeSummary` (string|null): Optional summary of the call outcome
+
+**Example:**
+```php
+// Mark as complete
+Teamleader::calls()->complete('call-uuid');
+
+// Mark as complete with outcome
+Teamleader::calls()->complete(
+    'call-uuid',
+    'outcome-uuid',
+    'Client confirmed interest — sending proposal next week'
+);
 ```
 
 ## Helper Methods
@@ -145,22 +171,6 @@ $calls = Teamleader::calls()->forCompany('company-uuid', [
         'scheduled_before' => '2025-02-28'
     ]
 ]);
-```
-
-### `scheduledAfter()`
-
-Get calls scheduled after a specific date.
-
-```php
-$calls = Teamleader::calls()->scheduledAfter('2025-02-01');
-```
-
-### `scheduledBefore()`
-
-Get calls scheduled before a specific date.
-
-```php
-$calls = Teamleader::calls()->scheduledBefore('2025-02-28');
 ```
 
 ### `betweenDates()`
@@ -182,26 +192,58 @@ Get calls with a specific outcome.
 $successfulCalls = Teamleader::calls()->withOutcome('outcome-uuid');
 ```
 
-### `scheduled()`
+### `upcoming()`
 
-Get all scheduled (upcoming) calls.
+Get calls scheduled after today.
 
 ```php
-$upcomingCalls = Teamleader::calls()->scheduled();
-
-// For specific company
-$upcomingCalls = Teamleader::calls()->scheduled('company-uuid');
+$upcomingCalls = Teamleader::calls()->upcoming();
 ```
 
-### `completed()`
+### `overdue()`
 
-Get all completed calls.
+Get calls scheduled before today (not yet completed).
 
 ```php
-$completedCalls = Teamleader::calls()->completed();
+$overdueCalls = Teamleader::calls()->overdue();
+```
 
-// For specific company
-$completedCalls = Teamleader::calls()->completed('company-uuid');
+### `today()`
+
+Get calls scheduled for today.
+
+```php
+$todayCalls = Teamleader::calls()->today();
+```
+
+### `thisWeek()`
+
+Get calls scheduled for the current week.
+
+```php
+$weekCalls = Teamleader::calls()->thisWeek();
+```
+
+### `schedule()`
+
+Schedule a new call (alias for `create()`).
+
+```php
+$call = Teamleader::calls()->schedule([
+    'participant' => [
+        'customer' => ['type' => 'company', 'id' => 'company-uuid']
+    ],
+    'due_at'   => '2025-02-20T14:00:00+00:00',
+    'assignee' => ['type' => 'user', 'id' => 'user-uuid']
+]);
+```
+
+### `reschedule()`
+
+Update only the `due_at` field of an existing call.
+
+```php
+Teamleader::calls()->reschedule('call-uuid', '2025-02-25T10:00:00+00:00');
 ```
 
 ## Filtering
@@ -253,26 +295,23 @@ $calls = Teamleader::calls()->list([
 
 ```php
 [
-    'id' => 'call-uuid',
-    'subject' => 'Follow-up on proposal',
-    'description' => 'Discuss pricing and timeline',
-    'scheduled_at' => '2025-02-20T14:00:00+00:00',
-    'duration' => 30,
-    'relates_to' => [
-        'type' => 'company',
-        'id' => 'company-uuid'
+    'id'          => 'call-uuid',
+    'description' => 'Follow-up on proposal',
+    'due_at'      => '2025-02-20T14:00:00+00:00',
+    'completed'   => false,
+    'participant' => [
+        'customer' => [
+            'type' => 'company',
+            'id'   => 'company-uuid'
+        ]
     ],
-    'assigned_to' => [
+    'assignee' => [
         'type' => 'user',
-        'id' => 'user-uuid'
+        'id'   => 'user-uuid'
     ],
-    'call_outcome' => [
-        'type' => 'callOutcome',
-        'id' => 'outcome-uuid'
-    ],
-    'completed' => true,
-    'created_at' => '2025-01-15T10:30:00+00:00',
-    'updated_at' => '2025-02-20T14:35:00+00:00'
+    'call_outcome'  => null, // or ['id' => 'outcome-uuid', 'name' => 'Successful']
+    'created_at'    => '2025-01-15T10:30:00+00:00',
+    'updated_at'    => '2025-02-20T14:35:00+00:00'
 ]
 ```
 
@@ -282,15 +321,18 @@ $calls = Teamleader::calls()->list([
 
 ```php
 $call = Teamleader::calls()->create([
-    'subject' => 'Initial Sales Discussion',
-    'description' => 'Introduce our services and understand client needs',
-    'scheduled_at' => '2025-02-22T10:00:00+00:00',
-    'duration' => 45,
-    'relates_to' => [
-        'type' => 'company',
-        'id' => 'prospect-company-uuid'
+    'participant' => [
+        'customer' => [
+            'type' => 'company',
+            'id'   => 'prospect-company-uuid'
+        ]
     ],
-    'assigned_to' => 'sales-rep-uuid'
+    'due_at'      => '2025-02-22T10:00:00+00:00',
+    'assignee'    => [
+        'type' => 'user',
+        'id'   => 'sales-rep-uuid'
+    ],
+    'description' => 'Introduce our services and understand client needs'
 ]);
 
 echo "Call scheduled: {$call['data']['id']}";
@@ -299,19 +341,24 @@ echo "Call scheduled: {$call['data']['id']}";
 ### Log a Completed Call
 
 ```php
-// Create call with outcome
+// Create call and mark complete with outcome
 $call = Teamleader::calls()->create([
-    'subject' => 'Follow-up Call',
-    'description' => 'Discussed contract terms and next steps',
-    'scheduled_at' => now()->toIso8601String(),
-    'duration' => 20,
-    'relates_to' => [
-        'type' => 'company',
-        'id' => 'client-company-uuid'
+    'participant' => [
+        'customer' => [
+            'type' => 'company',
+            'id'   => 'client-company-uuid'
+        ]
     ],
-    'call_outcome_id' => 'successful-outcome-uuid',
-    'assigned_to' => 'user-uuid'
+    'due_at'      => now()->toIso8601String(),
+    'assignee'    => ['type' => 'user', 'id' => 'user-uuid'],
+    'description' => 'Discussed contract terms and next steps'
 ]);
+
+Teamleader::calls()->complete(
+    $call['data']['id'],
+    'successful-outcome-uuid',
+    'Client agreed to proceed. Contract sent.'
+);
 
 echo "Call logged with outcome";
 ```
@@ -327,18 +374,19 @@ echo "Total calls: " . count($callHistory['data']) . "\n";
 
 foreach ($callHistory['data'] as $call) {
     $status = $call['completed'] ? 'Completed' : 'Scheduled';
-    echo "- {$call['subject']} ({$status}) - {$call['scheduled_at']}\n";
+    echo "- {$call['description']} ({$status}) - {$call['due_at']}\n";
 }
 ```
 
 ### Update Call with Outcome
 
 ```php
-// After completing the call
-$call = Teamleader::calls()->update('call-uuid', [
-    'call_outcome_id' => 'positive-outcome-uuid',
-    'description' => 'Client is interested. Sending proposal next week.'
-]);
+// After completing the call — use complete() to record outcome
+Teamleader::calls()->complete(
+    'call-uuid',
+    'positive-outcome-uuid',
+    'Client is interested. Sending proposal next week.'
+);
 
 echo "Call outcome recorded";
 ```
@@ -364,15 +412,12 @@ class CallTracker
     public function scheduleCall($companyId, $userId, $details)
     {
         return Teamleader::calls()->create([
-            'subject' => $details['subject'],
-            'description' => $details['description'] ?? '',
-            'scheduled_at' => $details['scheduled_at'],
-            'duration' => $details['duration'] ?? 30,
-            'relates_to' => [
-                'type' => 'company',
-                'id' => $companyId
+            'participant' => [
+                'customer' => ['type' => 'company', 'id' => $companyId]
             ],
-            'assigned_to' => $userId
+            'due_at'      => $details['due_at'],
+            'assignee'    => ['type' => 'user', 'id' => $userId],
+            'description' => $details['description'] ?? ''
         ]);
     }
     
@@ -392,9 +437,9 @@ class CallTracker
         $calls = Teamleader::calls()->betweenDates($today, $nextWeek);
         
         // Filter by assigned user
-        return array_filter($calls['data'], function($call) use ($userId) {
-            return isset($call['assigned_to']['id']) && 
-                   $call['assigned_to']['id'] === $userId;
+        return array_filter($calls['data'], function ($call) use ($userId) {
+            return isset($call['assignee']['id']) &&
+                   $call['assignee']['id'] === $userId;
         });
     }
 }
@@ -408,62 +453,50 @@ class CallAnalytics
     public function getCompanyCallStats($companyId)
     {
         $calls = Teamleader::calls()->forCompany($companyId);
-        
-        $totalCalls = count($calls['data']);
+
+        $totalCalls     = count($calls['data']);
         $completedCalls = count(array_filter(
             $calls['data'],
             fn($c) => $c['completed']
         ));
-        
-        $totalDuration = array_reduce(
-            $calls['data'],
-            fn($sum, $c) => $sum + ($c['duration'] ?? 0),
-            0
-        );
-        
+
         return [
-            'total_calls' => $totalCalls,
+            'total_calls'     => $totalCalls,
             'completed_calls' => $completedCalls,
-            'pending_calls' => $totalCalls - $completedCalls,
-            'total_duration_minutes' => $totalDuration,
-            'average_duration' => $totalCalls > 0 
-                ? round($totalDuration / $totalCalls, 2) 
-                : 0
+            'pending_calls'   => $totalCalls - $completedCalls,
         ];
     }
-    
+
     public function getCallsByOutcome($startDate, $endDate)
     {
-        $calls = Teamleader::calls()->betweenDates($startDate, $endDate);
-        
+        $calls    = Teamleader::calls()->betweenDates($startDate, $endDate);
         $byOutcome = [];
-        
+
         foreach ($calls['data'] as $call) {
             if (isset($call['call_outcome']['id'])) {
-                $outcomeId = $call['call_outcome']['id'];
+                $outcomeId             = $call['call_outcome']['id'];
                 $byOutcome[$outcomeId] = ($byOutcome[$outcomeId] ?? 0) + 1;
             }
         }
-        
+
         return $byOutcome;
     }
-    
+
     public function getCallSuccessRate($startDate, $endDate, $successOutcomeIds)
     {
-        $calls = Teamleader::calls()->betweenDates($startDate, $endDate);
-        
+        $calls          = Teamleader::calls()->betweenDates($startDate, $endDate);
         $completedCalls = array_filter($calls['data'], fn($c) => $c['completed']);
-        $total = count($completedCalls);
-        
-        $successful = count(array_filter($completedCalls, function($call) use ($successOutcomeIds) {
-            return isset($call['call_outcome']['id']) && 
+        $total          = count($completedCalls);
+
+        $successful = count(array_filter($completedCalls, function ($call) use ($successOutcomeIds) {
+            return isset($call['call_outcome']['id']) &&
                    in_array($call['call_outcome']['id'], $successOutcomeIds);
         }));
-        
+
         return [
-            'total_calls' => $total,
+            'total_calls'     => $total,
             'successful_calls' => $successful,
-            'success_rate' => $total > 0 ? round(($successful / $total) * 100, 2) : 0
+            'success_rate'    => $total > 0 ? round(($successful / $total) * 100, 2) : 0,
         ];
     }
 }
@@ -474,32 +507,23 @@ class CallAnalytics
 ```php
 class SalesCallManager
 {
-    public function scheduleFollowUpCall($companyId, $daysAhead = 7)
+    public function scheduleFollowUpCall($companyId, $userId, $daysAhead = 7)
     {
         $scheduledTime = now()->addDays($daysAhead)->setTime(10, 0);
-        
+
         return Teamleader::calls()->create([
-            'subject' => 'Follow-up Call',
-            'description' => 'Check in on proposal and answer questions',
-            'scheduled_at' => $scheduledTime->toIso8601String(),
-            'duration' => 30,
-            'relates_to' => [
-                'type' => 'company',
-                'id' => $companyId
-            ]
+            'participant' => [
+                'customer' => ['type' => 'company', 'id' => $companyId]
+            ],
+            'due_at'      => $scheduledTime->toIso8601String(),
+            'assignee'    => ['type' => 'user', 'id' => $userId],
+            'description' => 'Check in on proposal and answer questions'
         ]);
     }
-    
+
     public function getCallsNeedingAttention()
     {
-        // Get overdue calls (scheduled in past, not completed)
-        $today = now()->format('Y-m-d');
-        
-        $calls = Teamleader::calls()->scheduledBefore($today);
-        
-        return array_filter($calls['data'], function($call) {
-            return !$call['completed'];
-        });
+        return Teamleader::calls()->overdue()['data'];
     }
     
     public function assignCallsToRep($companyId, $repId)
@@ -509,7 +533,7 @@ class SalesCallManager
         foreach ($companyCalls['data'] as $call) {
             if (!$call['completed']) {
                 Teamleader::calls()->update($call['id'], [
-                    'assigned_to' => $repId
+                    'assignee' => ['type' => 'user', 'id' => $repId]
                 ]);
             }
         }
@@ -524,46 +548,43 @@ class CallReminderSystem
 {
     public function getTodayCalls($userId)
     {
-        $today = now()->format('Y-m-d');
-        
-        $calls = Teamleader::calls()->list([
-            'scheduled_after' => $today,
-            'scheduled_before' => $today
-        ]);
-        
+        $calls = Teamleader::calls()->today();
+
         // Filter by assigned user
-        return array_filter($calls['data'], function($call) use ($userId) {
-            return isset($call['assigned_to']['id']) && 
-                   $call['assigned_to']['id'] === $userId &&
-                   !$call['completed'];
+        return array_filter($calls['data'], function ($call) use ($userId) {
+            return isset($call['assignee']['id']) &&
+                   $call['assignee']['id'] === $userId &&
+                   ! $call['completed'];
         });
     }
-    
+
     public function getUpcomingReminders($userId, $hoursAhead = 24)
     {
-        $now = now();
+        $now    = now();
         $future = now()->addHours($hoursAhead);
-        
+
         $calls = Teamleader::calls()->betweenDates(
             $now->format('Y-m-d'),
             $future->format('Y-m-d')
         );
-        
-        // Filter and sort
-        $upcoming = array_filter($calls['data'], function($call) use ($userId, $now, $future) {
-            if ($call['completed']) return false;
-            if (!isset($call['assigned_to']['id'])) return false;
-            if ($call['assigned_to']['id'] !== $userId) return false;
-            
-            $scheduledTime = strtotime($call['scheduled_at']);
-            return $scheduledTime >= $now->timestamp && 
-                   $scheduledTime <= $future->timestamp;
+
+        $upcoming = array_filter($calls['data'], function ($call) use ($userId, $now, $future) {
+            if ($call['completed']) {
+                return false;
+            }
+            if (! isset($call['assignee']['id'])) {
+                return false;
+            }
+            if ($call['assignee']['id'] !== $userId) {
+                return false;
+            }
+
+            $dueAt = strtotime($call['due_at']);
+            return $dueAt >= $now->timestamp && $dueAt <= $future->timestamp;
         });
-        
-        usort($upcoming, function($a, $b) {
-            return strtotime($a['scheduled_at']) - strtotime($b['scheduled_at']);
-        });
-        
+
+        usort($upcoming, fn($a, $b) => strtotime($a['due_at']) - strtotime($b['due_at']));
+
         return $upcoming;
     }
 }
@@ -573,60 +594,46 @@ class CallReminderSystem
 
 ### 1. Always Link Calls to Companies
 
-Calls must be related to a company:
+Calls require a participant with a customer reference:
 
 ```php
-// Required
 $call = Teamleader::calls()->create([
-    'subject' => 'Sales Call',
-    'relates_to' => [ // Required
-        'type' => 'company',
-        'id' => 'company-uuid'
-    ]
+    'participant' => [
+        'customer' => [
+            'type' => 'company',
+            'id'   => 'company-uuid' // Required
+        ]
+    ],
+    'due_at'   => now()->addDays(2)->toIso8601String(),
+    'assignee' => ['type' => 'user', 'id' => 'user-uuid']
 ]);
 ```
 
-### 2. Use ISO 8601 Format for Scheduled Times
+### 2. Use ISO 8601 Format for due_at
 
 Always use proper datetime format with timezone:
 
 ```php
 // Good
-$call = Teamleader::calls()->create([
-    'scheduled_at' => '2025-02-20T14:00:00+00:00'
-]);
+'due_at' => '2025-02-20T14:00:00+00:00'
 
 // Using Carbon
-$call = Teamleader::calls()->create([
-    'scheduled_at' => now()->addDays(2)->toIso8601String()
-]);
+'due_at' => now()->addDays(2)->toIso8601String()
 ```
 
-### 3. Record Call Outcomes
+### 3. Record Call Outcomes Using complete()
 
-Always log outcomes for completed calls:
+Always use `complete()` to mark calls done and record outcomes:
 
 ```php
-// After call is completed
-Teamleader::calls()->update('call-uuid', [
-    'call_outcome_id' => 'outcome-uuid',
-    'description' => 'Client interested. Sending proposal.'
-]);
+Teamleader::calls()->complete(
+    'call-uuid',
+    'outcome-uuid',
+    'Client interested. Sending proposal.'
+);
 ```
 
-### 4. Include Duration for Scheduling
-
-Specify call duration to help with time management:
-
-```php
-$call = Teamleader::calls()->create([
-    'subject' => 'Client Meeting',
-    'duration' => 30, // minutes
-    // ... other fields
-]);
-```
-
-### 5. Use Helper Methods for Readability
+### 4. Use Helper Methods for Common Queries
 
 Prefer helper methods for cleaner code:
 
@@ -641,6 +648,16 @@ $calls = Teamleader::calls()->list([
 ]);
 ```
 
+### 5. Use Helper Methods for Common Queries
+
+```php
+// Prefer
+$calls = Teamleader::calls()->forCompany('company-uuid');
+$calls = Teamleader::calls()->betweenDates($start, $end);
+$calls = Teamleader::calls()->overdue();
+$calls = Teamleader::calls()->today();
+```
+
 ### 6. Assign Calls to Users
 
 Always assign calls to specific users for accountability:
@@ -648,7 +665,7 @@ Always assign calls to specific users for accountability:
 ```php
 $call = Teamleader::calls()->create([
     // ... other fields
-    'assigned_to' => 'user-uuid' // Clear ownership
+    'assignee' => ['type' => 'user', 'id' => 'user-uuid'] // Clear ownership
 ]);
 ```
 
@@ -658,7 +675,7 @@ Include meaningful descriptions to provide context:
 
 ```php
 $call = Teamleader::calls()->create([
-    'subject' => 'Q1 Review Call',
+    // ... required fields
     'description' => 'Discuss Q1 performance, address concerns, ' .
                      'present Q2 strategy and renewal options'
 ]);
@@ -668,26 +685,29 @@ $call = Teamleader::calls()->create([
 
 ### Common Errors and Solutions
 
-**Missing Related Company:**
+**Missing Required Field:**
 ```php
 try {
     $call = Teamleader::calls()->create([
-        'subject' => 'Call',
-        // Missing relates_to
+        'participant' => ['customer' => ['type' => 'company', 'id' => 'uuid']],
+        'assignee'    => ['type' => 'user', 'id' => 'user-uuid']
+        // Missing: due_at
     ]);
-} catch (\Exception $e) {
-    // Handle: "relates_to is required"
+} catch (\InvalidArgumentException $e) {
+    // Handle: "Field 'due_at' is required for creating a call"
 }
 ```
 
-**Invalid Date Format:**
+**Invalid Participant Structure:**
 ```php
 try {
     $call = Teamleader::calls()->create([
-        'scheduled_at' => '2025-02-20 14:00:00' // Wrong format
+        'participant' => [], // Missing customer
+        'due_at'      => '2025-02-20T14:00:00+00:00',
+        'assignee'    => ['type' => 'user', 'id' => 'uuid']
     ]);
-} catch (\Exception $e) {
-    // Handle: "Invalid datetime format. Use ISO 8601"
+} catch (\InvalidArgumentException $e) {
+    // Handle: "Participant must have a customer object"
 }
 ```
 
@@ -738,20 +758,16 @@ class CallManager
     
     private function validateCallData(array $data)
     {
-        if (empty($data['subject'])) {
-            throw new \InvalidArgumentException('Call subject is required');
+        if (empty($data['participant']['customer'])) {
+            throw new \InvalidArgumentException('participant.customer is required');
         }
-        
-        if (empty($data['relates_to'])) {
-            throw new \InvalidArgumentException('Company relation is required');
+
+        if (empty($data['due_at'])) {
+            throw new \InvalidArgumentException('due_at is required');
         }
-        
-        if (isset($data['scheduled_at'])) {
-            // Validate datetime format
-            $timestamp = strtotime($data['scheduled_at']);
-            if ($timestamp === false) {
-                throw new \InvalidArgumentException('Invalid scheduled_at format');
-            }
+
+        if (empty($data['assignee'])) {
+            throw new \InvalidArgumentException('assignee is required');
         }
     }
 }
