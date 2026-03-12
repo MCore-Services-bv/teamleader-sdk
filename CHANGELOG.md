@@ -15,6 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.1] - 2026-03-12
+
+### Fixed
+
+#### Products — Product Categories Ledger Response Correction
+- **`Categories`**: Corrected `getResponseStructure()` to reflect the actual Teamleader API response — each ledger entry contains a flat `ledger_account_number` (string) alongside the `department` reference object
+- **`Categories`** (docs): Updated `docs/products/categories.md` response structure JSON example, Category Object Properties, and all usage examples (`Get All Categories`, `Get Ledger Accounts for Category`, `Map Categories to Departments`) to remove fabricated `sales_account` and `purchase_account` nested objects that were never returned by the API
+
+---
+
 ## [1.2.0] - 2026-03-11
 
 This release completes coverage of the Teamleader Focus API changelog from October 2025 through March 2026,
@@ -261,7 +271,8 @@ Each release will include:
 
 ---
 
-**[Unreleased]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.2.0...HEAD
+**[Unreleased]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.2.1...HEAD
+**[1.2.1]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.2.0...v1.2.1
 **[1.2.0]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.6...v1.2.0
 **[1.1.6]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.5...v1.1.6
 **[1.1.5]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.4...v1.1.5
