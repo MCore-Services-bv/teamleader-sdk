@@ -113,15 +113,15 @@ $name = Teamleader::dealSources()->getName('source-uuid');
 // Returns: 'Website' or null if not found
 ```
 
-### `getSelectOptions()`
+### `selectOptions()`
 
 Get deal sources formatted for form dropdowns.
 
 ```php
-$options = Teamleader::dealSources()->getSelectOptions();
+$options = Teamleader::dealSources()->selectOptions();
 // Returns: [
-//     ['value' => 'uuid1', 'label' => 'Website'],
-//     ['value' => 'uuid2', 'label' => 'Referral'],
+//     'uuid1' => 'Website',
+//     'uuid2' => 'Referral',
 //     ...
 // ]
 ```
@@ -200,7 +200,7 @@ foreach ($allSources['data'] as $source) {
 ```php
 function getDealSourceDropdown()
 {
-    $sources = Teamleader::dealSources()->getSelectOptions();
+    $sources = Teamleader::dealSources()->selectOptions();
     
     return view('deals.create', [
         'sources' => $sources
@@ -209,8 +209,8 @@ function getDealSourceDropdown()
 
 // In Blade template:
 // <select name="source_id">
-//     @foreach($sources as $source)
-//         <option value="{{ $source['value'] }}">{{ $source['label'] }}</option>
+//     @foreach($sources as $uuid => $name)
+//         <option value="{{ $uuid }}">{{ $name }}</option>
 //     @endforeach
 // </select>
 ```
@@ -449,8 +449,8 @@ $exists = in_array($sourceId, array_column($sources['data'], 'id'));
 ### 3. Create Dropdown Options Efficiently
 
 ```php
-// Good: Use getSelectOptions() helper
-$options = Teamleader::dealSources()->getSelectOptions();
+// Good: Use selectOptions() helper
+$options = Teamleader::dealSources()->selectOptions();
 
 // Less efficient: Manual transformation
 $sources = Teamleader::dealSources()->list();

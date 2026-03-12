@@ -278,11 +278,6 @@ $deals = Teamleader::deals()
     ->withCurrentPhase()
     ->list();
 
-// Include quotations
-$deals = Teamleader::deals()
-    ->withQuotations()
-    ->list();
-
 // Chain multiple includes
 $deals = Teamleader::deals()
     ->withCustomer()
@@ -441,23 +436,24 @@ Load related data in a single request:
 
 ### Available Includes
 
-- `customer` - Customer information (company or contact)
-- `customer.primary_address` - Customer's primary address
+- `lead.customer` - Customer information (company or contact)
 - `responsible_user` - User responsible for the deal
+- `department` - Department assigned to the deal
 - `current_phase` - Current deal phase information
-- `quotations` - Quotations associated with the deal
+- `source` - Deal source information
+- `custom_fields` - Custom field values
 
 ### Usage
 
 ```php
 // Single include
 $deal = Teamleader::deals()
-    ->with('customer')
+    ->with('lead.customer')
     ->info('deal-uuid');
 
 // Multiple includes
 $deal = Teamleader::deals()
-    ->with('customer,responsible_user,current_phase,quotations')
+    ->with('lead.customer,responsible_user,current_phase')
     ->info('deal-uuid');
 
 // In list() calls
@@ -594,7 +590,6 @@ $deals = Teamleader::deals()
     ->withCustomer()
     ->withResponsibleUser()
     ->withCurrentPhase()
-    ->withQuotations()
     ->list([
         'status' => ['open'],
         'responsible_user_id' => 'user-uuid'
@@ -602,10 +597,9 @@ $deals = Teamleader::deals()
 
 foreach ($deals['data'] as $deal) {
     echo "Deal: {$deal['title']}\n";
-    echo "Customer: {$deal['customer']['name']}\n";
+    echo "Customer: {$deal['lead']['customer']['name']}\n";
     echo "Phase: {$deal['current_phase']['name']}\n";
     echo "Owner: {$deal['responsible_user']['first_name']} {$deal['responsible_user']['last_name']}\n";
-    echo "Quotations: " . count($deal['quotations']) . "\n\n";
 }
 ```
 

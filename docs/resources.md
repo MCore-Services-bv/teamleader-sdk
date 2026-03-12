@@ -136,7 +136,7 @@ $capabilities = Teamleader::companies()->getCapabilities();
 | Deals | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Users | ❌ | ✅ | ❌ | ❌ | ✅ | ✅ | ✅ |
 | Departments | ❌ | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ |
-| Custom Fields | ❌ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ |
+| Custom Fields | ✅ | ✅ | ❌ | ❌ | ✅ | ❌ | ❌ |
 
 ## Method Patterns
 
@@ -339,6 +339,8 @@ Resources are organized into logical categories:
 - `tags()` - Tag management
 - `addresses()` - Address/location information
 
+> **New in v1.2:** `contacts()` exposes `uploadAvatar(string $id, string $fileId)` and `companies()` exposes `uploadLogo(string $id, string $fileId)` for attaching files as profile images.
+
 ### Deal Resources
 - `deals()` - Deal/opportunity management
 - `quotations()` - Quotation management
@@ -371,6 +373,11 @@ Resources are organized into logical categories:
 - `projectLines()` - Project line items
 - `tasks()` - Task management
 - `materials()` - Material tracking
+
+### Planning Resources
+- `reservations()` - Planning reservation management (list, create, update, delete)
+- `userAvailability()` - User availability queries (daily and total)
+- `plannableItems()` - Browse plannable items available for scheduling
 
 ### Other Resources
 - `webhooks()` - Webhook management

@@ -35,11 +35,11 @@ Complete reference for all HTTP status codes and exceptions used by the Teamlead
 **Example Response:**
 ```json
 {
-  "errors": [
-    {
-      "title": "Invalid JSON format"
-    }
-  ]
+    "errors": [
+        {
+            "title": "Invalid JSON format"
+        }
+    ]
 }
 ```
 
@@ -77,8 +77,8 @@ try {
 **Example Response:**
 ```json
 {
-  "error": "invalid_token",
-  "error_description": "The access token provided is invalid"
+    "error": "invalid_token",
+    "error_description": "The access token provided is invalid"
 }
 ```
 
@@ -117,11 +117,11 @@ try {
 **Example Response:**
 ```json
 {
-  "errors": [
-    {
-      "title": "Insufficient permissions"
-    }
-  ]
+    "errors": [
+        {
+            "title": "Insufficient permissions"
+        }
+    ]
 }
 ```
 
@@ -166,11 +166,11 @@ try {
 **Example Response:**
 ```json
 {
-  "errors": [
-    {
-      "title": "Resource not found"
-    }
-  ]
+    "errors": [
+        {
+            "title": "Resource not found"
+        }
+    ]
 }
 ```
 
@@ -211,14 +211,14 @@ try {
 **Example Response:**
 ```json
 {
-  "errors": [
-    {
-      "title": "Validation failed",
-      "detail": {
-        "email": ["The email field must be a valid email address"]
-      }
-    }
-  ]
+    "errors": [
+        {
+            "title": "Validation failed",
+            "detail": {
+                "email": ["The email field must be a valid email address"]
+            }
+        }
+    ]
 }
 ```
 
@@ -276,11 +276,11 @@ Retry-After: 30
 **Example Response:**
 ```json
 {
-  "errors": [
-    {
-      "title": "Rate limit exceeded"
-    }
-  ]
+    "errors": [
+        {
+            "title": "Rate limit exceeded"
+        }
+    ]
 }
 ```
 
@@ -553,5 +553,5 @@ If you encounter errors not covered here:
 
 ---
 
-**Last Updated:** October 2024  
-**SDK Version:** 1.0.0
+**Last Updated:** March 2026  
+**SDK Version:** 1.2.0

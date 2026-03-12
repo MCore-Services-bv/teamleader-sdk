@@ -89,52 +89,34 @@ $categories = Teamleader::productCategories()->list([
 
 ```json
 {
-  "data": [
-    {
-      "id": "2aa4a6a9-9ce8-4851-a9b3-26aea2ea14c4",
-      "name": "Electronics",
-      "ledgers": [
+    "data": [
         {
-          "department": {
-            "type": "department",
-            "id": "080aac72-ff1a-4627-bfe3-146b6eee979c"
-          },
-          "sales_account": {
-            "id": "account-uuid",
-            "code": "7000",
-            "description": "Sales - Products"
-          },
-          "purchase_account": {
-            "id": "account-uuid",
-            "code": "6000",
-            "description": "Purchases - Products"
-          }
-        }
-      ]
-    },
-    {
-      "id": "3bb5b7b0-0df9-5962-c0c4-37bfb3fb25d5",
-      "name": "Office Supplies",
-      "ledgers": [
+            "id": "2aa4a6a9-9ce8-4851-a9b3-26aea2ea14c4",
+            "name": "Electronics",
+            "ledgers": [
+                {
+                    "department": {
+                        "type": "department",
+                        "id": "080aac72-ff1a-4627-bfe3-146b6eee979c"
+                    },
+                    "ledger_account_number": "70100"
+                }
+            ]
+        },
         {
-          "department": {
-            "type": "department",
-            "id": "080aac72-ff1a-4627-bfe3-146b6eee979c"
-          },
-          "sales_account": {
-            "id": "account-uuid",
-            "code": "7010",
-            "description": "Sales - Services"
-          },
-          "purchase_account": {
-            "id": "account-uuid",
-            "code": "6010",
-            "description": "Purchases - Services"
-          }
+            "id": "3bb5b7b0-0df9-5962-c0c4-37bfb3fb25d5",
+            "name": "Office Supplies",
+            "ledgers": [
+                {
+                    "department": {
+                        "type": "department",
+                        "id": "080aac72-ff1a-4627-bfe3-146b6eee979c"
+                    },
+                    "ledger_account_number": "70200"
+                }
+            ]
         }
-      ]
-    }
-  ]
+    ]
 }
 ```
 
@@ -142,10 +124,9 @@ $categories = Teamleader::productCategories()->list([
 
 - `id` (string) - Category UUID
 - `name` (string) - Category name
-- `ledgers` (array) - Array of ledger configurations per department
-    - `department` (object) - Department reference
-    - `sales_account` (object) - General ledger account for sales
-    - `purchase_account` (object) - General ledger account for purchases
+- `ledgers` (array) - Array of ledger entries, one per department
+    - `department` (object) - Department reference with `id` and `type`
+    - `ledger_account_number` (string) - Ledger account number (e.g. `"70100"`)
 
 ## Usage Examples
 
@@ -156,13 +137,11 @@ $categories = Teamleader::productCategories()->list();
 
 foreach ($categories['data'] as $category) {
     echo "Category: {$category['name']} (ID: {$category['id']})\n";
-    
-    // Access ledger information
+
     if (!empty($category['ledgers'])) {
         foreach ($category['ledgers'] as $ledger) {
             echo "  Department: {$ledger['department']['id']}\n";
-            echo "  Sales Account: {$ledger['sales_account']['code']}\n";
-            echo "  Purchase Account: {$ledger['purchase_account']['code']}\n";
+            echo "  Ledger Account: {$ledger['ledger_account_number']}\n";
         }
     }
 }
@@ -226,11 +205,10 @@ $categories = Teamleader::productCategories()->list();
 foreach ($categories['data'] as $category) {
     if ($category['id'] === $categoryId) {
         echo "Ledger accounts for {$category['name']}:\n";
-        
+
         foreach ($category['ledgers'] as $ledger) {
             echo "\nDepartment: {$ledger['department']['id']}\n";
-            echo "Sales Account: {$ledger['sales_account']['code']} - {$ledger['sales_account']['description']}\n";
-            echo "Purchase Account: {$ledger['purchase_account']['code']} - {$ledger['purchase_account']['description']}\n";
+            echo "Ledger Account Number: {$ledger['ledger_account_number']}\n";
         }
         break;
     }
@@ -322,16 +300,15 @@ $departmentCategories = [];
 foreach ($categories['data'] as $category) {
     foreach ($category['ledgers'] as $ledger) {
         $deptId = $ledger['department']['id'];
-        
+
         if (!isset($departmentCategories[$deptId])) {
             $departmentCategories[$deptId] = [];
         }
-        
+
         $departmentCategories[$deptId][] = [
-            'id' => $category['id'],
-            'name' => $category['name'],
-            'sales_account' => $ledger['sales_account']['code'],
-            'purchase_account' => $ledger['purchase_account']['code']
+            'id'                    => $category['id'],
+            'name'                  => $category['name'],
+            'ledger_account_number' => $ledger['ledger_account_number'],
         ];
     }
 }
@@ -341,7 +318,7 @@ $deptId = 'department-uuid';
 if (isset($departmentCategories[$deptId])) {
     echo "Categories for this department:\n";
     foreach ($departmentCategories[$deptId] as $cat) {
-        echo "- {$cat['name']}\n";
+        echo "- {$cat['name']} (account: {$cat['ledger_account_number']})\n";
     }
 }
 ```

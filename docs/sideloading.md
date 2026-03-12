@@ -86,6 +86,7 @@ Available includes:
 - `added_by` - User who added the company
 - `language` - Language information
 - `custom_fields` - Custom field values
+- `price_list` - Assigned price list for the company
 
 ```php
 // Load company with all common relationships
@@ -103,6 +104,7 @@ Available includes:
 - `tags` - Contact tags
 - `added_by` - User who added the contact
 - `custom_fields` - Custom field values
+- `price_list` - Assigned price list for the contact
 
 ```php
 // Load contact with company and responsible user

@@ -227,6 +227,8 @@ The SDK provides access to all Teamleader resources:
 - `tags()` - Tag management
 - `addresses()` - Address management
 
+> **New in v1.2:** `contacts()` supports `uploadAvatar($id, $fileId)` and `companies()` supports `uploadLogo($id, $fileId)` for attaching profile images.
+
 ### Deals
 - `deals()` - Deal management
 - `quotations()` - Quotation management
@@ -266,6 +268,11 @@ The SDK provides access to all Teamleader resources:
 - `materials()` - Material management
 - `groups()` - Group management
 
+### Planning
+- `reservations()` - Planning reservation management
+- `userAvailability()` - User availability queries (daily and total)
+- `plannableItems()` - Plannable item browsing
+
 ### Time Tracking
 - `timeTracking()` - Time tracking entries
 - `timers()` - Timer management
@@ -296,6 +303,8 @@ The SDK provides access to all Teamleader resources:
 
 ### Other
 - `webhooks()` - Webhook management
+
+> **New in v1.2:** Four PEPPOL webhook event types are now supported: `invoice.peppolSubmissionSucceeded`, `invoice.peppolSubmissionFailed`, `creditNote.peppolSubmissionSucceeded`, `creditNote.peppolSubmissionFailed`.
 - `accounts()` - Account information
 - `cloudPlatforms()` - Cloud platform information
 - `migrate()` - Migration utilities

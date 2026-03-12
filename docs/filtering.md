@@ -190,6 +190,16 @@ $companies = Teamleader::companies()->list([
 $companies = Teamleader::companies()->list([
     'responsible_user_id' => 'user-uuid'
 ]);
+
+// By national identification number (new in v1.2)
+$companies = Teamleader::companies()->list([
+    'national_identification_number' => 'BE0123456789'
+]);
+
+// By marketing mail consent status (new in v1.2)
+$companies = Teamleader::companies()->list([
+    'marketing_mails_consent' => true
+]);
 ```
 
 ### Contacts
@@ -207,6 +217,11 @@ $contacts = Teamleader::contacts()->withTags(['vip', 'active']);
 // By decision maker status
 $contacts = Teamleader::contacts()->list([
     'decision_maker' => true
+]);
+
+// By marketing mail consent status (new in v1.2)
+$contacts = Teamleader::contacts()->list([
+    'marketing_mails_consent' => true
 ]);
 ```
 
@@ -283,6 +298,45 @@ $projects = Teamleader::projects()->list([
 // By start date
 $projects = Teamleader::projects()->list([
     'starts_after' => '2024-01-01'
+]);
+```
+
+### Expenses
+
+```php
+// By department
+$expenses = Teamleader::expenses()->list([
+    'department_ids' => ['dept-uuid-1', 'dept-uuid-2']
+]);
+
+// By supplier
+$expenses = Teamleader::expenses()->list([
+    'supplier' => [
+        'type' => 'company',
+        'id' => 'company-uuid'
+    ]
+]);
+
+// By payment status
+$expenses = Teamleader::expenses()->list([
+    'payment_statuses' => ['paid', 'not_paid']
+]);
+
+// By paid date range
+$expenses = Teamleader::expenses()->list([
+    'paid_at' => [
+        'from' => '2024-01-01',
+        'to'   => '2024-12-31'
+    ]
+]);
+```
+
+Expenses also support sorting by `document_date`, `due_date`, and `supplier_name`:
+
+```php
+$expenses = Teamleader::expenses()->list([], [
+    'sort' => 'due_date',
+    'sort_order' => 'asc'
 ]);
 ```
 

@@ -117,7 +117,17 @@ class Categories extends Resource
                 'items' => [
                     'id' => 'Category UUID (e.g., "2aa4a6a9-9ce8-4851-a9b3-26aea2ea14c4")',
                     'name' => 'Category name (e.g., "Asian Flowers")',
-                    'ledgers' => 'Array of ledger information with department details',
+                    'ledgers' => [
+                        'description' => 'Array of ledger entries, one per department',
+                        'type' => 'array',
+                        'items' => [
+                            'department' => [
+                                'id' => 'Department UUID',
+                                'type' => 'Resource type ("department")',
+                            ],
+                            'ledger_account_number' => 'Ledger account number as string (e.g., "70100")',
+                        ],
+                    ],
                 ],
             ],
         ];
