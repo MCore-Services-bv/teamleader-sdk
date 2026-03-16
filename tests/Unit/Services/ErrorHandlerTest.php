@@ -47,6 +47,27 @@ class ErrorHandlerTest extends TestCase
         $this->errorHandler->handleApiError($result, 'test');
     }
 
+    /**
+     * 429 must always throw RateLimitExceededException regardless of the
+     * throwExceptions flag. Swallowing a 429 silently returns an empty result
+     * to the caller with no indication that the request failed — data loss.
+     */
+    public function test_throws_rate_limit_exception_for429_even_when_exceptions_disabled(): void
+    {
+        $errorHandler = new TeamleaderErrorHandler(new NullLogger, false);
+
+        $this->expectException(RateLimitExceededException::class);
+
+        $result = [
+            'error' => true,
+            'status_code' => 429,
+            'message' => 'Rate limit exceeded',
+            'headers' => ['Retry-After' => ['60']],
+        ];
+
+        $errorHandler->handleApiError($result, 'test');
+    }
+
     public function test_throws_server_exception_for500(): void
     {
         $this->expectException(ServerException::class);
@@ -60,7 +81,7 @@ class ErrorHandlerTest extends TestCase
         $this->errorHandler->handleApiError($result, 'test');
     }
 
-    public function test_does_not_throw_when_disabled(): void
+    public function test_does_not_throw_when_disabled_for_non_429_errors(): void
     {
         $errorHandler = new TeamleaderErrorHandler(new NullLogger, false);
 
@@ -70,7 +91,7 @@ class ErrorHandlerTest extends TestCase
             'message' => 'Server error',
         ];
 
-        // Should not throw
+        // Should not throw for 500 when exceptions are disabled
         $errorHandler->handleApiError($result, 'test');
         $this->assertTrue(true); // If we get here, no exception was thrown
     }
@@ -85,5 +106,55 @@ class ErrorHandlerTest extends TestCase
 
         $validationError = new ValidationException('Validation failed', 422);
         $this->assertFalse($this->errorHandler->isRetryableError($validationError));
+    }
+
+    /**
+     * withRetry must re-throw RateLimitExceededException immediately without sleeping.
+     * Sleeping for Retry-After inside a queue worker blocks the worker thread.
+     */
+    public function test_with_retry_rethrows_rate_limit_exception_immediately(): void
+    {
+        $this->expectException(RateLimitExceededException::class);
+
+        $callCount = 0;
+
+        $this->errorHandler->withRetry(function () use (&$callCount) {
+            $callCount++;
+            throw new RateLimitExceededException('Rate limit exceeded', 60);
+        }, 3, 'test');
+
+        // Callback must only be called once — withRetry must not retry on 429
+        $this->assertEquals(1, $callCount);
+    }
+
+    public function test_with_retry_retries_server_exceptions(): void
+    {
+        $this->expectException(ServerException::class);
+
+        $callCount = 0;
+
+        $this->errorHandler->withRetry(function () use (&$callCount) {
+            $callCount++;
+            throw new ServerException('Server error', 500);
+        }, 3, 'test');
+
+        // ServerException should be retried up to maxAttempts before throwing
+        $this->assertEquals(3, $callCount);
+    }
+
+    public function test_rate_limit_exception_carries_retry_after(): void
+    {
+        $caughtException = null;
+
+        try {
+            $this->errorHandler->withRetry(function () {
+                throw new RateLimitExceededException('Rate limit exceeded', 45);
+            }, 3, 'test');
+        } catch (RateLimitExceededException $e) {
+            $caughtException = $e;
+        }
+
+        $this->assertNotNull($caughtException);
+        $this->assertEquals(45, $caughtException->getRetryAfter());
     }
 }

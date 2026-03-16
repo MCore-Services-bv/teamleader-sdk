@@ -3,6 +3,8 @@
 namespace McoreServices\TeamleaderSDK\Services;
 
 use Carbon\Carbon;
+use Illuminate\Redis\Connections\Connection;
+use Illuminate\Support\Facades\Redis;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -19,6 +21,21 @@ class ApiRateLimiterService
     private const WINDOW_DURATION = 60;
 
     /**
+     * Redis key for the sliding window sorted set
+     */
+    private const SORTED_SET_KEY = 'teamleader_sdk:rate_limit';
+
+    /**
+     * Redis key for the last-known remaining value from response headers
+     */
+    private const REMAINING_KEY = 'teamleader_sdk:remaining';
+
+    /**
+     * Redis key for the rate limit reset timestamp from response headers
+     */
+    private const RESET_TIME_KEY = 'teamleader_sdk:reset_time';
+
+    /**
      * Conservative throttling thresholds for sliding window
      */
     private const THROTTLE_THRESHOLDS = [
@@ -29,23 +46,27 @@ class ApiRateLimiterService
     ];
 
     /**
-     * In-memory storage for rate limit state
+     * Per-process diagnostic statistics.
+     *
+     * These are intentionally in-memory: they track what this process has done
+     * in the current session and are not used for throttling decisions. All
+     * throttling decisions use Redis so they are consistent across workers.
      */
-    private static array $rateLimitState = [
-        'requests' => [],           // Array of timestamps for requests in current window
-        'remaining' => self::RATE_LIMIT,
-        'reset_time' => null,
-        'last_response_headers' => [],
+    private static array $processStats = [
         'total_requests' => 0,
         'throttled_requests' => 0,
         'total_delay_time' => 0,
+        'last_response_headers' => [],
     ];
 
     private LoggerInterface $logger;
 
+    private string $redisConnection;
+
     public function __construct(?LoggerInterface $logger = null)
     {
         $this->logger = $logger ?: new NullLogger;
+        $this->redisConnection = config('teamleader.rate_limiting.redis_connection', 'default');
     }
 
     /**
@@ -76,15 +97,15 @@ class ApiRateLimiterService
 
             if ($oldestRequestTime) {
                 // Wait until the oldest request falls out of the sliding window
-                $waitTime = max(0, self::WINDOW_DURATION - (time() - $oldestRequestTime));
+                $waitTime = max(0, self::WINDOW_DURATION - (microtime(true) - $oldestRequestTime));
             } else {
-                // Fallback: wait 60 seconds
+                // Fallback: wait the full window
                 $waitTime = self::WINDOW_DURATION;
             }
 
             if ($waitTime > 0) {
                 $throttleInfo['can_proceed'] = false;
-                $throttleInfo['delay_applied'] = $waitTime * 1000; // Convert to milliseconds
+                $throttleInfo['delay_applied'] = (int) ($waitTime * 1000); // Convert to milliseconds
                 $throttleInfo['reason'] = 'Sliding window rate limit exceeded, waiting for slot';
 
                 $this->logThrottling('sliding_window_exceeded', $throttleInfo);
@@ -100,8 +121,8 @@ class ApiRateLimiterService
             $throttleInfo['delay_applied'] = $delay;
             $throttleInfo['reason'] = $this->getThrottleReason($usagePercentage);
 
-            self::$rateLimitState['throttled_requests']++;
-            self::$rateLimitState['total_delay_time'] += $delay;
+            self::$processStats['throttled_requests']++;
+            self::$processStats['total_delay_time'] += $delay;
 
             $this->logThrottling('throttling_applied', $throttleInfo);
         }
@@ -110,25 +131,27 @@ class ApiRateLimiterService
     }
 
     /**
-     * Record a successful API request
+     * Record a successful API request in the shared Redis sliding window
      */
     public function recordRequest(): void
     {
-        $now = time();
+        $now = microtime(true);
+        // Each member must be unique so concurrent processes don't overwrite each other
+        $member = uniqid('req_', true);
 
-        self::$rateLimitState['requests'][] = $now;
-        self::$rateLimitState['total_requests']++;
+        $redis = $this->redis();
+        $redis->zadd(self::SORTED_SET_KEY, $now, $member);
+        // Keep the key alive well beyond the window so short gaps don't lose the set
+        $redis->expire(self::SORTED_SET_KEY, self::WINDOW_DURATION * 2);
 
-        // Clean up old requests to maintain accurate count
-        $this->cleanupOldRequests();
+        self::$processStats['total_requests']++;
 
-        // Update remaining count
-        self::$rateLimitState['remaining'] = max(0, self::RATE_LIMIT - $this->getCurrentUsage());
+        $currentUsage = $this->getCurrentUsage();
 
         $this->logger->debug('API request recorded', [
-            'current_usage' => $this->getCurrentUsage(),
-            'remaining' => self::$rateLimitState['remaining'],
-            'total_requests' => self::$rateLimitState['total_requests'],
+            'current_usage' => $currentUsage,
+            'remaining' => max(0, self::RATE_LIMIT - $currentUsage),
+            'total_requests' => self::$processStats['total_requests'],
         ]);
     }
 
@@ -156,27 +179,23 @@ class ApiRateLimiterService
         }
 
         if (! empty($rateLimitData)) {
+            $redis = $this->redis();
+
             if (isset($rateLimitData['remaining'])) {
                 $headerRemaining = (int) $rateLimitData['remaining'];
                 $localUsage = $this->getCurrentUsage();
                 $localRemaining = self::RATE_LIMIT - $localUsage;
 
-                // Use the more conservative estimate
-                self::$rateLimitState['remaining'] = min($headerRemaining, $localRemaining);
+                // Store the more conservative estimate so all workers benefit from it
+                $redis->setex(self::REMAINING_KEY, self::WINDOW_DURATION, min($headerRemaining, $localRemaining));
             }
 
             if (isset($rateLimitData['reset'])) {
-                // Handle both Unix timestamp and seconds-from-now formats
                 $resetValue = (int) $rateLimitData['reset'];
-
-                if ($resetValue > 1000000000) { // Unix timestamp
-                    self::$rateLimitState['reset_time'] = Carbon::createFromTimestamp($resetValue);
-                } else { // Seconds from now
-                    self::$rateLimitState['reset_time'] = Carbon::now()->addSeconds($resetValue);
-                }
+                $redis->setex(self::RESET_TIME_KEY, self::WINDOW_DURATION * 2, $resetValue);
             }
 
-            self::$rateLimitState['last_response_headers'] = $rateLimitData;
+            self::$processStats['last_response_headers'] = $rateLimitData;
 
             $this->logger->debug('Rate limit headers processed', [
                 'headers' => $rateLimitData,
@@ -193,7 +212,6 @@ class ApiRateLimiterService
     {
         $retryAfter = 60; // Default to 1 minute
 
-        // Check for Retry-After header
         foreach ($headers as $headerName => $headerValue) {
             if (strtolower($headerName) === 'retry-after') {
                 $retryAfter = is_array($headerValue) ? (int) $headerValue[0] : (int) $headerValue;
@@ -201,15 +219,16 @@ class ApiRateLimiterService
             }
         }
 
-        // Update our state to reflect we're at the limit
-        self::$rateLimitState['remaining'] = 0;
-        self::$rateLimitState['reset_time'] = Carbon::now()->addSeconds($retryAfter);
+        // Clear the sliding window and mark the limit as exhausted for all workers
+        $redis = $this->redis();
+        $redis->del(self::SORTED_SET_KEY);
+        $redis->setex(self::REMAINING_KEY, $retryAfter + 5, 0);
+        $redis->setex(self::RESET_TIME_KEY, $retryAfter + 5, time() + $retryAfter);
 
         $this->logger->warning('Rate limit exceeded (429 response)', [
             'retry_after' => $retryAfter,
-            'reset_time' => self::$rateLimitState['reset_time']->toISOString(),
+            'reset_time' => Carbon::now()->addSeconds($retryAfter)->toISOString(),
             'current_usage' => $this->getCurrentUsage(),
-            'sliding_window_requests' => count(self::$rateLimitState['requests']),
         ]);
 
         return $retryAfter;
@@ -223,137 +242,48 @@ class ApiRateLimiterService
         $currentUsage = $this->getCurrentUsage();
         $usagePercentage = ($currentUsage / self::RATE_LIMIT) * 100;
 
+        $resetTimeValue = $this->redis()->get(self::RESET_TIME_KEY);
+        $resetTime = $resetTimeValue
+            ? Carbon::createFromTimestamp((int) $resetTimeValue)->toISOString()
+            : null;
+
         return [
             'current_usage' => $currentUsage,
             'rate_limit' => self::RATE_LIMIT,
             'usage_percentage' => round($usagePercentage, 1),
             'remaining' => max(0, self::RATE_LIMIT - $currentUsage),
-            'reset_time' => self::$rateLimitState['reset_time']?->toISOString(),
+            'reset_time' => $resetTime,
             'seconds_until_reset' => $this->getSecondsUntilOldestExpires(),
             'throttle_level' => $this->getThrottleLevel($usagePercentage),
-            'total_requests' => self::$rateLimitState['total_requests'],
-            'throttled_requests' => self::$rateLimitState['throttled_requests'],
-            'total_delay_time' => self::$rateLimitState['total_delay_time'],
-            'efficiency' => self::$rateLimitState['total_requests'] > 0
-                ? round((1 - (self::$rateLimitState['throttled_requests'] / self::$rateLimitState['total_requests'])) * 100, 1)
+            'total_requests' => self::$processStats['total_requests'],
+            'throttled_requests' => self::$processStats['throttled_requests'],
+            'total_delay_time' => self::$processStats['total_delay_time'],
+            'efficiency' => self::$processStats['total_requests'] > 0
+                ? round((1 - (self::$processStats['throttled_requests'] / self::$processStats['total_requests'])) * 100, 1)
                 : 100,
-            'sliding_window_requests' => count(self::$rateLimitState['requests']),
+            'sliding_window_requests' => $currentUsage,
             'oldest_request_age' => $this->getOldestRequestAge(),
-            'last_headers' => self::$rateLimitState['last_response_headers'],
+            'last_headers' => self::$processStats['last_response_headers'],
         ];
     }
 
     /**
-     * Reset rate limit state (useful for testing or manual reset)
+     * Reset rate limit state — clears Redis keys and in-memory stats.
+     * Useful for testing or manual operator reset.
      */
     public function reset(): void
     {
-        self::$rateLimitState = [
-            'requests' => [],
-            'remaining' => self::RATE_LIMIT,
-            'reset_time' => null,
-            'last_response_headers' => [],
+        $redis = $this->redis();
+        $redis->del(self::SORTED_SET_KEY);
+        $redis->del(self::REMAINING_KEY);
+        $redis->del(self::RESET_TIME_KEY);
+
+        self::$processStats = [
             'total_requests' => 0,
             'throttled_requests' => 0,
             'total_delay_time' => 0,
+            'last_response_headers' => [],
         ];
-    }
-
-    /**
-     * Get current API usage in the sliding minute window
-     */
-    private function getCurrentUsage(): int
-    {
-        $this->cleanupOldRequests();
-
-        return count(self::$rateLimitState['requests']);
-    }
-
-    /**
-     * Remove requests older than 60 seconds (sliding window)
-     */
-    private function cleanupOldRequests(): void
-    {
-        $cutoff = time() - self::WINDOW_DURATION;
-
-        self::$rateLimitState['requests'] = array_filter(
-            self::$rateLimitState['requests'],
-            fn ($timestamp) => $timestamp > $cutoff
-        );
-
-        // Re-index array to prevent memory issues
-        self::$rateLimitState['requests'] = array_values(self::$rateLimitState['requests']);
-    }
-
-    /**
-     * Calculate delay based on current usage percentage
-     */
-    private function calculateDelay(float $usagePercentage): int
-    {
-        foreach (self::THROTTLE_THRESHOLDS as $threshold => $delay) {
-            if ($usagePercentage >= $threshold) {
-                // Add some jitter to prevent thundering herd
-                $jitter = rand(0, (int) ($delay * 0.1));
-
-                return $delay + $jitter;
-            }
-        }
-
-        return 0;
-    }
-
-    /**
-     * Get throttle level description (more conservative for sliding window)
-     */
-    private function getThrottleLevel(float $usagePercentage): string
-    {
-        if ($usagePercentage >= 95) {
-            return 'critical';
-        }
-        if ($usagePercentage >= 90) {
-            return 'high';
-        }
-        if ($usagePercentage >= 80) {
-            return 'moderate';
-        }
-        if ($usagePercentage >= 70) {
-            return 'low';
-        }
-
-        return 'none';
-    }
-
-    /**
-     * Get human-readable throttle reason
-     */
-    private function getThrottleReason(float $usagePercentage): string
-    {
-        if ($usagePercentage >= 95) {
-            return 'Sliding window critical - approaching limit';
-        }
-        if ($usagePercentage >= 90) {
-            return 'Sliding window high usage';
-        }
-        if ($usagePercentage >= 80) {
-            return 'Sliding window moderate usage';
-        }
-        if ($usagePercentage >= 70) {
-            return 'Sliding window preventive throttling';
-        }
-
-        return 'Normal operation';
-    }
-
-    /**
-     * Log throttling events using PSR-3 logger interface
-     */
-    private function logThrottling(string $event, array $data): void
-    {
-        $this->logger->info("Rate limiting: {$event}", [
-            'event' => $event,
-            'rate_limit_data' => $data,
-            'sliding_window_requests' => count(self::$rateLimitState['requests']),
-        ]);
     }
 
     /**
@@ -361,9 +291,7 @@ class ApiRateLimiterService
      */
     public function isThrottled(): bool
     {
-        $usage = $this->getCurrentUsage();
-
-        return $usage >= (self::RATE_LIMIT * 0.7); // 70% threshold for sliding window
+        return $this->getCurrentUsage() >= (self::RATE_LIMIT * 0.7);
     }
 
     /**
@@ -386,15 +314,103 @@ class ApiRateLimiterService
     }
 
     /**
-     * Get the timestamp of the oldest request in the sliding window
+     * Resolve the configured Redis connection
      */
-    private function getOldestRequestTime(): ?int
+    private function redis(): Connection
     {
-        if (empty(self::$rateLimitState['requests'])) {
+        return Redis::connection($this->redisConnection);
+    }
+
+    /**
+     * Get current API usage in the sliding minute window (from Redis)
+     */
+    private function getCurrentUsage(): int
+    {
+        $this->cleanupOldRequests();
+
+        return (int) $this->redis()->zcard(self::SORTED_SET_KEY);
+    }
+
+    /**
+     * Remove requests older than the sliding window from Redis
+     */
+    private function cleanupOldRequests(): void
+    {
+        $cutoff = microtime(true) - self::WINDOW_DURATION;
+        $this->redis()->zremrangebyscore(self::SORTED_SET_KEY, '-inf', $cutoff);
+    }
+
+    /**
+     * Calculate delay based on usage percentage and configured thresholds
+     */
+    private function calculateDelay(float $usagePercentage): int
+    {
+        $delay = 0;
+
+        foreach (array_reverse(self::THROTTLE_THRESHOLDS, true) as $threshold => $delayMs) {
+            if ($usagePercentage >= $threshold) {
+                $delay = $delayMs;
+                break;
+            }
+        }
+
+        return $delay;
+    }
+
+    /**
+     * Get throttle level label for the given usage percentage
+     */
+    private function getThrottleLevel(float $usagePercentage): string
+    {
+        return match (true) {
+            $usagePercentage >= 95 => 'critical',
+            $usagePercentage >= 90 => 'high',
+            $usagePercentage >= 80 => 'medium',
+            $usagePercentage >= 70 => 'low',
+            default => 'none',
+        };
+    }
+
+    /**
+     * Get human-readable throttle reason for the given usage percentage
+     */
+    private function getThrottleReason(float $usagePercentage): string
+    {
+        return match (true) {
+            $usagePercentage >= 95 => 'Critical throttling: 95%+ usage',
+            $usagePercentage >= 90 => 'High throttling: 90%+ usage',
+            $usagePercentage >= 80 => 'Medium throttling: 80%+ usage',
+            $usagePercentage >= 70 => 'Low throttling: 70%+ usage',
+            default => '',
+        };
+    }
+
+    /**
+     * Log a throttling event using PSR-3 logger interface
+     */
+    private function logThrottling(string $event, array $data): void
+    {
+        $this->logger->info("Rate limiting: {$event}", [
+            'event' => $event,
+            'rate_limit_data' => $data,
+            'sliding_window_requests' => $this->getCurrentUsage(),
+        ]);
+    }
+
+    /**
+     * Get the score (timestamp) of the oldest request in the sorted set
+     */
+    private function getOldestRequestTime(): ?float
+    {
+        $members = $this->redis()->zrange(self::SORTED_SET_KEY, 0, 0);
+
+        if (empty($members)) {
             return null;
         }
 
-        return min(self::$rateLimitState['requests']);
+        $score = $this->redis()->zscore(self::SORTED_SET_KEY, $members[0]);
+
+        return $score !== null ? (float) $score : null;
     }
 
     /**
@@ -410,7 +426,7 @@ class ApiRateLimiterService
 
         $expiresAt = $oldestTime + self::WINDOW_DURATION;
 
-        return max(0, $expiresAt - time());
+        return max(0, (int) ($expiresAt - microtime(true)));
     }
 
     /**
@@ -424,7 +440,7 @@ class ApiRateLimiterService
             return 0;
         }
 
-        return time() - $oldestTime;
+        return (int) (microtime(true) - $oldestTime);
     }
 
     /**

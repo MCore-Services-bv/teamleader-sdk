@@ -14,6 +14,12 @@
         </testsuite>
     </testsuites>
 
+    <groups>
+        <exclude>
+            <group>redis</group>
+        </exclude>
+    </groups>
+
     <source>
         <include>
             <directory suffix=".php">src</directory>
@@ -40,5 +46,12 @@
         <env name="TEAMLEADER_CACHING_ENABLED" value="false"/>
         <env name="TEAMLEADER_RATE_LIMITING_ENABLED" value="false"/>
         <env name="TEAMLEADER_THROW_EXCEPTIONS" value="true"/>
+
+        <!-- Redis Configuration (used by ApiRateLimiterService unit tests) -->
+        <env name="REDIS_HOST" value="127.0.0.1"/>
+        <env name="REDIS_PORT" value="6379"/>
+        <env name="REDIS_PASSWORD" value="null"/>
+        <env name="REDIS_DB" value="15"/>
+        <env name="TEAMLEADER_RATE_LIMIT_REDIS_CONNECTION" value="default"/>
     </php>
 </phpunit>

@@ -15,6 +15,80 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.4] - 2026-03-16
+
+### Fixed
+
+#### Critical: Rate Limiter Not Shared Across Queue Workers
+
+- **`ApiRateLimiterService`** (`src/Services/ApiRateLimiterService.php`): Replaced the
+  in-memory static array with a Redis sorted set (`teamleader_sdk:rate_limit`). Each recorded
+  request is stored as a scored member (`ZADD`) with a `microtime(true)` timestamp as its score.
+  Expired entries are pruned via `ZREMRANGEBYSCORE` and the current window count is read with
+  `ZCARD`. This makes the sliding window shared across all processes and hosts, so multiple
+  Horizon workers collectively respect the 200 requests/minute limit rather than each enforcing
+  it independently.
+- **`ApiRateLimiterService`**: Header-derived `remaining` and `reset_time` values are now stored
+  in Redis string keys with TTLs, so all workers benefit from rate limit signals received by any
+  single worker.
+- **`ApiRateLimiterService`**: `handle429Response()` now clears the shared sorted set and writes
+  a cross-process reset time to Redis, ensuring all workers back off when any one of them receives
+  a 429.
+- **`config/teamleader.php`**: Added `rate_limiting.redis_connection` key (env:
+  `TEAMLEADER_RATE_LIMIT_REDIS_CONNECTION`, default: `default`) to allow configuring which Redis
+  connection the rate limiter uses.
+- **Impact**: In environments with multiple queue workers (e.g. Laravel Horizon), workers were
+  each maintaining independent counters starting at 0, allowing combined request rates of up to
+  `200 × worker_count` per minute before any single worker triggered throttling.
+
+#### Critical: 429 Response Silently Swallowed When `throw_exceptions` Is Disabled
+
+- **`TeamleaderErrorHandler`** (`src/Services/TeamleaderErrorHandler.php`): `handleApiError()`
+  now always throws `RateLimitExceededException` when the API responds with a 429, regardless of
+  the `throw_exceptions` configuration flag. Previously, with the default `throw_exceptions=false`,
+  a 429 was logged and silently returned as an error array — callers received an empty result with
+  no reliable way to distinguish it from any other failure without string-matching the error
+  message.
+- **`TeamleaderErrorHandler`**: `withRetry()` no longer catches and retries
+  `RateLimitExceededException`. It now re-throws immediately so queue jobs can call
+  `$this->release($e->getRetryAfter())` to return the job to the queue rather than sleeping
+  inside the worker thread for up to 60 seconds per attempt.
+- **Impact**: Calling code can now catch `RateLimitExceededException` with a typed catch block
+  and access `$e->getRetryAfter()` without fragile error message inspection:
+
+```php
+try {
+    $response = Teamleader::invoices()->info($invoiceId);
+} catch (RateLimitExceededException $e) {
+    $this->release($e->getRetryAfter());
+}
+```
+
+### Changed
+
+#### Test Infrastructure
+
+- **`tests/Unit/Services/RateLimiterTest.php`**: Updated for Redis-backed service. Added
+  `#[Group('redis')]` PHP attribute (replaces deprecated `@group` docblock annotation) so the
+  suite is excluded from the default `composer test` run and only executes when Redis is available.
+  Added `test_sliding_window_tracks_requests_in_redis`, `test_reset_clears_redis_state`,
+  `test_multiple_instances_share_state_via_redis`, and `test_handle_429_clears_window_and_stores_reset_time`.
+- **`tests/Unit/Services/ErrorHandlerTest.php`**: Added
+  `test_throws_rate_limit_exception_for429_even_when_exceptions_disabled`,
+  `test_with_retry_rethrows_rate_limit_exception_immediately`,
+  `test_with_retry_retries_server_exceptions`, and
+  `test_rate_limit_exception_carries_retry_after`. Renamed
+  `test_does_not_throw_when_disabled` to `test_does_not_throw_when_disabled_for_non_429_errors`
+  to reflect that 429 is now exempt from this behaviour.
+- **`phpunit.xml`**: Added Redis env vars (`REDIS_HOST`, `REDIS_PORT`, `REDIS_DB=15`,
+  `TEAMLEADER_RATE_LIMIT_REDIS_CONNECTION`). Added `<groups><exclude>redis</exclude></groups>`
+  so the Redis test group is skipped in environments without Redis.
+- **`.github/workflows/tests.yml`**: Added `redis:7-alpine` service with health check. Added
+  `redis` to the PHP extensions list. Split test execution into two steps: standard run
+  (Redis group excluded) and a dedicated Redis group run with explicit connection env vars.
+
+---
+
 ## [1.2.3] - 2026-03-12
 
 ### Fixed
@@ -160,9 +234,6 @@ Invoicing, avatar/logo upload for CRM entities, and a wide range of field additi
     - Removed migration-based table creation (introduced in v1.1.3)
     - Reverted to automatic table creation via `TokenService::ensureTokensTableExists()`
     - Table now created automatically on first OAuth flow with correct schema
-    - Affects files:
-        - Removed: `database/migrations/0001_01_01_999999_create_teamleader_tokens_table.php`
-        - Updated: `src/TeamleaderServiceProvider.php` (removed migration loading/publishing)
 
 ### Changed
 - Simplified installation process - no `php artisan migrate` required
@@ -313,7 +384,9 @@ Each release will include:
 
 ---
 
-**[Unreleased]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.2.2...HEAD
+**[Unreleased]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.2.4...HEAD
+**[1.2.4]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.2.3...v1.2.4
+**[1.2.3]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.2.2...v1.2.3
 **[1.2.2]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.2.1...v1.2.2
 **[1.2.1]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.2.0...v1.2.1
 **[1.2.0]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.6...v1.2.0

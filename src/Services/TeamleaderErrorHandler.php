@@ -31,7 +31,12 @@ class TeamleaderErrorHandler
     }
 
     /**
-     * Handle API response errors
+     * Handle API response errors.
+     *
+     * Note: RateLimitExceededException (429) is always thrown regardless of the
+     * throwExceptions flag. A 429 that is silently swallowed returns no data to
+     * the caller with no indication of why — this is a data loss risk. Every
+     * other status code respects the throwExceptions setting.
      */
     public function handleApiError(array $result, string $context = ''): void
     {
@@ -55,7 +60,13 @@ class TeamleaderErrorHandler
         // Log the error with appropriate severity
         $this->logError($statusCode, $message, $errorContext);
 
-        // Throw exception if configured to do so
+        // 429 always throws — swallowing it silently causes data loss because the
+        // caller receives an empty result with no indication that the request failed.
+        if ($statusCode === 429) {
+            throw $this->createException($statusCode, $message, $errors, $errorContext);
+        }
+
+        // All other status codes respect the throwExceptions configuration
         if ($this->throwExceptions) {
             throw $this->createException($statusCode, $message, $errors, $errorContext);
         }
@@ -113,7 +124,13 @@ class TeamleaderErrorHandler
     }
 
     /**
-     * Execute callback with automatic retry logic for transient errors
+     * Execute callback with automatic retry logic for transient errors.
+     *
+     * RateLimitExceededException is intentionally NOT retried here. Sleeping for
+     * Retry-After seconds (typically 60s) inside a queue worker blocks the worker
+     * thread and prevents it from processing other jobs. Callers should catch
+     * RateLimitExceededException and use $this->release($e->getRetryAfter()) to
+     * return the job to the queue instead.
      */
     public function withRetry(callable $callback, int $maxAttempts = 3, string $context = ''): mixed
     {
@@ -123,7 +140,15 @@ class TeamleaderErrorHandler
         while ($attempt <= $maxAttempts) {
             try {
                 return $callback();
-            } catch (ServerException|RateLimitExceededException|ConnectionException $e) {
+            } catch (RateLimitExceededException $e) {
+                // Always re-throw immediately — let the caller decide how to handle
+                // (queue release, user-facing error, manual sleep, etc.)
+                $this->logger->warning("Rate limit exceeded in {$context}, propagating to caller", [
+                    'retry_after' => $e->getRetryAfter(),
+                ]);
+
+                throw $e;
+            } catch (ServerException|ConnectionException $e) {
                 $lastException = $e;
 
                 if ($attempt === $maxAttempts) {
@@ -237,11 +262,6 @@ class TeamleaderErrorHandler
      */
     private function calculateRetryDelay(TeamleaderException $exception, int $attempt): int
     {
-        if ($exception instanceof RateLimitExceededException) {
-            // For rate limits, use the retry-after value
-            return $exception->getRetryAfter() * 1000; // Convert seconds to milliseconds
-        }
-
         // Exponential backoff with jitter
         $baseDelay = 1000; // 1 second base
         $exponentialDelay = $baseDelay * pow(2, $attempt - 1);

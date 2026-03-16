@@ -4,7 +4,7 @@ Manage webhooks for real-time event notifications in Teamleader Focus.
 
 ## Overview
 
-The Webhooks resource allows you to register and manage webhooks for real-time notifications when events occur in Teamleader. Webhooks enable your application to respond immediately to changes like new invoices, updated deals, or created tickets without constantly polling the API.
+The Webhooks resource allows you to register and manage webhooks for real-time notifications when events occur in Teamleader. Webhooks enable your application to respond immediately to changes like new invoices, updated deals, or created contacts without constantly polling the API.
 
 ## Navigation
 
@@ -349,22 +349,29 @@ $timeTrackingTypes = Teamleader::webhooks()->getTimeTrackingEventTypes();
 
 Both return an empty array on success (HTTP 204 No Content).
 
-### Webhook Payload
+---
 
-When an event fires, Teamleader POSTs to your URL:
+## Webhook Payload
+
+When an event fires, Teamleader POSTs a JSON payload to your URL. The actual payload structure is:
 
 ```json
 {
-    "type": "invoice.booked",
-    "data": {
-        "id": "invoice-uuid",
-        "type": "invoice"
+    "type": "company.updated",
+    "subject": {
+        "type": "company",
+        "id": "entity-uuid"
     },
-    "meta": {
-        "timestamp": "2025-10-17T10:30:00+00:00"
+    "account": {
+        "type": "account",
+        "id": "account-uuid"
     }
 }
 ```
+
+> **Note:** The entity ID is at `subject.id`, not `data.id`. The `subject.type` field matches the
+> entity category (e.g. `company`, `contact`, `invoice`). There is no `meta.timestamp` field in
+> the payload — use your own server timestamp if you need to track delivery time.
 
 ---
 
@@ -422,7 +429,7 @@ foreach ($webhooks['data'] as $webhook) {
 Route::post('/webhooks/teamleader', function (Request $request) {
     $payload   = $request->json()->all();
     $eventType = $payload['type'];
-    $id        = $payload['data']['id'];
+    $id        = $payload['subject']['id'];  // Note: subject.id, not data.id
 
     Log::info('Webhook received', ['type' => $eventType, 'id' => $id]);
 
@@ -475,7 +482,7 @@ class InvoiceWebhookHandler
     public function handle(array $payload): void
     {
         $eventType = $payload['type'];
-        $invoiceId = $payload['data']['id'];
+        $invoiceId = $payload['subject']['id'];  // Note: subject.id, not data.id
 
         switch ($eventType) {
             case 'invoice.booked':
@@ -519,7 +526,6 @@ class InvoiceWebhookHandler
             'peppol_status'  => $invoice['data']['peppol_status'] ?? null,
         ]);
 
-        // Notify billing team
         Notification::send(
             User::billingTeam()->get(),
             new PeppolFailureNotification($invoice['data'])
@@ -536,7 +542,7 @@ class DealWebhookHandler
     public function handle(array $payload): void
     {
         $eventType = $payload['type'];
-        $dealId    = $payload['data']['id'];
+        $dealId    = $payload['subject']['id'];  // Note: subject.id, not data.id
 
         if ($eventType === 'deal.won') {
             $this->handleDealWon($dealId);
@@ -575,7 +581,7 @@ Webhook URLs must use HTTPS.
 
 ### 3. Event Ordering
 
-Events may not always arrive in chronological order — use the `meta.timestamp` in the payload for ordering.
+Events may not always arrive in chronological order. If ordering matters, record your own server timestamp on receipt.
 
 ### 4. Adding Events to an Existing Webhook
 
@@ -642,7 +648,7 @@ try {
 1. **HTTPS Only** — Webhook URLs must use HTTPS (enforced by the SDK)
 2. **IP Whitelist** — Consider whitelisting Teamleader's IP ranges at your firewall
 3. **Rate Limiting** — Protect your endpoint from abuse with throttling middleware
-4. **Idempotency** — The same event may be delivered more than once; use the event `id` or `timestamp` to deduplicate
+4. **Idempotency** — The same event may be delivered more than once; use the entity ID to deduplicate
 
 ### Recommended Endpoint Implementation
 

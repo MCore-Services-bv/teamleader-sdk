@@ -70,6 +70,7 @@ return [
         'throttle_threshold' => env('TEAMLEADER_THROTTLE_THRESHOLD', 0.7),
         'aggressive_throttling' => env('TEAMLEADER_AGGRESSIVE_THROTTLING', true),
         'respect_retry_after' => env('TEAMLEADER_RESPECT_RETRY_AFTER', true),
+        'redis_connection' => env('TEAMLEADER_RATE_LIMIT_REDIS_CONNECTION', 'default'),
     ],
 
     /*

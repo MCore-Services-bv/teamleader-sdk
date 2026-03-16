@@ -25,6 +25,17 @@ jobs:
 
     name: PHP ${{ matrix.php }} - Laravel ${{ matrix.laravel }}
 
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@v3
 
@@ -32,7 +43,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
-          extensions: mbstring, json, curl
+          extensions: mbstring, json, curl, redis
 
       - name: Validate composer.json
         run: composer validate --strict
@@ -57,6 +68,13 @@ jobs:
 
       - name: Run tests
         run: vendor/bin/phpunit
+
+      - name: Run Redis tests
+        run: vendor/bin/phpunit --group redis
+        env:
+          REDIS_HOST: 127.0.0.1
+          REDIS_PORT: 6379
+          REDIS_DB: 15
 
       - name: Run code style checks
         run: vendor/bin/pint --test
