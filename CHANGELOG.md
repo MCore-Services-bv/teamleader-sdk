@@ -15,6 +15,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.5] - 2026-03-16
+
+### Fixed
+
+#### Critical: `RateLimitExceededException` Constructor Throws `TypeError` When `X-RateLimit-Reset` Header Is Present
+
+- **`TeamleaderErrorHandler`** (`src/Services/TeamleaderErrorHandler.php`): Corrected the return
+  type of `extractResetTime()` from `?string` to `?int` and added an explicit `(int)` cast before
+  returning the header value. HTTP response headers are always strings, but
+  `RateLimitExceededException::__construct()` declares `?int $resetTime`. Under PHP's
+  `strict_types=1`, passing an uncast string caused a `TypeError` before the exception object was
+  ever constructed — callers never received a `RateLimitExceededException`, they received an
+  uncaught `TypeError` instead. This made the v1.2.4 fix (always throw on 429) non-functional in
+  practice for any API response that included the `X-RateLimit-Reset` header.
+- **Impact**: Any 429 response from Teamleader that included an `X-RateLimit-Reset` header was
+  surfacing as an uncaught `TypeError` rather than a catchable `RateLimitExceededException`.
+  Queue jobs using `$this->release($e->getRetryAfter())` were instead crashing with a `TypeError`.
+
+```php
+// Before (broken): extractResetTime() returned ?string, causing TypeError
+private function extractResetTime(array $context): ?string { ... }
+
+// After (fixed): cast to int before returning
+private function extractResetTime(array $context): ?int
+{
+    foreach ($headers as $name => $value) {
+        if (strtolower($name) === 'x-ratelimit-reset') {
+            return (int) (is_array($value) ? $value[0] : $value);
+        }
+    }
+    return null;
+}
+```
+
+### Tests
+
+- **`tests/Unit/Services/ErrorHandlerTest.php`**: Added
+  `test_throws_rate_limit_exception_for429_with_reset_time_header` — asserts that a 429 response
+  carrying both `Retry-After` and `X-RateLimit-Reset` headers throws `RateLimitExceededException`
+  and not a `TypeError`. Added `test_rate_limit_exception_carries_reset_time_as_int` — asserts
+  that `getResetTime()` returns an `int` with the correct value and that `getRetryAfter()` is
+  unaffected.
+
+---
+
 ## [1.2.4] - 2026-03-16
 
 ### Fixed

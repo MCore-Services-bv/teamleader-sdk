@@ -73,6 +73,91 @@ class TeamleaderErrorHandler
     }
 
     /**
+     * Log error with appropriate severity level
+     */
+    private function logError(int $statusCode, string $message, array $context): void
+    {
+        $sanitizedContext = $this->sanitizeForLog($context);
+        $logMessage = "Teamleader API error: {$message}";
+
+        match (true) {
+            $statusCode >= 500 => $this->logger->critical($logMessage, $sanitizedContext),
+            $statusCode === 429 => $this->logger->warning($logMessage, $sanitizedContext),
+            $statusCode === 401 => $this->logger->error($logMessage, $sanitizedContext),
+            $statusCode === 403 => $this->logger->warning($logMessage, $sanitizedContext),
+            $statusCode === 404 => $this->logger->info($logMessage, $sanitizedContext),
+            $statusCode >= 400 => $this->logger->warning($logMessage, $sanitizedContext),
+            default => $this->logger->error($logMessage, $sanitizedContext)
+        };
+    }
+
+    /**
+     * Create appropriate exception based on status code
+     */
+    private function createException(int $statusCode, string $message, array $errors, array $context): TeamleaderException
+    {
+        return match ($statusCode) {
+            401 => new AuthenticationException($message, 401, null, $context, $statusCode, $errors),
+            403 => new AuthorizationException($message, 403, null, $context, $statusCode, $errors),
+            404 => new NotFoundException($message, 404, null, $context, $statusCode, $errors),
+            422 => new ValidationException(
+                'Validation failed: '.implode(', ', $errors),
+                422,
+                null,
+                $context,
+                $statusCode,
+                $errors
+            ),
+            429 => new RateLimitExceededException(
+                $message,
+                $this->extractRetryAfter($context),
+                $this->extractResetTime($context),
+                $context
+            ),
+            500, 502, 503, 504 => new ServerException($message, $statusCode, null, $context, $statusCode, $errors),
+            default => new TeamleaderException($message, $statusCode, null, $context, $statusCode, $errors)
+        };
+    }
+
+    /**
+     * Extract retry-after value from response headers
+     */
+    private function extractRetryAfter(array $context): int
+    {
+        $headers = $context['headers'] ?? [];
+
+        foreach ($headers as $name => $value) {
+            if (strtolower($name) === 'retry-after') {
+                return (int) (is_array($value) ? $value[0] : $value);
+            }
+        }
+
+        return 60; // Default to 60 seconds
+    }
+
+    /**
+     * Extract rate limit reset time from response headers.
+     *
+     * HTTP headers are always strings. Cast to int before returning so the value
+     * is compatible with RateLimitExceededException::__construct(?int $resetTime).
+     * Returning a string caused a TypeError under strict_types before the exception
+     * was ever constructed, making the v1.2.4 fix non-functional when this header
+     * was present.
+     */
+    private function extractResetTime(array $context): ?int
+    {
+        $headers = $context['headers'] ?? [];
+
+        foreach ($headers as $name => $value) {
+            if (strtolower($name) === 'x-ratelimit-reset') {
+                return (int) (is_array($value) ? $value[0] : $value);
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Handle Guzzle HTTP exceptions
      */
     public function handleGuzzleException(GuzzleException $exception, string $context = ''): void
@@ -177,20 +262,53 @@ class TeamleaderErrorHandler
         }
 
         // This should never be reached, but just in case
-        throw $lastException ?: new TeamleaderException('Retry logic failed unexpectedly');
+        throw $lastException ?? new TeamleaderException('Retry logic failed unexpectedly');
     }
 
     /**
-     * Check if an error is retryable
+     * Calculate retry delay with exponential backoff
      */
-    public function isRetryableError(TeamleaderException $exception): bool
+    private function calculateRetryDelay(TeamleaderException $exception, int $attempt): int
     {
-        return match (true) {
-            $exception instanceof ServerException,
-            $exception instanceof RateLimitExceededException,
-            $exception instanceof ConnectionException => true,
-            default => false
-        };
+        // Exponential backoff with jitter
+        $baseDelay = 1000; // 1 second base
+        $exponentialDelay = $baseDelay * pow(2, $attempt - 1);
+        $jitter = rand(0, 100); // Add up to 100ms jitter
+
+        return min($exponentialDelay + $jitter, 30000); // Cap at 30 seconds
+    }
+
+    /**
+     * Get whether exceptions are thrown
+     */
+    public function getThrowExceptions(): bool
+    {
+        return $this->throwExceptions;
+    }
+
+    /**
+     * Set whether to throw exceptions
+     */
+    public function setThrowExceptions(bool $throwExceptions): self
+    {
+        $this->throwExceptions = $throwExceptions;
+
+        return $this;
+    }
+
+    /**
+     * Create a simple error result array (for when not throwing exceptions)
+     */
+    public function createErrorResult(TeamleaderException $exception): array
+    {
+        return [
+            'error' => true,
+            'status_code' => $exception->getStatusCode(),
+            'message' => $exception->getMessage(),
+            'errors' => $exception->getAllErrors(),
+            'user_message' => $this->getUserFriendlyMessage($exception),
+            'retryable' => $this->isRetryableError($exception),
+        ];
     }
 
     /**
@@ -211,127 +329,15 @@ class TeamleaderErrorHandler
     }
 
     /**
-     * Log error with appropriate severity level
+     * Check if an error is retryable
      */
-    private function logError(int $statusCode, string $message, array $context): void
+    public function isRetryableError(TeamleaderException $exception): bool
     {
-        $sanitizedContext = $this->sanitizeForLog($context);
-        $logMessage = "Teamleader API error: {$message}";
-
-        match (true) {
-            $statusCode >= 500 => $this->logger->critical($logMessage, $sanitizedContext),
-            $statusCode === 429 => $this->logger->warning($logMessage, $sanitizedContext),
-            $statusCode === 401 => $this->logger->error($logMessage, $sanitizedContext),
-            $statusCode === 403 => $this->logger->warning($logMessage, $sanitizedContext),
-            $statusCode === 404 => $this->logger->info($logMessage, $sanitizedContext),
-            $statusCode >= 400 => $this->logger->warning($logMessage, $sanitizedContext),
-            default => $this->logger->error($logMessage, $sanitizedContext)
+        return match (true) {
+            $exception instanceof ServerException,
+            $exception instanceof RateLimitExceededException,
+            $exception instanceof ConnectionException => true,
+            default => false
         };
-    }
-
-    /**
-     * Create appropriate exception based on status code
-     */
-    private function createException(int $statusCode, string $message, array $errors, array $context): TeamleaderException
-    {
-        return match ($statusCode) {
-            401 => new AuthenticationException($message, 401, null, $context, $statusCode, $errors),
-            403 => new AuthorizationException($message, 403, null, $context, $statusCode, $errors),
-            404 => new NotFoundException($message, 404, null, $context, $statusCode, $errors),
-            422 => new ValidationException(
-                'Validation failed: '.implode(', ', $errors),
-                422,
-                null,
-                $context,
-                $statusCode,
-                $errors
-            ),
-            429 => new RateLimitExceededException(
-                $message,
-                $this->extractRetryAfter($context),
-                $this->extractResetTime($context),
-                $context
-            ),
-            500, 502, 503, 504 => new ServerException($message, $statusCode, null, $context, $statusCode, $errors),
-            default => new TeamleaderException($message, $statusCode, null, $context, $statusCode, $errors)
-        };
-    }
-
-    /**
-     * Calculate retry delay with exponential backoff
-     */
-    private function calculateRetryDelay(TeamleaderException $exception, int $attempt): int
-    {
-        // Exponential backoff with jitter
-        $baseDelay = 1000; // 1 second base
-        $exponentialDelay = $baseDelay * pow(2, $attempt - 1);
-        $jitter = rand(0, 100); // Add up to 100ms jitter
-
-        return min($exponentialDelay + $jitter, 30000); // Cap at 30 seconds
-    }
-
-    /**
-     * Extract retry-after value from response headers
-     */
-    private function extractRetryAfter(array $context): int
-    {
-        $headers = $context['headers'] ?? [];
-
-        foreach ($headers as $name => $value) {
-            if (strtolower($name) === 'retry-after') {
-                return (int) (is_array($value) ? $value[0] : $value);
-            }
-        }
-
-        return 60; // Default to 60 seconds
-    }
-
-    /**
-     * Extract rate limit reset time from response headers
-     */
-    private function extractResetTime(array $context): ?string
-    {
-        $headers = $context['headers'] ?? [];
-
-        foreach ($headers as $name => $value) {
-            if (strtolower($name) === 'x-ratelimit-reset') {
-                return is_array($value) ? $value[0] : $value;
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Set whether to throw exceptions
-     */
-    public function setThrowExceptions(bool $throwExceptions): self
-    {
-        $this->throwExceptions = $throwExceptions;
-
-        return $this;
-    }
-
-    /**
-     * Get whether exceptions are thrown
-     */
-    public function getThrowExceptions(): bool
-    {
-        return $this->throwExceptions;
-    }
-
-    /**
-     * Create a simple error result array (for when not throwing exceptions)
-     */
-    public function createErrorResult(TeamleaderException $exception): array
-    {
-        return [
-            'error' => true,
-            'status_code' => $exception->getStatusCode(),
-            'message' => $exception->getMessage(),
-            'errors' => $exception->getAllErrors(),
-            'user_message' => $this->getUserFriendlyMessage($exception),
-            'retryable' => $this->isRetryableError($exception),
-        ];
     }
 }

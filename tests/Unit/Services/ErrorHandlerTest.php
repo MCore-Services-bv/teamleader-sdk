@@ -13,12 +13,6 @@ class ErrorHandlerTest extends TestCase
 {
     private TeamleaderErrorHandler $errorHandler;
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-        $this->errorHandler = new TeamleaderErrorHandler(new NullLogger, true);
-    }
-
     public function test_throws_validation_exception_for422(): void
     {
         $this->expectException(ValidationException::class);
@@ -66,6 +60,58 @@ class ErrorHandlerTest extends TestCase
         ];
 
         $errorHandler->handleApiError($result, 'test');
+    }
+
+    /**
+     * When both Retry-After and X-RateLimit-Reset headers are present, the
+     * exception must be constructed without a TypeError. Previously, extractResetTime()
+     * returned ?string while RateLimitExceededException::__construct() declared
+     * ?int — under strict_types this caused a TypeError before the exception was
+     * ever built, making every 429 with an X-RateLimit-Reset header uncatchable.
+     */
+    public function test_throws_rate_limit_exception_for429_with_reset_time_header(): void
+    {
+        $this->expectException(RateLimitExceededException::class);
+        $this->expectExceptionMessage('Rate limit exceeded');
+
+        $result = [
+            'error' => true,
+            'status_code' => 429,
+            'message' => 'Rate limit exceeded',
+            'headers' => [
+                'Retry-After' => ['30'],
+                'X-RateLimit-Reset' => ['1634567890'],
+            ],
+        ];
+
+        $this->errorHandler->handleApiError($result, 'test');
+    }
+
+    /**
+     * Verify reset time is correctly cast to int and accessible via getResetTime().
+     */
+    public function test_rate_limit_exception_carries_reset_time_as_int(): void
+    {
+        $caughtException = null;
+
+        try {
+            $this->errorHandler->handleApiError([
+                'error' => true,
+                'status_code' => 429,
+                'message' => 'Rate limit exceeded',
+                'headers' => [
+                    'Retry-After' => ['30'],
+                    'X-RateLimit-Reset' => ['1634567890'],
+                ],
+            ], 'test');
+        } catch (RateLimitExceededException $e) {
+            $caughtException = $e;
+        }
+
+        $this->assertNotNull($caughtException);
+        $this->assertIsInt($caughtException->getResetTime());
+        $this->assertEquals(1634567890, $caughtException->getResetTime());
+        $this->assertEquals(30, $caughtException->getRetryAfter());
     }
 
     public function test_throws_server_exception_for500(): void
@@ -156,5 +202,11 @@ class ErrorHandlerTest extends TestCase
 
         $this->assertNotNull($caughtException);
         $this->assertEquals(45, $caughtException->getRetryAfter());
+    }
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->errorHandler = new TeamleaderErrorHandler(new NullLogger, true);
     }
 }

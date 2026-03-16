@@ -460,6 +460,27 @@ try {
 }
 ```
 
+### Rate Limit Exceptions
+
+`RateLimitExceededException` is **always thrown** when the API returns a 429, regardless of your `throw_exceptions` configuration. You should catch it explicitly wherever the SDK is called — especially in queued jobs:
+
+```php
+use McoreServices\TeamleaderSDK\Exceptions\RateLimitExceededException;
+use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
+
+try {
+    $invoice = Teamleader::invoices()->info($invoiceId);
+} catch (RateLimitExceededException $e) {
+    // $e->getRetryAfter() returns the number of seconds to wait
+    // In a queued job, release back to the queue rather than blocking:
+    $this->release($e->getRetryAfter());
+} catch (TeamleaderException $e) {
+    Log::error('Teamleader API error', ['message' => $e->getMessage()]);
+}
+```
+
+> **Important:** Catch `RateLimitExceededException` before the generic `TeamleaderException` — it extends it, so a generic catch will swallow it first.
+
 ## Rate Limiting
 
 The SDK includes automatic rate limiting to prevent hitting API limits:
@@ -588,9 +609,12 @@ public function getBusinessTypes()
 
 ### 5. Use Queued Jobs for Bulk Operations
 
+When processing Teamleader data in queued jobs, always handle `RateLimitExceededException` by releasing the job back to the queue. This frees the worker to process other jobs while waiting, rather than sleeping inside the worker thread:
+
 ```php
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use McoreServices\TeamleaderSDK\Exceptions\RateLimitExceededException;
 
 class SyncCompaniesJob implements ShouldQueue
 {
@@ -601,10 +625,16 @@ class SyncCompaniesJob implements ShouldQueue
         $page = 1;
         
         do {
-            $companies = $teamleader->companies()->list([], [
-                'page_size' => 100,
-                'page_number' => $page
-            ]);
+            try {
+                $companies = $teamleader->companies()->list([], [
+                    'page_size' => 100,
+                    'page_number' => $page
+                ]);
+            } catch (RateLimitExceededException $e) {
+                // Release job back to the queue — worker stays free
+                $this->release($e->getRetryAfter());
+                return;
+            }
             
             // Process companies...
             
