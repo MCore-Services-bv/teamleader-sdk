@@ -191,9 +191,17 @@ class Companies extends Resource
             }
         }
 
-        $data = array_filter($data, function ($value) {
-            return $value !== '' && $value !== null && $value !== [];
-        });
+        // Strip empty strings and empty arrays, but preserve null — null signals a field clear to the API
+        $data = array_filter($data, function ($value, $key) {
+            if ($key === 'id') {
+                return true;
+            }
+            if ($value === null) {
+                return true;
+            }
+
+            return $value !== '' && $value !== [];
+        }, ARRAY_FILTER_USE_BOTH);
 
         if (isset($data['emails']) && is_array($data['emails'])) {
             foreach ($data['emails'] as $email) {

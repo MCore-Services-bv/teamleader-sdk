@@ -76,32 +76,6 @@ class Contacts extends Resource
     ];
 
     /**
-     * Get the base path for the contacts resource
-     */
-    protected function getBasePath(): string
-    {
-        return 'contacts';
-    }
-
-    /**
-     * List contacts with enhanced filtering and sorting
-     */
-    public function list(array $filters = [], array $options = []): array
-    {
-        $params = $this->buildQueryParams(
-            [],
-            $filters,
-            $options['sort'] ?? null,
-            $options['sort_order'] ?? 'asc',
-            $options['page_size'] ?? 20,
-            $options['page_number'] ?? 1,
-            $options['include'] ?? null
-        );
-
-        return $this->api->request('POST', $this->getBasePath().'.list', $params);
-    }
-
-    /**
      * Get contact information with enhanced include handling
      */
     public function info($id, $includes = null): array
@@ -119,6 +93,14 @@ class Contacts extends Resource
     }
 
     /**
+     * Get the base path for the contacts resource
+     */
+    protected function getBasePath(): string
+    {
+        return 'contacts';
+    }
+
+    /**
      * Create a new contact
      */
     public function create(array $data): array
@@ -126,6 +108,53 @@ class Contacts extends Resource
         $validatedData = $this->validateContactData($data, 'create');
 
         return $this->api->request('POST', $this->getBasePath().'.add', $validatedData);
+    }
+
+    /**
+     * Validate contact data before sending to API
+     */
+    protected function validateContactData(array $data, string $operation = 'create'): array
+    {
+        if ($operation === 'create') {
+            if (empty($data['first_name']) && empty($data['last_name'])) {
+                throw new InvalidArgumentException('Contact must have at least a first_name or last_name');
+            }
+        }
+
+        // Strip empty strings and empty arrays, but preserve null — null signals a field clear to the API
+        $data = array_filter($data, function ($value, $key) {
+            if ($key === 'id') {
+                return true;
+            }
+            if ($value === null) {
+                return true;
+            }
+
+            return $value !== '' && $value !== [];
+        }, ARRAY_FILTER_USE_BOTH);
+
+        if (isset($data['emails']) && is_array($data['emails'])) {
+            foreach ($data['emails'] as $email) {
+                if (isset($email['email']) && ! filter_var($email['email'], FILTER_VALIDATE_EMAIL)) {
+                    throw new InvalidArgumentException('Invalid email format: '.$email['email']);
+                }
+            }
+        }
+
+        if (isset($data['website']) && ! empty($data['website'])) {
+            if (! filter_var($data['website'], FILTER_VALIDATE_URL)) {
+                throw new InvalidArgumentException('Invalid website URL format: '.$data['website']);
+            }
+        }
+
+        if (isset($data['gender'])) {
+            $validGenders = ['female', 'male', 'non_binary', 'prefers_not_to_say', 'unknown'];
+            if (! in_array($data['gender'], $validGenders)) {
+                throw new InvalidArgumentException('Invalid gender. Must be one of: '.implode(', ', $validGenders));
+            }
+        }
+
+        return $data;
     }
 
     /**
@@ -177,6 +206,24 @@ class Contacts extends Resource
             array_merge(['term' => $term], $options['filters'] ?? []),
             $options
         );
+    }
+
+    /**
+     * List contacts with enhanced filtering and sorting
+     */
+    public function list(array $filters = [], array $options = []): array
+    {
+        $params = $this->buildQueryParams(
+            [],
+            $filters,
+            $options['sort'] ?? null,
+            $options['sort_order'] ?? 'asc',
+            $options['page_size'] ?? 20,
+            $options['page_number'] ?? 1,
+            $options['include'] ?? null
+        );
+
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
@@ -255,6 +302,24 @@ class Contacts extends Resource
     }
 
     /**
+     * Manage tags (add/remove)
+     */
+    public function manageTags(string $id, array $tagsToAdd = [], array $tagsToRemove = []): array
+    {
+        $results = [];
+
+        if (! empty($tagsToAdd)) {
+            $results['tagged'] = $this->tag($id, $tagsToAdd);
+        }
+
+        if (! empty($tagsToRemove)) {
+            $results['untagged'] = $this->untag($id, $tagsToRemove);
+        }
+
+        return $results;
+    }
+
+    /**
      * Tag a contact
      */
     public function tag(string $id, $tags): array
@@ -282,24 +347,6 @@ class Contacts extends Resource
             'id' => $id,
             'tags' => $tags,
         ]);
-    }
-
-    /**
-     * Manage tags (add/remove)
-     */
-    public function manageTags(string $id, array $tagsToAdd = [], array $tagsToRemove = []): array
-    {
-        $results = [];
-
-        if (! empty($tagsToAdd)) {
-            $results['tagged'] = $this->tag($id, $tagsToAdd);
-        }
-
-        if (! empty($tagsToRemove)) {
-            $results['untagged'] = $this->untag($id, $tagsToRemove);
-        }
-
-        return $results;
     }
 
     /**
@@ -372,42 +419,15 @@ class Contacts extends Resource
     }
 
     /**
-     * Validate contact data before sending to API
+     * Get available sort fields for contacts
      */
-    protected function validateContactData(array $data, string $operation = 'create'): array
+    public function getAvailableSortFields(): array
     {
-        if ($operation === 'create') {
-            if (empty($data['first_name']) && empty($data['last_name'])) {
-                throw new InvalidArgumentException('Contact must have at least a first_name or last_name');
-            }
-        }
-
-        $data = array_filter($data, function ($value) {
-            return $value !== '' && $value !== null && $value !== [];
-        });
-
-        if (isset($data['emails']) && is_array($data['emails'])) {
-            foreach ($data['emails'] as $email) {
-                if (isset($email['email']) && ! filter_var($email['email'], FILTER_VALIDATE_EMAIL)) {
-                    throw new InvalidArgumentException('Invalid email format: '.$email['email']);
-                }
-            }
-        }
-
-        if (isset($data['website']) && ! empty($data['website'])) {
-            if (! filter_var($data['website'], FILTER_VALIDATE_URL)) {
-                throw new InvalidArgumentException('Invalid website URL format: '.$data['website']);
-            }
-        }
-
-        if (isset($data['gender'])) {
-            $validGenders = ['female', 'male', 'non_binary', 'prefers_not_to_say', 'unknown'];
-            if (! in_array($data['gender'], $validGenders)) {
-                throw new InvalidArgumentException('Invalid gender. Must be one of: '.implode(', ', $validGenders));
-            }
-        }
-
-        return $data;
+        return [
+            'added_at' => 'Date contact was added',
+            'name' => 'Contact name (first_name + last_name)',
+            'updated_at' => 'Date contact was last updated',
+        ];
     }
 
     /**
@@ -487,18 +507,6 @@ class Contacts extends Resource
         }
 
         return $params;
-    }
-
-    /**
-     * Get available sort fields for contacts
-     */
-    public function getAvailableSortFields(): array
-    {
-        return [
-            'added_at' => 'Date contact was added',
-            'name' => 'Contact name (first_name + last_name)',
-            'updated_at' => 'Date contact was last updated',
-        ];
     }
 
     /**
