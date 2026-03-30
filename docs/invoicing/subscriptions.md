@@ -1,20 +1,21 @@
 # Subscriptions
 
-Manage recurring subscriptions in Teamleader Focus. Subscriptions automatically generate invoices on a billing cycle and can be sent via email, Peppol, or postal service.
+Manage recurring subscriptions in Teamleader Focus. Subscriptions automatically generate invoices on a billing cycle and
+can be sent via email, Peppol, or postal service.
 
 ## Capabilities
 
-| Feature | Supported |
-|---------|-----------|
-| List | ✅ |
-| Info | ✅ |
-| Create | ✅ |
-| Update | ✅ |
-| Delete | ❌ (use `deactivate()`) |
-| Pagination | ✅ |
-| Filtering | ✅ |
-| Sorting | ✅ (`title`, `created_at`, `status`) |
-| Sideloading | ❌ |
+| Feature     | Supported                           |
+|-------------|-------------------------------------|
+| List        | ✅                                   |
+| Info        | ✅                                   |
+| Create      | ✅                                   |
+| Update      | ✅                                   |
+| Delete      | ❌ (use `deactivate()`)              |
+| Pagination  | ✅                                   |
+| Filtering   | ✅                                   |
+| Sorting     | ✅ (`title`, `created_at`, `status`) |
+| Sideloading | ❌                                   |
 
 ---
 
@@ -26,22 +27,22 @@ Returns a paginated, filterable, sortable list of subscriptions.
 
 **Filter parameters:**
 
-| Filter | Type | Description |
-|--------|------|-------------|
-| `ids` | array | Array of subscription UUIDs |
-| `invoice_id` | string | Find subscriptions that generated a specific invoice |
-| `deal_id` | string | Subscriptions created from a specific deal |
-| `department_id` | string | Filter by department UUID |
-| `customer` | array | `{type: contact\|company, id: uuid}` |
-| `status` | array | `['active']`, `['deactivated']`, or both |
+| Filter          | Type   | Description                                          |
+|-----------------|--------|------------------------------------------------------|
+| `ids`           | array  | Array of subscription UUIDs                          |
+| `invoice_id`    | string | Find subscriptions that generated a specific invoice |
+| `deal_id`       | string | Subscriptions created from a specific deal           |
+| `department_id` | string | Filter by department UUID                            |
+| `customer`      | array  | `{type: contact\|company, id: uuid}`                 |
+| `status`        | array  | `['active']`, `['deactivated']`, or both             |
 
 **Options:**
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `page_size` | int | 20 | Results per page |
-| `page_number` | int | 1 | Page number |
-| `sort` | array | — | `{field: title\|created_at\|status, order: asc\|desc}` |
+| Option        | Type  | Default | Description                                            |
+|---------------|-------|---------|--------------------------------------------------------|
+| `page_size`   | int   | 20      | Results per page                                       |
+| `page_number` | int   | 1       | Page number                                            |
+| `sort`        | array | —       | `{field: title\|created_at\|status, order: asc\|desc}` |
 
 **Example:**
 
@@ -57,34 +58,59 @@ $subscriptions = $teamleader->subscriptions()->list(
 
 ```json
 {
-  "data": [
-    {
-      "id": "e2314517-3cab-4aa9-8471-450e73449041",
-      "title": "Monthly support",
-      "note": null,                                   // nullable
-      "status": "active",
-      "department": { "id": "...", "type": "department" },
-      "invoicee": {
-        "customer": { "type": "company", "id": "..." },
-        "for_attention_of": null                      // nullable
-      },
-      "project": null,                                // nullable
-      "starts_on": "2024-01-01",
-      "ends_on": null,                                // nullable
-      "next_renewal_date": "2024-02-01",              // nullable
-      "billing_cycle": {
-        "periodicity": { "unit": "month", "period": 1 },
-        "days_in_advance": 7
-      },
-      "total": {
-        "tax_exclusive": { "amount": 500.00, "currency": "EUR" },
-        "tax_inclusive": { "amount": 605.00, "currency": "EUR" },
-        "taxes": []
-      },
-      "web_url": "https://focus.teamleader.eu/subscription_detail.php?id=...",
-      "created_at": "2024-01-01T09:00:00+00:00"      // nullable
-    }
-  ]
+    "data": [
+        {
+            "id": "e2314517-3cab-4aa9-8471-450e73449041",
+            "title": "Monthly support",
+            "note": null,
+            // nullable
+            "status": "active",
+            "department": {
+                "id": "...",
+                "type": "department"
+            },
+            "invoicee": {
+                "customer": {
+                    "type": "company",
+                    "id": "..."
+                },
+                "for_attention_of": null
+                // nullable
+            },
+            "project": null,
+            // nullable
+            "starts_on": "2024-01-01",
+            "ends_on": null,
+            // nullable
+            "next_renewal_date": "2024-02-01",
+            // nullable
+            "billing_cycle": {
+                "periodicity": {
+                    "unit": "month",
+                    "period": 1
+                },
+                "days_in_advance": 7
+            },
+            "total": {
+                "tax_exclusive": {
+                    "amount": 500.00,
+                    "currency": "EUR"
+                },
+                "tax_inclusive": {
+                    "amount": 605.00,
+                    "currency": "EUR"
+                },
+                "taxes": []
+            },
+            "web_url": "https://focus.teamleader.eu/subscription_detail.php?id=...",
+            "created_at": "2024-01-01T09:00:00+00:00",
+            // nullable
+            "purchase_order_number": null,
+            // nullable — added March 2026
+            "delivery_information": null
+            // nullable — added March 2026
+        }
+    ]
 }
 ```
 
@@ -92,13 +118,14 @@ $subscriptions = $teamleader->subscriptions()->list(
 
 ### `info(string $id): array`
 
-Returns complete details for a single subscription, including line items, invoice generation settings, custom fields, and document template.
+Returns complete details for a single subscription, including line items, invoice generation settings, custom fields,
+and document template.
 
 **Parameters:**
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `id` | string | ✅ | Subscription UUID |
+| Parameter | Type   | Required | Description       |
+|-----------|--------|----------|-------------------|
+| `id`      | string | ✅        | Subscription UUID |
 
 **Example:**
 
@@ -110,52 +137,82 @@ $subscription = $teamleader->subscriptions()->info('e2314517-3cab-4aa9-8471-450e
 
 ```json
 {
-  "data": {
-    "billing_cycle": {
-      "periodicity": { "unit": "month", "period": 1 },
-      "days_in_advance": 7,
-      "payment_term": {
-        "type": "after_invoice_date",
-        "days": 30
-      }
-    },
-    "grouped_lines": [
-      {
-        "section": { "title": "Support" },
-        "line_items": [
-          {
-            "product": null,
-            "quantity": 1,
-            "description": "Monthly support fee",
-            "extended_description": null,
-            "unit": null,
-            "unit_price": { "amount": 500.00, "tax": "excluding" },
-            "tax": { "id": "...", "type": "taxRate" },
-            "discount": null,
-            "total": {
-              "tax_exclusive": { "amount": 500.00, "currency": "EUR" },
-              "tax_exclusive_before_discount": { "amount": 500.00, "currency": "EUR" },
-              "tax_inclusive": { "amount": 605.00, "currency": "EUR" },
-              "tax_inclusive_before_discount": { "amount": 605.00, "currency": "EUR" }
+    "data": {
+        "billing_cycle": {
+            "periodicity": {
+                "unit": "month",
+                "period": 1
             },
-            "product_category": null,
-            "withheld_tax": null
-          }
-        ]
-      }
-    ],
-    "invoice_generation": {
-      "action": "book_and_send",
-      "sending_methods": [
-        { "method": "peppol" }
-      ]
-    },
-    "payment_method": null,
-    "custom_fields": [],
-    "document_template": { "id": "...", "type": "documentTemplate" },
-    "currency": "EUR",
-    "created_at": "2024-01-01T09:00:00+00:00"        // nullable
-  }
+            "days_in_advance": 7,
+            "payment_term": {
+                "type": "after_invoice_date",
+                "days": 30
+            }
+        },
+        "grouped_lines": [
+            {
+                "section": {
+                    "title": "Support"
+                },
+                "line_items": [
+                    {
+                        "product": null,
+                        "quantity": 1,
+                        "description": "Monthly support fee",
+                        "extended_description": null,
+                        "unit": null,
+                        "unit_price": {
+                            "amount": 500.00,
+                            "tax": "excluding"
+                        },
+                        "tax": {
+                            "id": "...",
+                            "type": "taxRate"
+                        },
+                        "discount": null,
+                        "total": {
+                            "tax_exclusive": {
+                                "amount": 500.00,
+                                "currency": "EUR"
+                            },
+                            "tax_exclusive_before_discount": {
+                                "amount": 500.00,
+                                "currency": "EUR"
+                            },
+                            "tax_inclusive": {
+                                "amount": 605.00,
+                                "currency": "EUR"
+                            },
+                            "tax_inclusive_before_discount": {
+                                "amount": 605.00,
+                                "currency": "EUR"
+                            }
+                        },
+                        "product_category": null,
+                        "withheld_tax": null
+                    }
+                ]
+            }
+        ],
+        "invoice_generation": {
+            "action": "book_and_send",
+            "sending_methods": [
+                {
+                    "method": "peppol"
+                }
+            ]
+        },
+        "payment_method": null,
+        "custom_fields": [],
+        "document_template": {
+            "id": "...",
+            "type": "documentTemplate"
+        },
+        "currency": "EUR",
+        "created_at": "2024-01-01T09:00:00+00:00", // nullable
+        "purchase_order_number": null, // nullable — added March 2026
+        "delivery_information": null // nullable — added March 2026
+    }
 }
 ```
 
@@ -167,28 +224,30 @@ Creates a new subscription. Returns HTTP 201 with `data.{id, type}`.
 
 **Required fields:**
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `invoicee` | object | Customer reference — see structure below |
-| `department_id` | string | Department UUID |
-| `starts_on` | string | YYYY-MM-DD |
-| `billing_cycle` | object | Periodicity + days_in_advance — see structure below |
-| `title` | string | Subscription title |
-| `grouped_lines` | array | Line items — see structure below |
-| `payment_term` | object | `{type: cash\|end_of_month\|after_invoice_date, days?}` |
-| `invoice_generation` | object | `{action: draft\|book\|book_and_send, ...}` |
+| Field                | Type   | Description                                             |
+|----------------------|--------|---------------------------------------------------------|
+| `invoicee`           | object | Customer reference — see structure below                |
+| `department_id`      | string | Department UUID                                         |
+| `starts_on`          | string | YYYY-MM-DD                                              |
+| `billing_cycle`      | object | Periodicity + days_in_advance — see structure below     |
+| `title`              | string | Subscription title                                      |
+| `grouped_lines`      | array  | Line items — see structure below                        |
+| `payment_term`       | object | `{type: cash\|end_of_month\|after_invoice_date, days?}` |
+| `invoice_generation` | object | `{action: draft\|book\|book_and_send, ...}`             |
 
 **Optional fields:**
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `ends_on` | string\|null | YYYY-MM-DD end date |
-| `deal_id` | string\|null | Associated deal UUID |
-| `project_id` | string\|null | Associated project UUID |
-| `note` | string\|null | Markdown-formatted note |
-| `payment_method` | string | `direct_debit` |
-| `custom_fields` | array | `[{id, value}]` |
-| `document_template_id` | string | Template UUID |
+| Field                  | Type         | Description             |
+|------------------------|--------------|-------------------------|
+| `ends_on`              | string\|null | YYYY-MM-DD end date     |
+| `deal_id`              | string\|null | Associated deal UUID    |
+| `project_id`           | string\|null | Associated project UUID |
+| `note`                 | string\|null | Markdown-formatted note |
+| `payment_method`       | string       | `direct_debit`          |
+| `custom_fields`        | array        | `[{id, value}]`         |
+| `document_template_id` | string       | Template UUID           |
+| `purchase_order_number` | string\|null | PO number included on generated invoices |
+| `delivery_information` | object\|null | Delivery details passed to generated invoices |
 
 **`invoice_generation` structure:**
 
@@ -209,11 +268,11 @@ Valid methods: `email`, `peppol`, `postal_service`. Multiple methods can be comb
 
 **Billing cycle periodicity options:**
 
-| Unit | Valid periods | Example |
-|------|--------------|---------|
-| `week` | 1, 2 | Every 1 or 2 weeks |
-| `month` | 1–12 | Every N months |
-| `year` | 1+ | Every N years |
+| Unit    | Valid periods | Example            |
+|---------|---------------|--------------------|
+| `week`  | 1, 2          | Every 1 or 2 weeks |
+| `month` | 1–12          | Every N months     |
+| `year`  | 1+            | Every N years      |
 
 **Example — monthly subscription via Peppol:**
 
@@ -261,6 +320,7 @@ $subscriptionId = $result['data']['id'];
 Updates an existing subscription. Returns HTTP 204 (no body).
 
 **Important constraints:**
+
 - `starts_on` and `billing_cycle` can only be updated if **no invoices have been generated yet**
 - All fields are optional
 
@@ -278,6 +338,10 @@ $teamleader->subscriptions()->update('subscription-uuid', [
     ],
 ]);
 ```
+
+### Additional optional fields (added March 2026):
+`purchase_order_number` (string|null): PO number to include on generated invoices
+`delivery_information` (object|null): Delivery details passed to generated invoices
 
 ---
 
@@ -356,13 +420,14 @@ $subscriptions = $teamleader->subscriptions()->byIds([
 
 ## Sending Methods
 
-The `invoice_generation.sending_methods` array controls how invoices are delivered when `action` is `book_and_send`. Multiple methods can be combined.
+The `invoice_generation.sending_methods` array controls how invoices are delivered when `action` is `book_and_send`.
+Multiple methods can be combined.
 
-| Method | Description |
-|--------|-------------|
-| `email` | Deliver invoice by email |
-| `peppol` | Deliver invoice via the Peppol e-invoicing network |
-| `postal_service` | Deliver invoice by post |
+| Method           | Description                                        |
+|------------------|----------------------------------------------------|
+| `email`          | Deliver invoice by email                           |
+| `peppol`         | Deliver invoice via the Peppol e-invoicing network |
+| `postal_service` | Deliver invoice by post                            |
 
 **Combining methods:**
 
@@ -453,16 +518,16 @@ foreach ($active['data'] as $sub) {
 
 The SDK validates the following before sending requests:
 
-| Field | Validation |
-|-------|-----------|
-| `invoicee.customer.type` | Must be `contact` or `company` |
-| `billing_cycle.periodicity.unit` | Must be `week`, `month`, or `year` |
-| `payment_term.type` | Must be `cash`, `end_of_month`, or `after_invoice_date` |
-| `invoice_generation.action` | Must be `draft`, `book`, or `book_and_send` |
-| `invoice_generation.sending_methods[].method` | Must be `email`, `peppol`, or `postal_service` |
-| `grouped_lines` | Must be non-empty; each group must have non-empty `line_items` |
-| Line items | Must have `quantity`, `description`, `unit_price.amount`, `unit_price.tax`, `tax_rate_id` |
-| `filter.status` | Values must be `active` or `deactivated` |
+| Field                                         | Validation                                                                                |
+|-----------------------------------------------|-------------------------------------------------------------------------------------------|
+| `invoicee.customer.type`                      | Must be `contact` or `company`                                                            |
+| `billing_cycle.periodicity.unit`              | Must be `week`, `month`, or `year`                                                        |
+| `payment_term.type`                           | Must be `cash`, `end_of_month`, or `after_invoice_date`                                   |
+| `invoice_generation.action`                   | Must be `draft`, `book`, or `book_and_send`                                               |
+| `invoice_generation.sending_methods[].method` | Must be `email`, `peppol`, or `postal_service`                                            |
+| `grouped_lines`                               | Must be non-empty; each group must have non-empty `line_items`                            |
+| Line items                                    | Must have `quantity`, `description`, `unit_price.amount`, `unit_price.tax`, `tax_rate_id` |
+| `filter.status`                               | Values must be `active` or `deactivated`                                                  |
 
 ---
 

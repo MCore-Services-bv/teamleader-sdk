@@ -15,6 +15,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.6] - 2026-03-30
+
+### Fixed
+
+#### CRM — `update()` Silently Drops `null` Field Values
+- **`Contacts`** (`src/Resources/CRM/Contacts.php`): Fixed `validateContactData()` stripping `null`
+  values from the payload before sending to the API. Any intentional field clear (`iban`, `bic`,
+  `birthdate`, etc. set to `null`) was silently removed, causing the API to never receive the
+  clear instruction. Empty strings and empty arrays are still stripped as before.
+- **`Companies`** (`src/Resources/CRM/Companies.php`): Same fix applied to `validateCompanyData()`
+  — identical bug, identical root cause.
+- **Root cause**: `array_filter()` was called without `ARRAY_FILTER_USE_BOTH`, using a closure
+  that rejected `null`. The fix switches to `ARRAY_FILTER_USE_BOTH` and explicitly preserves `null`
+  and the `id` key while continuing to strip `''` and `[]`.
+
+### Changed
+
+#### Invoicing
+- **`Subscriptions`**: `list()` and `info()` responses now include `purchase_order_number` (string|null) and `delivery_information` (object|null)
+- **`Subscriptions`**: `create()` and `update()` now accept `purchase_order_number` (string|null) and `delivery_information` (object|null)
+- **`Invoices`**: `list()` response `subscription` field officially confirmed in Teamleader March 2026 changelog — already supported in SDK since v1.2.0
+
+---
+
 ## [1.2.5] - 2026-03-16
 
 ### Fixed
