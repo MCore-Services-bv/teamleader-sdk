@@ -195,58 +195,6 @@ class Invoices extends Resource
     ];
 
     /**
-     * Get the base path for the invoices resource
-     */
-    protected function getBasePath(): string
-    {
-        return 'invoices';
-    }
-
-    /**
-     * List invoices with filtering and sorting
-     *
-     * Response includes: id, department, invoice_number, invoice_date, status, due_on,
-     * paid, paid_at, sent, purchase_order_number, payment_reference, invoicee, total,
-     * currency_exchange_rate, created_at, updated_at, web_url, file, deal, project,
-     * subscription (nullable object: {id, type}), delivery_date (nullable),
-     * peppol_status (nullable)
-     *
-     * @param  array  $filters  Filter parameters
-     * @param  array  $options  Pagination and sorting options
-     */
-    public function list(array $filters = [], array $options = []): array
-    {
-        $params = [];
-
-        // Apply filters
-        if (! empty($filters)) {
-            $params['filter'] = $this->buildFilters($filters);
-        }
-
-        // Apply pagination
-        if (isset($options['page_size']) || isset($options['page_number'])) {
-            $params['page'] = [
-                'size' => $options['page_size'] ?? 20,
-                'number' => $options['page_number'] ?? 1,
-            ];
-        }
-
-        // Apply sorting
-        if (isset($options['sort'])) {
-            $params['sort'] = $this->buildSort($options['sort']);
-        }
-
-        // Apply includes
-        if (! empty($options['includes'])) {
-            $params['includes'] = is_array($options['includes'])
-                ? implode(',', $options['includes'])
-                : $options['includes'];
-        }
-
-        return $this->api->request('POST', $this->getBasePath().'.list', $params);
-    }
-
-    /**
      * Get detailed information about a specific invoice
      *
      * Response includes all list fields plus: discounts, grouped_lines (with full line
@@ -268,6 +216,14 @@ class Invoices extends Resource
         }
 
         return $this->api->request('POST', $this->getBasePath().'.info', $params);
+    }
+
+    /**
+     * Get the base path for the invoices resource
+     */
+    protected function getBasePath(): string
+    {
+        return 'invoices';
     }
 
     /**
@@ -301,6 +257,163 @@ class Invoices extends Resource
     }
 
     /**
+     * Validate invoice creation data
+     *
+     * @throws InvalidArgumentException
+     */
+    private function validateCreateData(array $data): void
+    {
+        // Required fields
+        if (! isset($data['invoicee'])) {
+            throw new InvalidArgumentException('invoicee is required');
+        }
+
+        if (! isset($data['department_id'])) {
+            throw new InvalidArgumentException('department_id is required');
+        }
+
+        if (! isset($data['payment_term'])) {
+            throw new InvalidArgumentException('payment_term is required');
+        }
+
+        if (! isset($data['grouped_lines'])) {
+            throw new InvalidArgumentException('grouped_lines is required');
+        }
+
+        // Validate invoicee
+        if (! isset($data['invoicee']['customer']) ||
+            ! isset($data['invoicee']['customer']['type']) ||
+            ! isset($data['invoicee']['customer']['id'])) {
+            throw new InvalidArgumentException('invoicee must have customer with type and id');
+        }
+
+        $this->validateCustomerType($data['invoicee']['customer']['type']);
+
+        // Validate payment term
+        if (! isset($data['payment_term']['type'])) {
+            throw new InvalidArgumentException('payment_term must have type');
+        }
+
+        if (! in_array($data['payment_term']['type'], $this->validPaymentTermTypes)) {
+            throw new InvalidArgumentException(
+                'Invalid payment term type. Must be one of: '.
+                implode(', ', $this->validPaymentTermTypes)
+            );
+        }
+
+        // Validate currency if provided
+        if (isset($data['currency']['code']) &&
+            ! in_array($data['currency']['code'], $this->validCurrencyCodes)) {
+            throw new InvalidArgumentException(
+                'Invalid currency code. Must be one of: '.
+                implode(', ', $this->validCurrencyCodes)
+            );
+        }
+
+        // Validate grouped lines
+        $this->validateGroupedLines($data['grouped_lines']);
+
+        // Validate expected payment method if provided
+        if (isset($data['expected_payment_method']['method']) &&
+            ! in_array($data['expected_payment_method']['method'], $this->validPaymentMethods)) {
+            throw new InvalidArgumentException(
+                'Invalid payment method. Must be one of: '.
+                implode(', ', $this->validPaymentMethods)
+            );
+        }
+    }
+
+    /**
+     * Validate customer type
+     *
+     * @throws InvalidArgumentException
+     */
+    private function validateCustomerType(string $type): void
+    {
+        $validTypes = ['contact', 'company'];
+        if (! in_array($type, $validTypes)) {
+            throw new InvalidArgumentException(
+                "Invalid customer type '{$type}'. Must be one of: ".implode(', ', $validTypes)
+            );
+        }
+    }
+
+    /**
+     * Validate grouped lines structure
+     *
+     * @throws InvalidArgumentException
+     */
+    private function validateGroupedLines(array $groupedLines): void
+    {
+        if (! is_array($groupedLines)) {
+            throw new InvalidArgumentException('grouped_lines must be an array');
+        }
+
+        foreach ($groupedLines as $group) {
+            if (! isset($group['section']['title'])) {
+                throw new InvalidArgumentException('Each grouped line must have a section with a title');
+            }
+
+            if (! isset($group['line_items']) || ! is_array($group['line_items'])) {
+                throw new InvalidArgumentException('Each grouped line must have line_items array');
+            }
+
+            // Validate each line item
+            foreach ($group['line_items'] as $item) {
+                $this->validateLineItem($item);
+            }
+        }
+    }
+
+    /**
+     * Validate a single line item
+     *
+     * @throws InvalidArgumentException
+     */
+    private function validateLineItem(array $item): void
+    {
+        // Required fields
+        if (! isset($item['quantity']) || ! is_numeric($item['quantity'])) {
+            throw new InvalidArgumentException('Line item quantity is required and must be numeric');
+        }
+
+        if (! isset($item['description']) || empty($item['description'])) {
+            throw new InvalidArgumentException('Line item description is required');
+        }
+
+        if (! isset($item['unit_price']) || ! is_array($item['unit_price'])) {
+            throw new InvalidArgumentException('Line item unit_price is required and must be an object');
+        }
+
+        if (! isset($item['unit_price']['amount']) || ! is_numeric($item['unit_price']['amount'])) {
+            throw new InvalidArgumentException('Line item unit_price.amount is required and must be numeric');
+        }
+
+        if (! isset($item['unit_price']['tax']) || $item['unit_price']['tax'] !== 'excluding') {
+            throw new InvalidArgumentException('Line item unit_price.tax is required and must be "excluding"');
+        }
+
+        if (! isset($item['tax_rate_id']) || empty($item['tax_rate_id'])) {
+            throw new InvalidArgumentException('Line item tax_rate_id is required');
+        }
+
+        // Validate discount if provided
+        if (isset($item['discount'])) {
+            if (! isset($item['discount']['value']) || ! is_numeric($item['discount']['value'])) {
+                throw new InvalidArgumentException('Discount value must be numeric');
+            }
+
+            if (! isset($item['discount']['type']) || $item['discount']['type'] !== 'percentage') {
+                throw new InvalidArgumentException('Discount type must be "percentage"');
+            }
+
+            if ($item['discount']['value'] < 0 || $item['discount']['value'] > 100) {
+                throw new InvalidArgumentException('Discount value must be between 0 and 100');
+            }
+        }
+    }
+
+    /**
      * Update a draft invoice
      * Note: Booked invoices cannot be updated with this method
      *
@@ -328,6 +441,51 @@ class Invoices extends Resource
         $this->validateUpdateData($data);
 
         return $this->api->request('POST', $this->getBasePath().'.update', $data);
+    }
+
+    /**
+     * Validate invoice update data
+     *
+     * @throws InvalidArgumentException
+     */
+    private function validateUpdateData(array $data): void
+    {
+        // ID is required
+        if (empty($data['id'])) {
+            throw new InvalidArgumentException('Invoice ID is required for updates');
+        }
+
+        // Validate payment term type if provided
+        if (isset($data['payment_term']['type']) &&
+            ! in_array($data['payment_term']['type'], $this->validPaymentTermTypes)) {
+            throw new InvalidArgumentException(
+                'Invalid payment term type. Must be one of: '.
+                implode(', ', $this->validPaymentTermTypes)
+            );
+        }
+
+        // Validate currency code if provided
+        if (isset($data['currency']['code']) &&
+            ! in_array($data['currency']['code'], $this->validCurrencyCodes)) {
+            throw new InvalidArgumentException(
+                'Invalid currency code. Must be one of: '.
+                implode(', ', $this->validCurrencyCodes)
+            );
+        }
+
+        // Validate grouped lines structure if provided
+        if (isset($data['grouped_lines'])) {
+            $this->validateGroupedLines($data['grouped_lines']);
+        }
+
+        // Validate customer structure if provided
+        if (isset($data['invoicee']['customer'])) {
+            $customer = $data['invoicee']['customer'];
+            if (empty($customer['type']) || empty($customer['id'])) {
+                throw new InvalidArgumentException('Customer must have type and id');
+            }
+            $this->validateCustomerType($customer['type']);
+        }
     }
 
     /**
@@ -471,6 +629,44 @@ class Invoices extends Resource
     }
 
     /**
+     * Validate send email data
+     *
+     * @throws InvalidArgumentException
+     */
+    private function validateSendData(array $data): void
+    {
+        if (! isset($data['content']['subject']) || empty($data['content']['subject'])) {
+            throw new InvalidArgumentException('Email subject is required');
+        }
+
+        if (! isset($data['content']['body']) || empty($data['content']['body'])) {
+            throw new InvalidArgumentException('Email body is required');
+        }
+
+        if (! isset($data['recipients']['to']) || ! is_array($data['recipients']['to']) || empty($data['recipients']['to'])) {
+            throw new InvalidArgumentException('At least one recipient in "to" field is required');
+        }
+
+        // Validate recipient structure
+        foreach (['to', 'cc', 'bcc'] as $field) {
+            if (isset($data['recipients'][$field])) {
+                foreach ($data['recipients'][$field] as $recipient) {
+                    if (! isset($recipient['email']) || empty($recipient['email'])) {
+                        throw new InvalidArgumentException("Email is required for all {$field} recipients");
+                    }
+
+                    if (isset($recipient['customer'])) {
+                        if (! isset($recipient['customer']['type']) || ! isset($recipient['customer']['id'])) {
+                            throw new InvalidArgumentException('Customer must have type and id');
+                        }
+                        $this->validateCustomerType($recipient['customer']['type']);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * Send an invoice via the Peppol network
      *
      * @param  string  $id  Invoice UUID
@@ -508,6 +704,29 @@ class Invoices extends Resource
     }
 
     /**
+     * Validate payment data
+     *
+     * @throws InvalidArgumentException
+     */
+    private function validatePaymentData(array $payment): void
+    {
+        if (! isset($payment['amount']) || ! is_numeric($payment['amount'])) {
+            throw new InvalidArgumentException('Payment amount is required and must be numeric');
+        }
+
+        if (! isset($payment['currency']) || empty($payment['currency'])) {
+            throw new InvalidArgumentException('Payment currency is required');
+        }
+
+        if (! in_array($payment['currency'], $this->validCurrencyCodes)) {
+            throw new InvalidArgumentException(
+                'Invalid currency code. Must be one of: '.
+                implode(', ', $this->validCurrencyCodes)
+            );
+        }
+    }
+
+    /**
      * Remove all payments from an invoice (marks as unpaid)
      *
      * @param  string  $id  Invoice UUID
@@ -531,6 +750,98 @@ class Invoices extends Resource
             array_merge(['status' => ['draft']], $additionalFilters),
             $options
         );
+    }
+
+    /**
+     * List invoices with filtering and sorting
+     *
+     * Response includes: id, department, invoice_number, invoice_date, status, due_on,
+     * paid, paid_at, sent, purchase_order_number, payment_reference, invoicee, total,
+     * currency_exchange_rate, created_at, updated_at, web_url, file, deal, project,
+     * subscription (nullable object: {id, type}), delivery_date (nullable),
+     * peppol_status (nullable)
+     *
+     * @param  array  $filters  Filter parameters
+     * @param  array  $options  Pagination and sorting options
+     */
+    public function list(array $filters = [], array $options = []): array
+    {
+        $params = [];
+
+        // Apply filters
+        if (! empty($filters)) {
+            $params['filter'] = $this->buildFilters($filters);
+        }
+
+        // Apply pagination
+        if (isset($options['page_size']) || isset($options['page_number'])) {
+            $params['page'] = [
+                'size' => $options['page_size'] ?? 20,
+                'number' => $options['page_number'] ?? 1,
+            ];
+        }
+
+        // Apply sorting
+        if (isset($options['sort'])) {
+            $params['sort'] = $this->buildSort($options['sort']);
+        }
+
+        // Apply includes
+        if (! empty($options['includes'])) {
+            $params['includes'] = is_array($options['includes'])
+                ? implode(',', $options['includes'])
+                : $options['includes'];
+        }
+
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
+    }
+
+    /**
+     * Build filters array for the API request
+     */
+    protected function buildFilters(array $filters): array
+    {
+        $apiFilters = [];
+
+        foreach ($filters as $key => $value) {
+            // Handle special cases
+            if ($key === 'status' && is_string($value)) {
+                $apiFilters[$key] = [$value];
+            } else {
+                $apiFilters[$key] = $value;
+            }
+        }
+
+        return $apiFilters;
+    }
+
+    /**
+     * Build sort array for the API request
+     */
+    protected function buildSort($sort, string $order = 'desc'): array
+    {
+        $apiSort = [];
+
+        foreach ($sort as $sortItem) {
+            if (! isset($sortItem['field'])) {
+                continue;
+            }
+
+            // Validate sort field
+            if (! in_array($sortItem['field'], $this->availableSortFields)) {
+                throw new InvalidArgumentException(
+                    "Invalid sort field '{$sortItem['field']}'. Available fields: ".
+                    implode(', ', $this->availableSortFields)
+                );
+            }
+
+            $apiSort[] = [
+                'field' => $sortItem['field'],
+                'order' => $sortItem['order'] ?? 'desc',
+            ];
+        }
+
+        return $apiSort;
     }
 
     /**
@@ -660,313 +971,112 @@ class Invoices extends Resource
     }
 
     /**
-     * Validate customer type
-     *
-     * @throws InvalidArgumentException
+     * Get response structure documentation
      */
-    private function validateCustomerType(string $type): void
+    public function getResponseStructure(): array
     {
-        $validTypes = ['contact', 'company'];
-        if (! in_array($type, $validTypes)) {
-            throw new InvalidArgumentException(
-                "Invalid customer type '{$type}'. Must be one of: ".implode(', ', $validTypes)
-            );
-        }
-    }
-
-    /**
-     * Validate invoice creation data
-     *
-     * @throws InvalidArgumentException
-     */
-    private function validateCreateData(array $data): void
-    {
-        // Required fields
-        if (! isset($data['invoicee'])) {
-            throw new InvalidArgumentException('invoicee is required');
-        }
-
-        if (! isset($data['department_id'])) {
-            throw new InvalidArgumentException('department_id is required');
-        }
-
-        if (! isset($data['payment_term'])) {
-            throw new InvalidArgumentException('payment_term is required');
-        }
-
-        if (! isset($data['grouped_lines'])) {
-            throw new InvalidArgumentException('grouped_lines is required');
-        }
-
-        // Validate invoicee
-        if (! isset($data['invoicee']['customer']) ||
-            ! isset($data['invoicee']['customer']['type']) ||
-            ! isset($data['invoicee']['customer']['id'])) {
-            throw new InvalidArgumentException('invoicee must have customer with type and id');
-        }
-
-        $this->validateCustomerType($data['invoicee']['customer']['type']);
-
-        // Validate payment term
-        if (! isset($data['payment_term']['type'])) {
-            throw new InvalidArgumentException('payment_term must have type');
-        }
-
-        if (! in_array($data['payment_term']['type'], $this->validPaymentTermTypes)) {
-            throw new InvalidArgumentException(
-                'Invalid payment term type. Must be one of: '.
-                implode(', ', $this->validPaymentTermTypes)
-            );
-        }
-
-        // Validate currency if provided
-        if (isset($data['currency']['code']) &&
-            ! in_array($data['currency']['code'], $this->validCurrencyCodes)) {
-            throw new InvalidArgumentException(
-                'Invalid currency code. Must be one of: '.
-                implode(', ', $this->validCurrencyCodes)
-            );
-        }
-
-        // Validate grouped lines
-        $this->validateGroupedLines($data['grouped_lines']);
-
-        // Validate expected payment method if provided
-        if (isset($data['expected_payment_method']['method']) &&
-            ! in_array($data['expected_payment_method']['method'], $this->validPaymentMethods)) {
-            throw new InvalidArgumentException(
-                'Invalid payment method. Must be one of: '.
-                implode(', ', $this->validPaymentMethods)
-            );
-        }
-    }
-
-    /**
-     * Validate invoice update data
-     *
-     * @throws InvalidArgumentException
-     */
-    private function validateUpdateData(array $data): void
-    {
-        // ID is required
-        if (empty($data['id'])) {
-            throw new InvalidArgumentException('Invoice ID is required for updates');
-        }
-
-        // Validate payment term type if provided
-        if (isset($data['payment_term']['type']) &&
-            ! in_array($data['payment_term']['type'], $this->validPaymentTermTypes)) {
-            throw new InvalidArgumentException(
-                'Invalid payment term type. Must be one of: '.
-                implode(', ', $this->validPaymentTermTypes)
-            );
-        }
-
-        // Validate currency code if provided
-        if (isset($data['currency']['code']) &&
-            ! in_array($data['currency']['code'], $this->validCurrencyCodes)) {
-            throw new InvalidArgumentException(
-                'Invalid currency code. Must be one of: '.
-                implode(', ', $this->validCurrencyCodes)
-            );
-        }
-
-        // Validate grouped lines structure if provided
-        if (isset($data['grouped_lines'])) {
-            $this->validateGroupedLines($data['grouped_lines']);
-        }
-
-        // Validate customer structure if provided
-        if (isset($data['invoicee']['customer'])) {
-            $customer = $data['invoicee']['customer'];
-            if (empty($customer['type']) || empty($customer['id'])) {
-                throw new InvalidArgumentException('Customer must have type and id');
-            }
-            $this->validateCustomerType($customer['type']);
-        }
-    }
-
-    /**
-     * Validate grouped lines structure
-     *
-     * @throws InvalidArgumentException
-     */
-    private function validateGroupedLines(array $groupedLines): void
-    {
-        if (! is_array($groupedLines)) {
-            throw new InvalidArgumentException('grouped_lines must be an array');
-        }
-
-        foreach ($groupedLines as $group) {
-            if (! isset($group['section']['title'])) {
-                throw new InvalidArgumentException('Each grouped line must have a section with a title');
-            }
-
-            if (! isset($group['line_items']) || ! is_array($group['line_items'])) {
-                throw new InvalidArgumentException('Each grouped line must have line_items array');
-            }
-
-            // Validate each line item
-            foreach ($group['line_items'] as $item) {
-                $this->validateLineItem($item);
-            }
-        }
-    }
-
-    /**
-     * Validate a single line item
-     *
-     * @throws InvalidArgumentException
-     */
-    private function validateLineItem(array $item): void
-    {
-        // Required fields
-        if (! isset($item['quantity']) || ! is_numeric($item['quantity'])) {
-            throw new InvalidArgumentException('Line item quantity is required and must be numeric');
-        }
-
-        if (! isset($item['description']) || empty($item['description'])) {
-            throw new InvalidArgumentException('Line item description is required');
-        }
-
-        if (! isset($item['unit_price']) || ! is_array($item['unit_price'])) {
-            throw new InvalidArgumentException('Line item unit_price is required and must be an object');
-        }
-
-        if (! isset($item['unit_price']['amount']) || ! is_numeric($item['unit_price']['amount'])) {
-            throw new InvalidArgumentException('Line item unit_price.amount is required and must be numeric');
-        }
-
-        if (! isset($item['unit_price']['tax']) || $item['unit_price']['tax'] !== 'excluding') {
-            throw new InvalidArgumentException('Line item unit_price.tax is required and must be "excluding"');
-        }
-
-        if (! isset($item['tax_rate_id']) || empty($item['tax_rate_id'])) {
-            throw new InvalidArgumentException('Line item tax_rate_id is required');
-        }
-
-        // Validate discount if provided
-        if (isset($item['discount'])) {
-            if (! isset($item['discount']['value']) || ! is_numeric($item['discount']['value'])) {
-                throw new InvalidArgumentException('Discount value must be numeric');
-            }
-
-            if (! isset($item['discount']['type']) || $item['discount']['type'] !== 'percentage') {
-                throw new InvalidArgumentException('Discount type must be "percentage"');
-            }
-
-            if ($item['discount']['value'] < 0 || $item['discount']['value'] > 100) {
-                throw new InvalidArgumentException('Discount value must be between 0 and 100');
-            }
-        }
-    }
-
-    /**
-     * Validate send email data
-     *
-     * @throws InvalidArgumentException
-     */
-    private function validateSendData(array $data): void
-    {
-        if (! isset($data['content']['subject']) || empty($data['content']['subject'])) {
-            throw new InvalidArgumentException('Email subject is required');
-        }
-
-        if (! isset($data['content']['body']) || empty($data['content']['body'])) {
-            throw new InvalidArgumentException('Email body is required');
-        }
-
-        if (! isset($data['recipients']['to']) || ! is_array($data['recipients']['to']) || empty($data['recipients']['to'])) {
-            throw new InvalidArgumentException('At least one recipient in "to" field is required');
-        }
-
-        // Validate recipient structure
-        foreach (['to', 'cc', 'bcc'] as $field) {
-            if (isset($data['recipients'][$field])) {
-                foreach ($data['recipients'][$field] as $recipient) {
-                    if (! isset($recipient['email']) || empty($recipient['email'])) {
-                        throw new InvalidArgumentException("Email is required for all {$field} recipients");
-                    }
-
-                    if (isset($recipient['customer'])) {
-                        if (! isset($recipient['customer']['type']) || ! isset($recipient['customer']['id'])) {
-                            throw new InvalidArgumentException('Customer must have type and id');
-                        }
-                        $this->validateCustomerType($recipient['customer']['type']);
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Validate payment data
-     *
-     * @throws InvalidArgumentException
-     */
-    private function validatePaymentData(array $payment): void
-    {
-        if (! isset($payment['amount']) || ! is_numeric($payment['amount'])) {
-            throw new InvalidArgumentException('Payment amount is required and must be numeric');
-        }
-
-        if (! isset($payment['currency']) || empty($payment['currency'])) {
-            throw new InvalidArgumentException('Payment currency is required');
-        }
-
-        if (! in_array($payment['currency'], $this->validCurrencyCodes)) {
-            throw new InvalidArgumentException(
-                'Invalid currency code. Must be one of: '.
-                implode(', ', $this->validCurrencyCodes)
-            );
-        }
-    }
-
-    /**
-     * Build filters array for the API request
-     */
-    protected function buildFilters(array $filters): array
-    {
-        $apiFilters = [];
-
-        foreach ($filters as $key => $value) {
-            // Handle special cases
-            if ($key === 'status' && is_string($value)) {
-                $apiFilters[$key] = [$value];
-            } else {
-                $apiFilters[$key] = $value;
-            }
-        }
-
-        return $apiFilters;
-    }
-
-    /**
-     * Build sort array for the API request
-     */
-    protected function buildSort($sort, string $order = 'desc'): array
-    {
-        $apiSort = [];
-
-        foreach ($sort as $sortItem) {
-            if (! isset($sortItem['field'])) {
-                continue;
-            }
-
-            // Validate sort field
-            if (! in_array($sortItem['field'], $this->availableSortFields)) {
-                throw new InvalidArgumentException(
-                    "Invalid sort field '{$sortItem['field']}'. Available fields: ".
-                    implode(', ', $this->availableSortFields)
-                );
-            }
-
-            $apiSort[] = [
-                'field' => $sortItem['field'],
-                'order' => $sortItem['order'] ?? 'desc',
-            ];
-        }
-
-        return $apiSort;
+        return [
+            'list' => [
+                'description' => 'Array of invoices with pagination',
+                'fields' => [
+                    'data' => 'Array of invoice objects',
+                    'data[].id' => 'Invoice UUID',
+                    'data[].department' => 'Department reference',
+                    'data[].invoice_number' => 'Invoice number (nullable until booked)',
+                    'data[].invoice_date' => 'Invoice date (nullable)',
+                    'data[].status' => 'Status (draft, outstanding, matched)',
+                    'data[].due_on' => 'Due date (nullable)',
+                    'data[].paid' => 'Whether the invoice is fully paid (boolean)',
+                    'data[].paid_at' => 'Payment date (nullable)',
+                    'data[].sent' => 'Whether the invoice has been sent (boolean)',
+                    'data[].purchase_order_number' => 'PO number (nullable)',
+                    'data[].payment_reference' => 'Structured payment reference (nullable)',
+                    'data[].invoicee' => 'Invoicee with name, vat_number, customer, for_attention_of',
+                    'data[].total' => 'Total amounts (tax_exclusive, tax_inclusive, payable, due)',
+                    'data[].currency_exchange_rate' => 'Exchange rate (nullable)',
+                    'data[].deal' => 'Related deal reference (nullable)',
+                    'data[].project' => 'Related project reference (nullable)',
+                    'data[].subscription' => 'Subscription that generated this invoice (nullable: {type, id})',
+                    'data[].file' => 'Attached file reference (nullable)',
+                    'data[].delivery_date' => 'Delivery/service date YYYY-MM-DD (nullable)',
+                    'data[].peppol_status' => 'Peppol submission status (nullable)',
+                    'data[].created_at' => 'Creation timestamp ISO 8601',
+                    'data[].updated_at' => 'Last update timestamp ISO 8601',
+                    'data[].web_url' => 'Web URL to the invoice in Teamleader Focus',
+                ],
+            ],
+            'info' => [
+                'description' => 'Complete invoice information',
+                'fields' => [
+                    'data.id' => 'Invoice UUID',
+                    'data.department' => 'Department reference',
+                    'data.invoice_number' => 'Invoice number (nullable until booked)',
+                    'data.invoice_date' => 'Invoice date (nullable)',
+                    'data.status' => 'Status (draft, outstanding, matched)',
+                    'data.due_on' => 'Due date (nullable)',
+                    'data.paid' => 'Whether the invoice is fully paid (boolean)',
+                    'data.paid_at' => 'Payment date (nullable)',
+                    'data.sent' => 'Whether the invoice has been sent (boolean)',
+                    'data.purchase_order_number' => 'PO number (nullable)',
+                    'data.invoicee' => 'Invoicee with name, vat_number, customer, for_attention_of, email, national_identification_number',
+                    'data.discounts' => 'Invoice-level discounts',
+                    'data.grouped_lines' => 'Array of grouped line item sections',
+                    'data.payment_term' => 'Payment term (type, days)',
+                    'data.payments' => 'Array of registered payments',
+                    'data.payment_reference' => 'Structured payment reference (nullable)',
+                    'data.note' => 'Internal note (nullable)',
+                    'data.currency' => 'Currency code',
+                    'data.currency_exchange_rate' => 'Exchange rate (nullable)',
+                    'data.expected_payment_method' => 'Expected payment method (nullable)',
+                    'data.total' => 'Complete totals including taxes, withholding, payable, due',
+                    'data.file' => 'Attached file reference (nullable)',
+                    'data.deal' => 'Related deal reference (nullable)',
+                    'data.project' => 'Related project reference (nullable)',
+                    'data.on_hold_since' => 'On-hold datetime (nullable)',
+                    'data.custom_fields' => 'Custom field values',
+                    'data.document_template' => 'Document template reference (nullable)',
+                    'data.delivery_date' => 'Delivery/service date YYYY-MM-DD (nullable)',
+                    'data.peppol_status' => 'Peppol submission status (nullable)',
+                    'data.created_at' => 'Creation timestamp ISO 8601',
+                    'data.updated_at' => 'Last update timestamp ISO 8601',
+                ],
+            ],
+            'create' => [
+                'description' => 'Response contains the created invoice reference',
+                'fields' => [
+                    'data.type' => 'Resource type (always "invoice")',
+                    'data.id' => 'UUID of the created invoice',
+                ],
+            ],
+            'book' => [
+                'description' => 'Empty response on success (204 No Content)',
+                'fields' => [],
+            ],
+            'copy' => [
+                'description' => 'Response contains the new draft invoice reference',
+                'fields' => [
+                    'data.type' => 'Resource type (always "invoice")',
+                    'data.id' => 'UUID of the new draft invoice',
+                ],
+            ],
+            'credit' => [
+                'description' => 'Response contains the created credit note reference',
+                'fields' => [
+                    'data.type' => 'Resource type (always "creditNote")',
+                    'data.id' => 'UUID of the created credit note',
+                ],
+            ],
+            'download' => [
+                'description' => 'Temporary download link for the invoice file',
+                'fields' => [
+                    'location' => 'Temporary download URL',
+                    'expires' => 'Expiration timestamp',
+                ],
+            ],
+            'registerPayment' => [
+                'description' => 'Empty response on success (204 No Content)',
+                'fields' => [],
+            ],
+        ];
     }
 }

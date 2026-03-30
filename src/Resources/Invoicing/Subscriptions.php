@@ -160,48 +160,6 @@ PHP,
     ];
 
     /**
-     * Get the base path for the subscriptions resource
-     */
-    protected function getBasePath(): string
-    {
-        return 'subscriptions';
-    }
-
-    /**
-     * List subscriptions with filtering, sorting, and pagination
-     *
-     * Response includes per item:
-     * - id, title, note, status, department, invoicee, project
-     * - starts_on, ends_on (nullable), next_renewal_date (nullable)
-     * - billing_cycle, total, taxes, web_url
-     * - created_at (string|null): ISO 8601 creation timestamp
-     */
-    public function list(array $filters = [], array $options = []): array
-    {
-        $params = [];
-
-        // Apply filters
-        if (! empty($filters)) {
-            $params['filter'] = $this->buildFilters($filters);
-        }
-
-        // Apply pagination
-        if (isset($options['page_size']) || isset($options['page_number'])) {
-            $params['page'] = [
-                'size' => $options['page_size'] ?? 20,
-                'number' => $options['page_number'] ?? 1,
-            ];
-        }
-
-        // Apply sorting
-        if (isset($options['sort'])) {
-            $params['sort'] = $this->buildSort($options['sort']);
-        }
-
-        return $this->api->request('POST', $this->getBasePath().'.list', $params);
-    }
-
-    /**
      * Get detailed information about a subscription
      *
      * Response includes:
@@ -213,12 +171,22 @@ PHP,
      * - custom_fields, document_template, currency
      * - web_url
      * - created_at (string|null): ISO 8601 creation timestamp
+     * - purchase_order_number (string|null): PO number on the subscription
+     * - delivery_information (object|null): Delivery details (name, address, etc.)
      */
     public function info($id, $includes = null): array
     {
         return $this->api->request('POST', $this->getBasePath().'.info', [
             'id' => $id,
         ]);
+    }
+
+    /**
+     * Get the base path for the subscriptions resource
+     */
+    protected function getBasePath(): string
+    {
+        return 'subscriptions';
     }
 
     /**
@@ -244,6 +212,8 @@ PHP,
      * - payment_method: direct_debit
      * - custom_fields (array)
      * - document_template_id (string)
+     * - purchase_order_number (string|null): PO number to include on generated invoices
+     * - delivery_information (object|null): Delivery details passed to generated invoices
      *
      * Returns HTTP 201 with data.{id, type}
      */
@@ -252,124 +222,6 @@ PHP,
         $this->validateSubscriptionData($data, 'create');
 
         return $this->api->request('POST', $this->getBasePath().'.create', $data);
-    }
-
-    /**
-     * Update an existing subscription
-     *
-     * All fields except id are optional. Note:
-     * - starts_on and billing_cycle can only be updated if no invoices have been generated yet
-     *
-     * Updatable fields:
-     * - starts_on (string): YYYY-MM-DD (only if no invoices created yet)
-     * - billing_cycle (object): only if no invoices created yet
-     * - ends_on (string|null): YYYY-MM-DD
-     * - title (string)
-     * - invoicee (object)
-     * - department_id (string)
-     * - payment_term (object|null)
-     * - project_id (string|null)
-     * - deal_id (string|null)
-     * - note (string|null)
-     * - grouped_lines (array)
-     * - invoice_generation (object): action (draft|book|book_and_send)
-     *   - sending_methods: required when action is 'book_and_send'
-     *     - method: email|peppol|postal_service
-     * - payment_method: direct_debit
-     * - custom_fields (array)
-     * - document_template_id (string)
-     *
-     * Returns HTTP 204 (no body)
-     */
-    public function update($id, array $data): array
-    {
-        $data['id'] = $id;
-        $this->validateSubscriptionData($data, 'update');
-
-        return $this->api->request('POST', $this->getBasePath().'.update', $data);
-    }
-
-    /**
-     * Deactivate a subscription
-     */
-    public function deactivate($id): array
-    {
-        return $this->api->request('POST', $this->getBasePath().'.deactivate', [
-            'id' => $id,
-        ]);
-    }
-
-    /**
-     * Get active subscriptions
-     */
-    public function active(array $additionalFilters = [], array $options = []): array
-    {
-        return $this->list(
-            array_merge(['status' => ['active']], $additionalFilters),
-            $options
-        );
-    }
-
-    /**
-     * Get deactivated subscriptions
-     */
-    public function deactivated(array $additionalFilters = [], array $options = []): array
-    {
-        return $this->list(
-            array_merge(['status' => ['deactivated']], $additionalFilters),
-            $options
-        );
-    }
-
-    /**
-     * Get subscriptions for a specific customer
-     */
-    public function forCustomer(string $type, string $id, array $options = []): array
-    {
-        $this->validateCustomerType($type);
-
-        return $this->list([
-            'customer' => [
-                'type' => $type,
-                'id' => $id,
-            ],
-        ], $options);
-    }
-
-    /**
-     * Get subscriptions for a specific department
-     */
-    public function forDepartment(string $departmentId, array $options = []): array
-    {
-        return $this->list(['department_id' => $departmentId], $options);
-    }
-
-    /**
-     * Get subscriptions for a specific deal
-     */
-    public function forDeal(string $dealId, array $options = []): array
-    {
-        return $this->list(['deal_id' => $dealId], $options);
-    }
-
-    /**
-     * Get subscriptions that generated a specific invoice
-     */
-    public function forInvoice(string $invoiceId, array $options = []): array
-    {
-        return $this->list(['invoice_id' => $invoiceId], $options);
-    }
-
-    /**
-     * Get subscriptions by specific IDs
-     */
-    public function byIds(array $ids, array $options = []): array
-    {
-        if (empty($ids)) {
-            throw new InvalidArgumentException('At least one subscription ID is required');
-        }
-
-        return $this->list(['ids' => $ids], $options);
     }
 
     /**
@@ -543,6 +395,100 @@ PHP,
     }
 
     /**
+     * Update an existing subscription
+     *
+     * All fields except id are optional. Note:
+     * - starts_on and billing_cycle can only be updated if no invoices have been generated yet
+     *
+     * Updatable fields:
+     * - starts_on (string): YYYY-MM-DD (only if no invoices created yet)
+     * - billing_cycle (object): only if no invoices created yet
+     * - ends_on (string|null): YYYY-MM-DD
+     * - title (string)
+     * - invoicee (object)
+     * - department_id (string)
+     * - payment_term (object|null)
+     * - project_id (string|null)
+     * - deal_id (string|null)
+     * - note (string|null)
+     * - grouped_lines (array)
+     * - invoice_generation (object): action (draft|book|book_and_send)
+     *   - sending_methods: required when action is 'book_and_send'
+     *     - method: email|peppol|postal_service
+     * - payment_method: direct_debit
+     * - custom_fields (array)
+     * - document_template_id (string)
+     * - purchase_order_number (string|null): PO number to include on generated invoices
+     * - delivery_information (object|null): Delivery details passed to generated invoices
+     *
+     * Returns HTTP 204 (no body)
+     */
+    public function update($id, array $data): array
+    {
+        $data['id'] = $id;
+        $this->validateSubscriptionData($data, 'update');
+
+        return $this->api->request('POST', $this->getBasePath().'.update', $data);
+    }
+
+    /**
+     * Deactivate a subscription
+     */
+    public function deactivate($id): array
+    {
+        return $this->api->request('POST', $this->getBasePath().'.deactivate', [
+            'id' => $id,
+        ]);
+    }
+
+    /**
+     * Get active subscriptions
+     */
+    public function active(array $additionalFilters = [], array $options = []): array
+    {
+        return $this->list(
+            array_merge(['status' => ['active']], $additionalFilters),
+            $options
+        );
+    }
+
+    /**
+     * List subscriptions with filtering, sorting, and pagination
+     *
+     * Response includes per item:
+     * - id, title, note, status, department, invoicee, project
+     * - starts_on, ends_on (nullable), next_renewal_date (nullable)
+     * - billing_cycle, total, taxes, web_url
+     * - created_at (string|null): ISO 8601 creation timestamp
+     * - purchase_order_number (string|null): PO number on the subscription
+     * - delivery_information (object|null): Delivery details (name, address, etc.)
+     */
+    public function list(array $filters = [], array $options = []): array
+    {
+        $params = [];
+
+        // Apply filters
+        if (! empty($filters)) {
+            $params['filter'] = $this->buildFilters($filters);
+        }
+
+        // Apply pagination
+        if (isset($options['page_size']) || isset($options['page_number'])) {
+            $params['page'] = [
+                'size' => $options['page_size'] ?? 20,
+                'number' => $options['page_number'] ?? 1,
+            ];
+        }
+
+        // Apply sorting
+        if (isset($options['sort'])) {
+            $params['sort'] = $this->buildSort($options['sort']);
+        }
+
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
+    }
+
+    /**
      * Build filters for the API request
      */
     protected function buildFilters(array $filters): array
@@ -597,6 +543,68 @@ PHP,
     }
 
     /**
+     * Get deactivated subscriptions
+     */
+    public function deactivated(array $additionalFilters = [], array $options = []): array
+    {
+        return $this->list(
+            array_merge(['status' => ['deactivated']], $additionalFilters),
+            $options
+        );
+    }
+
+    /**
+     * Get subscriptions for a specific customer
+     */
+    public function forCustomer(string $type, string $id, array $options = []): array
+    {
+        $this->validateCustomerType($type);
+
+        return $this->list([
+            'customer' => [
+                'type' => $type,
+                'id' => $id,
+            ],
+        ], $options);
+    }
+
+    /**
+     * Get subscriptions for a specific department
+     */
+    public function forDepartment(string $departmentId, array $options = []): array
+    {
+        return $this->list(['department_id' => $departmentId], $options);
+    }
+
+    /**
+     * Get subscriptions for a specific deal
+     */
+    public function forDeal(string $dealId, array $options = []): array
+    {
+        return $this->list(['deal_id' => $dealId], $options);
+    }
+
+    /**
+     * Get subscriptions that generated a specific invoice
+     */
+    public function forInvoice(string $invoiceId, array $options = []): array
+    {
+        return $this->list(['invoice_id' => $invoiceId], $options);
+    }
+
+    /**
+     * Get subscriptions by specific IDs
+     */
+    public function byIds(array $ids, array $options = []): array
+    {
+        if (empty($ids)) {
+            throw new InvalidArgumentException('At least one subscription ID is required');
+        }
+
+        return $this->list(['ids' => $ids], $options);
+    }
+
+    /**
      * Get response structure documentation
      */
     public function getResponseStructure(): array
@@ -632,6 +640,8 @@ PHP,
                     'data.currency' => 'Currency code',
                     'data.web_url' => 'Web URL to the subscription',
                     'data.created_at' => 'Creation timestamp ISO 8601 (nullable)',
+                    'data.purchase_order_number' => 'PO number on the subscription (nullable)',
+                    'data.delivery_information' => 'Delivery details (nullable)',
                 ],
             ],
             'list' => [
@@ -652,6 +662,8 @@ PHP,
                     'data[].total' => 'Total amounts',
                     'data[].web_url' => 'Web URL to the subscription',
                     'data[].created_at' => 'Creation timestamp ISO 8601 (nullable)',
+                    'data[].purchase_order_number' => 'PO number on the subscription (nullable)',
+                    'data[].delivery_information' => 'Delivery details (nullable)',
                 ],
             ],
             'deactivate' => [
