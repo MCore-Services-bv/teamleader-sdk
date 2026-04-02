@@ -1,25 +1,15 @@
 # Payment Methods
 
-Access payment method information in Teamleader Focus.
+Read payment method definitions in Teamleader Focus.
 
 ## Overview
 
-The Payment Methods resource provides read-only access to payment methods configured in your Teamleader account. Payment methods define how customers can pay invoices and are used when creating invoices and registering payments.
+The Payment Methods resource provides read-only access to the payment methods configured in your account (bank transfer,
+direct debit, credit card, etc.). Methods can be active or archived.
 
-**Important:** This resource is read-only. Payment methods are configured in Teamleader Focus settings and cannot be created or modified through the API.
+Access via `Teamleader::payment_methods()`.
 
-## Navigation
-
-- [Endpoint](#endpoint)
-- [Capabilities](#capabilities)
-- [Available Methods](#available-methods)
-    - [list()](#list)
-- [Helper Methods](#helper-methods)
-- [Response Structure](#response-structure)
-- [Usage Examples](#usage-examples)
-- [Common Use Cases](#common-use-cases)
-- [Best Practices](#best-practices)
-- [Related Resources](#related-resources)
+> **SDK key uses underscores:** `payment_methods` — not camelCase.
 
 ## Endpoint
 
@@ -27,288 +17,139 @@ The Payment Methods resource provides read-only access to payment methods config
 
 ## Capabilities
 
-- **Pagination**: ❌ Not Supported
-- **Filtering**: ❌ Not Supported
-- **Sorting**: ❌ Not Supported
-- **Sideloading**: ❌ Not Supported
-- **Creation**: ❌ Not Supported
-- **Update**: ❌ Not Supported
-- **Deletion**: ❌ Not Supported
+| Capability  | Supported                     |
+|-------------|-------------------------------|
+| Pagination  | ✅ Supported                   |
+| Filtering   | ✅ Supported (`ids`, `status`) |
+| Sorting     | ❌ Not supported               |
+| Sideloading | ❌ Not supported               |
+| Creation    | ❌ Not supported               |
+| Update      | ❌ Not supported               |
+| Deletion    | ❌ Not supported               |
 
-## Available Methods
+---
 
-### `list()`
+## Methods
 
-Get all available payment methods.
+### `list(array $filters = [], array $options = [])`
 
-**Parameters:** None
-
-**Example:**
 ```php
 use McoreServices\TeamleaderSDK\Facades\Teamleader;
 
-// Get all payment methods
-$paymentMethods = Teamleader::paymentMethods()->list();
-```
+$methods = Teamleader::payment_methods()->list();
 
-## Helper Methods
-
-The Payment Methods resource provides convenient helper methods:
-
-### `findByName()`
-
-Find a payment method by its name.
-
-```php
-$method = Teamleader::paymentMethods()->findByName('Bank transfer');
-```
-
-### `findById()`
-
-Find a payment method by its UUID.
-
-```php
-$method = Teamleader::paymentMethods()->findById('payment-method-uuid');
-```
-
-### `getDefault()`
-
-Get the default payment method if one is set.
-
-```php
-$defaultMethod = Teamleader::paymentMethods()->getDefault();
-```
-
-### `asOptions()`
-
-Get payment methods formatted as key-value pairs for use in dropdowns.
-
-```php
-$options = Teamleader::paymentMethods()->asOptions();
-// Returns: ['uuid-1' => 'Bank transfer', 'uuid-2' => 'Cash', ...]
-```
-
-## Response Structure
-
-### List Response
-
-```json
-{
-  "data": [
-    {
-      "id": "uuid",
-      "name": "Bank transfer",
-      "type": "bank_transfer"
-    },
-    {
-      "id": "uuid",
-      "name": "Cash",
-      "type": "cash"
-    },
-    {
-      "id": "uuid",
-      "name": "Credit card",
-      "type": "credit_card"
-    },
-    {
-      "id": "uuid",
-      "name": "Direct debit",
-      "type": "direct_debit"
-    }
-  ],
-  "meta": {
-    "default": "uuid-of-default-method"
-  }
-}
-```
-
-## Usage Examples
-
-### Get Available Payment Methods
-
-```php
-$paymentMethods = Teamleader::paymentMethods()->list();
-
-echo "Available payment methods:\n";
-foreach ($paymentMethods['data'] as $method) {
-    $default = ($method['id'] === $paymentMethods['meta']['default']) ? ' (default)' : '';
-    echo "- {$method['name']}{$default}\n";
-}
-```
-
-### Use in Invoice Creation
-
-```php
-// Get default payment method
-$defaultMethod = Teamleader::paymentMethods()->getDefault();
-
-// Create invoice with payment method
-$invoice = Teamleader::invoices()->create([
-    'invoice_date' => '2024-02-01',
-    'invoicee' => [...],
-    'grouped_lines' => [...],
-    'payment_method_id' => $defaultMethod['id']
-]);
-```
-
-### Register Payment with Specific Method
-
-```php
-// Find payment method by name
-$bankTransfer = Teamleader::paymentMethods()->findByName('Bank transfer');
-
-// Register payment
-Teamleader::invoices()->registerPayment(
-    'invoice-uuid',
-    250.00,
-    '2024-02-10',
-    $bankTransfer['id']
+$methods = Teamleader::payment_methods()->list(
+    ['status' => ['active']],
+    ['page_size' => 50, 'page_number' => 1]
 );
 ```
 
-### Create Dropdown for Payment Methods
+> **Status filter:** must be an array. Values are validated: `active`, `archived`.
+
+---
+
+### `info(string $id)`
 
 ```php
-$options = Teamleader::paymentMethods()->asOptions();
-
-// Use in a form
-echo '<select name="payment_method">';
-foreach ($options as $id => $name) {
-    echo "<option value='{$id}'>{$name}</option>";
-}
-echo '</select>';
+$method = Teamleader::payment_methods()->info('method-uuid');
 ```
 
-## Common Use Cases
+---
 
-### 1. Invoice Form Population
+## Helper Methods
+
+### Status shortcuts
 
 ```php
-// Get payment methods for form
-$paymentMethods = Teamleader::paymentMethods()->list();
-$defaultMethodId = $paymentMethods['meta']['default'] ?? null;
-
-// Pass to view
-return view('invoices.create', [
-    'payment_methods' => $paymentMethods['data'],
-    'default_payment_method' => $defaultMethodId
-]);
+$active   = Teamleader::payment_methods()->active();
+$archived = Teamleader::payment_methods()->archived();
 ```
 
-### 2. Payment Method Validation
+### `byIds(array $ids)`
+
+Throws `InvalidArgumentException` if array is empty.
 
 ```php
-function validatePaymentMethod($methodId) {
-    $methods = Teamleader::paymentMethods()->list();
-    
-    foreach ($methods['data'] as $method) {
-        if ($method['id'] === $methodId) {
-            return true;
-        }
-    }
-    
-    return false;
-}
+$methods = Teamleader::payment_methods()->byIds(['uuid-1', 'uuid-2']);
 ```
 
-### 3. Payment Statistics
+### `findByName(string $name, bool $activeOnly = true)`
+
+**Client-side** — calls `list()` then searches in PHP (case-insensitive). Searches active methods only by default.
 
 ```php
-$paymentMethods = Teamleader::paymentMethods()->list();
-$invoices = Teamleader::invoices()->matched();
-
-$stats = [];
-foreach ($paymentMethods['data'] as $method) {
-    $stats[$method['name']] = [
-        'count' => 0,
-        'total' => 0
-    ];
-}
-
-// Count payments by method
-foreach ($invoices['data'] as $invoice) {
-    if (isset($invoice['payment_method'])) {
-        $methodName = $this->getMethodName($invoice['payment_method']['id']);
-        $stats[$methodName]['count']++;
-        $stats[$methodName]['total'] += $invoice['total']['payable']['amount'];
-    }
-}
+$method = Teamleader::payment_methods()->findByName('Bank Transfer');
+$method = Teamleader::payment_methods()->findByName('Cash', false); // include archived
 ```
 
-### 4. Cache Payment Methods
+### `all(array $filters = [], int $maxPages = 10)`
+
+Paginates up to 10 pages (100 per page). Not guaranteed exhaustive for very large lists.
 
 ```php
-use Illuminate\Support\Facades\Cache;
-
-function getPaymentMethods() {
-    return Cache::remember('payment_methods', 3600, function () {
-        return Teamleader::paymentMethods()->list();
-    });
-}
+$all = Teamleader::payment_methods()->all();
+$all = Teamleader::payment_methods()->all(['status' => ['active']]);
 ```
 
-## Best Practices
+### `asOptions(bool $activeOnly = true)`
 
-### 1. Cache the Results
-
-Payment methods rarely change, so cache them to reduce API calls:
+Returns flat `[id => name]` map. Calls `all()` internally.
 
 ```php
-$paymentMethods = Cache::remember('payment_methods', 86400, function () {
-    return Teamleader::paymentMethods()->list();
-});
+$options = Teamleader::payment_methods()->asOptions();
+// ['uuid-1' => 'Bank Transfer', 'uuid-2' => 'Direct Debit', ...]
+
+$allOptions = Teamleader::payment_methods()->asOptions(false); // include archived
 ```
 
-### 2. Always Have a Fallback
+### `exists(string $id)`
+
+Returns `true` if a method with that UUID exists.
 
 ```php
-$defaultMethod = Teamleader::paymentMethods()->getDefault();
-
-if (!$defaultMethod) {
-    // Fallback to first available method
-    $methods = Teamleader::paymentMethods()->list();
-    $defaultMethod = $methods['data'][0] ?? null;
-}
+$exists = Teamleader::payment_methods()->exists('method-uuid');
 ```
 
-### 3. Use Helper Methods
+---
+
+## Filters
+
+| Filter   | Type  | Description                        |
+|----------|-------|------------------------------------|
+| `ids`    | array | Filter by payment method UUIDs     |
+| `status` | array | `active` or `archived` — validated |
+
+---
+
+## Response Structure
 
 ```php
-// Good: Clear and concise
-$method = Teamleader::paymentMethods()->findByName('Bank transfer');
-
-// Less ideal: Manual searching
-$methods = Teamleader::paymentMethods()->list();
-$method = null;
-foreach ($methods['data'] as $m) {
-    if ($m['name'] === 'Bank transfer') {
-        $method = $m;
-        break;
-    }
-}
+[
+    'data' => [
+        ['id' => 'uuid', 'name' => 'Bank Transfer', 'status' => 'active'],
+        ['id' => 'uuid', 'name' => 'Direct Debit',  'status' => 'active'],
+    ],
+    'meta' => ['page' => ['size' => 20, 'number' => 1], 'matches' => 4],
+]
 ```
 
-### 4. Validate Before Use
+---
+
+## Usage Examples
 
 ```php
-$methodId = $request->input('payment_method_id');
+// Get method for a register payment call
+$method = Teamleader::payment_methods()->findByName('Bank Transfer');
+Teamleader::invoices()->registerPayment('invoice-uuid', ['amount' => 500.0, 'currency' => 'EUR'], now()->toIso8601String(), $method['id']);
 
-// Validate method exists
-$method = Teamleader::paymentMethods()->findById($methodId);
-
-if (!$method) {
-    throw new ValidationException('Invalid payment method');
-}
-
-// Use in invoice
-$invoice = Teamleader::invoices()->create([
-    'payment_method_id' => $methodId,
-    // ... other fields
-]);
+// Cache methods
+$methods = Cache::remember('tl_payment_methods', 3600, fn() => Teamleader::payment_methods()->all());
 ```
+
+---
 
 ## Related Resources
 
-- [Invoices](invoices.md) - Invoice management
-- [Payment Terms](payment-terms.md) - Payment term configuration
-- [Subscriptions](subscriptions.md) - Subscription management
+- [[Invoices]] — Payment methods used in `registerPayment()`
+- [[Payment-Terms]] — Invoice due-date configuration
+- [[Subscriptions]] — Subscription payment configuration

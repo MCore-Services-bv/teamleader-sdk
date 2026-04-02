@@ -1,28 +1,13 @@
 # Deal Sources
 
-Manage deal sources in Teamleader Focus.
+Read deal source definitions in Teamleader Focus.
 
 ## Overview
 
-The Deal Sources resource provides read-only access to deal sources in your Teamleader account. Deal sources help you track where your deals come from (e.g., website, referral, trade show, cold calling), allowing you to analyze which marketing channels are most effective.
+The Deal Sources resource provides read-only access to the sources that can be assigned to deals — Web, Referral, Cold
+Call, and so on. Sources are defined in Teamleader and cannot be created or modified through the API.
 
-**Important:** The Deal Sources resource is read-only. You cannot create, update, or delete deal sources through the API. Deal sources must be managed through the Teamleader interface.
-
-## Navigation
-
-- [Endpoint](#endpoint)
-- [Capabilities](#capabilities)
-- [Available Methods](#available-methods)
-    - [list()](#list)
-- [Helper Methods](#helper-methods)
-- [Filters](#filters)
-- [Sorting](#sorting)
-- [Response Structure](#response-structure)
-- [Usage Examples](#usage-examples)
-- [Common Use Cases](#common-use-cases)
-- [Best Practices](#best-practices)
-- [Error Handling](#error-handling)
-- [Related Resources](#related-resources)
+Access via `Teamleader::dealSources()`.
 
 ## Endpoint
 
@@ -30,466 +15,118 @@ The Deal Sources resource provides read-only access to deal sources in your Team
 
 ## Capabilities
 
-- **Pagination**: ✅ Supported
-- **Filtering**: ✅ Supported (ids only)
-- **Sorting**: ✅ Supported (by name only)
-- **Sideloading**: ❌ Not Supported
-- **Creation**: ❌ Not Supported
-- **Update**: ❌ Not Supported
-- **Deletion**: ❌ Not Supported
+| Capability  | Supported                                          |
+|-------------|----------------------------------------------------|
+| Pagination  | ✅ Supported                                        |
+| Filtering   | ✅ Supported (`ids` only)                           |
+| Sorting     | ✅ Supported (`name` only — always forced to `asc`) |
+| Sideloading | ❌ Not supported                                    |
+| Creation    | ❌ Not supported                                    |
+| Update      | ❌ Not supported                                    |
+| Deletion    | ❌ Not supported                                    |
 
-## Available Methods
+> **Sort behaviour:** Every `list()` call applies `sort: [{field: name, order: asc}]` — even when no sort is requested.
+> Any other sort field or order is silently replaced with `name`/`asc`.
 
-### `list()`
+---
 
-Get all deal sources with optional filtering, sorting, and pagination.
+## Methods
 
-**Parameters:**
-- `filters` (array): Filters to apply
-- `options` (array): Sorting and pagination options
+### `list(array $filters = [], array $options = [])`
 
-**Example:**
 ```php
 use McoreServices\TeamleaderSDK\Facades\Teamleader;
 
-// Get all deal sources
+// All sources — always sorted by name asc
 $sources = Teamleader::dealSources()->list();
 
-// Get specific sources by ID
-$sources = Teamleader::dealSources()->list([
-    'ids' => ['source-uuid-1', 'source-uuid-2']
-]);
+// Specific sources by ID
+$sources = Teamleader::dealSources()->list(['ids' => ['source-uuid-1', 'source-uuid-2']]);
 
 // With pagination
-$sources = Teamleader::dealSources()->list([], [
-    'page_size' => 50,
-    'page_number' => 1
-]);
-
-// Sorted alphabetically
-$sources = Teamleader::dealSources()->list([], [
-    'sort' => [['field' => 'name', 'order' => 'asc']]
-]);
+$sources = Teamleader::dealSources()->list([], ['page_size' => 50, 'page_number' => 1]);
 ```
+
+---
 
 ## Helper Methods
 
-The Deal Sources resource provides convenient helper methods:
-
 ### `all()`
 
-Get all deal sources sorted alphabetically.
+Fetches all sources without pagination constraints. Returns the raw API response.
 
 ```php
 $sources = Teamleader::dealSources()->all();
-```
-
-### `byIds()`
-
-Get specific deal sources by their UUIDs.
-
-```php
-$sources = Teamleader::dealSources()->byIds([
-    'source-uuid-1',
-    'source-uuid-2'
-]);
-```
-
-### `exists()`
-
-Check if a deal source exists by ID.
-
-```php
-$exists = Teamleader::dealSources()->exists('source-uuid');
-// Returns: true or false
-```
-
-### `getName()`
-
-Get the name of a deal source by ID.
-
-```php
-$name = Teamleader::dealSources()->getName('source-uuid');
-// Returns: 'Website' or null if not found
 ```
 
 ### `selectOptions()`
 
-Get deal sources formatted for form dropdowns.
+Returns a flat `[id => name]` map — useful for form dropdowns. Calls `all()` internally.
 
 ```php
 $options = Teamleader::dealSources()->selectOptions();
-// Returns: [
-//     'uuid1' => 'Website',
-//     'uuid2' => 'Referral',
-//     ...
-// ]
+// ['uuid-1' => 'Cold Call', 'uuid-2' => 'Referral', 'uuid-3' => 'Web']
 ```
 
-### `getStatistics()`
+### `search(string $query)`
 
-Get statistics about available deal sources.
+**Client-side filtering** — calls `all()` then filters by name in PHP. Case-insensitive partial match.
 
 ```php
-$stats = Teamleader::dealSources()->getStatistics();
-// Returns: [
-//     'total_sources' => 5,
-//     'sources' => [
-//         ['id' => 'uuid', 'name' => 'Website', 'name_length' => 7],
-//         ...
-//     ]
-// ]
+$sources = Teamleader::dealSources()->search('ref');
+// Matches sources whose name contains 'ref', e.g. 'Referral'
 ```
+
+---
 
 ## Filters
 
-### Available Filters
+| Filter | Type  | Description            |
+|--------|-------|------------------------|
+| `ids`  | array | Filter by source UUIDs |
 
-#### `ids`
-Filter by specific deal source UUIDs.
-
-```php
-$sources = Teamleader::dealSources()->list([
-    'ids' => ['source-uuid-1', 'source-uuid-2']
-]);
-```
-
-## Sorting
-
-Deal sources can only be sorted by name:
-
-```php
-// Sort ascending (A-Z)
-$sources = Teamleader::dealSources()->list([], [
-    'sort' => [['field' => 'name', 'order' => 'asc']]
-]);
-
-// Sort descending (Z-A)
-$sources = Teamleader::dealSources()->list([], [
-    'sort' => [['field' => 'name', 'order' => 'desc']]
-]);
-```
+---
 
 ## Response Structure
 
-### Deal Source Object
-
 ```php
 [
-    'id' => 'source-uuid',
-    'name' => 'Website'
+    'data' => [
+        ['id' => 'source-uuid', 'name' => 'Cold Call'],
+        ['id' => 'source-uuid', 'name' => 'Referral'],
+        ['id' => 'source-uuid', 'name' => 'Web'],
+    ],
+    'meta' => ['page' => ['size' => 20, 'number' => 1], 'matches' => 6],
 ]
 ```
 
-**Note:** Deal sources only contain ID and name. There is no additional metadata.
+---
 
 ## Usage Examples
 
-### Get All Sources
+### Populate a source dropdown
 
 ```php
-$allSources = Teamleader::dealSources()->all();
-
-foreach ($allSources['data'] as $source) {
-    echo "{$source['name']} ({$source['id']})\n";
-}
+$options = Teamleader::dealSources()->selectOptions();
+// Use directly in a select: ['uuid' => 'Source Name', ...]
 ```
 
-### Create Dropdown for Deal Form
+### Find a source by name
 
 ```php
-function getDealSourceDropdown()
-{
-    $sources = Teamleader::dealSources()->selectOptions();
-    
-    return view('deals.create', [
-        'sources' => $sources
-    ]);
-}
-
-// In Blade template:
-// <select name="source_id">
-//     @foreach($sources as $uuid => $name)
-//         <option value="{{ $uuid }}">{{ $name }}</option>
-//     @endforeach
-// </select>
+$matches = Teamleader::dealSources()->search('referral');
+$source  = $matches['data'][0] ?? null;
 ```
 
-### Validate Source Before Creating Deal
+### Cache sources
 
 ```php
-function createDealWithValidation($data)
-{
-    // Validate source exists
-    if (!Teamleader::dealSources()->exists($data['source_id'])) {
-        throw new \InvalidArgumentException('Invalid deal source');
-    }
-    
-    return Teamleader::deals()->create($data);
-}
-```
-
-### Get Source Name for Display
-
-```php
-$deal = Teamleader::deals()->info('deal-uuid');
-
-$sourceName = Teamleader::dealSources()->getName($deal['data']['source']['id']);
-
-echo "Deal source: {$sourceName}";
-```
-
-## Common Use Cases
-
-### 1. Source Attribution Report
-
-```php
-function generateSourceAttributionReport($startDate, $endDate)
-{
-    $sources = Teamleader::dealSources()->all();
-    $report = [];
-    
-    foreach ($sources['data'] as $source) {
-        // Get won deals for this source
-        $wonDeals = Teamleader::deals()->won([
-            'source_id' => $source['id'],
-            'estimated_closing_date_from' => $startDate,
-            'estimated_closing_date_to' => $endDate
-        ]);
-        
-        $totalValue = array_reduce($wonDeals['data'], function($carry, $deal) {
-            return $carry + $deal['estimated_value']['amount'];
-        }, 0);
-        
-        $report[] = [
-            'source' => $source['name'],
-            'deals_won' => count($wonDeals['data']),
-            'total_value' => $totalValue,
-            'average_deal_size' => count($wonDeals['data']) > 0 
-                ? $totalValue / count($wonDeals['data']) 
-                : 0
-        ];
-    }
-    
-    // Sort by total value
-    usort($report, function($a, $b) {
-        return $b['total_value'] - $a['total_value'];
-    });
-    
-    return $report;
-}
-```
-
-### 2. Cache Sources for Performance
-
-```php
-use Illuminate\Support\Facades\Cache;
-
-class DealSourceService
-{
-    public function getCachedSources()
-    {
-        return Cache::remember('deal_sources', 3600, function() {
-            return Teamleader::dealSources()->all();
-        });
-    }
-    
-    public function getSourceName($sourceId)
-    {
-        $sources = $this->getCachedSources();
-        
-        foreach ($sources['data'] as $source) {
-            if ($source['id'] === $sourceId) {
-                return $source['name'];
-            }
-        }
-        
-        return 'Unknown';
-    }
-}
-```
-
-### 3. Source Performance Comparison
-
-```php
-function compareSourcePerformance()
-{
-    $sources = Teamleader::dealSources()->all();
-    $comparison = [];
-    
-    foreach ($sources['data'] as $source) {
-        $openDeals = Teamleader::deals()->open([
-            'source_id' => $source['id']
-        ]);
-        
-        $wonDeals = Teamleader::deals()->won([
-            'source_id' => $source['id']
-        ]);
-        
-        $lostDeals = Teamleader::deals()->lost([
-            'source_id' => $source['id']
-        ]);
-        
-        $totalClosed = count($wonDeals['data']) + count($lostDeals['data']);
-        
-        $comparison[] = [
-            'source' => $source['name'],
-            'open' => count($openDeals['data']),
-            'won' => count($wonDeals['data']),
-            'lost' => count($lostDeals['data']),
-            'win_rate' => $totalClosed > 0 
-                ? (count($wonDeals['data']) / $totalClosed) * 100 
-                : 0
-        ];
-    }
-    
-    return $comparison;
-}
-```
-
-### 4. Marketing ROI Calculator
-
-```php
-function calculateMarketingROI($sourceId, $marketingCost)
-{
-    $sourceName = Teamleader::dealSources()->getName($sourceId);
-    
-    $wonDeals = Teamleader::deals()->won([
-        'source_id' => $sourceId
-    ]);
-    
-    $totalRevenue = array_reduce($wonDeals['data'], function($carry, $deal) {
-        return $carry + $deal['estimated_value']['amount'];
-    }, 0);
-    
-    $roi = $marketingCost > 0 
-        ? (($totalRevenue - $marketingCost) / $marketingCost) * 100 
-        : 0;
-    
-    return [
-        'source' => $sourceName,
-        'marketing_cost' => $marketingCost,
-        'total_revenue' => $totalRevenue,
-        'deal_count' => count($wonDeals['data']),
-        'roi_percentage' => $roi,
-        'cost_per_deal' => count($wonDeals['data']) > 0 
-            ? $marketingCost / count($wonDeals['data']) 
-            : 0
-    ];
-}
-```
-
-### 5. Source Trend Analysis
-
-```php
-function analyzeSourceTrends($months = 6)
-{
-    $sources = Teamleader::dealSources()->all();
-    $trends = [];
-    
-    foreach ($sources['data'] as $source) {
-        $monthlyData = [];
-        
-        for ($i = $months - 1; $i >= 0; $i--) {
-            $startDate = date('Y-m-01', strtotime("-{$i} months"));
-            $endDate = date('Y-m-t', strtotime("-{$i} months"));
-            
-            $wonDeals = Teamleader::deals()->won([
-                'source_id' => $source['id'],
-                'estimated_closing_date_from' => $startDate,
-                'estimated_closing_date_to' => $endDate
-            ]);
-            
-            $monthlyData[] = [
-                'month' => date('Y-m', strtotime($startDate)),
-                'deals' => count($wonDeals['data'])
-            ];
-        }
-        
-        $trends[] = [
-            'source' => $source['name'],
-            'monthly_data' => $monthlyData,
-            'average_per_month' => array_sum(array_column($monthlyData, 'deals')) / $months
-        ];
-    }
-    
-    return $trends;
-}
-```
-
-## Best Practices
-
-### 1. Cache Deal Sources
-
-Since sources don't change frequently, caching them improves performance:
-
-```php
-// Good: Cache for 1 hour
-$sources = Cache::remember('deal_sources', 3600, function() {
+$sources = Cache::remember('tl_deal_sources', 3600, function () {
     return Teamleader::dealSources()->all();
 });
-
-// Bad: Fetch on every request
-$sources = Teamleader::dealSources()->all();
 ```
 
-### 2. Use Helper Methods for Validation
-
-```php
-// Good: Use exists() method
-if (Teamleader::dealSources()->exists($sourceId)) {
-    // Proceed with deal creation
-}
-
-// Less efficient: Fetch all and check
-$sources = Teamleader::dealSources()->list();
-$exists = in_array($sourceId, array_column($sources['data'], 'id'));
-```
-
-### 3. Create Dropdown Options Efficiently
-
-```php
-// Good: Use selectOptions() helper
-$options = Teamleader::dealSources()->selectOptions();
-
-// Less efficient: Manual transformation
-$sources = Teamleader::dealSources()->list();
-$options = array_map(function($source) {
-    return ['value' => $source['id'], 'label' => $source['name']];
-}, $sources['data']);
-```
-
-### 4. Handle Missing Sources Gracefully
-
-```php
-// Good: Provide fallback
-$sourceName = Teamleader::dealSources()->getName($sourceId) ?? 'Unknown Source';
-
-// Bad: No fallback
-$sourceName = Teamleader::dealSources()->getName($sourceId);
-// Could be null
-```
-
-### 5. Track Source Effectiveness
-
-```php
-// Good: Regular analysis
-function scheduleSourceAnalysis()
-{
-    // Run weekly to identify best-performing sources
-    $report = generateSourceAttributionReport(
-        date('Y-m-d', strtotime('-7 days')),
-        date('Y-m-d')
-    );
-    
-    // Store for historical comparison
-    DB::table('source_performance_history')->insert([
-        'week' => date('Y-W'),
-        'report' => json_encode($report),
-        'created_at' => now()
-    ]);
-}
-```
+---
 
 ## Error Handling
 
@@ -499,41 +136,13 @@ use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
 try {
     $sources = Teamleader::dealSources()->list();
 } catch (TeamleaderException $e) {
-    Log::error('Error fetching deal sources', [
-        'error' => $e->getMessage(),
-        'code' => $e->getCode()
-    ]);
-    
-    // Provide fallback
-    return ['data' => []];
+    Log::error('Teamleader error', ['message' => $e->getMessage()]);
 }
 ```
 
-## Limitations
-
-1. **Read-Only**: You cannot create, update, or delete deal sources via the API
-2. **Limited Filtering**: Can only filter by IDs, not by name or other criteria
-3. **No Individual Info**: No dedicated `info()` method; use `list()` with ID filter
-4. **Name Only**: Deal sources only have name field, no description or additional metadata
-5. **No Usage Statistics**: The API doesn't return how many deals use each source
-
-```php
-// Cannot do this:
-// Teamleader::dealSources()->create(['name' => 'LinkedIn']); // ❌ Not supported
-// Teamleader::dealSources()->update('uuid', ['name' => 'New Name']); // ❌ Not supported
-// Teamleader::dealSources()->delete('uuid'); // ❌ Not supported
-
-// Can only do this:
-Teamleader::dealSources()->list(); // ✅ Supported
-Teamleader::dealSources()->list(['ids' => ['uuid']]); // ✅ Supported
-```
+---
 
 ## Related Resources
 
-- [Deals](deals.md) - Deals have sources
-- [Lost Reasons](lost_reasons.md) - Another tracking dimension for deals
-
-## See Also
-
-- [Usage Guide](../usage.md) - General SDK usage
-- [Filtering](../filtering.md) - Advanced filtering techniques
+- [[Deals]] — Sources are assigned to deals via `source_id`
+- [[Filtering]] — General filter reference

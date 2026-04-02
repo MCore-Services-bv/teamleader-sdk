@@ -1,29 +1,25 @@
 # User Availability
 
-Retrieve daily and total availability information for users and teams in Teamleader Focus.
+Retrieve availability data for users and teams in Teamleader Focus.
 
 ## Overview
 
-The User Availability resource provides read-only access to availability data. It exposes two endpoints:
+User Availability exposes two read-only endpoints: a daily breakdown and an aggregated total. Both return the same four
+capacity metrics per user — all in minutes — so you can understand how much unplanned time exists before
+creating [[Reservations]].
 
-- **`daily()`** — returns a per-date availability breakdown for each user, useful for scheduling and capacity planning within short windows (up to 100 days).
-- **`total()`** — returns a single aggregated availability figure per user across the full period, useful for reporting and longer-term planning (up to 20,000 days).
+Access via `Teamleader::userAvailability()`.
 
-Both endpoints return the same four availability metrics per user: gross time, net time, planned time, and unplanned time — all in minutes.
-
-## Navigation
-
-- [Endpoint](#endpoint)
-- [Capabilities](#capabilities)
-- [Available Methods](#available-methods)
-    - [daily()](#daily)
-    - [total()](#total)
-- [Convenience Methods](#convenience-methods)
-- [Availability Metrics Explained](#availability-metrics-explained)
-- [Response Structure](#response-structure)
-- [Usage Examples](#usage-examples)
-- [Error Handling](#error-handling)
-- [Related Resources](#related-resources)
+> **`list()` throws `BadMethodCallException`** — use `daily()` or `total()` instead.
+>
+> **`daily()` max period: 100 days.** `total()` max period: 20,000 days.
+>
+> **All params go into a single `$params` array** — including `period`, optional `filter`, and optional `page`. This
+> differs from the `(filters, options)` pattern used by most resources.
+>
+> **The optional assignee filter nests inside `filter.assignees`**, not at the top level.
+>
+> **All duration values are returned in minutes.**
 
 ## Endpoint
 
@@ -31,280 +27,199 @@ Both endpoints return the same four availability metrics per user: gross time, n
 
 ## Capabilities
 
-- **Pagination**: ✅ Supported
-- **Filtering**: ✅ Supported (by assignees)
-- **Sorting**: ❌ Not Supported
-- **Sideloading**: ❌ Not Supported
-- **Creation**: ❌ Not Supported
-- **Update**: ❌ Not Supported
-- **Deletion**: ❌ Not Supported
+| Capability  | Supported                               |
+|-------------|-----------------------------------------|
+| Pagination  | ✅ Supported (inside `page` key)         |
+| Filtering   | ✅ Supported (inside `filter.assignees`) |
+| Sorting     | ❌ Not supported                         |
+| Sideloading | ❌ Not supported                         |
+| Creation    | ❌ Not supported                         |
+| Update      | ❌ Not supported                         |
+| Deletion    | ❌ Not supported                         |
 
 ---
 
-## Available Methods
+## Methods
 
-### `daily()`
+### `daily(array $params)`
 
-Returns daily availability for all users (or filtered assignees) broken down by date.
+Returns a per-date availability breakdown for each user. Maximum period: **100 days**.
 
-**Maximum period: 100 days.**
+**Parameter structure:**
 
-**Parameters:**
-- `params` (array, required):
-    - `period` (array, required):
-        - `start_date` (string, required): Start date in `YYYY-MM-DD` format
-        - `end_date` (string, required): End date in `YYYY-MM-DD` format
-    - `filter` (array, optional):
-        - `assignees` (array, optional): Array of assignee objects
-            - `type` (string, required): `user` or `team`
-            - `id` (string, required): UUID of the user or team
-    - `page` (array, optional):
-        - `size` (int): Results per page (default: 20)
-        - `number` (int): Page number (default: 1)
+```
+$params = [
+    'period' => [                       // required
+        'start_date' => 'YYYY-MM-DD',   // required
+        'end_date'   => 'YYYY-MM-DD',   // required
+    ],
+    'filter' => [                       // optional
+        'assignees' => [                // optional
+            ['type' => 'user|team', 'id' => 'uuid'],
+        ],
+    ],
+    'page' => [                         // optional
+        'size'   => 20,
+        'number' => 1,
+    ],
+]
+```
 
-**Example:**
 ```php
 use McoreServices\TeamleaderSDK\Facades\Teamleader;
 
 // All users, one week
 $availability = Teamleader::userAvailability()->daily([
-    'period' => [
-        'start_date' => '2024-01-01',
-        'end_date'   => '2024-01-07',
-    ],
+    'period' => ['start_date' => '2025-05-12', 'end_date' => '2025-05-16'],
 ]);
 
 // Specific user
 $availability = Teamleader::userAvailability()->daily([
-    'period' => [
-        'start_date' => '2024-01-01',
-        'end_date'   => '2024-01-07',
-    ],
-    'filter' => [
-        'assignees' => [
-            ['type' => 'user', 'id' => '66abace2-62af-0836-a927-fe3f44b9b47b'],
-        ],
-    ],
+    'period' => ['start_date' => '2025-05-12', 'end_date' => '2025-05-16'],
+    'filter' => ['assignees' => [['type' => 'user', 'id' => 'user-uuid']]],
+]);
+
+// Specific team, with pagination
+$availability = Teamleader::userAvailability()->daily([
+    'period' => ['start_date' => '2025-05-01', 'end_date' => '2025-05-31'],
+    'filter' => ['assignees' => [['type' => 'team', 'id' => 'team-uuid']]],
+    'page'   => ['size' => 50, 'number' => 1],
 ]);
 ```
 
 ---
 
-### `total()`
+### `total(array $params)`
 
-Returns total (aggregated) availability per user across the full period.
+Returns a single aggregated availability figure per user across the full period. Maximum period: **20,000 days**.
 
-**Maximum period: 20,000 days.**
+Same parameter structure as `daily()`.
 
-**Parameters:** Same structure as `daily()`.
-
-**Example:**
 ```php
 // All users, full year
 $availability = Teamleader::userAvailability()->total([
-    'period' => [
-        'start_date' => '2024-01-01',
-        'end_date'   => '2024-12-31',
-    ],
+    'period' => ['start_date' => '2025-01-01', 'end_date' => '2025-12-31'],
 ]);
 
-// Filter by team
+// Specific team, multi-year
 $availability = Teamleader::userAvailability()->total([
-    'period' => [
-        'start_date' => '2024-01-01',
-        'end_date'   => '2024-12-31',
-    ],
-    'filter' => [
-        'assignees' => [
-            ['type' => 'team', 'id' => 'team-uuid'],
-        ],
-    ],
+    'period' => ['start_date' => '2025-01-01', 'end_date' => '2026-12-31'],
+    'filter' => ['assignees' => [['type' => 'team', 'id' => 'team-uuid']]],
 ]);
 ```
 
 ---
 
-## Convenience Methods
+## Helper Methods
 
-### `dailyForUser()`
+All convenience methods call `daily()` or `total()` internally and build the filter for you.
 
-```php
-$availability = Teamleader::userAvailability()->dailyForUser(
-    'user-uuid',
-    '2024-01-01',
-    '2024-01-07'
-);
-```
-
-### `totalForUser()`
+| Method                                                     | Calls                      |
+|------------------------------------------------------------|----------------------------|
+| `dailyForUser(string $userId, string $start, string $end)` | `daily()` filtered by user |
+| `totalForUser(string $userId, string $start, string $end)` | `total()` filtered by user |
+| `dailyForTeam(string $teamId, string $start, string $end)` | `daily()` filtered by team |
+| `totalForTeam(string $teamId, string $start, string $end)` | `total()` filtered by team |
 
 ```php
-$availability = Teamleader::userAvailability()->totalForUser(
-    'user-uuid',
-    '2024-01-01',
-    '2024-12-31'
-);
-```
-
-### `dailyForTeam()`
-
-```php
-$availability = Teamleader::userAvailability()->dailyForTeam(
-    'team-uuid',
-    '2024-01-01',
-    '2024-01-07'
-);
-```
-
-### `totalForTeam()`
-
-```php
-$availability = Teamleader::userAvailability()->totalForTeam(
-    'team-uuid',
-    '2024-01-01',
-    '2024-12-31'
-);
+$daily = Teamleader::userAvailability()->dailyForUser('user-uuid', '2025-05-12', '2025-05-16');
+$total = Teamleader::userAvailability()->totalForUser('user-uuid', '2025-01-01', '2025-12-31');
+$daily = Teamleader::userAvailability()->dailyForTeam('team-uuid', '2025-05-12', '2025-05-16');
+$total = Teamleader::userAvailability()->totalForTeam('team-uuid', '2025-01-01', '2025-12-31');
 ```
 
 ---
 
-## Availability Metrics Explained
+## Availability Metrics
 
-Each availability object contains four time values, all in **minutes**:
+All four values are returned in **minutes**:
 
-| Field | Description |
-|-------|-------------|
-| `gross_time_available` | Total working time based on the user's working hours schedule |
-| `net_time_available` | Gross time minus approved days off |
-| `planned_time` | Time already reserved via planning reservations |
-| `unplanned_time` | Net time minus planned time — the remaining available capacity |
+| Field                  | Description                                                         |
+|------------------------|---------------------------------------------------------------------|
+| `gross_time_available` | Total working time based on the user's configured schedule          |
+| `net_time_available`   | Gross time minus approved days off                                  |
+| `planned_time`         | Time already consumed by reservations                               |
+| `unplanned_time`       | `net_time_available` minus `planned_time` — remaining free capacity |
 
 ---
 
 ## Response Structure
 
-### `daily()` Response
+### `daily()` — per-date breakdown
 
-```json
-{
-    "data": [
-        {
-            "user": {
-                "id": "eab232c6-49b2-4b7e-a977-5e1148dad471",
-                "type": "user"
-            },
-            "availabilities": [
-                {
-                    "date": "2024-01-01",
-                    "availability": {
-                        "gross_time_available": { "unit": "minutes", "value": 480 },
-                        "net_time_available":   { "unit": "minutes", "value": 480 },
-                        "planned_time":         { "unit": "minutes", "value": 120 },
-                        "unplanned_time":       { "unit": "minutes", "value": 360 }
-                    }
-                },
-                {
-                    "date": "2024-01-02",
-                    "availability": {
-                        "gross_time_available": { "unit": "minutes", "value": 480 },
-                        "net_time_available":   { "unit": "minutes", "value": 0 },
-                        "planned_time":         { "unit": "minutes", "value": 0 },
-                        "unplanned_time":       { "unit": "minutes", "value": 0 }
-                    }
-                }
-            ]
-        }
-    ]
-}
+```php
+[
+    'data' => [
+        [
+            'user'           => ['type' => 'user', 'id' => 'user-uuid'],
+            'availabilities' => [
+                [
+                    'date'         => '2025-05-12',
+                    'availability' => [
+                        'gross_time_available' => ['unit' => 'minutes', 'value' => 480],
+                        'net_time_available'   => ['unit' => 'minutes', 'value' => 480],
+                        'planned_time'         => ['unit' => 'minutes', 'value' => 120],
+                        'unplanned_time'       => ['unit' => 'minutes', 'value' => 360],
+                    ],
+                ],
+                // one entry per date in the period
+            ],
+        ],
+        // one entry per user
+    ],
+]
 ```
 
-### `total()` Response
+### `total()` — aggregated per user
 
-```json
-{
-    "data": [
-        {
-            "user": {
-                "id": "eab232c6-49b2-4b7e-a977-5e1148dad471",
-                "type": "user"
-            },
-            "availability": {
-                "gross_time_available": { "unit": "minutes", "value": 10080 },
-                "net_time_available":   { "unit": "minutes", "value": 9600 },
-                "planned_time":         { "unit": "minutes", "value": 2400 },
-                "unplanned_time":       { "unit": "minutes", "value": 7200 }
-            }
-        }
-    ]
-}
+```php
+[
+    'data' => [
+        [
+            'user'         => ['type' => 'user', 'id' => 'user-uuid'],
+            'availability' => [  // note: singular — not an array
+                'gross_time_available' => ['unit' => 'minutes', 'value' => 105600],
+                'net_time_available'   => ['unit' => 'minutes', 'value' => 99840],
+                'planned_time'         => ['unit' => 'minutes', 'value' => 24000],
+                'unplanned_time'       => ['unit' => 'minutes', 'value' => 75840],
+            ],
+        ],
+    ],
+]
 ```
+
+> In `daily()` the availability data is inside `availabilities[]` (plural array per date). In `total()` it is directly
+> on `availability` (singular object per user).
 
 ---
 
 ## Usage Examples
 
-### Check remaining capacity before creating a reservation
+### Find free capacity before reserving
 
 ```php
 $availability = Teamleader::userAvailability()->dailyForUser(
-    $userId,
-    $targetDate,
-    $targetDate
+    'user-uuid', '2025-05-12', '2025-05-16'
 );
 
-$day = $availability['data'][0]['availabilities'][0] ?? null;
-
-if ($day && $day['availability']['unplanned_time']['value'] >= 60) {
-    // Enough capacity — create the reservation
-    Teamleader::reservations()->create([
-        'plannable_item_id' => $itemId,
-        'date'              => $targetDate,
-        'duration'          => ['value' => 60, 'unit' => 'minutes'],
-        'assignee'          => ['type' => 'user', 'id' => $userId],
-    ]);
+foreach ($availability['data'][0]['availabilities'] as $day) {
+    $free = $day['availability']['unplanned_time']['value'];
+    echo "{$day['date']}: {$free} minutes free\n";
 }
 ```
 
-### Build a weekly capacity overview for a team
-
-```php
-$weekly = Teamleader::userAvailability()->daily([
-    'period' => [
-        'start_date' => now()->startOfWeek()->format('Y-m-d'),
-        'end_date'   => now()->endOfWeek()->format('Y-m-d'),
-    ],
-    'filter' => [
-        'assignees' => [
-            ['type' => 'team', 'id' => 'team-uuid'],
-        ],
-    ],
-]);
-
-foreach ($weekly['data'] as $userRow) {
-    $userId = $userRow['user']['id'];
-    foreach ($userRow['availabilities'] as $day) {
-        echo "{$userId} on {$day['date']}: "
-            . $day['availability']['unplanned_time']['value']
-            . " minutes available\n";
-    }
-}
-```
-
-### Get full-year utilisation per user
+### Calculate utilisation for the year
 
 ```php
 $yearly = Teamleader::userAvailability()->total([
-    'period' => [
-        'start_date' => '2024-01-01',
-        'end_date'   => '2024-12-31',
-    ],
+    'period' => ['start_date' => '2025-01-01', 'end_date' => '2025-12-31'],
 ]);
 
-foreach ($yearly['data'] as $userRow) {
-    $net     = $userRow['availability']['net_time_available']['value'];
-    $planned = $userRow['availability']['planned_time']['value'];
+foreach ($yearly['data'] as $row) {
+    $net     = $row['availability']['net_time_available']['value'];
+    $planned = $row['availability']['planned_time']['value'];
     $pct     = $net > 0 ? round(($planned / $net) * 100) : 0;
-    echo "User {$userRow['user']['id']}: {$pct}% utilisation\n";
+    echo "User {$row['user']['id']}: {$pct}% utilised\n";
 }
 ```
 
@@ -313,20 +228,23 @@ foreach ($yearly['data'] as $userRow) {
 ## Error Handling
 
 ```php
-use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
+use BadMethodCallException;
+use InvalidArgumentException;
 
+// list() not supported
 try {
-    $availability = Teamleader::userAvailability()->daily([
-        'period' => [
-            'start_date' => '2024-01-01',
-            'end_date'   => '2024-06-30', // > 100 days — will throw
-        ],
+    Teamleader::userAvailability()->list();
+} catch (BadMethodCallException $e) {
+    // 'UserAvailability does not support list(). Use daily() or total() instead.'
+}
+
+// Period too long for daily()
+try {
+    Teamleader::userAvailability()->daily([
+        'period' => ['start_date' => '2025-01-01', 'end_date' => '2026-12-31'], // > 100 days
     ]);
 } catch (InvalidArgumentException $e) {
-    // Period too long, invalid dates, or bad assignee structure
-    Log::error('Validation error: '.$e->getMessage());
-} catch (TeamleaderException $e) {
-    Log::error('API error: '.$e->getMessage());
+    // period validation error
 }
 ```
 
@@ -334,7 +252,5 @@ try {
 
 ## Related Resources
 
-- **[Reservations](reservations.md)** — Create reservations once you know availability
-- **[Plannable Items](plannable-items.md)** — Items that can be planned
-- **[Users](../general/users.md)** — User reference data
-- **[Days Off](../general/days-off.md)** — Affects net_time_available
+- [[Reservations]] — Create reservations using the capacity identified here
+- [[Plannable-Items]] — Items that consume the planned capacity

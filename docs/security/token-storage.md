@@ -1,189 +1,258 @@
-# Token Storage Security
+# Token Storage & Security
 
-## Overview
+How the SDK stores, refreshes, and protects OAuth tokens — and how to harden that storage for production.
 
-The Teamleader SDK stores OAuth tokens in two layers:
-1. **Cache Layer** - For fast access and token refresh coordination
-2. **Database Layer** - For persistent storage
+---
 
-## Security Considerations
+## How Token Storage Works
 
-### Development Environment
+The SDK uses a **two-layer storage strategy**:
 
-In development, the default Laravel cache driver is often `file` or `array`:
+| Layer | Driver | Purpose |
+|---|---|---|
+| **Cache** | Laravel Cache (configurable) | Fast reads on every API request |
+| **Database** | `teamleader_tokens` table | Persistent source of truth across restarts |
 
-```env
-CACHE_DRIVER=file  # Not secure for production!
+Every read checks cache first and falls back to the database. Every write goes to the database first, then the cache. This means the database is always authoritative — a cache miss is recoverable; a database miss requires re-authentication.
+
+### The `teamleader_tokens` Table
+
+The table is **created automatically** on the first successful OAuth callback. No `php artisan migrate` is needed.
+
+```
+teamleader_tokens
+├── id              bigint (PK)
+├── access_token    text
+├── refresh_token   text (nullable)
+├── token_type      varchar(50)  default 'Bearer'
+├── expires_in      integer
+├── expires_at      timestamp    ← indexed
+├── created_at      timestamp
+└── updated_at      timestamp    ← indexed
 ```
 
-**Risks:**
-- File cache stores tokens in plain text in `storage/framework/cache`
-- Array cache loses tokens on application restart
-- File permissions may expose tokens
+> **Only one row is ever kept.** On each token refresh the existing row is updated in-place. There is no token history.
 
-**Recommendations for Development:**
-- Use `file` cache with proper permissions (770)
-- Ensure `storage/` is excluded from version control
-- Never commit `.env` with real credentials
+### Cache Keys
 
-### Production Environment
+| Key | Content | TTL |
+|---|---|---|
+| `teamleader_access_token` | Access token string | `expires_in − 120 s` (min 60 s) |
+| `teamleader_access_token_expires_at` | Expiry timestamp | Same as above |
+| `teamleader_refresh_token` | Refresh token string | 7 days |
+| `teamleader_refresh_lock` | Distributed lock flag | 60 s |
 
-**CRITICAL: Never use file or array cache in production!**
+---
+
+## Token Refresh Lifecycle
+
+Tokens are refreshed automatically when they have **less than 15 minutes** remaining.
+
+```
+getValidAccessToken()
+    │
+    ├── read cache
+    │       └── miss? read database → re-cache
+    │
+    ├── token expires within 15 min?
+    │       └── yes → acquire distributed lock (Redis)
+    │               ├── another worker already refreshing? → wait, then read DB
+    │               └── this worker wins the lock
+    │                       ├── read refresh_token from DB
+    │                       ├── POST /oauth2/access_token
+    │                       ├── write new tokens to DB first
+    │                       ├── write to cache
+    │                       └── release lock
+    │
+    └── return access_token
+```
+
+### Distributed Lock
+
+The refresh lock (`teamleader_refresh_lock`) is set via `Cache::add()` — an atomic operation that only succeeds for the first caller. This prevents multiple Laravel Horizon workers from refreshing simultaneously and racing to write conflicting tokens.
+
+**This requires a shared cache driver (Redis or database).** File cache is per-process and will not coordinate across workers.
+
+### Invalid Refresh Token
+
+If the OAuth server returns HTTP 400 or 401 during a refresh, the SDK assumes the refresh token has been revoked. It calls `clearTokens()` immediately — wiping both cache and database — and returns `null`. The next API call will fail with an unauthenticated error, prompting re-authorisation.
+
+---
+
+## Default Security Posture
+
+By default, tokens are stored **as plain text** in both the cache and the database. This is fine for development but requires hardening for production.
+
+| Storage | Default | Recommendation |
+|---|---|---|
+| Cache | Plain text in configured driver | Use Redis with TLS/SSL |
+| Database | Plain text `text` columns | Add Laravel encrypted casts |
+| Cache driver | Often `file` in dev | Must be `redis` or `database` in production |
+
+---
+
+## Production Hardening
+
+### 1. Use Redis for Cache
+
+File cache is per-process and stores tokens in plain text on disk. Redis is required for multi-worker deployments and strongly recommended for all production use.
 
 ```env
-# ✅ RECOMMENDED: Use encrypted cache drivers
 CACHE_DRIVER=redis
-
-# Or use database with encryption
-CACHE_DRIVER=database
-```
-
-### Recommended Production Setup
-
-#### 1. Use Redis with TLS
-
-```env
-REDIS_CLIENT=predis
 REDIS_HOST=your-redis-host
 REDIS_PASSWORD=your-redis-password
 REDIS_PORT=6379
-REDIS_DB=0
-REDIS_SCHEME=tls  # Enable TLS encryption
+REDIS_SCHEME=tls
 ```
 
 ```php
-// config/database.php
-'redis' => [
-    'client' => env('REDIS_CLIENT', 'predis'),
-    'options' => [
-        'cluster' => env('REDIS_CLUSTER', 'redis'),
-        'prefix' => env('REDIS_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_').'_database_'),
-    ],
-    'default' => [
-        'url' => env('REDIS_URL'),
-        'host' => env('REDIS_HOST', '127.0.0.1'),
-        'username' => env('REDIS_USERNAME'),
-        'password' => env('REDIS_PASSWORD'),
-        'port' => env('REDIS_PORT', '6379'),
-        'database' => env('REDIS_DB', '0'),
-        'scheme' => env('REDIS_SCHEME', 'tcp'), // Use 'tls' in production
-    ],
+// config/database.php — enable TLS for the Redis connection
+'default' => [
+    'host'     => env('REDIS_HOST', '127.0.0.1'),
+    'password' => env('REDIS_PASSWORD'),
+    'port'     => env('REDIS_PORT', '6379'),
+    'scheme'   => env('REDIS_SCHEME', 'tcp'),  // set to 'tls' in production
+    'database' => env('REDIS_DB', '0'),
 ],
 ```
 
-#### 2. Enable Laravel Encryption for Database
+### 2. Encrypt Tokens at Rest in the Database
+
+Add encrypted casts to a model wrapping the `teamleader_tokens` table, or apply encryption in the `TokenService` directly. Laravel's `encrypted` cast uses your `APP_KEY`:
 
 ```php
-// In your Token model or migration
+// If you wrap the table in a model:
 protected $casts = [
-    'access_token' => 'encrypted',
+    'access_token'  => 'encrypted',
     'refresh_token' => 'encrypted',
 ];
 ```
 
-#### 3. Secure Application Key
+### 3. Rotate Your `APP_KEY`
+
+Laravel uses `APP_KEY` for encryption. If this key is ever exposed, rotate it immediately:
 
 ```bash
-# Generate secure application key
 php artisan key:generate
-
-# In production, never use the default key!
-APP_KEY=base64:GENERATED_KEY_HERE
 ```
 
-#### 4. Restrict Database Access
+After rotating, any tokens encrypted with the old key become unreadable — `clearTokens()` and re-authorise.
 
-```env
-# Use read-only database user for application
-DB_USERNAME=app_readonly
-DB_PASSWORD=secure_password
+### 4. Restrict Database Access
 
-# Separate user with write access for migrations only
-```
+Use a principle-of-least-privilege database user for the application. The SDK only reads and updates a single row — it does not need DDL privileges in production (the table is created on first run).
 
-### Security Checklist
+---
 
-**Before Production Deployment:**
+## Production Security Checklist
 
-- [ ] Change `CACHE_DRIVER` from `file`/`array` to `redis` or `database`
-- [ ] Enable Redis TLS/SSL if using Redis
-- [ ] Verify `storage/` directory has correct permissions (770)
-- [ ] Ensure `.env` is not in version control
-- [ ] Use encrypted casts for token storage in database
-- [ ] Rotate application key if it was exposed
-- [ ] Enable database encryption at rest
-- [ ] Use secure Redis password (20+ characters)
-- [ ] Implement network-level security (firewall rules)
-- [ ] Enable audit logging for token access
+- [ ] `CACHE_DRIVER` is `redis` (not `file` or `array`)
+- [ ] Redis is password-protected with TLS enabled
+- [ ] `APP_KEY` is unique, strong, and not committed to version control
+- [ ] `.env` is excluded from version control (`.gitignore`)
+- [ ] `storage/` directory permissions are `770` (not world-readable)
+- [ ] Encrypted casts applied to `access_token` and `refresh_token`
+- [ ] Database encryption-at-rest is enabled
+- [ ] Application database user has no DDL privileges in production
+- [ ] Token-refresh log events are monitored for anomalies
 
-### Token Rotation
+---
 
-The SDK automatically refreshes access tokens. For additional security:
+## Diagnostic Tools
+
+### Check Token Status
 
 ```php
-// Force token refresh
+use McoreServices\TeamleaderSDK\Services\TokenService;
+
 $tokenService = app(TokenService::class);
-$tokenService->clearTokens(); // Force re-authentication
 
-// Or implement periodic rotation
-// In App\Console\Kernel.php
-protected function schedule(Schedule $schedule)
-{
-    // Rotate tokens every 30 days
-    $schedule->call(function () {
-        // Custom token rotation logic
-    })->monthly();
-}
+// Summary of all storage locations
+$info = $tokenService->getTokenInfo();
+// Returns:
+// [
+//   'has_access_token'    => true,
+//   'has_refresh_token'   => true,
+//   'expires_at'          => '2025-05-12 14:30:00',
+//   'expires_in'          => 847,          // seconds remaining
+//   'needs_refresh'       => false,
+//   'token_source'        => 'cache',      // 'cache' | 'database' | 'none'
+//   'cache_has_tokens'    => true,
+//   'database_has_tokens' => true,
+//   'storage_sync'        => [...],
+// ]
+
+// Simple boolean check (with 5-minute buffer)
+$valid = $tokenService->hasValidTokens();
 ```
 
-### Monitoring
+### Artisan Commands
 
-Log token access for security auditing:
+```bash
+# Show token status and expiry
+php artisan teamleader:token
+
+# Force a token refresh
+php artisan teamleader:token --refresh
+
+# Revoke and clear all tokens (forces re-authentication)
+php artisan teamleader:token --revoke
+```
+
+### Force Sync Cache from Database
+
+If you suspect the cache is stale (e.g. after a cache flush):
 
 ```php
-// config/teamleader.php
-'logging' => [
-    'log_token_refresh' => true,  // Log when tokens are refreshed
-],
+$tokenService->syncTokensToCache();
 ```
 
-Monitor for suspicious activity:
-- Frequent token refreshes (possible attack)
-- Token refresh from unexpected IPs
-- Failed authentication attempts
+### Clear All Tokens
 
-### What to Do If Tokens Are Compromised
+```php
+$tokenService->clearTokens();
+// Clears: cache keys + all rows in teamleader_tokens
+```
 
-1. **Immediately revoke access** in Teamleader:
-    - Go to Teamleader Marketplace
-    - Disconnect your integration
+---
 
-2. **Clear all tokens**:
+## If Tokens Are Compromised
+
+**Step 1 — Revoke access in Teamleader immediately**
+
+Go to Teamleader Focus → Marketplace → your integration → Disconnect.
+
+**Step 2 — Clear all stored tokens**
+
 ```bash
 php artisan tinker
->>> app(TokenService::class)->clearTokens();
->>> Cache::flush();
+>>> app(\McoreServices\TeamleaderSDK\Services\TokenService::class)->clearTokens();
+>>> exit
+php artisan cache:clear
 ```
 
-3. **Rotate application key**:
+**Step 3 — Rotate your application key (if DB encryption is in use)**
+
 ```bash
 php artisan key:generate
 ```
 
-4. **Re-authenticate**:
+**Step 4 — Re-authorise**
+
+Direct your application through the OAuth flow again:
+
 ```php
-// Force users to re-authenticate
-Route::get('/reconnect', function() {
-    return Teamleader::authorize();
-});
+// In a controller or artisan command:
+return Teamleader::authorize();
 ```
 
-5. **Review logs** for unauthorized access
+**Step 5 — Review access logs** for any API calls made with the compromised token.
 
-6. **Update passwords** and secrets
+---
 
-## Additional Resources
+## Related
 
-- [Laravel Encryption](https://laravel.com/docs/encryption)
-- [Redis Security](https://redis.io/topics/security)
-- [OWASP Security Guidelines](https://owasp.org/)
+- [[Home]] — SDK overview and all resource links
+- [Teamleader Developers](https://developer.focus.teamleader.eu/docs/introduction) — manage OAuth app credentials
+- [Laravel Encryption](https://laravel.com/docs/encryption) — `APP_KEY` and encrypted casts
+- [Redis Security](https://redis.io/docs/management/security/) — TLS, passwords, ACLs

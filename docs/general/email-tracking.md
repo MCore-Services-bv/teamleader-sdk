@@ -1,26 +1,14 @@
 # Email Tracking
 
-Manage email tracking in Teamleader Focus.
+List and create email tracking records in Teamleader Focus.
 
 ## Overview
 
-The Email Tracking resource allows you to track emails sent to various entities in Teamleader (contacts, companies, deals, etc.). This helps maintain a complete communication history with your customers and prospects.
+The Email Tracking resource lets you log outbound emails against Teamleader entities, maintaining a complete
+communication history alongside deals, contacts, companies, and other records. Records can be listed per subject and
+created with optional file attachments.
 
-## Navigation
-
-- [Endpoint](#endpoint)
-- [Capabilities](#capabilities)
-- [Available Methods](#available-methods)
-    - [list()](#list)
-    - [create()](#create)
-- [Helper Methods](#helper-methods)
-- [Available Subject Types](#available-subject-types)
-- [Response Structure](#response-structure)
-- [Usage Examples](#usage-examples)
-- [Common Use Cases](#common-use-cases)
-- [Best Practices](#best-practices)
-- [Error Handling](#error-handling)
-- [Related Resources](#related-resources)
+`update()` and `delete()` are not supported — there are no API endpoints for them.
 
 ## Endpoint
 
@@ -28,568 +16,311 @@ The Email Tracking resource allows you to track emails sent to various entities 
 
 ## Capabilities
 
-- **Pagination**: ✅ Supported
-- **Filtering**: ✅ Supported (by subject)
-- **Sorting**: ❌ Not Supported
-- **Sideloading**: ❌ Not Supported
-- **Creation**: ✅ Supported
-- **Update**: ❌ Not Supported
-- **Deletion**: ❌ Not Supported
+| Capability  | Supported                    |
+|-------------|------------------------------|
+| Pagination  | ✅ Supported                  |
+| Filtering   | ✅ Supported (subject filter) |
+| Sorting     | ❌ Not supported              |
+| Sideloading | ❌ Not supported              |
+| Creation    | ✅ Supported                  |
+| Update      | ❌ Not supported              |
+| Deletion    | ❌ Not supported              |
 
-## Available Methods
+> **API filter requirement:** `list()` always sends a `filter` object in the request body, even when no filters are
+> provided. When called without filters it sends an empty object — this is required by the Teamleader API.
 
-### `list()`
+---
 
-Get email tracking records for a specific subject.
+## Methods
 
-**Parameters:**
-- `filters` (array): Must include subject filter
-    - `subject.id` (string): UUID of the subject entity
-    - `subject.type` (string): Type of subject entity
-- `options` (array): Pagination options
+### `list(array $filters = [], array $options = [])`
 
-**Example:**
+Returns email tracking records for a subject. Accepts the subject filter in two formats — nested object or flat
+underscore keys.
+
 ```php
 use McoreServices\TeamleaderSDK\Facades\Teamleader;
 
-// Get emails for a contact
+// Nested object form (recommended)
 $emails = Teamleader::emailTracking()->list([
-    'subject.id' => 'contact-uuid',
-    'subject.type' => 'contact'
+    'subject' => [
+        'type' => 'contact',
+        'id'   => 'contact-uuid',
+    ],
+]);
+
+// Flat underscore form (also accepted)
+$emails = Teamleader::emailTracking()->list([
+    'subject_type' => 'company',
+    'subject_id'   => 'company-uuid',
 ]);
 
 // With pagination
 $emails = Teamleader::emailTracking()->list(
-    [
-        'subject.id' => 'company-uuid',
-        'subject.type' => 'company'
-    ],
-    [
-        'page_size' => 50,
-        'page_number' => 1
-    ]
+    ['subject' => ['type' => 'deal', 'id' => 'deal-uuid']],
+    ['page_size' => 50, 'page_number' => 1]
 );
+
+// Without filters — returns all accessible records
+$emails = Teamleader::emailTracking()->list();
 ```
 
-### `create()`
+---
 
-Create an email tracking record.
+### `create(array $data)`
 
-**Parameters:**
-- `data` (array): Email data
-    - `subject` (array, required): Subject entity
-        - `type` (string): Subject type
-        - `id` (string): Subject UUID
-    - `title` (string, required): Email subject line
-    - `content` (string, required): Email body content
-    - `attachments` (array, optional): Array of file UUIDs
+Creates an email tracking record. Validates all fields before sending the request. Subject ID and attachment IDs are
+format-validated as UUIDs.
 
-**Example:**
+**Required fields:**
+
+| Field          | Type   | Description                                        |
+|----------------|--------|----------------------------------------------------|
+| `subject`      | array  | Object with `type` and `id`                        |
+| `subject.type` | string | Subject type — see [Subject Types](#subject-types) |
+| `subject.id`   | string | Subject UUID — validated as UUID format            |
+| `title`        | string | Email subject line                                 |
+| `content`      | string | Email body                                         |
+
+**Optional fields:**
+
+| Field         | Type  | Description                                         |
+|---------------|-------|-----------------------------------------------------|
+| `attachments` | array | Array of file UUIDs — each validated as UUID format |
+
 ```php
-// Create email tracking for a contact
+// Basic record
 $email = Teamleader::emailTracking()->create([
-    'subject' => [
-        'type' => 'contact',
-        'id' => 'contact-uuid'
-    ],
-    'title' => 'Follow-up on meeting',
-    'content' => 'Thank you for meeting with us today...'
+    'subject' => ['type' => 'contact', 'id' => 'contact-uuid'],
+    'title'   => 'Follow-up on our meeting',
+    'content' => 'Hi Sarah, great to meet you today...',
 ]);
 
 // With attachments
 $email = Teamleader::emailTracking()->create([
-    'subject' => [
-        'type' => 'deal',
-        'id' => 'deal-uuid'
-    ],
-    'title' => 'Proposal document',
-    'content' => 'Please find attached our proposal...',
-    'attachments' => ['file-uuid-1', 'file-uuid-2']
+    'subject'     => ['type' => 'deal', 'id' => 'deal-uuid'],
+    'title'       => 'Proposal attached',
+    'content'     => 'Please find our proposal document below.',
+    'attachments' => ['file-uuid-1', 'file-uuid-2'],
 ]);
 ```
 
+---
+
 ## Helper Methods
 
-### Subject-Specific List Methods
+### Read helpers
+
+`forSubject()` is the generic list helper. Note that it does **not** validate the subject type — an invalid type will
+reach the API and return an error there rather than being caught locally.
 
 ```php
-// Get emails for a contact
+// Generic — any valid subject type
 $emails = Teamleader::emailTracking()->forSubject('contact', 'contact-uuid');
 
-// Get emails for a company
-$emails = Teamleader::emailTracking()->forCompany('company-uuid');
-
-// Get emails for a deal
-$emails = Teamleader::emailTracking()->forDeal('deal-uuid');
-
-// Get emails for an invoice
-$emails = Teamleader::emailTracking()->forInvoice('invoice-uuid');
+// With pagination
+$emails = Teamleader::emailTracking()->forSubject('deal', 'deal-uuid', [
+    'page_size'   => 50,
+    'page_number' => 1,
+]);
 ```
 
-### Subject-Specific Create Methods
+### Create helpers
+
+Subject type is validated before the request for all create helpers.
+
+| Method                                                                                  | Subject type |
+|-----------------------------------------------------------------------------------------|--------------|
+| `createForContact(string $id, string $title, string $content, array $attachments = [])` | `contact`    |
+| `createForCompany(string $id, string $title, string $content, array $attachments = [])` | `company`    |
+| `createForDeal(string $id, string $title, string $content, array $attachments = [])`    | `deal`       |
 
 ```php
-// Create email for a contact
-$email = Teamleader::emailTracking()->createForContact(
+Teamleader::emailTracking()->createForContact(
     'contact-uuid',
-    'Email Subject',
-    'Email content...'
+    'Introductory email',
+    'Hi, thanks for connecting...'
 );
 
-// Create email for a company
-$email = Teamleader::emailTracking()->createForCompany(
-    'company-uuid',
-    'Email Subject',
-    'Email content...'
-);
-
-// Create email for a deal
-$email = Teamleader::emailTracking()->createForDeal(
+Teamleader::emailTracking()->createForDeal(
     'deal-uuid',
-    'Email Subject',
-    'Email content...'
+    'Revised proposal',
+    'Please find the updated figures attached.',
+    ['file-uuid']
 );
 ```
 
-## Available Subject Types
-
-Email tracking can be attached to the following resource types:
-
-- `contact` - Contact records
-- `company` - Company records
-- `deal` - Deal/opportunity records
-- `invoice` - Invoice records
-- `creditNote` - Credit note records
-- `subscription` - Subscription records
-- `product` - Product records
-- `quotation` - Quotation records
-- `nextgenProject` - Project records
-
-Get the list programmatically:
+### Introspection
 
 ```php
 $types = Teamleader::emailTracking()->getAvailableSubjectTypes();
 ```
 
+---
+
+## Subject Types
+
+| Type             | Description  |
+|------------------|--------------|
+| `contact`        | Contact      |
+| `company`        | Company      |
+| `deal`           | Deal         |
+| `invoice`        | Invoice      |
+| `creditNote`     | Credit note  |
+| `subscription`   | Subscription |
+| `product`        | Product      |
+| `quotation`      | Quotation    |
+| `nextgenProject` | Project (v2) |
+
+Subject type is validated on `create()` calls. An `InvalidArgumentException` is thrown for any value not in this list.
+
+> **`forSubject()` does not validate the type** — only creation methods do. Pass an invalid type to `forSubject()` and
+> the error will come from the API, not the SDK.
+
+---
+
 ## Response Structure
 
-### Email Tracking Object
+### `list()` response
 
 ```php
 [
-    'id' => 'email-tracking-uuid',
-    'subject' => [
-        'type' => 'contact',
-        'id' => 'contact-uuid'
-    ],
-    'title' => 'Follow-up email',
-    'content' => 'Email body content...',
-    'sent_at' => '2024-01-15T10:30:00+00:00',
-    'attachments' => [
+    'data' => [
         [
-            'type' => 'file',
-            'id' => 'file-uuid'
-        ]
-    ]
+            'id'         => 'email-tracking-uuid',
+            'subject'    => ['type' => 'contact', 'id' => 'contact-uuid'],
+            'title'      => 'Follow-up on our meeting',
+            'content'    => 'Hi Sarah, great to meet you today...',
+            'created_at' => '2025-03-10T09:15:00+00:00',
+        ],
+    ],
+    'meta' => [
+        'page'    => ['size' => 20, 'number' => 1],
+        'matches' => 6,
+    ],
 ]
 ```
 
-## Usage Examples
-
-### Track Sent Email
+### `create()` response
 
 ```php
-use McoreServices\TeamleaderSDK\Facades\Teamleader;
+[
+    'data' => [
+        'type' => 'emailTracking',
+        'id'   => 'email-tracking-uuid',
+    ],
+]
+```
 
-// After sending an email, track it in Teamleader
-$email = Teamleader::emailTracking()->createForContact(
-    $contactId,
-    $emailSubject,
+---
+
+## Usage Examples
+
+### Log an outbound email after sending
+
+```php
+// Send via your mail service, then log in Teamleader
+Mail::to($recipient)->send(new ProposalMail($deal));
+
+Teamleader::emailTracking()->createForDeal(
+    $deal->teamleader_id,
+    'Proposal: ' . $deal->name,
     $emailBody
 );
 ```
 
-### Get Email History for Contact
+### Log with an uploaded attachment
 
 ```php
-use McoreServices\TeamleaderSDK\Facades\Teamleader;
+// Upload the file first via the Files resource
+$upload = Teamleader::files()->upload('proposal.pdf', 'deal', 'deal-uuid');
+// PUT file to $upload['data']['location'] ...
 
-$contactId = 'contact-uuid';
-$emailHistory = Teamleader::emailTracking()->forContact($contactId);
-
-foreach ($emailHistory['data'] as $email) {
-    echo "[{$email['sent_at']}] {$email['title']}\n";
-}
+// Then create the tracking record with the file UUID
+Teamleader::emailTracking()->createForDeal(
+    'deal-uuid',
+    'Proposal attached',
+    'Please find our proposal below.',
+    [$fileId]
+);
 ```
 
-### Track Email with Attachments
+### Paginate through all email history for a company
 
 ```php
-use McoreServices\TeamleaderSDK\Facades\Teamleader;
-
-// Upload file first (using Files resource)
-$file = Teamleader::files()->upload($filePath);
-
-// Track email with attachment
-$email = Teamleader::emailTracking()->create([
-    'subject' => [
-        'type' => 'deal',
-        'id' => 'deal-uuid'
-    ],
-    'title' => 'Contract documents',
-    'content' => 'Please review the attached contract.',
-    'attachments' => [$file['data']['id']]
-]);
-```
-
-### Paginate Through Email History
-
-```php
-use McoreServices\TeamleaderSDK\Facades\Teamleader;
-
-$subjectId = 'company-uuid';
-$allEmails = [];
+$all  = [];
 $page = 1;
 
 do {
-    $response = Teamleader::emailTracking()->list(
-        [
-            'subject.id' => $subjectId,
-            'subject.type' => 'company'
-        ],
-        [
-            'page_size' => 100,
-            'page_number' => $page
-        ]
-    );
-    
-    $allEmails = array_merge($allEmails, $response['data']);
-    $hasMore = count($response['data']) === 100;
+    $response = Teamleader::emailTracking()->forSubject('company', 'company-uuid', [
+        'page_size'   => 100,
+        'page_number' => $page,
+    ]);
+
+    $all  = array_merge($all, $response['data']);
     $page++;
-    
-} while ($hasMore);
+} while (count($response['data']) === 100);
 ```
 
-## Common Use Cases
-
-### Email Activity Logger
+### Build a communication timeline
 
 ```php
-use McoreServices\TeamleaderSDK\Facades\Teamleader;
+$emails = Teamleader::emailTracking()->forSubject('deal', 'deal-uuid');
+$notes  = Teamleader::notes()->forDeal('deal-uuid');
 
-class EmailActivityLogger
-{
-    public function logSentEmail($subjectType, $subjectId, $emailData)
-    {
-        return Teamleader::emailTracking()->create([
-            'subject' => [
-                'type' => $subjectType,
-                'id' => $subjectId
-            ],
-            'title' => $emailData['subject'],
-            'content' => $emailData['body']
-        ]);
-    }
-    
-    public function getActivityLog($subjectType, $subjectId)
-    {
-        return Teamleader::emailTracking()->forSubject($subjectType, $subjectId);
-    }
-}
+$timeline = array_merge($emails['data'], $notes['data']);
+
+usort($timeline, fn($a, $b) => strcmp($a['created_at'], $b['created_at']));
 ```
 
-### CRM Integration
-
-```php
-use McoreServices\TeamleaderSDK\Facades\Teamleader;
-
-class CRMEmailIntegration
-{
-    public function syncEmailToTeamleader($email, $recipientType, $recipientId)
-    {
-        // Extract email data
-        $subject = $email->getSubject();
-        $body = $email->getBody();
-        
-        // Track in Teamleader
-        return Teamleader::emailTracking()->create([
-            'subject' => [
-                'type' => $recipientType,
-                'id' => $recipientId
-            ],
-            'title' => $subject,
-            'content' => $body
-        ]);
-    }
-}
-```
-
-### Communication Timeline
-
-```php
-use McoreServices\TeamleaderSDK\Facades\Teamleader;
-
-class CommunicationTimeline
-{
-    public function getTimeline($entityType, $entityId)
-    {
-        // Get email history
-        $emails = Teamleader::emailTracking()->forSubject($entityType, $entityId);
-        
-        // Get notes
-        $notes = Teamleader::notes()->forSubject($entityType, $entityId);
-        
-        // Combine and sort by date
-        $timeline = array_merge(
-            $this->formatEmails($emails['data']),
-            $this->formatNotes($notes['data'])
-        );
-        
-        usort($timeline, function($a, $b) {
-            return strtotime($b['date']) - strtotime($a['date']);
-        });
-        
-        return $timeline;
-    }
-    
-    private function formatEmails($emails)
-    {
-        return array_map(function($email) {
-            return [
-                'type' => 'email',
-                'date' => $email['sent_at'],
-                'title' => $email['title'],
-                'content' => $email['content']
-            ];
-        }, $emails);
-    }
-    
-    private function formatNotes($notes)
-    {
-        return array_map(function($note) {
-            return [
-                'type' => 'note',
-                'date' => $note['created_at'],
-                'title' => 'Note',
-                'content' => $note['content']
-            ];
-        }, $notes);
-    }
-}
-```
-
-### Email Campaign Tracking
-
-```php
-use McoreServices\TeamleaderSDK\Facades\Teamleader;
-
-class EmailCampaignTracker
-{
-    public function trackCampaignEmail($campaignName, $recipients, $subject, $body)
-    {
-        $results = [];
-        
-        foreach ($recipients as $recipient) {
-            try {
-                $email = Teamleader::emailTracking()->create([
-                    'subject' => [
-                        'type' => $recipient['type'],
-                        'id' => $recipient['id']
-                    ],
-                    'title' => "[{$campaignName}] {$subject}",
-                    'content' => $body
-                ]);
-                
-                $results[] = [
-                    'success' => true,
-                    'recipient' => $recipient['id'],
-                    'email_id' => $email['data']['id']
-                ];
-            } catch (\Exception $e) {
-                $results[] = [
-                    'success' => false,
-                    'recipient' => $recipient['id'],
-                    'error' => $e->getMessage()
-                ];
-            }
-        }
-        
-        return $results;
-    }
-}
-```
-
-### Automated Follow-up Tracker
-
-```php
-use McoreServices\TeamleaderSDK\Facades\Teamleader;
-
-class FollowUpTracker
-{
-    public function trackFollowUp($dealId, $followUpNumber, $emailSubject, $emailBody)
-    {
-        return Teamleader::emailTracking()->createForDeal(
-            $dealId,
-            "Follow-up #{$followUpNumber}: {$emailSubject}",
-            $emailBody
-        );
-    }
-    
-    public function getFollowUpCount($dealId)
-    {
-        $emails = Teamleader::emailTracking()->forDeal($dealId);
-        
-        $followUps = array_filter($emails['data'], function($email) {
-            return stripos($email['title'], 'follow-up') !== false;
-        });
-        
-        return count($followUps);
-    }
-}
-```
-
-## Best Practices
-
-### 1. Always Specify Subject
-
-```php
-// Good: Clear subject specified
-$email = Teamleader::emailTracking()->create([
-    'subject' => ['type' => 'contact', 'id' => $contactId],
-    'title' => 'Meeting follow-up',
-    'content' => $body
-]);
-
-// Bad: Missing subject
-$email = Teamleader::emailTracking()->create([
-    'title' => 'Meeting follow-up',
-    'content' => $body
-]);
-```
-
-### 2. Use Descriptive Titles
-
-```php
-// Good: Descriptive title
-'title' => 'Follow-up: Q1 Budget Discussion - Action Items'
-
-// Bad: Vague title
-'title' => 'Follow-up'
-```
-
-### 3. Track All Customer Communications
-
-```php
-// Good: Track all outbound emails
-class EmailService
-{
-    public function sendEmail($to, $subject, $body)
-    {
-        // Send email via mail service
-        $this->mailService->send($to, $subject, $body);
-        
-        // Track in Teamleader
-        $recipient = $this->findRecipientInTeamleader($to);
-        if ($recipient) {
-            Teamleader::emailTracking()->create([
-                'subject' => [
-                    'type' => $recipient['type'],
-                    'id' => $recipient['id']
-                ],
-                'title' => $subject,
-                'content' => $body
-            ]);
-        }
-    }
-}
-```
-
-### 4. Include Relevant Context
-
-```php
-// Good: Full context in content
-$content = "Hi {$name},\n\n";
-$content .= "Following up on our meeting yesterday...\n\n";
-$content .= "Action items:\n";
-$content .= "- Item 1\n- Item 2\n\n";
-$content .= "Best regards";
-
-// Bad: Minimal context
-$content = "Follow up";
-```
-
-### 5. Handle Attachments Properly
-
-```php
-// Good: Upload files first, then reference
-$attachmentIds = [];
-foreach ($files as $file) {
-    $uploaded = Teamleader::files()->upload($file);
-    $attachmentIds[] = $uploaded['data']['id'];
-}
-
-$email = Teamleader::emailTracking()->create([
-    'subject' => ['type' => 'deal', 'id' => $dealId],
-    'title' => $subject,
-    'content' => $body,
-    'attachments' => $attachmentIds
-]);
-```
+---
 
 ## Error Handling
 
 ```php
+use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
 
+// Invalid subject type — thrown before the request on create
 try {
-    $email = Teamleader::emailTracking()->createForContact(
-        $contactId,
-        $subject,
-        $body
-    );
+    Teamleader::emailTracking()->create([
+        'subject' => ['type' => 'meeting', 'id' => 'uuid'], // invalid
+        'title'   => 'Subject',
+        'content' => 'Body',
+    ]);
+} catch (InvalidArgumentException $e) {
+    // "Invalid subject type 'meeting'. Must be one of: contact, company, ..."
+    Log::error($e->getMessage());
+}
+
+// Invalid UUID format — thrown before the request
+try {
+    Teamleader::emailTracking()->create([
+        'subject'     => ['type' => 'contact', 'id' => 'not-a-uuid'],
+        'title'       => 'Subject',
+        'content'     => 'Body',
+        'attachments' => ['also-not-a-uuid'],
+    ]);
+} catch (InvalidArgumentException $e) {
+    // 'Subject ID must be a valid UUID' or 'All attachment IDs must be valid UUIDs'
+    Log::error($e->getMessage());
+}
+
+// API-level errors
+try {
+    $emails = Teamleader::emailTracking()->forSubject('contact', 'contact-uuid');
 } catch (TeamleaderException $e) {
-    if ($e->getCode() === 422) {
-        // Validation error
-        Log::error('Invalid email tracking data', [
-            'contact_id' => $contactId,
-            'error' => $e->getMessage()
-        ]);
-    } else {
-        Log::error('Failed to create email tracking', [
-            'error' => $e->getMessage()
-        ]);
-    }
+    Log::error('Teamleader error', ['message' => $e->getMessage()]);
 }
 ```
 
-## Subject Type Validation
-
-Always validate subject types before creating email tracking:
-
-```php
-$validTypes = Teamleader::emailTracking()->getAvailableSubjectTypes();
-
-if (!in_array($subjectType, $validTypes)) {
-    throw new \InvalidArgumentException("Invalid subject type: {$subjectType}");
-}
-```
-
-## Limitations
-
-1. **No Update**: Email tracking records cannot be updated after creation
-2. **No Delete**: Email tracking records cannot be deleted
-3. **Subject Required**: All emails must be linked to a subject entity
-4. **No Individual Info**: Cannot fetch a single email by ID without knowing its subject
+---
 
 ## Related Resources
 
-- [Contacts](../crm/contacts.md) - Track emails sent to contacts
-- [Companies](../crm/companies.md) - Track emails sent to companies
-- [Deals](../deals/deals.md) - Track emails sent to deals
-- [Notes](notes.md) - Related communication tracking
-- [Files](../files/files.md) - Upload files for email attachments
-
-## See Also
-
-- [Usage Guide](../usage.md) - General SDK usage
-- [Filtering](../filtering.md) - Advanced filtering techniques
+- [[Notes]] — Text notes on entities (similar pattern, different data)
+- [[Files]] — Upload attachments before referencing them here
+- [[Companies]] — Email tracking can be attached to companies
+- [[Contacts]] — Email tracking can be attached to contacts
+- [[Deals]] — Email tracking can be attached to deals
+- [[Filtering]] — Filter and pagination reference

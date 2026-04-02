@@ -1,35 +1,18 @@
 # Incoming Invoices
 
-Manage incoming invoices (purchase invoices) in Teamleader Focus.
+Manage incoming (purchase) invoices from suppliers in Teamleader Focus.
 
 ## Overview
 
-The Incoming Invoices resource allows you to manage purchase invoices from your suppliers in Teamleader. These invoices represent expenses that your company needs to pay and can be sent to your bookkeeping system for processing.
+The Incoming Invoices resource manages purchase invoices you receive from suppliers. These move through a review workflow (pending → approved/refused) before being sent to bookkeeping.
 
-## Navigation
+Access via `Teamleader::incomingInvoices()`.
 
-- [Endpoint](#endpoint)
-- [Capabilities](#capabilities)
-- [Available Methods](#available-methods)
-    - [info()](#info)
-    - [create() / add()](#create--add)
-    - [update()](#update)
-    - [delete()](#delete)
-    - [approve()](#approve)
-    - [refuse()](#refuse)
-    - [markAsPendingReview()](#markaspendingreview)
-    - [sendToBookkeeping()](#sendtobookkeeping)
-    - [listPayments()](#listpayments)
-    - [registerPayment()](#registerpayment)
-    - [removePayment()](#removepayment)
-    - [updatePayment()](#updatepayment)
-- [Valid Values](#valid-values)
-- [Response Structure](#response-structure)
-- [Usage Examples](#usage-examples)
-- [Common Use Cases](#common-use-cases)
-- [Best Practices](#best-practices)
-- [Error Handling](#error-handling)
-- [Related Resources](#related-resources)
+> **`list()` throws** `InvalidArgumentException`. Use the `Expenses` resource to list and filter expense documents.
+>
+> **`create()` posts to `incomingInvoices.add`** — not `.create`. `create()` is an alias for `add()`.
+>
+> **Payment statuses include `partially_paid`** — unique to this resource vs incoming credit notes and receipts.
 
 ## Endpoint
 
@@ -37,606 +20,242 @@ The Incoming Invoices resource allows you to manage purchase invoices from your 
 
 ## Capabilities
 
-- **Pagination**: ❌ Not Supported (use Expenses for listing)
-- **Filtering**: ❌ Not Supported (use Expenses for filtering)
-- **Sorting**: ❌ Not Supported
-- **Sideloading**: ❌ Not Supported
-- **Creation**: ✅ Supported
-- **Update**: ✅ Supported
-- **Deletion**: ✅ Supported
-- **Payment Management**: ✅ Supported
+| Capability | Supported |
+|---|---|
+| Pagination | ❌ Not supported — use `Expenses` resource |
+| Filtering | ❌ Not supported — use `Expenses` resource |
+| Sorting | ❌ Not supported |
+| Sideloading | ❌ Not supported |
+| Creation | ✅ Supported |
+| Update | ✅ Supported |
+| Deletion | ✅ Supported |
+| Payment management | ✅ Supported |
 
-## Available Methods
+---
 
-### `info()`
+## Methods
 
-Get detailed information about a specific incoming invoice.
+### `info(string $id)`
 
-**Parameters:**
-- `id` (string): The incoming invoice UUID
+Throws if `$id` is empty. Returns full invoice detail including `payment_status` and `iban_number`.
 
-**Example:**
 ```php
 use McoreServices\TeamleaderSDK\Facades\Teamleader;
 
 $invoice = Teamleader::incomingInvoices()->info('invoice-uuid');
+
+$paymentStatus = $invoice['data']['payment_status']; // unknown | paid | partially_paid | not_paid
+$ibanNumber    = $invoice['data']['iban_number'];     // nullable
+$reviewStatus  = $invoice['data']['review_status'];   // pending | approved | refused
 ```
 
-### `create()` / `add()`
+---
 
-Create a new incoming invoice.
+### `add(array $data)` / `create(array $data)`
 
-**Required fields:**
-- `title` (string): Invoice title/description
-- `currency.code` (string): Currency code (e.g., EUR, USD, GBP)
-- `total` (object): Invoice total with either:
-    - `tax_exclusive.amount` (decimal): Amount excluding tax, OR
-    - `tax_inclusive.amount` (decimal): Amount including tax
+Creates a new incoming invoice. Posts to `incomingInvoices.add`. `create()` is an alias.
 
-**Optional fields:**
-- `supplier_id` (string): Supplier company UUID
-- `document_number` (string): Invoice reference number
-- `invoice_date` (string): Invoice date (YYYY-MM-DD)
-- `due_date` (string): Payment due date (YYYY-MM-DD)
-- `payment_reference` (string): Payment reference/structured communication
-- `iban_number` (string): IBAN number for payment
-- `company_entity_id` (string): Company entity UUID (defaults to primary entity)
-- `file_id` (string): Attached file UUID
+**Required fields (validated before the request):**
 
-**Example:**
+| Field | Notes |
+|---|---|
+| `title` | Invoice title |
+| `currency.code` | Valid currency code |
+| `total` | Must include at least `tax_exclusive` or `tax_inclusive` |
+
 ```php
-// Basic invoice
-$invoice = Teamleader::incomingInvoices()->create([
-    'title' => 'Monthly Services',
-    'currency' => [
-        'code' => 'EUR'
+$invoice = Teamleader::incomingInvoices()->add([
+    'title'           => 'Software licences Q2',
+    'supplier_id'     => 'company-uuid',     // optional
+    'document_number' => 'INV-2025-042',     // optional
+    'invoice_date'    => '2025-04-01',        // optional
+    'due_date'        => '2025-05-01',        // optional
+    'currency'        => ['code' => 'EUR'],
+    'total'           => [
+        'tax_exclusive' => ['amount' => 1000.0],
+        'tax_inclusive' => ['amount' => 1210.0],
     ],
-    'total' => [
-        'tax_exclusive' => [
-            'amount' => 1000.00
-        ]
-    ]
+    'payment_reference' => 'REF-123',         // optional
+    'file_id'           => 'file-uuid',       // optional
 ]);
 
-// Complete invoice
-$invoice = Teamleader::incomingInvoices()->add([
-    'title' => 'Office Supplies',
-    'supplier_id' => 'company-uuid',
-    'document_number' => 'INV-2024/001',
-    'invoice_date' => '2024-01-15',
-    'due_date' => '2024-02-15',
-    'payment_reference' => '+++123/4567/89012+++',
-    'iban_number' => 'BE68539007547034',
-    'currency' => [
-        'code' => 'EUR'
-    ],
-    'total' => [
-        'tax_exclusive' => [
-            'amount' => 2500.00
-        ]
-    ]
-]);
+$id = $invoice['data']['id'];
 ```
 
-### `update()`
+---
 
-Update an existing incoming invoice.
+### `update(string $id, array $data)`
 
-**Parameters:**
-- `id` (string): Invoice UUID
-- `data` (array): Fields to update (same optional fields as create)
+Merges `['id' => $id]` with `$data` before posting. Validates currency if provided.
 
-**Example:**
 ```php
 Teamleader::incomingInvoices()->update('invoice-uuid', [
-    'title' => 'Updated Invoice Title',
-    'due_date' => '2024-03-15',
+    'title'    => 'Updated title',
+    'due_date' => '2025-05-15',
 ]);
 ```
 
-### `delete()`
+---
 
-Delete an incoming invoice.
+### `delete(string $id)`
 
-**Parameters:**
-- `id` (string): Invoice UUID
-
-**Example:**
 ```php
 Teamleader::incomingInvoices()->delete('invoice-uuid');
 ```
 
-### `approve()`
+---
 
-Approve an incoming invoice for payment.
+### `approve(string $id)`
 
-**Parameters:**
-- `id` (string): Invoice UUID
-
-**Example:**
 ```php
 Teamleader::incomingInvoices()->approve('invoice-uuid');
 ```
 
-### `refuse()`
+### `refuse(string $id)`
 
-Refuse/reject an incoming invoice.
-
-**Parameters:**
-- `id` (string): Invoice UUID
-
-**Example:**
 ```php
 Teamleader::incomingInvoices()->refuse('invoice-uuid');
 ```
 
-### `markAsPendingReview()`
+### `markAsPendingReview(string $id)`
 
-Reset an invoice back to pending review status.
-
-**Parameters:**
-- `id` (string): Invoice UUID
-
-**Example:**
 ```php
 Teamleader::incomingInvoices()->markAsPendingReview('invoice-uuid');
 ```
 
-### `sendToBookkeeping()`
+### `sendToBookkeeping(string $id)`
 
-Send an approved invoice to your bookkeeping system.
-
-**Parameters:**
-- `id` (string): Invoice UUID
-
-**Example:**
 ```php
 Teamleader::incomingInvoices()->sendToBookkeeping('invoice-uuid');
 ```
 
-### `listPayments()`
+---
 
-List all payments registered against an incoming invoice.
+## Payment Methods
 
-**Parameters:**
-- `id` (string): Invoice UUID
+### `listPayments(string $id)`
 
-**Returns:** An array of payment objects plus a meta total.
+Returns all payments with a `meta.total.amount` summary.
 
-**Example:**
 ```php
 $payments = Teamleader::incomingInvoices()->listPayments('invoice-uuid');
 
-// $payments['data'] contains individual payment records
-// $payments['meta']['total']['amount'] contains the total paid amount
+$totalPaid = $payments['meta']['total']['amount'];
+
+foreach ($payments['data'] as $payment) {
+    echo $payment['payment']['amount'] . ' ' . $payment['payment']['currency'];
+}
 ```
 
-### `registerPayment()`
+### `registerPayment(string $id, array $payment, string $paidAt, ?string $paymentMethodId = null, ?string $remark = null)`
 
-Register a payment for an incoming invoice.
+`$paidAt` is required. `$payment` must have `amount` (numeric) and `currency` (valid code) — both validated before the request.
 
-**Parameters:**
-- `id` (string): Invoice UUID
-- `payment` (array): Payment details
-    - `amount` (float, required): Payment amount — e.g. `123.30`
-    - `currency` (string, required): Currency code — e.g. `EUR`
-- `paidAt` (string, required): ISO 8601 datetime when payment was made
-- `paymentMethodId` (string|null): Optional payment method UUID
-- `remark` (string|null): Optional remark
-
-**Returns:** Created payment with `data.type` and `data.id`.
-
-**Example:**
 ```php
-$payment = Teamleader::incomingInvoices()->registerPayment(
+Teamleader::incomingInvoices()->registerPayment(
     'invoice-uuid',
-    ['amount' => 1210.00, 'currency' => 'EUR'],
-    '2024-02-01T10:00:00Z',
-    'payment-method-uuid',
-    'Paid via bank transfer'
+    ['amount' => 1210.0, 'currency' => 'EUR'],
+    '2025-04-15T10:00:00+02:00',
+    'payment-method-uuid',  // optional
+    'Paid via bank transfer' // optional
 );
 ```
 
-### `removePayment()`
+### `removePayment(string $id, string $paymentId)`
 
-Remove a specific payment from an incoming invoice.
-
-**Parameters:**
-- `id` (string): Invoice UUID
-- `paymentId` (string): Payment UUID to remove
-
-**Example:**
 ```php
 Teamleader::incomingInvoices()->removePayment('invoice-uuid', 'payment-uuid');
 ```
 
-### `updatePayment()`
+### `updatePayment(string $id, string $paymentId, array $payment, ?string $paidAt = null, ?string $paymentMethodId = null, ?string $remark = null)`
 
-Update an existing payment on an incoming invoice.
+`$paidAt` is optional on update.
 
-**Parameters:**
-- `id` (string): Invoice UUID
-- `paymentId` (string): Payment UUID to update
-- `payment` (array): Updated payment details
-    - `amount` (float, required): Updated amount
-    - `currency` (string, required): Currency code
-- `paidAt` (string|null): Optional updated ISO 8601 datetime
-- `paymentMethodId` (string|null): Optional payment method UUID
-- `remark` (string|null): Optional remark
-
-**Example:**
 ```php
 Teamleader::incomingInvoices()->updatePayment(
     'invoice-uuid',
     'payment-uuid',
-    ['amount' => 600.00, 'currency' => 'EUR'],
-    '2024-02-05T14:00:00Z'
+    ['amount' => 605.0, 'currency' => 'EUR'],
+    null,
+    null,
+    'Corrected to partial amount'
 );
 ```
+
+---
 
 ## Valid Values
 
-### Currency Codes
+**Payment statuses** (`payment_status` on `info()` response):
+`unknown`, `paid`, `partially_paid`, `not_paid`
 
-Supported currencies: `BAM`, `CAD`, `CHF`, `CLP`, `CNY`, `COP`, `CZK`, `DKK`, `EUR`, `GBP`, `INR`, `ISK`, `JPY`, `MAD`, `MXN`, `NOK`, `PEN`, `PLN`, `RON`, `SEK`, `TRY`, `USD`, `ZAR`
+**Review statuses** (`review_status` on `info()` response):
+`pending`, `approved`, `refused`
 
-Get the list programmatically:
-```php
-$currencies = Teamleader::incomingInvoices()->getValidCurrencyCodes();
-```
-
-### Review Statuses
-
-- `pending` - Awaiting review
-- `approved` - Approved for payment
-- `refused` - Rejected/refused
-
-Get the list programmatically:
-```php
-$statuses = Teamleader::incomingInvoices()->getValidReviewStatuses();
-```
-
-### Payment Statuses
-
-Returned by the `info()` endpoint as `payment_status`:
-
-- `unknown` - Payment status cannot be determined
-- `paid` - Invoice has been fully paid
-- `partially_paid` - Invoice has been partially paid
-- `not_paid` - Invoice has not been paid
-
-Get the list programmatically:
-```php
-$statuses = Teamleader::incomingInvoices()->getValidPaymentStatuses();
-```
-
-## Response Structure
-
-### Invoice Object (info)
-
-```json
-{
-  "data": {
-    "id": "invoice-uuid",
-    "title": "Monthly Services",
-    "origin": {
-      "type": "user",
-      "id": "user-uuid"
-    },
-    "supplier": {
-      "type": "company",
-      "id": "company-uuid"
-    },
-    "document_number": "INV-2024/001",
-    "invoice_date": "2024-01-15",
-    "due_date": "2024-02-15",
-    "currency": {
-      "code": "EUR"
-    },
-    "total": {
-      "tax_exclusive": {
-        "amount": 1000.00
-      },
-      "tax_inclusive": {
-        "amount": 1210.00
-      }
-    },
-    "company_entity": {
-      "type": "company_entity",
-      "id": "entity-uuid"
-    },
-    "file": null,
-    "payment_reference": "+++123/4567/89012+++",
-    "review_status": "approved",
-    "iban_number": "BE68539007547034",
-    "payment_status": "partially_paid"
-  }
-}
-```
-
-### Payment Object (listPayments)
-
-```json
-{
-  "data": [
-    {
-      "id": "payment-uuid",
-      "payment": {
-        "amount": 500.00,
-        "currency": "EUR"
-      },
-      "paid_at": "2024-02-01T10:00:00+00:00",
-      "payment_method": {
-        "type": "payment_method",
-        "id": "method-uuid"
-      },
-      "remark": "First instalment"
-    }
-  ],
-  "meta": {
-    "total": {
-      "amount": 500.00
-    }
-  }
-}
-```
+---
 
 ## Usage Examples
 
-### Create Invoice from Email
+### Full incoming invoice workflow
 
 ```php
-$invoiceData = [
-    'title' => 'Web Hosting Services',
-    'supplier_id' => $supplierId,
-    'document_number' => $extractedInvoiceNumber,
-    'invoice_date' => $extractedDate,
-    'due_date' => date('Y-m-d', strtotime($extractedDate . '+30 days')),
+// Create
+$invoice = Teamleader::incomingInvoices()->add([
+    'title'    => 'Cloud hosting Q2',
     'currency' => ['code' => 'EUR'],
-    'total' => [
-        'tax_inclusive' => ['amount' => $extractedAmount]
-    ]
-];
-
-$invoice = Teamleader::incomingInvoices()->create($invoiceData);
-```
-
-### Complete Approval Workflow
-
-```php
-// Get pending invoices using the Expenses resource
-$pending = Teamleader::expenses()->list([
-    'source_types' => ['incomingInvoice'],
-    'review_statuses' => ['pending']
+    'total'    => ['tax_exclusive' => ['amount' => 500.0], 'tax_inclusive' => ['amount' => 605.0]],
 ]);
 
-foreach ($pending['data'] as $expense) {
-    $invoice = Teamleader::incomingInvoices()->info($expense['source_id']);
+$id = $invoice['data']['id'];
 
-    if ($invoice['data']['total']['tax_inclusive']['amount'] < 5000) {
-        Teamleader::incomingInvoices()->approve($expense['source_id']);
-        Teamleader::incomingInvoices()->sendToBookkeeping($expense['source_id']);
-    } else {
-        echo "Invoice {$invoice['data']['document_number']} requires manual approval\n";
-    }
-}
-```
+// Approve
+Teamleader::incomingInvoices()->approve($id);
 
-### Register and Track Payments
-
-```php
-$invoiceId = 'invoice-uuid';
-
-// Check current payment status
-$invoice = Teamleader::incomingInvoices()->info($invoiceId);
-echo "Payment status: " . $invoice['data']['payment_status']; // e.g. not_paid
-
-// Register a partial payment
+// Register payment
 Teamleader::incomingInvoices()->registerPayment(
-    $invoiceId,
-    ['amount' => 500.00, 'currency' => 'EUR'],
-    '2024-02-01T10:00:00Z',
-    null,
-    'First instalment'
+    $id,
+    ['amount' => 605.0, 'currency' => 'EUR'],
+    now()->toIso8601String()
 );
 
-// Register the remaining payment
-Teamleader::incomingInvoices()->registerPayment(
-    $invoiceId,
-    ['amount' => 710.00, 'currency' => 'EUR'],
-    '2024-02-15T10:00:00Z',
-    null,
-    'Final payment'
-);
-
-// Verify all payments
-$payments = Teamleader::incomingInvoices()->listPayments($invoiceId);
-echo "Total paid: " . $payments['meta']['total']['amount'];
+// Send to bookkeeping
+Teamleader::incomingInvoices()->sendToBookkeeping($id);
 ```
 
-### Correct a Wrong Payment
-
-```php
-$invoiceId = 'invoice-uuid';
-
-// List payments to find the incorrect one
-$payments = Teamleader::incomingInvoices()->listPayments($invoiceId);
-$wrongPaymentId = $payments['data'][0]['id'];
-
-// Update with the correct amount
-Teamleader::incomingInvoices()->updatePayment(
-    $invoiceId,
-    $wrongPaymentId,
-    ['amount' => 1210.00, 'currency' => 'EUR'],
-    '2024-02-01T10:00:00Z'
-);
-```
-
-### Remove an Incorrect Payment
-
-```php
-$payments = Teamleader::incomingInvoices()->listPayments('invoice-uuid');
-$paymentId = $payments['data'][0]['id'];
-
-Teamleader::incomingInvoices()->removePayment('invoice-uuid', $paymentId);
-```
-
-## Common Use Cases
-
-### Invoice Processing Pipeline
-
-```php
-// 1. Create invoice
-$invoice = Teamleader::incomingInvoices()->create([
-    'title' => 'Monthly Subscription',
-    'supplier_id' => 'supplier-uuid',
-    'document_number' => 'INV-2024/001',
-    'invoice_date' => date('Y-m-d'),
-    'currency' => ['code' => 'EUR'],
-    'total' => ['tax_exclusive' => ['amount' => 500.00]]
-]);
-
-// 2. Review and approve
-Teamleader::incomingInvoices()->approve($invoice['data']['id']);
-
-// 3. Send to bookkeeping
-Teamleader::incomingInvoices()->sendToBookkeeping($invoice['data']['id']);
-
-// 4. Register payment once paid
-Teamleader::incomingInvoices()->registerPayment(
-    $invoice['data']['id'],
-    ['amount' => 605.00, 'currency' => 'EUR'],
-    date('c')
-);
-```
-
-### Check Unpaid Invoices
-
-```php
-$expenses = Teamleader::expenses()->list([
-    'source_types' => ['incomingInvoice'],
-    'review_statuses' => ['approved']
-]);
-
-foreach ($expenses['data'] as $expense) {
-    $invoice = Teamleader::incomingInvoices()->info($expense['source_id']);
-
-    if (in_array($invoice['data']['payment_status'], ['not_paid', 'partially_paid'])) {
-        echo "Unpaid invoice: {$invoice['data']['document_number']}\n";
-
-        $payments = Teamleader::incomingInvoices()->listPayments($expense['source_id']);
-        echo "  Paid so far: " . $payments['meta']['total']['amount'] . "\n";
-    }
-}
-```
-
-## Best Practices
-
-1. **Use Expenses for Listing**: To list or search invoices, use the Expenses resource
-```php
-// Good - use Expenses for listing
-$invoices = Teamleader::expenses()->list([
-    'source_types' => ['incomingInvoice']
-]);
-
-// Then get details if needed
-$details = Teamleader::incomingInvoices()->info($invoiceId);
-```
-
-2. **Always Approve Before Sending**: Invoices should be approved before sending to bookkeeping
-```php
-Teamleader::incomingInvoices()->approve($invoiceId);
-Teamleader::incomingInvoices()->sendToBookkeeping($invoiceId);
-```
-
-3. **Use payment_status for Quick Checks**: Instead of summing listPayments manually, use the `payment_status` field from `info()` to quickly determine whether an invoice needs attention
-```php
-$invoice = Teamleader::incomingInvoices()->info($invoiceId);
-
-if ($invoice['data']['payment_status'] === 'not_paid') {
-    // Trigger payment reminder or register payment
-}
-```
-
-4. **Handle Bookkeeping Submissions**: Check submission status after sending
-```php
-Teamleader::incomingInvoices()->sendToBookkeeping($invoiceId);
-
-sleep(2);
-
-$submissions = Teamleader::bookkeepingSubmissions()->forInvoice($invoiceId);
-$status = $submissions['data'][0]['status'] ?? 'unknown';
-```
-
-5. **Use Descriptive Titles**: Make invoices easy to identify
-```php
-// Good
-'title' => 'AWS Cloud Services - January 2024'
-
-// Avoid
-'title' => 'Invoice'
-```
+---
 
 ## Error Handling
 
 ```php
-use McoreServices\TeamleaderSDK\Facades\Teamleader;
+use InvalidArgumentException;
 
+// list() not supported
 try {
-    $invoice = Teamleader::incomingInvoices()->create([
-        'title' => 'Monthly Services',
-        'currency' => ['code' => 'EUR'],
-        'total' => ['tax_exclusive' => ['amount' => 1000.00]]
-    ]);
-
-    Teamleader::incomingInvoices()->approve($invoice['data']['id']);
-    Teamleader::incomingInvoices()->sendToBookkeeping($invoice['data']['id']);
-
-} catch (\InvalidArgumentException $e) {
-    Log::error('Invalid invoice data: ' . $e->getMessage());
-
-} catch (\Exception $e) {
-    Log::error('Failed to create/process invoice: ' . $e->getMessage());
+    Teamleader::incomingInvoices()->list();
+} catch (InvalidArgumentException $e) {
+    // 'The list method is not supported for incoming invoices. Use info() to get a specific invoice.'
 }
 
-// Handle payment errors
+// Missing required fields on create
 try {
-    Teamleader::incomingInvoices()->registerPayment(
-        $invoiceId,
-        ['amount' => 1210.00, 'currency' => 'EUR'],
-        '2024-02-01T10:00:00Z'
-    );
-
-} catch (\InvalidArgumentException $e) {
-    // Missing required payment fields or invalid currency
-    Log::error('Invalid payment data: ' . $e->getMessage());
-
-} catch (\Exception $e) {
-    Log::error('Failed to register payment: ' . $e->getMessage());
+    Teamleader::incomingInvoices()->add(['title' => 'Test']);
+} catch (InvalidArgumentException $e) {
+    // 'currency.code is required for incoming invoices'
 }
 
-// Handle bookkeeping failures
+// Invalid currency on registerPayment
 try {
-    Teamleader::incomingInvoices()->sendToBookkeeping($invoiceId);
-
-    sleep(2);
-
-    $submissions = Teamleader::bookkeepingSubmissions()->forInvoice($invoiceId);
-
-    if ($submissions['data'][0]['status'] === 'failed') {
-        $error = $submissions['data'][0]['error']['message'];
-        Log::error("Bookkeeping submission failed: {$error}");
-    }
-
-} catch (\Exception $e) {
-    Log::error('Error sending to bookkeeping: ' . $e->getMessage());
+    Teamleader::incomingInvoices()->registerPayment('uuid', ['amount' => 100, 'currency' => 'XYZ'], '2025-04-01T00:00:00+02:00');
+} catch (InvalidArgumentException $e) {
+    // 'Invalid payment currency. Must be one of: ...'
 }
 ```
 
+---
+
 ## Related Resources
 
-- **[Expenses](expenses.md)** - List and search incoming invoices
-- **[Bookkeeping Submissions](bookkeeping-submissions.md)** - Track submission status
-- **[Companies](../crm/companies.md)** - Manage suppliers
-- **[Incoming Credit Notes](incoming-creditnotes.md)** - Related credit notes
-- **[Receipts](receipts.md)** - Other expense types
+- [[Bookkeeping-Submissions]] — Track submission history per invoice
+- [[Incoming-Credit-Notes]] — Supplier credit notes (same workflow)
+- [[Receipts]] — Smaller expense receipts (same workflow)
+- [[Payment-Methods]] — Optional on `registerPayment()`

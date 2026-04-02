@@ -4,31 +4,8 @@ Manage contacts in Teamleader Focus CRM.
 
 ## Overview
 
-The Contacts resource provides full CRUD (Create, Read, Update, Delete) operations for managing contact records in your Teamleader CRM. Contacts are individual people that can be linked to companies, deals, projects, and other entities.
-
-## Navigation
-
-- [Endpoint](#endpoint)
-- [Capabilities](#capabilities)
-- [Available Methods](#available-methods)
-    - [list()](#list)
-    - [info()](#info)
-    - [create()](#create)
-    - [update()](#update)
-    - [delete()](#delete)
-    - [uploadAvatar()](#uploadavatar)
-- [Helper Methods](#helper-methods)
-- [Company Linking Methods](#company-linking-methods)
-- [Tagging Methods](#tagging-methods)
-- [Filters](#filters)
-- [Sorting](#sorting)
-- [Sideloading](#sideloading)
-- [Response Structure](#response-structure)
-- [Usage Examples](#usage-examples)
-- [Common Use Cases](#common-use-cases)
-- [Best Practices](#best-practices)
-- [Error Handling](#error-handling)
-- [Related Resources](#related-resources)
+The Contacts resource provides full CRUD operations for contact records. Beyond standard CRUD it exposes tag management,
+avatar upload, and company link management (link, unlink, update).
 
 ## Endpoint
 
@@ -36,802 +13,359 @@ The Contacts resource provides full CRUD (Create, Read, Update, Delete) operatio
 
 ## Capabilities
 
-- **Pagination**: ✅ Supported
-- **Filtering**: ✅ Supported
-- **Sorting**: ✅ Supported
-- **Sideloading**: ✅ Supported
-- **Creation**: ✅ Supported
-- **Update**: ✅ Supported
-- **Deletion**: ✅ Supported
+| Capability  | Supported   |
+|-------------|-------------|
+| Pagination  | ✅ Supported |
+| Filtering   | ✅ Supported |
+| Sorting     | ✅ Supported |
+| Sideloading | ✅ Supported |
+| Creation    | ✅ Supported |
+| Update      | ✅ Supported |
+| Deletion    | ✅ Supported |
 
-## Available Methods
+---
 
-### `list()`
+## Methods
 
-Get all contacts with optional filtering, sorting, and pagination.
+### `list(array $filters = [], array $options = [])`
 
-**Parameters:**
-- `filters` (array): Filters to apply
-- `options` (array): Additional options (page_size, page_number, sort, include)
-
-**Example:**
 ```php
 use McoreServices\TeamleaderSDK\Facades\Teamleader;
 
-// Get all contacts
 $contacts = Teamleader::contacts()->list();
 
-// Get active contacts only
-$contacts = Teamleader::contacts()->list([
-    'status' => 'active'
-]);
+$contacts = Teamleader::contacts()->list(
+    ['status' => 'active', 'company_id' => 'company-uuid'],
+    ['page_size' => 50, 'sort' => 'name', 'sort_order' => 'asc']
+);
 
-// With pagination
-$contacts = Teamleader::contacts()->list([], [
-    'page_size' => 50,
-    'page_number' => 2
-]);
+// With sideloading via options
+$contacts = Teamleader::contacts()->list([], ['include' => 'custom_fields']);
 ```
 
-### `info()`
+---
 
-Get detailed information about a specific contact.
+### `info(string $id, string|array|null $includes = null)`
 
-**Parameters:**
-- `id` (string): Contact UUID
-- `includes` (string|array): Optional sideloaded relationships
-
-**Example:**
 ```php
-// Get contact information
 $contact = Teamleader::contacts()->info('contact-uuid');
 
-// With custom fields
-$contact = Teamleader::contacts()->info('contact-uuid', 'custom_fields');
+$contact = Teamleader::contacts()->info('contact-uuid', 'custom_fields,price_list');
 
-// Using fluent interface
 $contact = Teamleader::contacts()
-    ->with('custom_fields')
+    ->withCustomFields()
     ->info('contact-uuid');
 ```
 
-### `create()`
+---
 
-Create a new contact.
+### `create(array $data)`
 
-**Parameters:**
-- `data` (array): Contact data
-
-**Example:**
 ```php
 $contact = Teamleader::contacts()->create([
-    'first_name' => 'John',
-    'last_name' => 'Doe',
-    'emails' => [
-        [
-            'type' => 'primary',
-            'email' => 'john.doe@example.com'
-        ]
-    ],
-    'telephones' => [
-        [
-            'type' => 'mobile',
-            'number' => '+32 475 12 34 56'
-        ]
-    ],
-    'website' => 'https://www.johndoe.com',
-    'addresses' => [
-        [
-            'type' => 'primary',
-            'address' => [
-                'line_1' => '123 Main Street',
-                'postal_code' => '1000',
-                'city' => 'Brussels',
-                'country' => 'BE'
-            ]
-        ]
-    ],
-    'language' => 'en',
-    'gender' => 'male'
+    'first_name'              => 'Sarah',
+    'last_name'               => 'De Smedt',
+    'salutation'              => 'mrs',   // optional
+    'gender'                  => 'female', // optional: male, female, unknown
+    'language'                => 'nl',
+    'marketing_mails_consent' => true,
+    'emails'                  => [['type' => 'primary', 'email' => 'sarah@acme.be']],
+    'telephones'              => [['type' => 'mobile', 'number' => '+32 475 12 34 56']],
+    'tags'                    => ['Decision Maker'],
 ]);
 ```
 
-### `update()`
+> **Gender validation:** `gender` must be one of `male`, `female`, `unknown`. An `InvalidArgumentException` is thrown
+> for any other value.
 
-Update an existing contact.
+---
 
-**Parameters:**
-- `id` (string): Contact UUID
-- `data` (array): Updated contact data
+### `update(mixed $id, array $data)`
 
-**Example:**
+The `id` is injected into the request body before posting to `contacts.update`.
+
 ```php
-$contact = Teamleader::contacts()->update('contact-uuid', [
-    'first_name' => 'John',
-    'last_name' => 'Smith',
-    'emails' => [
-        [
-            'type' => 'primary',
-            'email' => 'john.smith@example.com'
-        ]
-    ]
+Teamleader::contacts()->update('contact-uuid', [
+    'last_name'  => 'De Smedt-Janssen',
+    'telephones' => [['type' => 'mobile', 'number' => '+32 475 99 88 77']],
 ]);
 ```
 
-### `delete()`
+---
 
-Delete a contact.
+### `delete(string $id)`
 
-**Parameters:**
-- `id` (string): Contact UUID
-
-**Example:**
 ```php
 Teamleader::contacts()->delete('contact-uuid');
 ```
 
-### `uploadAvatar()`
+---
 
-Upload or remove the avatar of a contact. The image must be provided as a base64-encoded data URI. Pass `null` to remove an existing avatar.
+### `uploadAvatar(string $id, string|null $image)`
 
-Returns a 204 No Content response on success (empty array).
+Uploads or removes a contact avatar. The image must be a base64 data URI starting with `data:image/`. Pass `null` to
+remove. An `InvalidArgumentException` is thrown if a non-null value doesn't start with `data:image/`.
 
-**Parameters:**
-- `id` (string): Contact UUID
-- `image` (string|null): Base64 data URI (e.g. `data:image/png;base64,...`) or `null` to remove the avatar
+Returns empty array (HTTP 204) on success.
 
-**Example:**
 ```php
-// Upload an avatar from a file on disk
-$imageData = base64_encode(file_get_contents('/path/to/avatar.png'));
-$dataUri = 'data:image/png;base64,' . $imageData;
+$imageData = base64_encode(file_get_contents('/path/to/avatar.jpg'));
+Teamleader::contacts()->uploadAvatar('contact-uuid', 'data:image/jpeg;base64,' . $imageData);
 
-Teamleader::contacts()->uploadAvatar('contact-uuid', $dataUri);
-
-// Upload from a Laravel uploaded file
-$file = $request->file('avatar');
-$imageData = base64_encode(file_get_contents($file->getRealPath()));
-$mimeType = $file->getMimeType();
-Teamleader::contacts()->uploadAvatar('contact-uuid', "data:{$mimeType};base64,{$imageData}");
-
-// Remove an existing avatar
+// Remove avatar
 Teamleader::contacts()->uploadAvatar('contact-uuid', null);
 ```
 
-## Helper Methods
+---
 
-The Contacts resource provides convenient helper methods for common operations:
+## Company Link Methods
 
-### Search Methods
+### `linkToCompany(string $id, string $companyId, array $data = [])`
 
-```php
-// Search across multiple fields (first_name, last_name, email, telephone)
-$contacts = Teamleader::contacts()->search('John');
-
-// Search by email
-$contacts = Teamleader::contacts()->byEmail('john.doe@example.com');
-```
-
-### Filter Methods
+Links a contact to a company. Optional data: `position` (string), `decision_maker` (bool).
 
 ```php
-// Get contacts for a specific company
-$contacts = Teamleader::contacts()->forCompany('company-uuid');
-
-// Get active contacts
-$contacts = Teamleader::contacts()->active();
-
-// Get deactivated contacts
-$contacts = Teamleader::contacts()->deactivated();
-
-// Get contacts with specific tags
-$contacts = Teamleader::contacts()->withTags(['VIP', 'Decision Maker']);
-
-// Get contacts updated since a date
-$contacts = Teamleader::contacts()->updatedSince('2024-01-01');
-```
-
-## Company Linking Methods
-
-### Link Contact to Company
-
-```php
-// Basic linking
+// Basic link
 Teamleader::contacts()->linkToCompany('contact-uuid', 'company-uuid');
 
-// Link with position and decision maker status
+// With position and decision-maker flag
 Teamleader::contacts()->linkToCompany('contact-uuid', 'company-uuid', [
-    'position' => 'CEO',
-    'decision_maker' => true
+    'position'       => 'CEO',
+    'decision_maker' => true,
 ]);
 ```
 
-### Unlink Contact from Company
+### `unlinkFromCompany(string $id, string $companyId)`
 
 ```php
 Teamleader::contacts()->unlinkFromCompany('contact-uuid', 'company-uuid');
 ```
 
-### Update Company Link
+### `updateCompanyLink(string $id, string $companyId, array $data = [])`
+
+Updates `position` and/or `decision_maker` on an existing link.
 
 ```php
 Teamleader::contacts()->updateCompanyLink('contact-uuid', 'company-uuid', [
-    'position' => 'Managing Director',
-    'decision_maker' => true
+    'position'       => 'Managing Director',
+    'decision_maker' => true,
 ]);
 ```
 
-## Tagging Methods
+---
+
+## Tag Methods
+
+### `tag(string $id, string|array $tags)`
 
 ```php
-// Add tags to a contact
 Teamleader::contacts()->tag('contact-uuid', ['VIP', 'Decision Maker']);
+Teamleader::contacts()->tag('contact-uuid', 'Newsletter'); // string also accepted
+```
 
-// Remove tags from a contact
+### `untag(string $id, string|array $tags)`
+
+```php
 Teamleader::contacts()->untag('contact-uuid', ['Prospect']);
+```
 
-// Manage tags (add and remove in one call)
+### `manageTags(string $id, array $tagsToAdd = [], array $tagsToRemove = [])`
+
+Makes **two separate API calls** internally. Returns `['tagged' => [...], 'untagged' => [...]]`.
+
+```php
 Teamleader::contacts()->manageTags(
     'contact-uuid',
-    ['Active', 'Customer'],    // Tags to add
-    ['Lead', 'Prospect']       // Tags to remove
+    ['Active', 'Customer'],
+    ['Lead', 'Prospect']
 );
 ```
 
+---
+
+## Helper Methods
+
+| Method                          | Filter applied                                   |
+|---------------------------------|--------------------------------------------------|
+| `search(string $term)`          | `term` (first name, last name, email, telephone) |
+| `byEmail(string $email)`        | `email` → `{type: primary, email: $email}`       |
+| `forCompany(string $companyId)` | `company_id`                                     |
+| `active()`                      | `status: active`                                 |
+| `deactivated()`                 | `status: deactivated`                            |
+| `withTags(string\|array $tags)` | `tags`                                           |
+| `updatedSince(string $date)`    | `updated_since`                                  |
+
+All helpers accept an optional `$options` array as their last parameter.
+
+### Fluent include methods
+
+| Method               | Include added   |
+|----------------------|-----------------|
+| `withCustomFields()` | `custom_fields` |
+| `withPriceList()`    | `price_list`    |
+
+---
+
 ## Filters
 
-### Available Filters
+| Filter                    | Type            | Description                                      |
+|---------------------------|-----------------|--------------------------------------------------|
+| `ids`                     | array           | Filter by UUIDs                                  |
+| `email`                   | array or string | Email — string auto-wraps as `{type: primary}`   |
+| `company_id`              | string          | Contacts linked to this company                  |
+| `term`                    | string          | Searches first name, last name, email, telephone |
+| `updated_since`           | string          | ISO 8601 datetime                                |
+| `tags`                    | array           | All specified tags must be present               |
+| `status`                  | string          | `active` or `deactivated`                        |
+| `marketing_mails_consent` | bool            | Marketing consent flag                           |
 
-#### `ids`
-Filter by specific contact UUIDs.
-
-```php
-$contacts = Teamleader::contacts()->list([
-    'ids' => ['contact-uuid-1', 'contact-uuid-2']
-]);
-```
-
-#### `email`
-Filter by email address. Requires both type and email fields. Only `primary` is accepted as type.
-
-```php
-$contacts = Teamleader::contacts()->list([
-    'email' => [
-        'type' => 'primary',
-        'email' => 'john.doe@example.com'
-    ]
-]);
-```
-
-#### `company_id`
-Filter by company UUID to get all contacts linked to that company.
-
-```php
-$contacts = Teamleader::contacts()->list([
-    'company_id' => 'company-uuid'
-]);
-```
-
-#### `term`
-Search term that searches across first_name, last_name, email, and telephone.
-
-```php
-$contacts = Teamleader::contacts()->list([
-    'term' => 'John Doe'
-]);
-```
-
-#### `updated_since`
-Filter by last update date (ISO 8601 datetime).
-
-```php
-$contacts = Teamleader::contacts()->list([
-    'updated_since' => '2024-01-01T00:00:00+00:00'
-]);
-```
-
-#### `tags`
-Filter by tag names. Returns contacts with ALL specified tags.
-
-```php
-$contacts = Teamleader::contacts()->list([
-    'tags' => ['VIP', 'Decision Maker']
-]);
-```
-
-#### `status`
-Filter by contact status.
-
-**Values:** `active`, `deactivated`
-
-```php
-$contacts = Teamleader::contacts()->list([
-    'status' => 'active'
-]);
-```
-
-#### `marketing_mails_consent`
-Filter by marketing mails consent status.
-
-```php
-// Contacts that have given consent
-$contacts = Teamleader::contacts()->list([
-    'marketing_mails_consent' => true
-]);
-
-// Contacts that have not given consent
-$contacts = Teamleader::contacts()->list([
-    'marketing_mails_consent' => false
-]);
-```
+---
 
 ## Sorting
 
-Contacts can be sorted by the following fields:
+| Field        | Description            |
+|--------------|------------------------|
+| `name`       | First name + last name |
+| `added_at`   | Date added             |
+| `updated_at` | Date last updated      |
 
-```php
-$contacts = Teamleader::contacts()->list([], [
-    'sort' => 'name',
-    'sort_order' => 'asc'
-]);
-```
-
-**Available sort fields:** `name`, `added_at`, `updated_at`
+---
 
 ## Sideloading
 
-Load related data in a single request:
+| Include         | Description         |
+|-----------------|---------------------|
+| `custom_fields` | Custom field values |
+| `price_list`    | Assigned price list |
 
-### Available Includes
+> **Note:** Contacts have a smaller include set than Companies. `addresses`, `responsible_user`, and `tags` are not
+> available as sideloaded includes.
 
-| Include | Description |
-|---|---|
-| `custom_fields` | Custom field values (requires `includes=custom_fields`) |
-| `price_list` | Assigned price list (requires `includes=price_list`) |
-
-### Usage
-
-```php
-// Include custom fields
-$contact = Teamleader::contacts()
-    ->withCustomFields()
-    ->info('contact-uuid');
-
-// Include price list
-$contact = Teamleader::contacts()
-    ->withPriceList()
-    ->info('contact-uuid');
-
-// Both at once
-$contact = Teamleader::contacts()
-    ->with('custom_fields,price_list')
-    ->info('contact-uuid');
-
-// Include in list()
-$contacts = Teamleader::contacts()->list([], [
-    'include' => 'custom_fields,price_list'
-]);
-```
-
-### Fluent Include Methods
-
-| Method | Include |
-|---|---|
-| `->withCustomFields()` | `custom_fields` |
-| `->withPriceList()` | `price_list` |
+---
 
 ## Response Structure
 
-A typical contact response includes:
+### `list()` response
 
 ```php
 [
     'data' => [
         [
-            'id' => '2a39e420-3ba3-4384-8024-fa702ef99c9f',
-            'first_name' => 'Erlich',
-            'last_name' => 'Bachman',
-            'status' => 'active',
-            'salutation' => 'Mr',
-            'emails' => [
-                ['type' => 'primary', 'email' => 'info@piedpiper.eu']
+            'id'           => 'contact-uuid',
+            'first_name'   => 'Sarah',
+            'last_name'    => 'De Smedt',
+            'salutation'   => 'mrs',
+            'gender'       => 'female',
+            'status'       => 'active',
+            'language'     => 'nl',
+            'emails'       => [['type' => 'primary', 'email' => 'sarah@acme.be']],
+            'companies'    => [
+                [
+                    'customer'       => ['type' => 'company', 'id' => 'company-uuid'],
+                    'position'       => 'CEO',
+                    'decision_maker' => true,
+                ],
             ],
-            'telephones' => [
-                ['type' => 'phone', 'number' => '092980615']
-            ],
-            'website' => 'https://piedpiper.com',
-            'primary_address' => [
-                'line_1' => 'Dok Noord 3A 101',
-                'postal_code' => '9000',
-                'city' => 'Ghent',
-                'country' => 'BE',
-                'area_level_two' => null
-            ],
-            'gender' => 'male',
-            'birthdate' => '1987-04-25',
-            'iban' => 'BE12123412341234',
-            'bic' => 'BICBANK',
-            'national_identification_number' => '86792345-L',
-            'language' => 'en',
-            'payment_term' => [
-                'type' => 'after_invoice_date',
-                'days' => 30
-            ],
-            'invoicing_preferences' => [
-                'electronic_invoicing_address' => null
-            ],
-            'tags' => ['vip', 'decision-maker'],
-            'added_at' => '2016-02-04T16:44:33+00:00',
-            'updated_at' => '2016-02-05T16:44:33+00:00',
-            'web_url' => 'https://focus.teamleader.eu/contact_detail.php?id=...',
-            'marketing_mails_consent' => false,
-            // Only with includes=custom_fields:
-            'custom_fields' => [...],
-            // Only with includes=price_list:
-            'price_list' => [
-                'type' => 'priceList',
-                'id' => '27261187-19c9-081f-b833-021fa5873129'
-            ]
-        ]
-    ]
+            'added_at'    => '2025-01-15T10:00:00+00:00',
+            'updated_at'  => '2025-03-01T09:00:00+00:00',
+        ],
+    ],
+    'meta' => ['page' => ['size' => 20, 'number' => 1], 'matches' => 87],
 ]
 ```
 
+---
+
 ## Usage Examples
 
-### Create a Complete Contact
+### Upsert by email
 
 ```php
-$contact = Teamleader::contacts()->create([
-    'first_name' => 'John',
-    'last_name' => 'Doe',
-    'emails' => [
-        ['type' => 'primary', 'email' => 'john.doe@example.com']
-    ],
-    'telephones' => [
-        ['type' => 'mobile', 'number' => '+32 475 12 34 56']
-    ],
-    'website' => 'https://www.johndoe.com',
-    'language' => 'en',
-    'gender' => 'male',
-    'responsible_user_id' => 'user-uuid'
-]);
-```
+$existing = Teamleader::contacts()->byEmail('sarah@acme.be');
 
-### Upload a Contact Avatar
-
-```php
-// Upload from a file on disk
-$imageData = base64_encode(file_get_contents(storage_path('avatars/john.png')));
-Teamleader::contacts()->uploadAvatar('contact-uuid', 'data:image/png;base64,' . $imageData);
-
-// Upload from a Laravel uploaded file
-$file = $request->file('avatar');
-$imageData = base64_encode(file_get_contents($file->getRealPath()));
-$mimeType = $file->getMimeType();
-Teamleader::contacts()->uploadAvatar('contact-uuid', "data:{$mimeType};base64,{$imageData}");
-
-// Remove existing avatar
-Teamleader::contacts()->uploadAvatar('contact-uuid', null);
-```
-
-### Search and Filter Contacts
-
-```php
-// Find contacts by email
-$contacts = Teamleader::contacts()->byEmail('john.doe@example.com');
-
-// Search across multiple fields
-$contacts = Teamleader::contacts()->search('John');
-
-// Get contacts for a company
-$contacts = Teamleader::contacts()->forCompany('company-uuid');
-
-// Get active contacts with specific tags
-$contacts = Teamleader::contacts()->list([
-    'status' => 'active',
-    'tags' => ['VIP']
-]);
-
-// Get contacts with marketing consent
-$contacts = Teamleader::contacts()->list([
-    'marketing_mails_consent' => true
-]);
-```
-
-### Load Price List
-
-```php
-$contact = Teamleader::contacts()
-    ->withPriceList()
-    ->info('contact-uuid');
-
-$priceListId = $contact['data']['price_list']['id'] ?? null;
-```
-
-### Find and Update a Contact
-
-```php
-$contacts = Teamleader::contacts()->byEmail('john@example.com');
-
-if (!empty($contacts['data'])) {
-    $contactId = $contacts['data'][0]['id'];
-
-    Teamleader::contacts()->update($contactId, [
-        'telephones' => [
-            [
-                'type' => 'mobile',
-                'number' => '+32 475 99 88 77'
-            ]
-        ]
+if (!empty($existing['data'])) {
+    Teamleader::contacts()->update($existing['data'][0]['id'], ['last_name' => 'De Smedt-Janssen']);
+} else {
+    Teamleader::contacts()->create([
+        'first_name' => 'Sarah',
+        'last_name'  => 'De Smedt',
+        'emails'     => [['type' => 'primary', 'email' => 'sarah@acme.be']],
     ]);
 }
 ```
 
-### Work with Tags
+### Sync/update a company link
 
 ```php
-// Add tags to categorize contact
-Teamleader::contacts()->tag('contact-uuid', ['Premium', 'Newsletter']);
+$contact    = Teamleader::contacts()->info('contact-uuid');
+$isLinked   = false;
 
-// Remove old tags
-Teamleader::contacts()->untag('contact-uuid', ['Trial']);
+foreach ($contact['data']['companies'] ?? [] as $link) {
+    if ($link['customer']['id'] === 'company-uuid') {
+        $isLinked = true;
+        break;
+    }
+}
 
-// Bulk tag management
-Teamleader::contacts()->manageTags(
-    'contact-uuid',
-    ['Active', 'Paid Customer'],     // Add
-    ['Lead', 'Free Trial']           // Remove
-);
+if ($isLinked) {
+    Teamleader::contacts()->updateCompanyLink('contact-uuid', 'company-uuid', [
+        'position' => 'Managing Director',
+    ]);
+} else {
+    Teamleader::contacts()->linkToCompany('contact-uuid', 'company-uuid', [
+        'position' => 'Managing Director',
+    ]);
+}
 ```
 
-### Get Company Contacts
+### Get all decision makers for a company
 
 ```php
-// Get all contacts for a company
 $contacts = Teamleader::contacts()->forCompany('company-uuid');
 
-// Find decision makers
 $decisionMakers = array_filter($contacts['data'], function ($contact) {
-    foreach ($contact['companies'] as $company) {
-        if ($company['decision_maker'] === true) {
-            return true;
-        }
+    foreach ($contact['companies'] ?? [] as $link) {
+        if ($link['decision_maker'] === true) return true;
     }
     return false;
 });
 ```
 
-## Common Use Cases
-
-### 1. Import Contacts from CSV
-
-```php
-function importContactsFromCSV($csvPath)
-{
-    $csv = array_map('str_getcsv', file($csvPath));
-    $headers = array_shift($csv);
-    $results = ['success' => [], 'errors' => []];
-
-    foreach ($csv as $row) {
-        $data = array_combine($headers, $row);
-
-        try {
-            $existing = Teamleader::contacts()->byEmail($data['email']);
-
-            if (empty($existing['data'])) {
-                Teamleader::contacts()->create([
-                    'first_name' => $data['first_name'],
-                    'last_name'  => $data['last_name'],
-                    'emails'     => [
-                        ['type' => 'primary', 'email' => $data['email']]
-                    ]
-                ]);
-                $results['success'][] = $data['email'];
-            }
-        } catch (\Exception $e) {
-            $results['errors'][] = [
-                'email' => $data['email'],
-                'error' => $e->getMessage()
-            ];
-        }
-    }
-
-    return $results;
-}
-```
-
-### 2. Find Contacts Without Companies
-
-```php
-$allContacts = Teamleader::contacts()->list(['status' => 'active']);
-
-$unlinkedContacts = array_filter($allContacts['data'], function ($contact) {
-    return empty($contact['companies']);
-});
-```
-
-### 3. Bulk Update Contact Tags
-
-```php
-function bulkUpdateContactTags(array $contactIds, array $tags)
-{
-    $results = [];
-
-    foreach ($contactIds as $contactId) {
-        try {
-            Teamleader::contacts()->tag($contactId, $tags);
-            $results[$contactId] = ['success' => true];
-        } catch (\Exception $e) {
-            $results[$contactId] = [
-                'success' => false,
-                'error'   => $e->getMessage()
-            ];
-        }
-    }
-
-    return $results;
-}
-```
-
-### 4. Generate Contact Report
-
-```php
-function generateContactReport($companyId = null)
-{
-    $filters = ['status' => 'active'];
-
-    if ($companyId) {
-        $filters['company_id'] = $companyId;
-    }
-
-    $allContacts = [];
-    $page = 1;
-
-    do {
-        $response = Teamleader::contacts()->list($filters, [
-            'page_size'   => 100,
-            'page_number' => $page,
-            'sort'        => 'name'
-        ]);
-
-        $allContacts = array_merge($allContacts, $response['data']);
-        $page++;
-    } while (!empty($response['data']) && count($response['data']) === 100);
-
-    return $allContacts;
-}
-```
-
-### 5. Sync Contact Company Links
-
-```php
-function syncContactToCompany($contactId, $companyId, $position)
-{
-    $contact = Teamleader::contacts()->info($contactId);
-
-    $isLinked = false;
-    foreach ($contact['data']['companies'] ?? [] as $company) {
-        if ($company['customer']['id'] === $companyId) {
-            $isLinked = true;
-            break;
-        }
-    }
-
-    if ($isLinked) {
-        return Teamleader::contacts()->updateCompanyLink(
-            $contactId,
-            $companyId,
-            ['position' => $position]
-        );
-    } else {
-        return Teamleader::contacts()->linkToCompany(
-            $contactId,
-            $companyId,
-            ['position' => $position]
-        );
-    }
-}
-```
-
-## Best Practices
-
-### 1. Always Check for Existing Contacts
-
-```php
-$existing = Teamleader::contacts()->byEmail('john@example.com');
-
-if (empty($existing['data'])) {
-    $contact = Teamleader::contacts()->create([
-        'first_name' => 'John',
-        'last_name'  => 'Doe',
-        'emails'     => [['type' => 'primary', 'email' => 'john@example.com']]
-    ]);
-} else {
-    $contactId = $existing['data'][0]['id'];
-    Teamleader::contacts()->update($contactId, $updateData);
-}
-```
-
-### 2. Use `null` to Remove an Avatar
-
-When removing an avatar, always pass `null` explicitly rather than an empty string:
-
-```php
-// Correct
-Teamleader::contacts()->uploadAvatar('contact-uuid', null);
-
-// Wrong — will throw InvalidArgumentException
-Teamleader::contacts()->uploadAvatar('contact-uuid', '');
-```
-
-### 3. Handle Company Links Properly
-
-```php
-$contact = Teamleader::contacts()->info('contact-uuid');
-
-$hasCompanyLink = false;
-foreach ($contact['data']['companies'] ?? [] as $company) {
-    if ($company['customer']['id'] === 'company-uuid') {
-        $hasCompanyLink = true;
-        break;
-    }
-}
-
-if ($hasCompanyLink) {
-    Teamleader::contacts()->updateCompanyLink('contact-uuid', 'company-uuid', [
-        'position' => 'New Position'
-    ]);
-} else {
-    Teamleader::contacts()->linkToCompany('contact-uuid', 'company-uuid', [
-        'position' => 'New Position'
-    ]);
-}
-```
-
-### 4. Use Tags for Segmentation
-
-```php
-Teamleader::contacts()->tag('contact-uuid', ['Decision Maker']);
-
-$decisionMakers = Teamleader::contacts()->withTags(['Decision Maker']);
-```
+---
 
 ## Error Handling
 
 ```php
-use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
+use InvalidArgumentException;
+use McoreServices\TeamleaderSDK\Exceptions\{NotFoundException, ValidationException, TeamleaderException};
+
+// Invalid gender value
+try {
+    Teamleader::contacts()->create(['first_name' => 'Alex', 'gender' => 'other']);
+} catch (InvalidArgumentException $e) {
+    // 'Invalid gender value. Must be one of: male, female, unknown'
+}
+
+// Invalid avatar URI
+try {
+    Teamleader::contacts()->uploadAvatar('contact-uuid', 'plain-string');
+} catch (InvalidArgumentException $e) {
+    // 'Image must be a base64 data URI (e.g. data:image/png;base64,...) or null'
+}
 
 try {
-    $contact = Teamleader::contacts()->create([
-        'first_name' => 'John',
-        'last_name'  => 'Doe'
-    ]);
-} catch (TeamleaderException $e) {
-    Log::error('Error creating contact', [
-        'error' => $e->getMessage(),
-        'code'  => $e->getCode()
-    ]);
-
-    if ($e->getCode() === 422) {
-        return response()->json([
-            'error' => 'Contact must have at least one email address'
-        ], 422);
-    }
+    Teamleader::contacts()->info('contact-uuid');
+} catch (NotFoundException $e) {
+    // Contact does not exist
 }
 ```
 
+---
+
 ## Related Resources
 
-- [Companies](companies.md) - Link contacts to companies
-- [Tags](tags.md) - Organize contacts with tags
-- [Custom Fields](../general/custom_fields.md) - Add custom data to contacts
-- [Deals](../deals/deals.md) - Create deals for contacts
-- [Notes](../general/notes.md) - Add notes to contacts
-- [Users](../general/users.md) - Responsible users
-
-## See Also
-
-- [Usage Guide](../usage.md) - General SDK usage
-- [Filtering](../filtering.md) - Advanced filtering techniques
-- [Sideloading](../sideloading.md) - Efficiently load related data
+- [[Companies]] — Contacts are linked to companies
+- [[Tags]] — Tag reference list
+- [[Deals]] — Deals reference contacts as customers
+- [[Sideloading]] — Loading related data
+- [[Filtering]] — Filter and pagination reference

@@ -1,33 +1,13 @@
 # Meetings
 
-Manage meetings in Teamleader Focus Calendar.
+Manage meetings in Teamleader Focus.
 
 ## Overview
 
-The Meetings resource provides comprehensive management of meeting activities in your Teamleader account. Meetings are specialized calendar events with additional capabilities for tracking time, creating reports, and managing customer interactions.
+The Meetings resource manages meeting activities linked to customers and employees. Creation uses `schedule()` — there
+is no `create()` method. Meetings support time tracking, completion status, and post-meeting reports.
 
-## Navigation
-
-- [Endpoint](#endpoint)
-- [Capabilities](#capabilities)
-- [Available Methods](#available-methods)
-    - [list()](#list)
-    - [info()](#info)
-    - [schedule()](#schedule)
-    - [update()](#update)
-    - [complete()](#complete)
-    - [uncomplete()](#uncomplete)
-    - [delete()](#delete)
-    - [createReport()](#createreport)
-- [Helper Methods](#helper-methods)
-- [Sideloading](#sideloading)
-- [Filtering](#filtering)
-- [Response Structure](#response-structure)
-- [Usage Examples](#usage-examples)
-- [Common Use Cases](#common-use-cases)
-- [Best Practices](#best-practices)
-- [Error Handling](#error-handling)
-- [Related Resources](#related-resources)
+Access via `Teamleader::meetings()`.
 
 ## Endpoint
 
@@ -35,635 +15,274 @@ The Meetings resource provides comprehensive management of meeting activities in
 
 ## Capabilities
 
-| Feature | Supported |
-|---------|-----------|
-| Pagination | ✅ Supported |
-| Filtering | ✅ Supported |
-| Sorting | ✅ Supported (`scheduled_at` field, default: `asc`) |
+| Capability  | Supported                                      |
+|-------------|------------------------------------------------|
+| Pagination  | ✅ Supported                                    |
+| Filtering   | ✅ Supported                                    |
+| Sorting     | ✅ Supported (`scheduled_at`)                   |
 | Sideloading | ✅ Supported (`tracked_time`, `estimated_time`) |
-| Creation | ✅ Supported |
-| Update | ✅ Supported |
-| Deletion | ✅ Supported |
+| Creation    | ✅ Supported (via `schedule()`)                 |
+| Update      | ✅ Supported                                    |
+| Deletion    | ✅ Supported                                    |
 
-## Available Methods
+> **Includes key:** When passing includes via `options`, use `options['include']`. The SDK sends this to the API
+> as `includes` (plural). The fluent `->with()` / `->withTrackedTime()` methods handle this automatically.
 
-### `list()`
+---
 
-Get a list of meetings with optional filtering and pagination.
+## Methods
 
-**Parameters:**
-- `filters` (array): Optional filters to apply
-- `options` (array): Additional options for pagination and sorting
+### `list(array $filters = [], array $options = [])`
 
-**Example:**
 ```php
 use McoreServices\TeamleaderSDK\Facades\Teamleader;
 
-// Get all meetings
 $meetings = Teamleader::meetings()->list();
 
-// Get meetings with filters
 $meetings = Teamleader::meetings()->list([
     'employee_id' => 'user-uuid',
-    'start_date'  => '2025-02-01',
-    'end_date'    => '2025-02-28'
+    'start_date'  => '2025-04-01',
+    'end_date'    => '2025-04-30',
 ]);
 
-// With pagination
 $meetings = Teamleader::meetings()->list([], [
     'page_size'   => 50,
-    'page_number' => 2
-]);
-
-// With sorting
-$meetings = Teamleader::meetings()->list([], [
-    'sort' => [['field' => 'scheduled_at', 'order' => 'desc']]
+    'page_number' => 1,
+    'sort'        => [['field' => 'scheduled_at', 'order' => 'asc']],
 ]);
 ```
 
-### `info()`
+---
 
-Get detailed information about a specific meeting.
+### `info(string $id, mixed $includes = null)`
 
-**Parameters:**
-- `id` (string): The meeting UUID
-- `includes` (array|null): Optional sideloaded data
-
-**Example:**
 ```php
-// Basic info
 $meeting = Teamleader::meetings()->info('meeting-uuid');
 
-// With sideloaded data
-$meeting = Teamleader::meetings()->info('meeting-uuid', ['tracked_time']);
+$meeting = Teamleader::meetings()->info('meeting-uuid', 'tracked_time');
 
-// Using fluent interface
 $meeting = Teamleader::meetings()
     ->withTrackedTime()
     ->withEstimatedTime()
     ->info('meeting-uuid');
 ```
 
-### `schedule()`
+---
 
-Schedule a new meeting.
+### `schedule(array $data)`
 
-**Required fields:**
-- `title` (string): Meeting title
-- `starts_at` (string): Start datetime in ISO 8601 format
-- `ends_at` (string): End datetime in ISO 8601 format
-- `attendees` (array): Array of attendees (at least one user required)
-- `customer` (object): Customer information
-    - `type` (string): `contact` or `company`
-    - `id` (string): Customer UUID
+Creates a new meeting. Posts to `meetings.schedule`. All five fields below are validated before the request.
 
-**Optional fields:**
-- `description` (string): Meeting description
-- `location` (string): Meeting location
-- `milestone_id` (string): Associated milestone UUID
-- `activity_type_id` (string): Activity type UUID
+**Required:**
 
-**Example:**
+| Field       | Notes                                                              |
+|-------------|--------------------------------------------------------------------|
+| `title`     | Meeting title                                                      |
+| `starts_at` | ISO 8601 datetime with timezone                                    |
+| `ends_at`   | ISO 8601 datetime with timezone                                    |
+| `attendees` | Non-empty array; must include at least one entry with `type: user` |
+| `customer`  | Object with `type` (`contact` or `company`) and `id`               |
+
+If `attendees` is provided but contains no `user` type entry, throws `InvalidArgumentException`.
+
 ```php
 $meeting = Teamleader::meetings()->schedule([
-    'title'       => 'Client Kickoff Meeting',
-    'starts_at'   => '2025-02-20T10:00:00+00:00',
-    'ends_at'     => '2025-02-20T11:30:00+00:00',
-    'description' => 'Initial project kickoff',
-    'location'    => 'Client Office',
+    'title'       => 'Quarterly Review',
+    'starts_at'   => '2025-04-15T09:00:00+02:00',
+    'ends_at'     => '2025-04-15T10:30:00+02:00',
+    'description' => 'Q1 performance review',
+    'location'    => 'Client HQ, Antwerp',
     'attendees'   => [
-        ['type' => 'user',    'id' => 'user-uuid'],
-        ['type' => 'contact', 'id' => 'contact-uuid']
-    ],
-    'customer' => [
-        'type' => 'company',
-        'id'   => 'company-uuid'
-    ],
-    'milestone_id' => 'milestone-uuid'
-]);
-```
-
-### `update()`
-
-Update an existing meeting.
-
-**Parameters:**
-- `id` (string): The meeting UUID
-- `data` (array): Fields to update (all optional except id)
-
-**Example:**
-```php
-$meeting = Teamleader::meetings()->update('meeting-uuid', [
-    'title'     => 'Updated Meeting Title',
-    'starts_at' => '2025-02-20T11:00:00+00:00',
-    'location'  => 'New Location'
-]);
-```
-
-### `complete()`
-
-Mark a meeting as complete.
-
-**Parameters:**
-- `id` (string): The meeting UUID
-
-**Example:**
-```php
-$result = Teamleader::meetings()->complete('meeting-uuid');
-```
-
-### `uncomplete()`
-
-Mark a meeting as incomplete (reopen).
-
-**Parameters:**
-- `id` (string): The meeting UUID
-
-**Example:**
-```php
-$result = Teamleader::meetings()->uncomplete('meeting-uuid');
-```
-
-### `delete()`
-
-Delete a meeting.
-
-**Parameters:**
-- `id` (string): The meeting UUID
-
-**Example:**
-```php
-$result = Teamleader::meetings()->delete('meeting-uuid');
-```
-
-### `createReport()`
-
-Create a report for a completed meeting and attach it to a related entity.
-
-**Parameters:**
-- `meetingId` (string): The meeting UUID
-- `reportData` (array): Report data
-
-**Required fields in reportData:**
-- `attach_to` (object): Entity to attach the report to
-    - `type` (string): `'contact'`, `'company'`, or `'deal'`
-    - `id` (string): Entity UUID
-
-**Example:**
-```php
-$report = Teamleader::meetings()->createReport('meeting-uuid', [
-    'attach_to' => [
-        'type' => 'company',
-        'id'   => 'company-uuid'
-    ],
-    'description' => 'Discussed Q2 goals. Client agreed to proceed with full proposal.'
-]);
-```
-
-## Helper Methods
-
-### `forEmployee()`
-
-Get meetings for a specific employee.
-
-```php
-$meetings = Teamleader::meetings()->forEmployee('user-uuid');
-
-// With date range
-$meetings = Teamleader::meetings()->forEmployee('user-uuid', [
-    'filters' => [
-        'start_date' => '2025-02-01',
-        'end_date'   => '2025-02-28'
-    ]
-]);
-```
-
-### `forMilestone()`
-
-Get meetings associated with a project milestone.
-
-```php
-$meetings = Teamleader::meetings()->forMilestone('milestone-uuid');
-```
-
-### `betweenDates()`
-
-Get meetings within a specific date range.
-
-```php
-$meetings = Teamleader::meetings()->betweenDates(
-    '2025-02-01',
-    '2025-02-28'
-);
-```
-
-### `search()`
-
-Search meetings by term (searches title and description).
-
-```php
-$meetings = Teamleader::meetings()->search('project kickoff');
-```
-
-### `byIds()`
-
-Get specific meetings by their UUIDs.
-
-```php
-$meetings = Teamleader::meetings()->byIds([
-    'meeting-uuid-1',
-    'meeting-uuid-2'
-]);
-```
-
-### `forRecurringSeries()`
-
-Get all meetings in a recurring series.
-
-```php
-$meetings = Teamleader::meetings()->forRecurringSeries('recurrence-uuid');
-```
-
-### Sideloading Methods
-
-```php
-// Include tracked time
-$meeting = Teamleader::meetings()
-    ->withTrackedTime()
-    ->info('meeting-uuid');
-
-// Include estimated time
-$meeting = Teamleader::meetings()
-    ->withEstimatedTime()
-    ->info('meeting-uuid');
-
-// Include multiple
-$meeting = Teamleader::meetings()
-    ->withTrackedTime()
-    ->withEstimatedTime()
-    ->info('meeting-uuid');
-```
-
-## Sideloading
-
-Available includes for meetings:
-
-- `tracked_time`: Include actual time tracked for the meeting
-- `estimated_time`: Include estimated time for the meeting
-
-**Example:**
-```php
-// Using includes parameter
-$meeting = Teamleader::meetings()->info('meeting-uuid', [
-    'tracked_time',
-    'estimated_time'
-]);
-
-// Using fluent interface
-$meeting = Teamleader::meetings()
-    ->withTrackedTime()
-    ->withEstimatedTime()
-    ->info('meeting-uuid');
-
-// For list operations
-$meetings = Teamleader::meetings()
-    ->withTrackedTime()
-    ->list(['employee_id' => 'user-uuid']);
-```
-
-## Filtering
-
-Available filters:
-
-- `ids` (array): Array of meeting UUIDs
-- `employee_id` (string): Filter by assigned employee UUID
-- `start_date` (string): Filter meetings from this date (YYYY-MM-DD)
-- `end_date` (string): Filter meetings up to this date (YYYY-MM-DD)
-- `milestone_id` (string): Filter by project milestone UUID
-- `term` (string): Search term for title or description
-- `recurrence_id` (string): Filter by recurring meeting series UUID
-
-**Filter Examples:**
-```php
-// Filter by employee
-$meetings = Teamleader::meetings()->list([
-    'employee_id' => 'user-uuid'
-]);
-
-// Filter by date range
-$meetings = Teamleader::meetings()->list([
-    'start_date' => '2025-02-01',
-    'end_date'   => '2025-02-28'
-]);
-
-// Filter by milestone
-$meetings = Teamleader::meetings()->list([
-    'milestone_id' => 'milestone-uuid'
-]);
-
-// Search meetings
-$meetings = Teamleader::meetings()->list([
-    'term' => 'client review'
-]);
-
-// Multiple filters
-$meetings = Teamleader::meetings()->list([
-    'employee_id'  => 'user-uuid',
-    'start_date'   => '2025-02-01',
-    'end_date'     => '2025-02-28',
-    'milestone_id' => 'milestone-uuid'
-]);
-```
-
-## Response Structure
-
-### Meeting Object (`info()` and `list()`)
-
-```php
-[
-    'id'           => '70af3fdd-b037-0936-ad1a-6d784dd44cf4',
-    'title'        => 'Client Kickoff Meeting',
-    'description'  => 'Initial project kickoff discussion',
-    'created_at'   => '2020-02-01T10:33:45+00:00',
-    'scheduled_at' => '2020-02-04T16:44:33+00:00',
-    'duration'     => [
-        'unit'  => 'min',
-        'value' => 90,
-    ],
-    'status'   => 'open',   // 'open' or 'done'
-    'customer' => [         // nullable
-        'type' => 'company',
-        'id'   => 'company-uuid',
-    ],
-    'project'   => [        // nullable
-        'type' => 'project',    // 'project' or 'nextgenProject'
-        'id'   => 'project-uuid',
-    ],
-    'milestone' => [        // nullable
-        'type' => 'milestone',
-        'id'   => 'milestone-uuid',
-    ],
-    'group' => [            // nullable — added 2026
-        'type' => 'projectGroup',
-        'id'   => 'group-uuid',
-    ],
-    'attendees' => [
         ['type' => 'user',    'id' => 'user-uuid'],
         ['type' => 'contact', 'id' => 'contact-uuid'],
     ],
-    'recurrence' => [       // nullable
-        'type' => 'recurrence',
-        'id'   => 'recurrence-uuid',
-    ],
-]
-```
-
-> **Note:** `info()` additionally returns `deal`, `location`, `online_meeting_room`, `custom_fields[]`, and `workOrder` fields not present in `list()` results.
-
-### With Sideloaded Data
-
-```php
-[
-    'id' => 'meeting-uuid',
-    // ... other fields
-
-    // Included when includes=tracked_time
-    'tracked_time' => [
-        'total' => ['value' => 60, 'unit' => 'min'],
-    ],
-
-    // Included when includes=estimated_time
-    'estimated_time' => [
-        'total' => ['value' => 60, 'unit' => 's'],
-    ],
-]
-```
-
-## Usage Examples
-
-### Schedule Client Meeting
-
-```php
-$meeting = Teamleader::meetings()->schedule([
-    'title'       => 'Q1 Business Review',
-    'starts_at'   => '2025-02-25T14:00:00+00:00',
-    'ends_at'     => '2025-02-25T16:00:00+00:00',
-    'description' => 'Quarterly business review with key stakeholders',
-    'location'    => 'Main Conference Room',
-    'attendees'   => [
-        ['type' => 'user',    'id' => 'account-manager-uuid'],
-        ['type' => 'user',    'id' => 'sales-director-uuid'],
-        ['type' => 'contact', 'id' => 'client-contact-uuid']
-    ],
-    'customer' => [
-        'type' => 'company',
-        'id'   => 'client-company-uuid'
-    ]
-]);
-
-echo "Meeting scheduled: {$meeting['data']['id']}";
-```
-
-### Get Meetings Sorted by Date
-
-```php
-$meetings = Teamleader::meetings()->list(
-    ['employee_id' => 'user-uuid'],
-    ['sort' => [['field' => 'scheduled_at', 'order' => 'asc']]]
-);
-```
-
-### Get Meetings Linked to a Group
-
-```php
-$meetings = Teamleader::meetings()->list([
-    'employee_id' => 'user-uuid',
-    'start_date'  => '2025-01-01',
-    'end_date'    => '2025-03-31',
-]);
-
-// Filter locally by group
-$groupMeetings = array_filter(
-    $meetings['data'],
-    fn($m) => isset($m['group']['id']) && $m['group']['id'] === 'group-uuid'
-);
-```
-
-### Meeting Analytics Dashboard
-
-```php
-class MeetingAnalytics
-{
-    public function getMonthlyStats($userId, $month, $year)
-    {
-        $start = "{$year}-{$month}-01";
-        $end   = date('Y-m-t', strtotime($start));
-
-        $meetings = Teamleader::meetings()
-            ->withTrackedTime()
-            ->list([
-                'employee_id' => $userId,
-                'start_date'  => $start,
-                'end_date'    => $end,
-            ]);
-
-        $total     = count($meetings['data']);
-        $completed = count(array_filter(
-            $meetings['data'],
-            fn($m) => $m['status'] === 'done'
-        ));
-
-        $totalMinutes = array_reduce(
-            $meetings['data'],
-            fn($sum, $m) => $sum + ($m['tracked_time']['total']['value'] ?? 0),
-            0
-        );
-
-        return [
-            'total_meetings'     => $total,
-            'completed_meetings' => $completed,
-            'pending_meetings'   => $total - $completed,
-            'total_hours'        => round($totalMinutes / 60, 2),
-            'completion_rate'    => $total > 0 ? round(($completed / $total) * 100, 2) : 0,
-        ];
-    }
-
-    public function getUpcomingMeetings($userId, $days = 7)
-    {
-        $meetings = Teamleader::meetings()->list(
-            [
-                'employee_id' => $userId,
-                'start_date'  => date('Y-m-d'),
-                'end_date'    => date('Y-m-d', strtotime("+{$days} days")),
-            ],
-            ['sort' => [['field' => 'scheduled_at', 'order' => 'asc']]]
-        );
-
-        return array_filter(
-            $meetings['data'],
-            fn($m) => $m['status'] === 'open'
-        );
-    }
-}
-```
-
-## Best Practices
-
-### 1. Always Include Customer Information
-
-```php
-$meeting = Teamleader::meetings()->schedule([
-    'title'     => 'Client Meeting',
-    'starts_at' => '2025-02-20T10:00:00+00:00',
-    'ends_at'   => '2025-02-20T11:00:00+00:00',
-    'attendees' => [['type' => 'user', 'id' => 'user-uuid']],
-    'customer'  => [
-        'type' => 'company',
-        'id'   => 'company-uuid'
-    ]
+    'customer'         => ['type' => 'company', 'id' => 'company-uuid'],
+    'activity_type_id' => 'activity-type-uuid',
+    'milestone_id'     => 'milestone-uuid',
 ]);
 ```
 
-### 2. Include At Least One User Attendee
+---
+
+### `update(mixed $id, array $data)`
+
+The `id` is injected into the request body. If `attendees` is provided in the update data it must still include at least
+one `user` type entry — otherwise throws `InvalidArgumentException`.
 
 ```php
-$meeting = Teamleader::meetings()->schedule([
-    // ... other fields
-    'attendees' => [
-        ['type' => 'user',    'id' => 'user-uuid'],     // required
-        ['type' => 'contact', 'id' => 'contact-uuid']
-    ]
+Teamleader::meetings()->update('meeting-uuid', [
+    'title'    => 'Quarterly Review (rescheduled)',
+    'starts_at' => '2025-04-16T09:00:00+02:00',
+    'ends_at'   => '2025-04-16T10:30:00+02:00',
+    'location'  => 'Video call',
 ]);
 ```
 
-### 3. Use Sideloading for Time Tracking
+---
 
-```php
-// Good: single request
-$meeting = Teamleader::meetings()
-    ->withTrackedTime()
-    ->withEstimatedTime()
-    ->info('meeting-uuid');
-```
+### `complete(string $id)`
 
-### 4. Sort When Building Calendar Views
-
-```php
-$startOfWeek = now()->startOfWeek()->format('Y-m-d');
-$endOfWeek   = now()->endOfWeek()->format('Y-m-d');
-
-$weekMeetings = Teamleader::meetings()->list(
-    ['start_date' => $startOfWeek, 'end_date' => $endOfWeek],
-    ['sort' => [['field' => 'scheduled_at', 'order' => 'asc']]]
-);
-```
-
-### 5. Complete Meetings When Done
+Marks a meeting as completed.
 
 ```php
 Teamleader::meetings()->complete('meeting-uuid');
+```
 
-// Reopen if needed
+---
+
+### `uncomplete(string $id)`
+
+Reopens a completed meeting.
+
+```php
 Teamleader::meetings()->uncomplete('meeting-uuid');
 ```
 
-### 6. Handle Recurring Meetings by Series
+---
+
+### `delete(string $id)`
 
 ```php
-$seriesMeetings = Teamleader::meetings()->forRecurringSeries('recurrence-uuid');
-
-foreach ($seriesMeetings['data'] as $meeting) {
-    if (strtotime($meeting['scheduled_at']) > time()) {
-        Teamleader::meetings()->update($meeting['id'], [
-            'location' => 'New Location'
-        ]);
-    }
-}
+Teamleader::meetings()->delete('meeting-uuid');
 ```
+
+---
+
+### `createReport(string $meetingId, array $reportData)`
+
+Creates a post-meeting report and attaches it to a related entity. The `attach_to.type` must be `contact`, `company`,
+or `deal` — any other value throws `InvalidArgumentException`.
+
+```php
+Teamleader::meetings()->createReport('meeting-uuid', [
+    'attach_to'   => ['type' => 'deal', 'id' => 'deal-uuid'],
+    'description' => 'Client confirmed budget. Sending contract next week.',
+]);
+```
+
+---
+
+## Helper Methods
+
+| Method                                    | Filter applied                         |
+|-------------------------------------------|----------------------------------------|
+| `forEmployee(string $id)`                 | `employee_id`                          |
+| `inDateRange(string $start, string $end)` | `start_date` + `end_date`              |
+| `today()`                                 | `start_date` + `end_date` set to today |
+| `search(string $term)`                    | `term` (title and description)         |
+
+```php
+$meetings = Teamleader::meetings()->forEmployee('user-uuid');
+$meetings = Teamleader::meetings()->inDateRange('2025-04-01', '2025-04-30');
+$meetings = Teamleader::meetings()->today();
+$meetings = Teamleader::meetings()->search('kickoff');
+```
+
+### Fluent include methods
+
+| Method                | Include          |
+|-----------------------|------------------|
+| `withTrackedTime()`   | `tracked_time`   |
+| `withEstimatedTime()` | `estimated_time` |
+
+---
+
+## Filters
+
+| Filter          | Type   | Description                      |
+|-----------------|--------|----------------------------------|
+| `ids`           | array  | Filter by meeting UUIDs          |
+| `employee_id`   | string | Filter by assigned employee UUID |
+| `start_date`    | string | From date (YYYY-MM-DD)           |
+| `end_date`      | string | To date (YYYY-MM-DD)             |
+| `milestone_id`  | string | Filter by project milestone UUID |
+| `term`          | string | Search in title and description  |
+| `recurrence_id` | string | Filter by recurring series UUID  |
+
+---
+
+## Sideloading
+
+| Include          | Description                       |
+|------------------|-----------------------------------|
+| `tracked_time`   | Time tracked against this meeting |
+| `estimated_time` | Estimated time for this meeting   |
+
+---
+
+## Usage Examples
+
+### Schedule a meeting and create a report after
+
+```php
+$meeting = Teamleader::meetings()->schedule([
+    'title'     => 'Contract Negotiation',
+    'starts_at' => '2025-05-10T14:00:00+02:00',
+    'ends_at'   => '2025-05-10T15:30:00+02:00',
+    'attendees' => [['type' => 'user', 'id' => 'user-uuid']],
+    'customer'  => ['type' => 'company', 'id' => 'company-uuid'],
+]);
+
+$meetingId = $meeting['data']['id'];
+
+// After the meeting
+Teamleader::meetings()->complete($meetingId);
+
+Teamleader::meetings()->createReport($meetingId, [
+    'attach_to'   => ['type' => 'company', 'id' => 'company-uuid'],
+    'description' => 'Agreed on pricing. Contract to be signed by 15 May.',
+]);
+```
+
+### Get this week's meetings with time tracking
+
+```php
+$start = date('Y-m-d', strtotime('monday this week'));
+$end   = date('Y-m-d', strtotime('sunday this week'));
+
+$meetings = Teamleader::meetings()
+    ->withTrackedTime()
+    ->inDateRange($start, $end);
+```
+
+---
 
 ## Error Handling
 
 ```php
+use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
 
+// No user attendee
 try {
-    $meeting = Teamleader::meetings()->schedule([
-        'title'     => 'Meeting',
-        'starts_at' => '2025-02-20T10:00:00+00:00',
-        'ends_at'   => '2025-02-20T11:00:00+00:00',
-        'attendees' => [['type' => 'user', 'id' => 'user-uuid']],
+    Teamleader::meetings()->schedule([
+        'title'     => 'Test',
+        'starts_at' => '2025-05-01T10:00:00+02:00',
+        'ends_at'   => '2025-05-01T11:00:00+02:00',
+        'attendees' => [['type' => 'contact', 'id' => 'contact-uuid']],
         'customer'  => ['type' => 'company', 'id' => 'company-uuid'],
     ]);
-} catch (\InvalidArgumentException $e) {
-    // SDK validation error (missing required field, no user attendee, etc.)
-    Log::error('Invalid meeting data: ' . $e->getMessage());
-} catch (TeamleaderException $e) {
-    Log::error('Teamleader API error', [
-        'message' => $e->getMessage(),
-        'code'    => $e->getCode(),
+} catch (InvalidArgumentException $e) {
+    // 'At least one user attendee must be present'
+}
+
+// Invalid report attach_to type
+try {
+    Teamleader::meetings()->createReport('meeting-uuid', [
+        'attach_to' => ['type' => 'project', 'id' => 'project-uuid'],
     ]);
+} catch (InvalidArgumentException $e) {
+    // 'Report can only be attached to: contact, company, deal'
 }
 ```
 
+---
+
 ## Related Resources
 
-- [Events](events.md) — General calendar events
-- [Calls](calls.md) — Call-specific activities
-- [Activity Types](activity-types.md) — Define meeting types
-- [Projects](../projects/projects.md) — Associated projects
-- [Milestones](../projects/milestones.md) — Project milestones
-- [Companies](../crm/companies.md) — Customer companies
-- [Contacts](../crm/contacts.md) — Customer contacts
-- [Users](../users/users.md) — Meeting attendees
-
-## Rate Limiting
-
-All meeting operations consume 1 API credit per request.
-
-- `list()`: 1 credit
-- `info()`: 1 credit
-- `schedule()`: 1 credit
-- `update()`: 1 credit
-- `complete()`: 1 credit
-- `uncomplete()`: 1 credit
-- `delete()`: 1 credit
+- [[Calls]] — Phone-call activities
+- [[Calendar-Events]] — Generic calendar events
+- [[Activity-Types]] — Meeting type categorisation
+- [[Companies]] — Meeting customer reference
+- [[Contacts]] — Meeting attendees and customer reference
+- [[Users]] — Meeting attendees

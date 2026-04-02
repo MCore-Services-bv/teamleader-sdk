@@ -4,25 +4,20 @@ Retrieve plannable items from Teamleader Focus.
 
 ## Overview
 
-A plannable item is Teamleader's planning abstraction over an underlying source entity (such as a task or project group). Each item exposes three duration metrics — total, planned, and unplanned — which the [Reservations](reservations.md) resource uses to schedule work.
+A plannable item is Teamleader's planning abstraction over an underlying source entity — typically a project task or
+group. Each item exposes duration metrics (total, planned, unplanned) that [[Reservations]] consume, and three
+orthogonal status dimensions you can filter on independently.
 
-This resource is **read-only**. Plannable items are created and managed via their source entities (tasks, project groups, etc.).
+Access via `Teamleader::plannableItems()`.
 
-## Navigation
-
-- [Endpoint](#endpoint)
-- [Capabilities](#capabilities)
-- [Available Methods](#available-methods)
-    - [list()](#list)
-    - [info()](#info)
-    - [infoBySource()](#infobysource)
-- [Convenience Methods](#convenience-methods)
-- [Filters Reference](#filters-reference)
-- [Sorting](#sorting)
-- [Response Structure](#response-structure)
-- [Usage Examples](#usage-examples)
-- [Error Handling](#error-handling)
-- [Related Resources](#related-resources)
+> **Read-only.** Plannable items are created automatically when tasks or groups are created; they cannot be created,
+> updated, or deleted through this resource.
+>
+> **`info()` throws if `$id` is empty.** If you have a task UUID but not a plannable item UUID, use `infoBySource()`
+> instead.
+>
+> **Three separate status filters** — `status`, `completion_statuses`, and `planned_time_statuses` are each
+> independently validated. They can be combined freely.
 
 ## Endpoint
 
@@ -30,284 +25,132 @@ This resource is **read-only**. Plannable items are created and managed via thei
 
 ## Capabilities
 
-- **Pagination**: ✅ Supported
-- **Filtering**: ✅ Supported
-- **Sorting**: ✅ Supported
-- **Sideloading**: ❌ Not Supported
-- **Creation**: ❌ Not Supported
-- **Update**: ❌ Not Supported
-- **Deletion**: ❌ Not Supported
+| Capability  | Supported                                        |
+|-------------|--------------------------------------------------|
+| Pagination  | ✅ Supported                                      |
+| Filtering   | ✅ Supported                                      |
+| Sorting     | ✅ Supported (`id`, `end_date`, `total_duration`) |
+| Sideloading | ❌ Not supported                                  |
+| Creation    | ❌ Not supported                                  |
+| Update      | ❌ Not supported                                  |
+| Deletion    | ❌ Not supported                                  |
 
 ---
 
-## Available Methods
+## Methods
 
-### `list()`
+### `list(array $filters = [], array $options = [])`
 
-List plannable items with optional filters, sorting, and pagination.
-
-**Parameters:**
-- `filters` (array, optional): Filters to narrow results — see [Filters Reference](#filters-reference)
-- `options` (array, optional):
-    - `page_size` (int): Results per page (default: 20)
-    - `page_number` (int): Page number (default: 1)
-    - `sort` (array): Sort configuration — see [Sorting](#sorting)
-
-**Example:**
 ```php
 use McoreServices\TeamleaderSDK\Facades\Teamleader;
 
-// Get all plannable items
 $items = Teamleader::plannableItems()->list();
 
-// Filter by status
-$items = Teamleader::plannableItems()->list([
-    'status' => ['active'],
-]);
-
-// Filter by project
-$items = Teamleader::plannableItems()->list([
-    'project_ids' => ['project-uuid'],
-]);
-
-// Filter unplanned items for a user
-$items = Teamleader::plannableItems()->list([
-    'planned_time_statuses' => ['unplanned'],
-    'assignees' => [
-        ['type' => 'user', 'id' => 'user-uuid'],
+// Filter active unplanned items, sorted by end date
+$items = Teamleader::plannableItems()->list(
+    [
+        'status'               => ['active'],
+        'planned_time_statuses'=> ['unplanned'],
     ],
-]);
-
-// With pagination and sorting
-$items = Teamleader::plannableItems()->list([], [
-    'page_size'   => 50,
-    'page_number' => 1,
-    'sort'        => [['field' => 'end_date', 'order' => 'asc']],
-]);
-```
-
----
-
-### `info()`
-
-Get a single plannable item by its UUID.
-
-**Parameters:**
-- `id` (string, required): Plannable item UUID
-
-**Example:**
-```php
-$item = Teamleader::plannableItems()->info('018d79a1-2b99-7fbd-b323-500b01305371');
-```
-
----
-
-### `infoBySource()`
-
-Get a single plannable item using the underlying source entity's type and ID, when the plannable item UUID is not known.
-
-**Parameters:**
-- `sourceType` (string, required): Type of the source entity (e.g. `task`)
-- `sourceId` (string, required): UUID of the source entity
-
-**Example:**
-```php
-$item = Teamleader::plannableItems()->infoBySource(
-    'task',
-    'eab232c6-49b2-4b7e-a977-5e1148dad471'
+    ['sort' => [['field' => 'end_date', 'order' => 'asc']], 'page_size' => 50]
 );
 
-$plannableItemId = $item['data']['id'];
+// Filter by project and assignee
+$items = Teamleader::plannableItems()->list([
+    'project_ids' => ['project-uuid'],
+    'assignees'   => [['type' => 'user', 'id' => 'user-uuid']],
+]);
 ```
 
 ---
 
-## Convenience Methods
+### `info(mixed $id)`
 
-### `active()`
+Throws `InvalidArgumentException` if `$id` is empty.
 
-Get active plannable items.
+```php
+$item = Teamleader::plannableItems()->info('plannable-item-uuid');
+```
+
+---
+
+### `infoBySource(string $sourceType, string $sourceId)`
+
+Look up a plannable item by the type and UUID of its underlying source entity. Both arguments are validated as
+non-empty.
+
+```php
+// Look up the plannable item from a task UUID
+$item = Teamleader::plannableItems()->infoBySource('task', 'task-uuid');
+$plannableItemId = $item['data']['id'];
+
+// Use the plannable item ID to create a reservation
+Teamleader::reservations()->create([
+    'plannable_item_id' => $plannableItemId,
+    'date'              => '2025-05-12',
+    'duration'          => ['value' => 240, 'unit' => 'minutes'],
+    'assignee'          => ['type' => 'user', 'id' => 'user-uuid'],
+]);
+```
+
+---
+
+## Helper Methods
+
+| Method                          | Filter applied                           |
+|---------------------------------|------------------------------------------|
+| `active()`                      | `status: ['active']`                     |
+| `unplanned()`                   | `planned_time_statuses: ['unplanned']`   |
+| `overbooked()`                  | `planned_time_statuses: ['overbooked']`  |
+| `forProject(string $projectId)` | `project_ids: [$projectId]`              |
+| `forUser(string $userId)`       | `assignees: [{type: user, id: $userId}]` |
+
+All helpers accept optional `$filters` and `$options` to merge additional constraints:
 
 ```php
 $items = Teamleader::plannableItems()->active();
-
-// With additional filters
-$items = Teamleader::plannableItems()->active([
-    'project_ids' => ['project-uuid'],
-]);
-```
-
-### `unplanned()`
-
-Get items with no planned time yet.
-
-```php
-$items = Teamleader::plannableItems()->unplanned();
-```
-
-### `overbooked()`
-
-Get items where planned time exceeds the estimated total duration.
-
-```php
+$items = Teamleader::plannableItems()->unplanned(['project_ids' => ['uuid']]);
 $items = Teamleader::plannableItems()->overbooked();
-```
-
-### `forProject()`
-
-Get all plannable items belonging to a specific project.
-
-```php
 $items = Teamleader::plannableItems()->forProject('project-uuid');
-```
-
-### `forUser()`
-
-Get all plannable items assigned to a specific user.
-
-```php
 $items = Teamleader::plannableItems()->forUser('user-uuid');
 ```
 
 ---
 
-## Filters Reference
+## Filters
 
-| Filter | Type | Description |
-|--------|------|-------------|
-| `ids` | `string[]` | Filter by plannable item UUIDs |
-| `status` | `string[]` | `active`, `deactivated` |
-| `term` | `string` | Search by name/title |
-| `start_date` | `string` | Filter items from this date (YYYY-MM-DD) |
-| `end_date` | `string` | Filter items up to this date (YYYY-MM-DD) |
-| `project_ids` | `string[]` | Filter by project UUIDs |
-| `assignees` | `object[]` | Filter by assignees `{type: user\|team, id: UUID}`. Pass `null` for unassigned |
-| `work_type_ids` | `string[]` | Filter by work type UUIDs |
-| `completion_statuses` | `string[]` | `to_do`, `done` |
-| `planned_time_statuses` | `string[]` | `unplanned`, `partially_planned`, `fully_planned`, `overbooked` |
+| Filter                  | Type   | Description                                                                    |
+|-------------------------|--------|--------------------------------------------------------------------------------|
+| `ids`                   | array  | Filter by plannable item UUIDs                                                 |
+| `status`                | array  | **Validated:** `active`, `deactivated`                                         |
+| `term`                  | string | Search by title/name                                                           |
+| `start_date`            | string | YYYY-MM-DD — validated                                                         |
+| `end_date`              | string | YYYY-MM-DD — validated                                                         |
+| `project_ids`           | array  | Filter by project UUIDs                                                        |
+| `assignees`             | array  | `[{type: user\|team, id: uuid}]`                                               |
+| `work_type_ids`         | array  | Filter by work type UUIDs                                                      |
+| `completion_statuses`   | array  | **Validated:** `to_do`, `done`                                                 |
+| `planned_time_statuses` | array  | **Validated:** `unplanned`, `partially_planned`, `fully_planned`, `overbooked` |
+
+The three validated filter groups (`status`, `completion_statuses`, `planned_time_statuses`)
+throw `InvalidArgumentException` for unrecognised values.
 
 ---
 
 ## Sorting
 
-The `list()` method accepts a `sort` option. Sort can be expressed in multiple ways:
+Sort field passed as `options['sort']` — array of `{field, order}` objects.
+
+| Field            | Description                         |
+|------------------|-------------------------------------|
+| `id`             | Plannable item UUID (default order) |
+| `end_date`       | End date                            |
+| `total_duration` | Total estimated duration            |
 
 ```php
-// Simple string (defaults to asc)
-$options = ['sort' => 'end_date'];
-
-// String with direction
-$options = ['sort' => 'end_date:desc'];
-
-// Single sort object
-$options = ['sort' => ['field' => 'end_date', 'order' => 'asc']];
-
-// Multiple sort fields
-$options = ['sort' => [
-    ['field' => 'end_date', 'order' => 'asc'],
-    ['field' => 'total_duration', 'order' => 'desc'],
-]];
-```
-
-**Valid sort fields:**
-
-| Field | Description |
-|-------|-------------|
-| `id` | Sort by plannable item ID (default) |
-| `end_date` | Sort by end date |
-| `total_duration` | Sort by total estimated duration |
-
----
-
-## Response Structure
-
-### `list()` Response
-
-```json
-{
-    "data": [
-        {
-            "id": "018d55af-d0d7-76be-8185-ee970a7f3826",
-            "source": {
-                "id": "eab232c6-49b2-4b7e-a977-5e1148dad471",
-                "type": "task"
-            },
-            "total_duration":     { "unit": "minutes", "value": 120 },
-            "planned_duration":   { "unit": "minutes", "value": 60 },
-            "unplanned_duration": { "unit": "minutes", "value": 60 }
-        }
-    ]
-}
-```
-
-### `info()` Response
-
-```json
-{
-    "data": {
-        "id": "018d55af-d0d7-76be-8185-ee970a7f3826",
-        "source": {
-            "id": "eab232c6-49b2-4b7e-a977-5e1148dad471",
-            "type": "task"
-        },
-        "total_duration":     { "unit": "minutes", "value": 120 },
-        "planned_duration":   { "unit": "minutes", "value": 60 },
-        "unplanned_duration": { "unit": "minutes", "value": 60 }
-    }
-}
-```
-
----
-
-## Usage Examples
-
-### Find a plannable item from a task, then create a reservation
-
-```php
-// Resolve plannable item from a known task UUID
-$item = Teamleader::plannableItems()->infoBySource('task', $taskId);
-$plannableItemId = $item['data']['id'];
-
-// Check there is still time to plan
-$unplanned = $item['data']['unplanned_duration']['value'];
-
-if ($unplanned >= 60) {
-    Teamleader::reservations()->create([
-        'plannable_item_id' => $plannableItemId,
-        'date'              => '2024-06-01',
-        'duration'          => ['value' => 60, 'unit' => 'minutes'],
-        'assignee'          => ['type' => 'user', 'id' => $userId],
-    ]);
-}
-```
-
-### Build a planning backlog (active, not fully planned)
-
-```php
-$backlog = Teamleader::plannableItems()->list([
-    'status'                => ['active'],
-    'planned_time_statuses' => ['unplanned', 'partially_planned'],
-    'completion_statuses'   => ['to_do'],
-], [
+$items = Teamleader::plannableItems()->list([], [
     'sort' => [['field' => 'end_date', 'order' => 'asc']],
 ]);
-```
-
-### Paginate through all items for a project
-
-```php
-$allItems = [];
-$page     = 1;
-
-do {
-    $response = Teamleader::plannableItems()->forProject('project-uuid', [], [
-        'page_size'   => 100,
-        'page_number' => $page,
-    ]);
-
-    $allItems = array_merge($allItems, $response['data']);
-    $page++;
-} while (count($response['data']) === 100);
 ```
 
 ---
@@ -315,15 +158,27 @@ do {
 ## Error Handling
 
 ```php
-use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
+use InvalidArgumentException;
 
+// Empty ID on info()
 try {
-    $item = Teamleader::plannableItems()->info('plannable-item-uuid');
+    Teamleader::plannableItems()->info('');
 } catch (InvalidArgumentException $e) {
-    // Missing ID, invalid filter value, etc.
-    Log::error('Validation error: '.$e->getMessage());
-} catch (TeamleaderException $e) {
-    Log::error('API error: '.$e->getMessage());
+    // 'Plannable item ID is required. To look up by source, use infoBySource() instead.'
+}
+
+// Invalid status value
+try {
+    Teamleader::plannableItems()->list(['status' => ['archived']]);
+} catch (InvalidArgumentException $e) {
+    // 'Invalid status: archived. Must be one of: active, deactivated'
+}
+
+// Invalid planned_time_status
+try {
+    Teamleader::plannableItems()->list(['planned_time_statuses' => ['overdue']]);
+} catch (InvalidArgumentException $e) {
+    // 'Invalid planned_time_status: overdue. Must be one of: unplanned, ...'
 }
 ```
 
@@ -331,7 +186,7 @@ try {
 
 ## Related Resources
 
-- **[Reservations](reservations.md)** — Schedule time against plannable items
-- **[User Availability](user-availability.md)** — Check capacity before planning
-- **[Work Types](../general/work-types.md)** — Filter by work type
-- **[Projects](../projects/projects.md)** — Filter by project
+- [[Reservations]] — Create reservations for plannable items
+- [[User-Availability]] — Check capacity before planning
+- [[Project-Tasks]] — Source entities that generate plannable items
+- [[Groups]] — Project groups that can also be plannable

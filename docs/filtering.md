@@ -1,303 +1,190 @@
-# Filtering Guide
+# Filtering
 
-Comprehensive guide to filtering resources in the Teamleader SDK.
+How filtering, sorting, and pagination work across all SDK resources.
 
 ## Overview
 
-The Teamleader SDK provides powerful filtering capabilities to help you retrieve exactly the data you need. Most resources support filtering through the `list()` method.
+All resources use `FilterTrait` to build API request parameters. Filters, sorting, and pagination are always passed as
+separate arguments to `list()` — filters in the first array, options (sort, page) in the second.
 
-## Basic Filtering
+Null values and empty arrays in filters are automatically stripped before the request is sent, so it is safe to pass
+conditional filters without pre-cleaning them.
 
-### Simple Filters
+---
 
-Pass filters as the first parameter to the `list()` method:
+## Filters
+
+Filters are passed as the first argument to `list()`. The SDK wraps them in a `filter` key in the POST body.
 
 ```php
-use McoreServices\TeamleaderSDK\Facades\Teamleader;
-
-// Filter by status
+// Single filter
 $companies = Teamleader::companies()->list([
     'status' => 'active'
 ]);
 
-// Filter by multiple criteria
-$contacts = Teamleader::contacts()->list([
-    'status' => 'active',
-    'company_id' => 'company-uuid'
-]);
-```
-
-## Common Filter Types
-
-### Status Filters
-
-Most resources support filtering by status:
-
-```php
-// Active resources only
+// Multiple filters
 $companies = Teamleader::companies()->list([
-    'status' => 'active'
+    'status'        => 'active',
+    'updated_since' => '2025-01-01T00:00:00+00:00',
 ]);
 
-// Deactivated resources
-$contacts = Teamleader::contacts()->list([
-    'status' => 'deactivated'
-]);
-```
-
-### ID Filters
-
-Filter by one or multiple IDs:
-
-```php
-// Single ID
-$companies = Teamleader::companies()->list([
-    'ids' => ['company-uuid-1']
-]);
-
-// Multiple IDs
-$companies = Teamleader::companies()->list([
-    'ids' => [
-        'company-uuid-1',
-        'company-uuid-2',
-        'company-uuid-3'
-    ]
-]);
-```
-
-### Date Filters
-
-Filter resources by date ranges:
-
-```php
-// Updated since a specific date
-$contacts = Teamleader::contacts()->list([
-    'updated_since' => '2024-01-01'
-]);
-
-// Created within a date range
-$deals = Teamleader::deals()->list([
-    'created_after' => '2024-01-01',
-    'created_before' => '2024-12-31'
-]);
-```
-
-### Tag Filters
-
-Filter resources by tags:
-
-```php
-// Single tag
-$companies = Teamleader::companies()->list([
-    'tags' => ['vip']
-]);
-
-// Multiple tags
-$companies = Teamleader::companies()->list([
-    'tags' => ['vip', 'enterprise', 'partner']
-]);
-```
-
-## Advanced Filtering
-
-### Email Filters
-
-Email filters require a specific structure:
-
-```php
-// Filter by primary email
+// Nested filter (e.g. email search)
 $companies = Teamleader::companies()->list([
     'email' => [
-        'type' => 'primary',
-        'email' => 'info@example.com'
-    ]
+        'type'  => 'primary',
+        'email' => 'info@example.com',
+    ],
 ]);
 
-// Using the helper method (recommended)
-$companies = Teamleader::companies()->byEmail('info@example.com');
+// Array-value filter (e.g. status must be an array for some resources)
+$expenses = Teamleader::expenses()->list([
+    'payment_statuses' => ['not_paid', 'paid'],
+]);
 ```
 
-### Search Filters
+### Null and Empty Values Are Stripped
 
-Use the `term` filter for full-text search across multiple fields:
+You do not need to clean up optional filters before passing them. The SDK removes any filter key whose value is `null`
+or an empty array.
 
 ```php
+// This is safe — null filters are ignored
 $companies = Teamleader::companies()->list([
-    'term' => 'Acme'
+    'status'        => $status ?: null,      // ignored if null
+    'updated_since' => $since ?: null,       // ignored if null
+    'tag_ids'       => $tagIds ?: [],        // ignored if empty array
 ]);
 ```
 
-## Sideloading Related Data (Includes)
+---
 
-Use the `include` option to request related data alongside your results in a single API call.
-The SDK translates this into the `includes` parameter that the Teamleader API expects.
+## Sorting
 
-> **Important:** The Teamleader API uses `includes` (plural) in the POST body. The SDK handles
-> this translation automatically — always pass `'include'` in your options array and the SDK
-> will send the correct key.
-
-### Requesting Includes in `list()` Calls
-
-Pass `include` as part of the options (second parameter):
+Sorting is passed in the options (second) argument as `sort` and optionally `sort_order`.
 
 ```php
-// Single include
+// Simple sort (ascending by default)
 $companies = Teamleader::companies()->list([], [
-    'include' => 'custom_fields'
+    'sort' => 'name',
 ]);
 
-// Multiple includes (comma-separated)
+// With explicit direction
 $companies = Teamleader::companies()->list([], [
-    'include' => 'custom_fields,price_list'
+    'sort'       => 'name',
+    'sort_order' => 'desc',
+]);
+
+// Pre-configured sort array (passed directly to the API)
+$companies = Teamleader::companies()->list([], [
+    'sort' => [
+        ['field' => 'name',       'order' => 'asc'],
+        ['field' => 'created_at', 'order' => 'desc'],
+    ],
 ]);
 ```
 
-### Requesting Includes in `info()` Calls
+Not all resources support sorting. Check the resource's capability matrix. Passing a sort to a resource that does not
+support it is ignored.
 
-Pass includes as the second argument:
+---
 
-```php
-$company = Teamleader::companies()->info('company-uuid', 'custom_fields,responsible_user');
-```
+## Pagination
 
-### Using the Fluent `with()` Interface
-
-The `with()` method is the recommended approach for readability:
-
-```php
-// Single relationship
-$company = Teamleader::companies()
-    ->with('custom_fields')
-    ->info('company-uuid');
-
-// Multiple relationships
-$company = Teamleader::companies()
-    ->with('custom_fields,responsible_user,addresses')
-    ->info('company-uuid');
-
-// Chaining
-$company = Teamleader::companies()
-    ->with('custom_fields')
-    ->with('responsible_user')
-    ->info('company-uuid');
-
-// Works with list() too
-$companies = Teamleader::companies()
-    ->with('custom_fields,price_list')
-    ->list(['status' => 'active']);
-```
-
-### Available Includes per Resource
-
-#### Companies
-
-| Include | Description |
-|---|---|
-| `custom_fields` | Custom field values defined for companies |
-| `price_list` | The assigned price list |
-| `responsible_user` | The user responsible for the company |
-| `addresses` | Company address records |
-| `business_type` | Business type information |
-| `tags` | Associated tags |
-
-#### Contacts
-
-| Include | Description |
-|---|---|
-| `custom_fields` | Custom field values defined for contacts |
-| `price_list` | The assigned price list |
-| `responsible_user` | The user responsible for the contact |
-| `addresses` | Contact address records |
-
-### Working with Custom Fields
-
-Custom fields are only returned when explicitly requested via `include`:
+Pagination is passed in the options (second) argument. Defaults are `page_size: 20` and `page_number: 1`.
 
 ```php
 $companies = Teamleader::companies()->list([], [
-    'page_size' => 100,
-    'include'   => 'custom_fields',
+    'page_size'   => 50,
+    'page_number' => 2,
 ]);
-
-foreach ($companies['data'] as $company) {
-    $customFields = $company['custom_fields'] ?? [];
-
-    foreach ($customFields as $field) {
-        $definitionId = $field['definition']['id'];
-        $value        = $field['value'];
-        // Process field...
-    }
-}
 ```
 
-Custom field values follow this structure:
+The response `meta` object contains the total number of matching records:
 
-```json
+```php
+$response = Teamleader::companies()->list([], ['page_size' => 50]);
+
+$total   = $response['meta']['matches'];
+$current = $response['meta']['page']['number'];
+$size    = $response['meta']['page']['size'];
+```
+
+### Fetching All Pages
+
+```php
+function fetchAll(string $resource, array $filters = []): array
 {
-  "definition": {
-    "type": "customFieldDefinition",
-    "id": "bf6765de-56eb-40ec-ad14-9096c5dc5fe1"
-  },
-  "value": "some value"
+    $all      = [];
+    $page     = 1;
+    $pageSize = 100;
+
+    do {
+        $response = Teamleader::{$resource}()->list($filters, [
+            'page_size'   => $pageSize,
+            'page_number' => $page,
+        ]);
+
+        $all  = array_merge($all, $response['data']);
+        $page++;
+    } while (count($response['data']) === $pageSize);
+
+    return $all;
 }
+
+$allCompanies = fetchAll('companies', ['status' => 'active']);
 ```
 
-## Filter Validation
+---
 
-The SDK automatically removes null, empty string, and empty array values:
+## Combining Filters, Sorting, and Pagination
 
-```php
-// Invalid filters are automatically removed
-$companies = Teamleader::companies()->list([
-    'status'         => 'active',
-    'invalid_filter' => null,   // Removed (null value)
-    'empty_array'    => [],     // Removed (empty array)
-    'empty_string'   => '',     // Removed (empty string)
-    'valid_filter'   => 'value' // Kept
-]);
-```
-
-## Combining Filters, Pagination, and Includes
-
-All options can be combined freely:
+All three can be combined freely:
 
 ```php
 $companies = Teamleader::companies()->list(
-    // Filters (first argument)
+    // Filters
     [
         'status'        => 'active',
-        'tags'          => ['vip'],
-        'updated_since' => '2024-01-01',
+        'updated_since' => '2025-01-01T00:00:00+00:00',
     ],
-    // Options (second argument)
+    // Options
     [
-        'page_size'   => 50,
-        'page_number' => 1,
         'sort'        => 'name',
         'sort_order'  => 'asc',
-        'include'     => 'custom_fields,price_list',
+        'page_size'   => 50,
+        'page_number' => 1,
     ]
 );
 ```
 
-## Checking Resource Capabilities
+---
 
-Not all resources support all filtering or sideloading options:
+## Sideloading (Includes)
+
+Sideloading is also passed via the options array, using the `include` key (singular). The SDK internally
+sends `includes` (plural) to the Teamleader API — you never need to write `includes` yourself.
 
 ```php
-$capabilities = Teamleader::companies()->getCapabilities();
+// In list() — via options
+$companies = Teamleader::companies()->list([], [
+    'include' => 'custom_fields,responsible_user',
+]);
 
-if ($capabilities['supports_filtering']) {
-    // This resource supports filtering
-}
+// In info() — second argument
+$company = Teamleader::companies()->info('company-uuid', 'custom_fields');
 
-if ($capabilities['supports_sideloading']) {
-    $availableIncludes = $capabilities['available_includes'];
-}
+// Via fluent with() method (recommended)
+$company = Teamleader::companies()
+    ->with('custom_fields,responsible_user')
+    ->info('company-uuid');
 ```
 
-## See Also
+See [[Sideloading]] for the full guide.
 
-- [Sideloading Guide](sideloading.md) — in-depth guide to loading related data
-- [Usage Guide](usage.md) — general SDK usage
-- [Resources](resources.md) — resource architecture overview
+---
+
+## Related Resources
+
+- [[Sideloading]] — Loading related data in a single request
+- [[Resources]] — Resource architecture and capabilities
+- [[Errors]] — Exception reference

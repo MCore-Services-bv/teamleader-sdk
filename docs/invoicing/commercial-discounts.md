@@ -1,23 +1,18 @@
 # Commercial Discounts
 
-Access commercial discount information in Teamleader Focus.
+Read commercial discount definitions in Teamleader Focus.
 
 ## Overview
 
-The Commercial Discounts resource provides read-only access to commercial discounts configured in your Teamleader account. Commercial discounts can be applied to invoices, quotations, and other financial documents.
+Commercial discounts are named percentage or fixed discounts configured in Teamleader settings and applied at invoice or
+quotation level. They are department-scoped and read-only through the API.
 
-**Important:** This resource is read-only. Commercial discounts are configured in Teamleader Focus settings and cannot be created or modified through the API.
+Access via `Teamleader::commercialDiscounts()`.
 
-## Navigation
-
-- [Endpoint](#endpoint)
-- [Capabilities](#capabilities)
-- [Available Methods](#available-methods)
-- [Helper Methods](#helper-methods)
-- [Response Structure](#response-structure)
-- [Usage Examples](#usage-examples)
-- [Best Practices](#best-practices)
-- [Related Resources](#related-resources)
+> **No ID on response objects.** Commercial discount entries contain only `name` and `department`. `asOptions()`
+> therefore uses the discount name as both key and value in its map.
+>
+> **No pagination or sorting.** `list()` returns all discounts for a department in a single response.
 
 ## Endpoint
 
@@ -25,173 +20,141 @@ The Commercial Discounts resource provides read-only access to commercial discou
 
 ## Capabilities
 
-- **Pagination**: ❌ Not Supported
-- **Filtering**: ✅ Supported (department_id)
-- **Sorting**: ❌ Not Supported
-- **Sideloading**: ❌ Not Supported
-- **Creation**: ❌ Not Supported
-- **Update**: ❌ Not Supported
-- **Deletion**: ❌ Not Supported
+| Capability  | Supported                     |
+|-------------|-------------------------------|
+| Pagination  | ❌ Not supported               |
+| Filtering   | ✅ Supported (`department_id`) |
+| Sorting     | ❌ Not supported               |
+| Sideloading | ❌ Not supported               |
+| Creation    | ❌ Not supported               |
+| Update      | ❌ Not supported               |
+| Deletion    | ❌ Not supported               |
 
-## Available Methods
+---
 
-### `list()`
+## Methods
 
-Get all available commercial discounts, optionally filtered by department.
+### `list(array $filters = [], array $options = [])`
 
-**Parameters:**
-- `filters` (array, optional): Filter by department_id
-
-**Example:**
 ```php
 use McoreServices\TeamleaderSDK\Facades\Teamleader;
 
-// Get all commercial discounts
+// All discounts
 $discounts = Teamleader::commercialDiscounts()->list();
 
-// Get discounts for specific department
-$discounts = Teamleader::commercialDiscounts()->list([
-    'department_id' => 'dept-uuid'
-]);
+// For a specific department
+$discounts = Teamleader::commercialDiscounts()->list(['department_id' => 'dept-uuid']);
 ```
+
+---
 
 ## Helper Methods
 
-### `forDepartment()`
-
-Get commercial discounts for a specific department.
+### `forDepartment(string $departmentId)`
 
 ```php
 $discounts = Teamleader::commercialDiscounts()->forDepartment('dept-uuid');
 ```
 
-### `findByName()`
+### `findByName(string $name, ?string $departmentId = null, bool $exactMatch = true)`
 
-Find a commercial discount by its name.
+**Client-side** via `list()`. Case-insensitive. Default is exact match.
 
 ```php
-$discount = Teamleader::commercialDiscounts()->findByName('Early payment discount');
+$discount = Teamleader::commercialDiscounts()->findByName('Early payment');
+$discount = Teamleader::commercialDiscounts()->findByName('early', null, false); // partial
+$discount = Teamleader::commercialDiscounts()->findByName('Trade', 'dept-uuid');
 ```
 
-### `asOptions()`
+### `search(string $searchTerm, ?string $departmentId = null)`
 
-Get commercial discounts formatted as key-value pairs for dropdowns.
+**Client-side** partial name match. Returns an array of matching discounts.
+
+```php
+$matches = Teamleader::commercialDiscounts()->search('discount');
+```
+
+### `asOptions(?string $departmentId = null)`
+
+Returns `[name => name]` — name is used as both key and value because there is no ID field on the response.
 
 ```php
 $options = Teamleader::commercialDiscounts()->asOptions();
-// Returns: ['uuid-1' => 'Early payment discount', 'uuid-2' => 'Volume discount', ...]
+// ['Early payment' => 'Early payment', 'Trade' => 'Trade', ...]
+
+$options = Teamleader::commercialDiscounts()->asOptions('dept-uuid');
 ```
+
+### `names(?string $departmentId = null)`
+
+Returns a plain array of discount names.
+
+```php
+$names = Teamleader::commercialDiscounts()->names();
+// ['Early payment', 'Trade', 'Partner']
+```
+
+### `groupedByDepartment()`
+
+Returns `[departmentId => ['department' => ..., 'discounts' => [...]]]`.
+
+```php
+$grouped = Teamleader::commercialDiscounts()->groupedByDepartment();
+```
+
+### `exists(string $name, ?string $departmentId = null)`
+
+Returns `true` if a discount with that name exists. Calls `findByName()` internally.
+
+```php
+$exists = Teamleader::commercialDiscounts()->exists('Early payment');
+```
+
+---
+
+## Filters
+
+| Filter          | Type   | Description               |
+|-----------------|--------|---------------------------|
+| `department_id` | string | Filter by department UUID |
+
+---
 
 ## Response Structure
 
-### List Response
+> **Note:** There is no `id` field. Name is the only unique identifier.
 
-```json
-{
-  "data": [
-    {
-      "id": "uuid",
-      "department": {
-        "type": "department",
-        "id": "uuid"
-      },
-      "name": "Early payment discount",
-      "percentage": 2.00
-    },
-    {
-      "id": "uuid",
-      "department": {
-        "type": "department",
-        "id": "uuid"
-      },
-      "name": "Volume discount",
-      "percentage": 5.00
-    }
-  ]
-}
+```php
+[
+    'data' => [
+        ['name' => 'Early payment', 'department' => ['type' => 'department', 'id' => 'dept-uuid']],
+        ['name' => 'Trade',         'department' => ['type' => 'department', 'id' => 'dept-uuid']],
+        ['name' => 'Partner',       'department' => ['type' => 'department', 'id' => 'dept-uuid']],
+    ],
+]
 ```
+
+---
 
 ## Usage Examples
 
-### Get Available Commercial Discounts
-
 ```php
-$discounts = Teamleader::commercialDiscounts()->list();
+// Verify a discount exists before applying it to an invoice
+$exists = Teamleader::commercialDiscounts()->exists('Early payment', 'dept-uuid');
 
-echo "Available commercial discounts:\n";
-foreach ($discounts['data'] as $discount) {
-    echo "- {$discount['name']}: {$discount['percentage']}%\n";
-}
+// Get names for a form select
+$names = Teamleader::commercialDiscounts()->names('dept-uuid');
+
+// Cache per department
+$discounts = Cache::remember("tl_discounts_{$deptId}", 3600, fn() =>
+    Teamleader::commercialDiscounts()->forDepartment($deptId)
+);
 ```
 
-### Apply Discount to Invoice
-
-```php
-// Get discount
-$discount = Teamleader::commercialDiscounts()->findByName('Early payment discount');
-
-$invoice = Teamleader::invoices()->create([
-    'invoice_date' => '2024-02-01',
-    'invoicee' => [...],
-    'grouped_lines' => [...],
-    'discounts' => [
-        [
-            'type' => 'commercial_discount',
-            'commercial_discount_id' => $discount['id']
-        ]
-    ]
-]);
-```
-
-### Calculate Discount Amount
-
-```php
-$subtotal = 1000.00;
-$discount = Teamleader::commercialDiscounts()->findByName('Volume discount');
-
-$discountAmount = $subtotal * ($discount['percentage'] / 100);
-$total = $subtotal - $discountAmount;
-
-echo "Subtotal: €{$subtotal}\n";
-echo "Discount ({$discount['name']}): €{$discountAmount}\n";
-echo "Total: €{$total}\n";
-```
-
-## Best Practices
-
-### 1. Cache Commercial Discounts
-
-```php
-use Illuminate\Support\Facades\Cache;
-
-$discounts = Cache::remember('commercial_discounts', 86400, function () {
-    return Teamleader::commercialDiscounts()->list();
-});
-```
-
-### 2. Department-Specific Discounts
-
-```php
-$departmentId = 'dept-uuid';
-$cacheKey = "commercial_discounts_{$departmentId}";
-
-$discounts = Cache::remember($cacheKey, 86400, function () use ($departmentId) {
-    return Teamleader::commercialDiscounts()->forDepartment($departmentId);
-});
-```
-
-### 3. Validate Before Use
-
-```php
-$discountName = $request->input('discount_name');
-$discount = Teamleader::commercialDiscounts()->findByName($discountName);
-
-if (!$discount) {
-    throw new ValidationException('Invalid commercial discount');
-}
-```
+---
 
 ## Related Resources
 
-- [Invoices](invoices.md) - Invoice management
-- [Quotations](../deals/quotations.md) - Quotation management
+- [[Invoices]] — Discounts applied at invoice level
+- [[Quotations]] — Discounts applied at quotation level
+- [[Tax-Rates]] — Per-line tax rates (department-scoped)

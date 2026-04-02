@@ -1,23 +1,13 @@
 # Tax Rates
 
-Access tax rate information in Teamleader Focus.
+Read tax rate definitions in Teamleader Focus.
 
 ## Overview
 
-The Tax Rates resource provides read-only access to tax rates configured in your Teamleader account. Tax rates are used when creating invoices, quotations, and other financial documents to calculate taxes on line items.
+Tax rates define the VAT or sales tax percentages applied to invoice line items. They are department-scoped — different
+departments may have different available rates.
 
-**Important:** This resource is read-only. Tax rates are configured in Teamleader Focus settings and cannot be created or modified through the API.
-
-## Navigation
-
-- [Endpoint](#endpoint)
-- [Capabilities](#capabilities)
-- [Available Methods](#available-methods)
-- [Helper Methods](#helper-methods)
-- [Response Structure](#response-structure)
-- [Usage Examples](#usage-examples)
-- [Best Practices](#best-practices)
-- [Related Resources](#related-resources)
+Access via `Teamleader::taxRates()`.
 
 ## Endpoint
 
@@ -25,233 +15,171 @@ The Tax Rates resource provides read-only access to tax rates configured in your
 
 ## Capabilities
 
-- **Pagination**: ❌ Not Supported
-- **Filtering**: ✅ Supported (department_id)
-- **Sorting**: ❌ Not Supported
-- **Sideloading**: ❌ Not Supported
-- **Creation**: ❌ Not Supported
-- **Update**: ❌ Not Supported
-- **Deletion**: ❌ Not Supported
+| Capability  | Supported                                            |
+|-------------|------------------------------------------------------|
+| Pagination  | ✅ Supported                                          |
+| Filtering   | ✅ Supported (`department_id`)                        |
+| Sorting     | ✅ Supported (`department_id`, `rate`, `description`) |
+| Sideloading | ❌ Not supported                                      |
+| Creation    | ❌ Not supported                                      |
+| Update      | ❌ Not supported                                      |
+| Deletion    | ❌ Not supported                                      |
 
-## Available Methods
+---
 
-### `list()`
+## Methods
 
-Get all available tax rates, optionally filtered by department.
+### `list(array $filters = [], array $options = [])`
 
-**Parameters:**
-- `filters` (array, optional): Filter by department_id
-
-**Example:**
 ```php
 use McoreServices\TeamleaderSDK\Facades\Teamleader;
 
-// Get all tax rates
-$taxRates = Teamleader::taxRates()->list();
+$rates = Teamleader::taxRates()->list();
 
-// Get tax rates for specific department
-$taxRates = Teamleader::taxRates()->list([
-    'department_id' => 'dept-uuid'
-]);
+$rates = Teamleader::taxRates()->list(
+    ['department_id' => 'dept-uuid'],
+    ['sort' => [['field' => 'rate', 'order' => 'asc']], 'page_size' => 50]
+);
 ```
+
+Sort fields are validated — `InvalidArgumentException` for any field outside `department_id`, `rate`, `description`.
+
+---
+
+### `info(string $id)`
+
+```php
+$rate = Teamleader::taxRates()->info('tax-rate-uuid');
+```
+
+---
 
 ## Helper Methods
 
-### `forDepartment()`
-
-Get tax rates for a specific department.
+### `forDepartment(string $departmentId)`
 
 ```php
-$taxRates = Teamleader::taxRates()->forDepartment('dept-uuid');
+$rates = Teamleader::taxRates()->forDepartment('dept-uuid');
 ```
 
-### `findByRate()`
+### `findByRate(float $rate, ?string $departmentId = null)`
 
-Find a tax rate by its exact rate value.
+**Client-side** via `all()`. Float comparison uses a tolerance of `0.0001`.
 
 ```php
-// Find 21% tax rate
-$taxRate = Teamleader::taxRates()->findByRate(0.21);
+$rate21 = Teamleader::taxRates()->findByRate(0.21);                        // 21%
+$rate21 = Teamleader::taxRates()->findByRate(0.21, 'dept-uuid');           // scoped to department
 ```
 
-### `findByDescription()`
+### `findByDescription(string $description, ?string $departmentId = null, bool $exactMatch = true)`
 
-Find a tax rate by its description.
+**Client-side** via `list()`. Default is exact match (case-insensitive).
 
 ```php
-$taxRate = Teamleader::taxRates()->findByDescription('21%');
+$rate = Teamleader::taxRates()->findByDescription('21%');
+$rate = Teamleader::taxRates()->findByDescription('vat', null, false); // partial match
 ```
 
-### `asOptions()`
+### `all(array $filters = [], int $maxPages = 10)`
 
-Get tax rates formatted as key-value pairs for dropdowns.
+Paginates up to 10 pages (100 per page). Not guaranteed exhaustive for very large sets.
+
+```php
+$all = Teamleader::taxRates()->all();
+$all = Teamleader::taxRates()->all(['department_id' => 'dept-uuid']);
+```
+
+### `asOptions(?string $departmentId = null)`
+
+Returns flat `[id => description]` map. Calls `all()` internally.
 
 ```php
 $options = Teamleader::taxRates()->asOptions();
-// Returns: ['uuid-1' => '21%', 'uuid-2' => '6%', ...]
+// ['uuid-1' => '21%', 'uuid-2' => '6%', 'uuid-3' => '0%']
+
+$options = Teamleader::taxRates()->asOptions('dept-uuid');
 ```
+
+### `sortedByRate()` / `sortedByDescription()`
+
+Convenience sort wrappers.
+
+```php
+$rates = Teamleader::taxRates()->sortedByRate();
+$rates = Teamleader::taxRates()->sortedByDescription(['department_id' => 'dept-uuid'], 'desc');
+```
+
+### `groupedByDepartment()`
+
+Returns `[departmentId => ['department' => ..., 'tax_rates' => [...]]]`.
+
+```php
+$grouped = Teamleader::taxRates()->groupedByDepartment();
+```
+
+### `exists(string $id)`
+
+```php
+$exists = Teamleader::taxRates()->exists('tax-rate-uuid');
+```
+
+---
+
+## Filters
+
+| Filter          | Type   | Description               |
+|-----------------|--------|---------------------------|
+| `department_id` | string | Filter by department UUID |
+
+---
+
+## Sorting
+
+| Field           | Description      |
+|-----------------|------------------|
+| `department_id` | Department UUID  |
+| `rate`          | Tax rate value   |
+| `description`   | Rate description |
+
+---
 
 ## Response Structure
 
-### List Response
-
-```json
-{
-  "data": [
-    {
-      "id": "uuid",
-      "department": {
-        "type": "department",
-        "id": "uuid"
-      },
-      "description": "21%",
-      "rate": 0.21
-    },
-    {
-      "id": "uuid",
-      "department": {
-        "type": "department",
-        "id": "uuid"
-      },
-      "description": "6%",
-      "rate": 0.06
-    },
-    {
-      "id": "uuid",
-      "department": {
-        "type": "department",
-        "id": "uuid"
-      },
-      "description": "0%",
-      "rate": 0.00
-    }
-  ]
-}
+```php
+[
+    'data' => [
+        ['id' => 'uuid', 'description' => '21%', 'rate' => 0.21, 'department' => ['type' => 'department', 'id' => 'dept-uuid']],
+        ['id' => 'uuid', 'description' => '6%',  'rate' => 0.06, 'department' => ['type' => 'department', 'id' => 'dept-uuid']],
+        ['id' => 'uuid', 'description' => '0%',  'rate' => 0.0,  'department' => ['type' => 'department', 'id' => 'dept-uuid']],
+    ],
+    'meta' => ['page' => ['size' => 20, 'number' => 1], 'matches' => 3],
+]
 ```
+
+---
 
 ## Usage Examples
 
-### Get Available Tax Rates
-
 ```php
-$taxRates = Teamleader::taxRates()->list();
+// Find the 21% rate for a department
+$rate = Teamleader::taxRates()->findByRate(0.21, 'dept-uuid');
 
-echo "Available tax rates:\n";
-foreach ($taxRates['data'] as $rate) {
-    echo "- {$rate['description']} ({$rate['rate']})\n";
-}
+// Use on invoice line item
+Teamleader::invoices()->create([..., 'grouped_lines' => [[
+    'line_items' => [[..., 'tax_rate_id' => $rate['id']]],
+]]]);
+
+// Cache per department
+$rates = Cache::remember("tl_tax_rates_{$deptId}", 3600, fn() =>
+    Teamleader::taxRates()->asOptions($deptId)
+);
 ```
 
-### Use in Invoice Line Items
-
-```php
-// Get standard VAT rate
-$standardVat = Teamleader::taxRates()->findByRate(0.21);
-
-$invoice = Teamleader::invoices()->create([
-    'invoice_date' => '2024-02-01',
-    'invoicee' => [...],
-    'grouped_lines' => [
-        [
-            'line_items' => [
-                [
-                    'quantity' => 2,
-                    'description' => 'Product A',
-                    'unit_price' => [
-                        'amount' => 100.00,
-                        'tax' => 'excluding'
-                    ],
-                    'tax_rate_id' => $standardVat['id']
-                ]
-            ]
-        ]
-    ]
-]);
-```
-
-### Create Dropdown for Tax Rates
-
-```php
-$options = Teamleader::taxRates()->asOptions();
-
-echo '<select name="tax_rate_id">';
-foreach ($options as $id => $description) {
-    echo "<option value='{$id}'>{$description}</option>";
-}
-echo '</select>';
-```
-
-### Calculate Tax Amount
-
-```php
-$amount = 100.00;
-$taxRate = Teamleader::taxRates()->findByRate(0.21);
-
-$taxAmount = $amount * $taxRate['rate'];
-$totalWithTax = $amount + $taxAmount;
-
-echo "Amount: €{$amount}\n";
-echo "Tax ({$taxRate['description']}): €{$taxAmount}\n";
-echo "Total: €{$totalWithTax}\n";
-```
-
-## Best Practices
-
-### 1. Cache Tax Rates
-
-Tax rates rarely change, so cache them to reduce API calls:
-
-```php
-use Illuminate\Support\Facades\Cache;
-
-$taxRates = Cache::remember('tax_rates', 86400, function () {
-    return Teamleader::taxRates()->list();
-});
-```
-
-### 2. Department-Specific Rates
-
-If you work with multiple departments, cache per department:
-
-```php
-$departmentId = 'dept-uuid';
-$cacheKey = "tax_rates_{$departmentId}";
-
-$taxRates = Cache::remember($cacheKey, 86400, function () use ($departmentId) {
-    return Teamleader::taxRates()->forDepartment($departmentId);
-});
-```
-
-### 3. Validate Tax Rate Exists
-
-```php
-$taxRateId = $request->input('tax_rate_id');
-$taxRate = Teamleader::taxRates()->findByRate($expectedRate);
-
-if (!$taxRate || $taxRate['id'] !== $taxRateId) {
-    throw new ValidationException('Invalid tax rate');
-}
-```
-
-### 4. Use Helper Methods
-
-```php
-// Good: Clear and concise
-$vatRate = Teamleader::taxRates()->findByRate(0.21);
-
-// Less ideal: Manual searching
-$rates = Teamleader::taxRates()->list();
-$vatRate = null;
-foreach ($rates['data'] as $rate) {
-    if ($rate['rate'] === 0.21) {
-        $vatRate = $rate;
-        break;
-    }
-}
-```
+---
 
 ## Related Resources
 
-- [Invoices](invoices.md) - Invoice management
-- [Withholding Tax Rates](withholding-tax-rates.md) - Withholding tax information
-- [Quotations](../deals/quotations.md) - Quotation management
+- [[Invoices]] — `tax_rate_id` used on line items
+- [[Subscriptions]] — `tax_rate_id` used on line items
+- [[Withholding-Tax-Rates]] — Separate tax withheld at source
+- [[Commercial-Discounts]] — Department-scoped discounts

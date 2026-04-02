@@ -4,23 +4,12 @@ Manage day off type definitions in Teamleader Focus.
 
 ## Overview
 
-The Day Off Types resource allows you to create, update, delete, and list day off type definitions in your Teamleader account. Day off types categorize different kinds of leave (vacation, sick leave, personal days, etc.) and can be assigned different colors and validity periods.
+The Day Off Types resource lets you create, update, delete, and list the leave categories used in your account —
+vacation, sick leave, parental leave, and so on. Each type has a name, an optional color, and an optional date validity
+window.
 
-## Navigation
-
-- [Endpoint](#endpoint)
-- [Capabilities](#capabilities)
-- [Available Methods](#available-methods)
-    - [list()](#list)
-    - [create()](#create)
-    - [update()](#update)
-    - [delete()](#delete)
-- [Response Structure](#response-structure)
-- [Usage Examples](#usage-examples)
-- [Common Use Cases](#common-use-cases)
-- [Best Practices](#best-practices)
-- [Error Handling](#error-handling)
-- [Related Resources](#related-resources)
+`info()` is not overridden and falls through to the base class behaviour. `list()` takes no filters or pagination — all
+types are returned in a single response.
 
 ## Endpoint
 
@@ -28,502 +17,272 @@ The Day Off Types resource allows you to create, update, delete, and list day of
 
 ## Capabilities
 
-- **Pagination**: ❌ Not Supported
-- **Filtering**: ❌ Not Supported
-- **Sorting**: ❌ Not Supported
-- **Sideloading**: ❌ Not Supported
-- **Creation**: ✅ Supported
-- **Update**: ✅ Supported
-- **Deletion**: ✅ Supported
+| Capability  | Supported       |
+|-------------|-----------------|
+| Pagination  | ❌ Not supported |
+| Filtering   | ❌ Not supported |
+| Sorting     | ❌ Not supported |
+| Sideloading | ❌ Not supported |
+| Creation    | ✅ Supported     |
+| Update      | ✅ Supported     |
+| Deletion    | ✅ Supported     |
 
-## Available Methods
+---
 
-### `list()`
+## Methods
 
-Get all day off types.
+### `list(array $filters = [], array $options = [])`
 
-**Parameters:** None
+Returns all day off types. Filters and options are accepted for signature compatibility but ignored — the API returns
+all types in one response.
 
-**Example:**
 ```php
 use McoreServices\TeamleaderSDK\Facades\Teamleader;
 
-// Get all day off types
-$dayOffTypes = Teamleader::dayOffTypes()->list();
-```
-
-### `create()`
-
-Create a new day off type.
-
-**Parameters:**
-- `data` (array): Day off type data
-    - `name` (string, required): Name of the day off type
-    - `color` (string, required): Hex color code (e.g., '#FF0000')
-    - `date_validity` (array, optional): Date range when this type is valid
-        - `from` (string): Start date (YYYY-MM-DD)
-        - `until` (string): End date (YYYY-MM-DD)
-
-**Example:**
-```php
-// Create a basic day off type
-$dayOffType = Teamleader::dayOffTypes()->create([
-    'name' => 'Vacation',
-    'color' => '#00B2B2'
-]);
-
-// Create with date validity
-$dayOffType = Teamleader::dayOffTypes()->create([
-    'name' => 'Summer Leave',
-    'color' => '#FFB600',
-    'date_validity' => [
-        'from' => '2024-06-01',
-        'until' => '2024-08-31'
-    ]
-]);
-```
-
-### `update()`
-
-Update an existing day off type.
-
-**Parameters:**
-- `id` (string): Day off type UUID
-- `data` (array): Updated data
-
-**Example:**
-```php
-$result = Teamleader::dayOffTypes()->update('day-off-type-uuid', [
-    'name' => 'Updated Name',
-    'color' => '#FF5500'
-]);
-```
-
-### `delete()`
-
-Delete a day off type.
-
-**Parameters:**
-- `id` (string): Day off type UUID
-
-**Example:**
-```php
-Teamleader::dayOffTypes()->delete('day-off-type-uuid');
-```
-
-## Response Structure
-
-### Day Off Type Object
-
-```php
-[
-    'id' => 'day-off-type-uuid',
-    'name' => 'Vacation',
-    'color' => '#00B2B2',
-    'date_validity' => [
-        'from' => '2024-01-01',
-        'until' => '2024-12-31'
-    ] // Or null if no validity period
-]
-```
-
-## Usage Examples
-
-### Create Standard Leave Types
-
-```php
-// Vacation
-$vacation = Teamleader::dayOffTypes()->create([
-    'name' => 'Vacation',
-    'color' => '#00B2B2'
-]);
-
-// Sick Leave
-$sickLeave = Teamleader::dayOffTypes()->create([
-    'name' => 'Sick Leave',
-    'color' => '#FF0000'
-]);
-
-// Personal Day
-$personalDay = Teamleader::dayOffTypes()->create([
-    'name' => 'Personal Day',
-    'color' => '#FFB600'
-]);
-```
-
-### Create Seasonal Leave Type
-
-```php
-// Summer hours - only valid during summer months
-$summerHours = Teamleader::dayOffTypes()->create([
-    'name' => 'Summer Hours',
-    'color' => '#FFA500',
-    'date_validity' => [
-        'from' => '2024-06-01',
-        'until' => '2024-08-31'
-    ]
-]);
-```
-
-### Update Leave Type
-
-```php
-// Change the color of a leave type
-$result = Teamleader::dayOffTypes()->update('vacation-uuid', [
-    'color' => '#0000FF'  // Change to blue
-]);
-
-// Update validity period
-$result = Teamleader::dayOffTypes()->update('summer-leave-uuid', [
-    'date_validity' => [
-        'from' => '2024-07-01',
-        'until' => '2024-09-30'
-    ]
-]);
-```
-
-### Delete Unused Leave Type
-
-```php
-Teamleader::dayOffTypes()->delete('old-leave-type-uuid');
-```
-
-### Get All Leave Types
-
-```php
-$allTypes = Teamleader::dayOffTypes()->list();
-
-foreach ($allTypes['data'] as $type) {
-    echo "{$type['name']} - {$type['color']}\n";
-}
-```
-
-## Common Use Cases
-
-### Initialize Leave Types for New Account
-
-```php
-class LeaveTypeInitializer
-{
-    public function setupStandardTypes()
-    {
-        $standardTypes = [
-            [
-                'name' => 'Annual Leave',
-                'color' => '#00B2B2'
-            ],
-            [
-                'name' => 'Sick Leave',
-                'color' => '#FF0000'
-            ],
-            [
-                'name' => 'Personal Day',
-                'color' => '#FFB600'
-            ],
-            [
-                'name' => 'Public Holiday',
-                'color' => '#9900FF'
-            ],
-            [
-                'name' => 'Unpaid Leave',
-                'color' => '#808080'
-            ],
-            [
-                'name' => 'Parental Leave',
-                'color' => '#FF69B4'
-            ]
-        ];
-        
-        $created = [];
-        foreach ($standardTypes as $type) {
-            $created[] = Teamleader::dayOffTypes()->create($type);
-        }
-        
-        return $created;
-    }
-}
-```
-
-### Leave Type Selector
-
-```php
-class LeaveTypeSelector
-{
-    public function getOptions()
-    {
-        $types = Teamleader::dayOffTypes()->list();
-        
-        $options = [];
-        foreach ($types['data'] as $type) {
-            $options[] = [
-                'value' => $type['id'],
-                'label' => $type['name'],
-                'color' => $type['color'],
-                'valid_from' => $type['date_validity']['from'] ?? null,
-                'valid_until' => $type['date_validity']['until'] ?? null
-            ];
-        }
-        
-        return $options;
-    }
-    
-    public function getActiveTypes($date = null)
-    {
-        $date = $date ?? date('Y-m-d');
-        $types = Teamleader::dayOffTypes()->list();
-        
-        $active = [];
-        foreach ($types['data'] as $type) {
-            if ($this->isValidOnDate($type, $date)) {
-                $active[] = $type;
-            }
-        }
-        
-        return $active;
-    }
-    
-    private function isValidOnDate($type, $date)
-    {
-        if (!isset($type['date_validity'])) {
-            return true;
-        }
-        
-        $from = $type['date_validity']['from'];
-        $until = $type['date_validity']['until'];
-        
-        return $date >= $from && $date <= $until;
-    }
-}
-```
-
-### Color-Coded Calendar
-
-```php
-class LeaveCalendar
-{
-    public function getColorMapping()
-    {
-        $types = Teamleader::dayOffTypes()->list();
-        
-        $colorMap = [];
-        foreach ($types['data'] as $type) {
-            $colorMap[$type['id']] = [
-                'name' => $type['name'],
-                'color' => $type['color']
-            ];
-        }
-        
-        return $colorMap;
-    }
-    
-    public function renderLeave($dayOffTypeId)
-    {
-        $colorMap = $this->getColorMapping();
-        
-        if (isset($colorMap[$dayOffTypeId])) {
-            return [
-                'style' => "background-color: {$colorMap[$dayOffTypeId]['color']}",
-                'title' => $colorMap[$dayOffTypeId]['name']
-            ];
-        }
-        
-        return [
-            'style' => 'background-color: #CCCCCC',
-            'title' => 'Unknown'
-        ];
-    }
-}
-```
-
-### Sync to Local Database
-
-```php
-use App\Models\DayOffType;
-use Illuminate\Console\Command;
-
-class SyncDayOffTypesCommand extends Command
-{
-    protected $signature = 'teamleader:sync-day-off-types';
-    
-    public function handle()
-    {
-        $this->info('Syncing day off types...');
-        
-        $types = Teamleader::dayOffTypes()->list();
-        
-        foreach ($types['data'] as $typeData) {
-            DayOffType::updateOrCreate(
-                ['teamleader_id' => $typeData['id']],
-                [
-                    'name' => $typeData['name'],
-                    'color' => $typeData['color'],
-                    'valid_from' => $typeData['date_validity']['from'] ?? null,
-                    'valid_until' => $typeData['date_validity']['until'] ?? null,
-                ]
-            );
-        }
-        
-        $this->info('Day off types synced successfully!');
-    }
-}
-```
-
-### Find Leave Type by Name
-
-```php
-class LeaveTypeFinder
-{
-    public function findByName($name)
-    {
-        $types = Teamleader::dayOffTypes()->list();
-        
-        foreach ($types['data'] as $type) {
-            if (strcasecmp($type['name'], $name) === 0) {
-                return $type;
-            }
-        }
-        
-        return null;
-    }
-    
-    public function getVacationType()
-    {
-        return $this->findByName('Vacation') 
-            ?? $this->findByName('Annual Leave')
-            ?? $this->findByName('Holiday');
-    }
-    
-    public function getSickLeaveType()
-    {
-        return $this->findByName('Sick Leave')
-            ?? $this->findByName('Sick Day');
-    }
-}
-```
-
-## Best Practices
-
-### 1. Use Meaningful Colors
-
-```php
-// Good: Use intuitive colors
-$vacation = ['name' => 'Vacation', 'color' => '#00B2B2'];    // Teal/Blue
-$sickLeave = ['name' => 'Sick Leave', 'color' => '#FF0000']; // Red
-$personal = ['name' => 'Personal', 'color' => '#FFB600'];    // Orange
-
-// Bad: Random colors
-$vacation = ['name' => 'Vacation', 'color' => '#123456'];
-```
-
-### 2. Cache Leave Types
-
-```php
-use Illuminate\Support\Facades\Cache;
-
-// Good: Cache leave types
-$types = Cache::remember('day_off_types', 3600, function() {
-    return Teamleader::dayOffTypes()->list();
-});
-
-// Bad: Fetch every time
 $types = Teamleader::dayOffTypes()->list();
 ```
 
-### 3. Validate Before Delete
+---
+
+### `create(array $data)`
+
+Creates a new day off type. `name` is the only required field. `color` and `date_validity` are optional but validated if
+provided.
+
+**Required:**
+
+| Field  | Type   | Description                    |
+|--------|--------|--------------------------------|
+| `name` | string | Display name of the leave type |
+
+**Optional:**
+
+| Field                 | Type   | Description                                  |
+|-----------------------|--------|----------------------------------------------|
+| `color`               | string | Hex color code — must match `#RRGGBB` format |
+| `date_validity`       | array  | Validity window — see below                  |
+| `date_validity.from`  | string | Start date in `YYYY-MM-DD` format            |
+| `date_validity.until` | string | End date in `YYYY-MM-DD` format              |
 
 ```php
-// Good: Check if type is in use before deleting
-if (!$this->isLeaveTypeInUse($typeId)) {
-    Teamleader::dayOffTypes()->delete($typeId);
-} else {
-    throw new \Exception('Cannot delete: leave type is in use');
-}
+// Name only
+$type = Teamleader::dayOffTypes()->create([
+    'name' => 'Sick Leave',
+]);
 
-// Bad: Delete without checking
-Teamleader::dayOffTypes()->delete($typeId);
+// With color
+$type = Teamleader::dayOffTypes()->create([
+    'name'  => 'Vacation',
+    'color' => '#00B2B2',
+]);
+
+// With validity window
+$type = Teamleader::dayOffTypes()->create([
+    'name'           => 'Summer Leave',
+    'color'          => '#FFB600',
+    'date_validity'  => [
+        'from'  => '2025-06-01',
+        'until' => '2025-08-31',
+    ],
+]);
 ```
 
-### 4. Use Date Validity for Seasonal Types
+---
+
+### `update(mixed $id, array $data)`
+
+Updates a day off type. The `id` is injected into the request body before posting. Any field can be updated — all are
+optional.
 
 ```php
-// Good: Set validity for seasonal types
-Teamleader::dayOffTypes()->create([
-    'name' => 'Summer Friday',
-    'color' => '#FFA500',
+Teamleader::dayOffTypes()->update('type-uuid', [
+    'name'  => 'Annual Leave',
+    'color' => '#0055FF',
+]);
+
+// Update validity only
+Teamleader::dayOffTypes()->update('type-uuid', [
     'date_validity' => [
-        'from' => date('Y') . '-06-01',
-        'until' => date('Y') . '-08-31'
-    ]
-]);
-
-// Bad: Create without validity (available year-round)
-Teamleader::dayOffTypes()->create([
-    'name' => 'Summer Friday',
-    'color' => '#FFA500'
+        'from'  => '2025-07-01',
+        'until' => '2025-09-30',
+    ],
 ]);
 ```
 
-### 5. Document Color Choices
+---
+
+### `delete(mixed $id)`
+
+Deletes a day off type by UUID.
 
 ```php
-// Good: Document color system
-class LeaveTypeColors
-{
-    const VACATION = '#00B2B2';     // Teal - relaxation
-    const SICK = '#FF0000';          // Red - urgent/medical
-    const PERSONAL = '#FFB600';      // Orange - flexible
-    const TRAINING = '#9900FF';      // Purple - development
-    const UNPAID = '#808080';        // Gray - neutral
-}
+Teamleader::dayOffTypes()->delete('type-uuid');
 ```
+
+---
+
+## Helper Methods
+
+### `createWithValidity(string $name, ?string $color, ?string $fromDate, ?string $untilDate)`
+
+Convenience wrapper for creating a type with a validity window in a single call.
+
+```php
+$type = Teamleader::dayOffTypes()->createWithValidity(
+    'Summer Friday',
+    '#FFA500',
+    '2025-06-01',
+    '2025-08-31'
+);
+```
+
+### `updateValidity(string $id, string $fromDate, ?string $untilDate = null)`
+
+Updates only the validity window of an existing type.
+
+```php
+Teamleader::dayOffTypes()->updateValidity('type-uuid', '2025-07-01', '2025-09-30');
+```
+
+### `bulkCreate(array $dayOffTypes)`
+
+Creates multiple types in a loop. Failures are caught per-entry and returned as error objects — they do not throw.
+
+```php
+$results = Teamleader::dayOffTypes()->bulkCreate([
+    ['name' => 'Vacation',   'color' => '#00B2B2'],
+    ['name' => 'Sick Leave', 'color' => '#FF6B6B'],
+    ['name' => 'Personal',   'color' => '#FFB600'],
+]);
+
+// Each entry: ['index' => 0, 'success' => true, 'data' => [...]]
+// or:         ['index' => 1, 'success' => false, 'error' => '...', 'data' => [...]]
+```
+
+### `getCommonColors()`
+
+Returns a curated map of hex codes to colour names — no API call. Useful for building UI colour pickers.
+
+```php
+$colors = Teamleader::dayOffTypes()->getCommonColors();
+// ['#00B2B2' => 'Teal', '#FF6B6B' => 'Red', ...]
+```
+
+---
+
+## Validation
+
+`create()` and `update()` run `validateData()` before the request:
+
+- `color` must match `/^#[0-9A-Fa-f]{6}$/` if provided
+- `date_validity.from` must match `YYYY-MM-DD` if provided
+- `date_validity.until` must match `YYYY-MM-DD` if provided
+- Empty strings, nulls, and empty arrays are stripped before sending
+
+An `InvalidArgumentException` is thrown for any violation.
+
+---
+
+## Response Structure
+
+### `list()` response
+
+```php
+[
+    'data' => [
+        [
+            'id'             => 'type-uuid',
+            'name'           => 'Vacation',
+            'color'          => '#00B2B2',
+            'date_validity'  => null, // or ['from' => '...', 'until' => '...']
+        ],
+    ],
+]
+```
+
+### `create()` / `update()` response
+
+```php
+[
+    'data' => [
+        'type' => 'dayOffType',
+        'id'   => 'type-uuid',
+    ],
+]
+```
+
+---
+
+## Usage Examples
+
+### Build a leave type select list
+
+```php
+$types = Teamleader::dayOffTypes()->list();
+
+$options = array_column($types['data'], 'name', 'id');
+// ['uuid-1' => 'Vacation', 'uuid-2' => 'Sick Leave', ...]
+```
+
+### Initialise standard leave types for a new account
+
+```php
+Teamleader::dayOffTypes()->bulkCreate([
+    ['name' => 'Annual Leave',   'color' => '#00B2B2'],
+    ['name' => 'Sick Leave',     'color' => '#FF6B6B'],
+    ['name' => 'Personal Day',   'color' => '#FFB600'],
+    ['name' => 'Parental Leave', 'color' => '#BB8FCE'],
+    ['name' => 'Unpaid Leave',   'color' => '#808080'],
+]);
+```
+
+### Cache leave types
+
+```php
+$types = Cache::remember('tl_day_off_types', 3600, function () {
+    return Teamleader::dayOffTypes()->list();
+});
+```
+
+---
 
 ## Error Handling
 
 ```php
+use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
 
+// Invalid color format — thrown before the request
 try {
-    $dayOffType = Teamleader::dayOffTypes()->create([
-        'name' => 'New Leave Type',
-        'color' => '#00B2B2'
+    Teamleader::dayOffTypes()->create([
+        'name'  => 'Test',
+        'color' => 'red', // must be #RRGGBB
     ]);
+} catch (InvalidArgumentException $e) {
+    // 'Color must be a valid hex color code (e.g., #00B2B2)'
+    Log::error($e->getMessage());
+}
+
+// Missing name — thrown before the request
+try {
+    Teamleader::dayOffTypes()->create(['color' => '#00B2B2']);
+} catch (InvalidArgumentException $e) {
+    // 'Name is required for creating a day off type'
+    Log::error($e->getMessage());
+}
+
+// API-level errors
+try {
+    Teamleader::dayOffTypes()->delete('type-uuid');
 } catch (TeamleaderException $e) {
-    if ($e->getCode() === 422) {
-        // Validation error
-        Log::error('Invalid day off type data', [
-            'error' => $e->getMessage(),
-            'details' => $e->getDetails()
-        ]);
-    } else {
-        Log::error('Failed to create day off type', [
-            'error' => $e->getMessage()
-        ]);
-    }
+    Log::error('Teamleader error', ['message' => $e->getMessage()]);
 }
 ```
 
-## Color Format
-
-Colors must be in hexadecimal format:
-
-```php
-// Valid colors
-'#FF0000'  // Red
-'#00B2B2'  // Teal
-'#FFB600'  // Orange
-
-// Invalid colors (will fail validation)
-'red'
-'rgb(255, 0, 0)'
-'FF0000'  // Missing #
-```
+---
 
 ## Related Resources
 
-- [Days Off](days_off.md) - Import days off using these types
-- [Users](users.md) - View user days off
-- [Closing Days](closing_days.md) - Company-wide closing days
-
-## See Also
-
-- [Usage Guide](../usage.md) - General SDK usage
+- [[Days-Off]] — Applies these types when importing user leave
+- [[Users]] — `listDaysOff()` returns leave records that reference these types
+- [[Closing-Days]] — Company-wide closures (not per-user leave)

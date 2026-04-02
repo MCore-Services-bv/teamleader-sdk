@@ -124,4 +124,7 @@ token_cache.json
 /examples/config.php
 /examples/tokens.php
 sandbox_test.php
-/bugs/
+
+# Fixes
+/github/bugs
+/github/features

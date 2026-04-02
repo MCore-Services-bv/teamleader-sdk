@@ -1,18 +1,19 @@
 # External Parties
 
-Manage external parties on projects in Teamleader Focus.
+Manage external stakeholders on projects in Teamleader Focus.
 
 ## Overview
 
-External parties represent stakeholders on a project who are not part of your organization (e.g., contractors, consultants, client representatives). They can be contacts or companies with defined roles.
+External parties are contacts or companies linked to a project with a functional role (e.g. contractor, client
+representative). They are separate from the project's internal team.
 
-## Navigation
+Access via `Teamleader::external_parties()`.
 
-- [Endpoint](#endpoint)
-- [Capabilities](#capabilities)
-- [Available Methods](#available-methods)
-- [Usage Examples](#usage-examples)
-- [Related Resources](#related-resources)
+> **SDK key uses underscore:** `external_parties` — not camelCase.
+>
+> **No standard `list()` method.** Use `addToProject()`, `update()`, and `delete()` to manage external parties.
+>
+> **`addToProject()` accepts two call signatures** — an array or individual parameters.
 
 ## Endpoint
 
@@ -20,176 +21,138 @@ External parties represent stakeholders on a project who are not part of your or
 
 ## Capabilities
 
-- **Pagination**: ❌ Not Supported
-- **Filtering**: ❌ Not Supported
-- **Sorting**: ❌ Not Supported
-- **Sideloading**: ❌ Not Supported
-- **Creation**: ✅ Supported (via addToProject)
-- **Update**: ✅ Supported
-- **Deletion**: ✅ Supported
+| Capability  | Supported              |
+|-------------|------------------------|
+| Pagination  | ❌ Not supported        |
+| Filtering   | ❌ Not supported        |
+| Sorting     | ❌ Not supported        |
+| Sideloading | ❌ Not supported        |
+| Creation    | ✅ Via `addToProject()` |
+| Update      | ✅ Supported            |
+| Deletion    | ✅ Supported            |
 
-## Available Methods
+---
+
+## Methods
 
 ### `addToProject()`
 
-Add an external party to a project.
-
-**Can be called two ways:**
+Two calling conventions — array or individual params:
 
 ```php
-// Method 1: Individual parameters
-Teamleader::external_parties()->addToProject(
-    'project-uuid',           // Project ID
-    'contact',                // Customer type: 'contact' or 'company'
-    'contact-uuid',           // Customer ID
-    'Project Manager',        // Function
-    'Senior PM'               // Sub-function (optional)
-);
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
 
-// Method 2: Data array
-Teamleader::external_parties()->addToProject([
+// Array form
+$result = Teamleader::external_parties()->addToProject([
     'project_id' => 'project-uuid',
-    'customer' => [
-        'type' => 'contact',
-        'id' => 'contact-uuid'
-    ],
-    'function' => 'Project Manager',
-    'sub_function' => 'Senior PM'
+    'customer'   => ['type' => 'company', 'id' => 'company-uuid'],
+    'function'   => 'Main Contractor',
+    'sub_function' => 'Electrical',
 ]);
+
+// Individual params: (projectId, type, customerId, function, subFunction)
+$result = Teamleader::external_parties()->addToProject(
+    'project-uuid',
+    'contact',
+    'contact-uuid',
+    'Project Consultant',
+    'Senior'  // optional sub_function
+);
 ```
 
-### `update()`
+`customer.type` must be `contact` or `company`. `function` and `sub_function` are optional.
 
-Update an existing external party.
+---
+
+### `update(string $id, array $data)`
+
+Injects `id` into the request body. Customer type is validated if provided.
 
 ```php
 Teamleader::external_parties()->update('external-party-uuid', [
-    'customer' => [
-        'type' => 'contact',
-        'id' => 'contact-uuid'
-    ],
-    'function' => 'Lead Designer',
-    'sub_function' => null
+    'function'     => 'Lead Designer',
+    'sub_function' => null,
+]);
+
+// Update the customer reference
+Teamleader::external_parties()->update('external-party-uuid', [
+    'customer' => ['type' => 'contact', 'id' => 'new-contact-uuid'],
 ]);
 ```
 
-### `delete()`
+---
 
-Remove an external party from a project.
+### `delete(string $id)`
+
+Throws if `$id` is empty.
 
 ```php
 Teamleader::external_parties()->delete('external-party-uuid');
 ```
 
+---
+
+## Helper Methods
+
+### `removeFromProject(string $id)`
+
+Alias for `delete()`.
+
+```php
+Teamleader::external_parties()->removeFromProject('external-party-uuid');
+```
+
+### `updateRole(string $id, ?string $function, ?string $subFunction)`
+
+Updates only the role fields.
+
+```php
+Teamleader::external_parties()->updateRole('external-party-uuid', 'Technical Lead', null);
+```
+
+---
+
 ## Usage Examples
 
-### Add Contact as External Party
-
 ```php
-$result = Teamleader::external_parties()->addToProject(
-    'project-uuid',
-    'contact',
-    'contact-uuid',
-    'Technical Consultant'
-);
-```
-
-### Add Company as External Party
-
-```php
-$result = Teamleader::external_parties()->addToProject(
-    'project-uuid',
-    'company',
-    'contractor-company-uuid',
-    'Contractor',
-    'Lead Contractor'
-);
-```
-
-### Add Multiple External Parties
-
-```php
-$projectId = 'project-uuid';
-
-$parties = [
-    ['type' => 'contact', 'id' => 'contact-1', 'function' => 'Project Manager'],
-    ['type' => 'company', 'id' => 'company-1', 'function' => 'Contractor'],
-    ['type' => 'contact', 'id' => 'contact-2', 'function' => 'Designer'],
-];
-
-foreach ($parties as $party) {
-    Teamleader::external_parties()->addToProject([
-        'project_id' => $projectId,
-        'customer' => [
-            'type' => $party['type'],
-            'id' => $party['id']
-        ],
-        'function' => $party['function']
-    ]);
-    
-    echo "Added: {$party['function']}\n";
-}
-```
-
-### Update External Party Role
-
-```php
-$externalPartyId = 'external-party-uuid';
-
-// Change role
-Teamleader::external_parties()->update($externalPartyId, [
-    'function' => 'Senior Consultant',
-    'sub_function' => 'Technical Lead'
-]);
-```
-
-### Replace External Party
-
-```php
-$oldPartyId = 'old-party-uuid';
-$projectId = 'project-uuid';
-
-// Remove old party
-Teamleader::external_parties()->delete($oldPartyId);
-
-// Add new party
+// Add a company as contractor
 Teamleader::external_parties()->addToProject(
-    $projectId,
-    'contact',
-    'new-contact-uuid',
-    'Project Manager'
+    'project-uuid', 'company', 'company-uuid', 'Sub-contractor'
 );
+
+// Later update their role
+Teamleader::external_parties()->updateRole('external-party-uuid', 'Prime Contractor');
+
+// Remove when no longer involved
+Teamleader::external_parties()->removeFromProject('external-party-uuid');
 ```
 
-## Best Practices
+---
 
-1. **Use Descriptive Functions**: Make roles clear
+## Error Handling
+
 ```php
-// Good
-'function' => 'Technical Consultant'
-'sub_function' => 'Backend Specialist'
+use InvalidArgumentException;
 
-// Avoid
-'function' => 'Person'
-```
+// Missing required params in individual-param form
+try {
+    Teamleader::external_parties()->addToProject('project-uuid'); // missing type and id
+} catch (InvalidArgumentException $e) {
+    // 'When using individual parameters, projectId, customerType, and customerId are required'
+}
 
-2. **Validate Customer Type**: Only 'contact' or 'company'
-```php
-$validTypes = ['contact', 'company'];
-if (!in_array($customerType, $validTypes)) {
-    throw new Exception('Invalid customer type');
+// Invalid customer type
+try {
+    Teamleader::external_parties()->addToProject('project-uuid', 'team', 'team-uuid', 'Lead');
+} catch (InvalidArgumentException $e) {
+    // 'Invalid customer type. Must be one of: contact, company'
 }
 ```
 
-3. **Track External Party IDs**: Store the returned ID for updates/deletes
-```php
-$result = Teamleader::external_parties()->addToProject(...);
-$externalPartyId = $result['data']['id'];
-// Store this for later operations
-```
+---
 
 ## Related Resources
 
-- **[Projects](projects.md)** - Parent projects
-- **[Contacts](../crm/contacts.md)** - Contact information
-- **[Companies](../crm/companies.md)** - Company information
+- [[Projects]] — Projects that external parties belong to
+- [[Contacts]] — External party contacts
+- [[Companies]] — External party companies

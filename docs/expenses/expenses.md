@@ -1,28 +1,22 @@
 # Expenses
 
-Manage expenses overview in Teamleader Focus.
+List and filter expense documents in Teamleader Focus.
 
 ## Overview
 
-The Expenses resource provides read-only access to all expense-related documents in your Teamleader account. This resource aggregates data from incoming invoices, incoming credit notes, and receipts into a single searchable interface.
+The Expenses resource is a **read-only listing view** that aggregates incoming invoices, incoming credit notes, and
+receipts into a single filterable feed. To create, update, or delete individual documents, use the dedicated
+resources: `incomingInvoices`, `incomingCreditNotes`, or `receipts`.
 
-**Important:** This resource is read-only. To create, update, or delete expense documents, use the specific resources: `incomingInvoices()`, `incomingCreditNotes()`, or `receipts()`.
+Access via `Teamleader::expenses()`.
 
-## Navigation
-
-- [Endpoint](#endpoint)
-- [Capabilities](#capabilities)
-- [Available Methods](#available-methods)
-    - [list()](#list)
-- [Helper Methods](#helper-methods)
-- [Filtering](#filtering)
-- [Sorting](#sorting)
-- [Response Structure](#response-structure)
-- [Usage Examples](#usage-examples)
-- [Common Use Cases](#common-use-cases)
-- [Best Practices](#best-practices)
-- [Error Handling](#error-handling)
-- [Related Resources](#related-resources)
+> **This resource does not create documents.** It only lists them.
+>
+> **Response gives `source.id` + `source.type`** — pass `source.id` to the corresponding resource to fetch the full
+> document.
+>
+> **`payment_statuses` values here are `paid` / `unpaid`** — different from the `unknown`, `paid`, `not_paid` values on
+> the individual expense resources.
 
 ## Endpoint
 
@@ -30,543 +24,307 @@ The Expenses resource provides read-only access to all expense-related documents
 
 ## Capabilities
 
-- **Pagination**: ✅ Supported
-- **Filtering**: ✅ Supported
-- **Sorting**: ✅ Supported
-- **Sideloading**: ❌ Not Supported
-- **Creation**: ❌ Not Supported (use specific resources)
-- **Update**: ❌ Not Supported (use specific resources)
-- **Deletion**: ❌ Not Supported (use specific resources)
+| Capability  | Supported                                                   |
+|-------------|-------------------------------------------------------------|
+| Pagination  | ✅ Supported                                                 |
+| Filtering   | ✅ Supported                                                 |
+| Sorting     | ✅ Supported (`document_date`, `due_date`, `supplier_name`)  |
+| Sideloading | ❌ Not supported                                             |
+| Creation    | ❌ Use `incomingInvoices`, `incomingCreditNotes`, `receipts` |
+| Update      | ❌ Use individual resources                                  |
+| Deletion    | ❌ Use individual resources                                  |
 
-## Available Methods
+---
 
-### `list()`
+## Methods
 
-Get a list of expenses with optional filtering, sorting, and pagination.
+### `list(array $filters = [], array $options = [])`
 
-**Parameters:**
-- `filters` (array): Optional filters to apply
-- `options` (array): Additional options for pagination and sorting
-
-**Example:**
 ```php
 use McoreServices\TeamleaderSDK\Facades\Teamleader;
 
-// Get all expenses
+// All expenses
 $expenses = Teamleader::expenses()->list();
 
-// Get expenses with filters
+// Pending incoming invoices
 $expenses = Teamleader::expenses()->list([
-    'review_statuses' => ['pending'],
-    'source_types' => ['incomingInvoice']
+    'source_types'   => ['incomingInvoice'],
+    'review_statuses'=> ['pending'],
 ]);
 
-// With pagination
+// With pagination and sorting
 $expenses = Teamleader::expenses()->list([], [
-    'page_size' => 50,
-    'page_number' => 2
-]);
-
-// With sorting
-$expenses = Teamleader::expenses()->list([], [
-    'sort' => [['field' => 'document_date', 'order' => 'desc']]
-]);
-```
-
-## Helper Methods
-
-The Expenses resource provides convenient helper methods:
-
-### Review Status Methods
-
-```php
-// Get expenses pending review
-$pending = Teamleader::expenses()->pending();
-
-// Get approved expenses
-$approved = Teamleader::expenses()->approved();
-
-// Get refused expenses
-$refused = Teamleader::expenses()->refused();
-```
-
-### Payment Status Methods
-
-```php
-// Get paid expenses
-$paid = Teamleader::expenses()->paid();
-
-// Get unpaid expenses
-$unpaid = Teamleader::expenses()->unpaid();
-```
-
-### Source Type Methods
-
-```php
-// Get only incoming invoices
-$invoices = Teamleader::expenses()->bySourceType('incomingInvoice');
-
-// Get only incoming credit notes
-$creditNotes = Teamleader::expenses()->bySourceType('incomingCreditNote');
-
-// Get only receipts
-$receipts = Teamleader::expenses()->bySourceType('receipt');
-
-// Get multiple types
-$documents = Teamleader::expenses()->bySourceType(['incomingInvoice', 'receipt']);
-```
-
-### Supplier Methods
-
-```php
-// Get expenses from a specific company supplier
-$expenses = Teamleader::expenses()->bySupplier('company', 'company-uuid');
-
-// Get expenses from a specific contact supplier
-$expenses = Teamleader::expenses()->bySupplier('contact', 'contact-uuid');
-
-// Combine with additional filters
-$expenses = Teamleader::expenses()->bySupplier('company', 'company-uuid', [
-    'review_statuses' => ['approved']
-]);
-```
-
-### Department Methods
-
-```php
-// Get expenses for a single department
-$expenses = Teamleader::expenses()->byDepartment('department-uuid');
-
-// Get expenses for multiple departments
-$expenses = Teamleader::expenses()->byDepartment(['dept-uuid-1', 'dept-uuid-2']);
-```
-
-### Bookkeeping Status Methods
-
-```php
-// Get expenses sent to bookkeeping
-$sent = Teamleader::expenses()->sent();
-
-// Get expenses not sent to bookkeeping
-$notSent = Teamleader::expenses()->notSent();
-```
-
-### Search Methods
-
-```php
-// Search by document number or supplier name
-$results = Teamleader::expenses()->searchByTerm('Acme Corp');
-
-// Search with additional filters
-$results = Teamleader::expenses()->searchByTerm('Office', [
-    'review_statuses' => ['approved']
-]);
-```
-
-### Date Range Methods
-
-```php
-// Get expenses within a document date range
-$expenses = Teamleader::expenses()->byDateRange('2024-01-01', '2024-12-31');
-
-// With additional filters
-$expenses = Teamleader::expenses()->byDateRange(
-    '2024-01-01',
-    '2024-12-31',
-    ['source_types' => ['incomingInvoice']]
-);
-
-// Get expenses paid within a date range
-$expenses = Teamleader::expenses()->byPaidAtRange('2024-01-01', '2024-12-31');
-```
-
-## Filtering
-
-Available filters for the `list()` method:
-
-| Filter | Type | Description |
-|---|---|---|
-| `term` | string | Search by document number and supplier name (case-insensitive) |
-| `source_types` | string[] | `incomingInvoice`, `incomingCreditNote`, `receipt` |
-| `review_statuses` | string[] | `pending`, `approved`, `refused` |
-| `bookkeeping_statuses` | string[] | `sent`, `not_sent` |
-| `payment_statuses` | string[] | `paid`, `unpaid` |
-| `department_ids` | string[] | One or more department UUIDs |
-| `supplier` | object | Object with `type` (`company` or `contact`) and `id` |
-| `document_date` | object | Date filter with operator (see below) |
-| `paid_at` | object | Payment date filter with operator (see below) |
-
-### Date Filter Operators
-
-Both `document_date` and `paid_at` accept the same operator structure:
-
-| Operator | Required Fields | Description |
-|---|---|---|
-| `is_empty` | none | Expenses with no date set |
-| `equals` | `value` | Exact date match |
-| `before` | `value` | Before a specific date |
-| `after` | `value` | After a specific date |
-| `between` | `start`, `end` | Within a date range |
-
-**Examples:**
-```php
-// Approved, unpaid invoices not yet in bookkeeping
-$expenses = Teamleader::expenses()->list([
-    'source_types' => ['incomingInvoice'],
-    'review_statuses' => ['approved'],
-    'bookkeeping_statuses' => ['not_sent'],
-    'payment_statuses' => ['unpaid'],
-]);
-
-// Expenses from a specific supplier within a date range
-$expenses = Teamleader::expenses()->list([
-    'supplier' => ['type' => 'company', 'id' => 'company-uuid'],
-    'document_date' => [
-        'operator' => 'between',
-        'start' => '2024-01-01',
-        'end' => '2024-12-31',
-    ]
-]);
-
-// Expenses paid after a specific date
-$expenses = Teamleader::expenses()->list([
-    'paid_at' => ['operator' => 'after', 'value' => '2024-06-01']
-]);
-
-// Expenses without a document date
-$expenses = Teamleader::expenses()->list([
-    'document_date' => ['operator' => 'is_empty']
-]);
-```
-
-## Sorting
-
-Available sort fields:
-
-| Field | Description |
-|---|---|
-| `document_date` | Sort by document date |
-| `due_date` | Sort by due date |
-| `supplier_name` | Sort by supplier name |
-
-**Example:**
-```php
-// Sort by document date, newest first
-$expenses = Teamleader::expenses()->list([], [
-    'sort' => [['field' => 'document_date', 'order' => 'desc']]
-]);
-
-// Sort by supplier name ascending
-$expenses = Teamleader::expenses()->list([], [
-    'sort' => [['field' => 'supplier_name', 'order' => 'asc']]
-]);
-```
-
-## Response Structure
-
-### List Response
-
-```json
-{
-  "data": [
-    {
-      "source": {
-        "type": "incomingInvoice",
-        "id": "invoice-uuid"
-      },
-      "origin": {
-        "type": "user",
-        "id": "user-uuid"
-      },
-      "title": "Monthly Services",
-      "supplier": {
-        "type": "company",
-        "id": "company-uuid"
-      },
-      "document_number": "INV-2024/001",
-      "document_date": "2024-01-15",
-      "due_date": "2024-02-15",
-      "currency": {
-        "code": "EUR"
-      },
-      "total": {
-        "tax_exclusive": {
-          "amount": 1000.00
-        },
-        "tax_inclusive": {
-          "amount": 1210.00
-        }
-      },
-      "company_entity": {
-        "type": "company_entity",
-        "id": "entity-uuid"
-      },
-      "file": {
-        "type": "file",
-        "id": "file-uuid"
-      },
-      "payment_reference": "+++123/4567/89012+++",
-      "review_status": "approved",
-      "bookkeeping_status": "not_sent",
-      "iban_number": "BE68539007547034",
-      "payment_status": "not_paid",
-      "paid_amount": null,
-      "paid_at": null
-    }
-  ],
-  "meta": {
-    "page": {
-      "size": 20,
-      "number": 1
-    },
-    "matches": 150
-  }
-}
-```
-
-### Key Response Fields
-
-| Field | Nullable | Description |
-|---|---|---|
-| `source.type` | No | `incomingInvoice`, `incomingCreditNote`, or `receipt` |
-| `source.id` | No | UUID of the underlying document |
-| `origin.type` | No | `user` or `peppolIncomingDocument` |
-| `supplier` | Yes | Object with `type` and `id` |
-| `document_number` | Yes | Document reference number |
-| `document_date` | Yes | Date on the document |
-| `due_date` | Yes | Payment due date |
-| `company_entity` | Yes | Associated company entity |
-| `file` | Yes | Attached file reference |
-| `payment_reference` | Yes | Structured payment reference |
-| `review_status` | No | `pending`, `approved`, or `refused` |
-| `bookkeeping_status` | No | `sent` or `not_sent` |
-| `iban_number` | Yes | Supplier IBAN |
-| `payment_status` | No | `unknown`, `paid`, `partially_paid`, or `not_paid` |
-| `paid_amount` | Yes | Total amount paid so far |
-| `paid_at` | Yes | Date of last payment |
-
-> **Note:** `meta` is only included when `includes=pagination` is passed in the request.
-
-## Usage Examples
-
-### Get All Pending Expenses
-
-```php
-$pending = Teamleader::expenses()->pending();
-
-foreach ($pending['data'] as $expense) {
-    echo $expense['title'] . ' - ' . $expense['document_number'] . PHP_EOL;
-}
-```
-
-### Find Unpaid Invoices From a Supplier
-
-```php
-$expenses = Teamleader::expenses()->list([
-    'source_types' => ['incomingInvoice'],
-    'supplier' => ['type' => 'company', 'id' => 'company-uuid'],
-    'payment_statuses' => ['unpaid'],
-]);
-```
-
-### Search for Specific Supplier
-
-```php
-$results = Teamleader::expenses()->searchByTerm('Acme Corporation');
-
-if (isset($results['data']) && count($results['data']) > 0) {
-    echo 'Found ' . count($results['data']) . ' expenses from Acme Corporation';
-}
-```
-
-### Get Approved But Not Sent to Bookkeeping
-
-```php
-$expenses = Teamleader::expenses()->list([
-    'review_statuses' => ['approved'],
-    'bookkeeping_statuses' => ['not_sent'],
-]);
-```
-
-### Filter by Date Range and Type
-
-```php
-$expenses = Teamleader::expenses()->list([
-    'source_types' => ['incomingInvoice'],
-    'document_date' => [
-        'operator' => 'between',
-        'start' => '2024-01-01',
-        'end' => '2024-01-31',
-    ],
-]);
-```
-
-### Get Expenses Paid This Month
-
-```php
-$expenses = Teamleader::expenses()->byPaidAtRange(
-    date('Y-m-01'),
-    date('Y-m-t')
-);
-```
-
-### Paginate Through All Expenses
-
-```php
-$page = 1;
-$allExpenses = [];
-
-do {
-    $response = Teamleader::expenses()->list([], [
-        'page_size' => 100,
-        'page_number' => $page,
-    ]);
-
-    $allExpenses = array_merge($allExpenses, $response['data']);
-    $page++;
-
-} while (count($response['data']) === 100);
-```
-
-## Common Use Cases
-
-### Expense Approval Workflow
-
-```php
-// Get all pending expenses sorted by document date
-$pending = Teamleader::expenses()->list(
-    ['review_statuses' => ['pending']],
-    ['sort' => [['field' => 'document_date', 'order' => 'asc']]]
-);
-
-foreach ($pending['data'] as $expense) {
-    $type = $expense['source']['type'];
-    $id = $expense['source']['id'];
-
-    if ($type === 'incomingInvoice') {
-        Teamleader::incomingInvoices()->approve($id);
-    } elseif ($type === 'incomingCreditNote') {
-        Teamleader::incomingCreditNotes()->approve($id);
-    } elseif ($type === 'receipt') {
-        Teamleader::receipts()->approve($id);
-    }
-}
-```
-
-### Monthly Expense Report
-
-```php
-$startOfMonth = date('Y-m-01');
-$endOfMonth = date('Y-m-t');
-
-$expenses = Teamleader::expenses()->byDateRange($startOfMonth, $endOfMonth, [
-    'review_statuses' => ['approved'],
-]);
-
-$total = 0;
-foreach ($expenses['data'] as $expense) {
-    $total += $expense['total']['tax_inclusive']['amount'];
-}
-
-echo 'Total approved expenses for ' . date('F Y') . ': €' . number_format($total, 2);
-```
-
-### Find Expenses Not Yet Sent to Bookkeeping
-
-```php
-$notSent = Teamleader::expenses()->list([
-    'review_statuses' => ['approved'],
-    'bookkeeping_statuses' => ['not_sent'],
-]);
-
-foreach ($notSent['data'] as $expense) {
-    $type = $expense['source']['type'];
-    $id = $expense['source']['id'];
-
-    if ($type === 'incomingInvoice') {
-        Teamleader::incomingInvoices()->sendToBookkeeping($id);
-    }
-}
-```
-
-### Department Expense Summary
-
-```php
-$departmentIds = ['dept-uuid-1', 'dept-uuid-2'];
-
-$expenses = Teamleader::expenses()->byDepartment($departmentIds, [
-    'review_statuses' => ['approved'],
-    'document_date' => [
-        'operator' => 'between',
-        'start' => '2024-01-01',
-        'end' => '2024-12-31',
-    ],
-]);
-```
-
-## Best Practices
-
-1. **Use Specific Resources for Modifications**: Always use `incomingInvoices()`, `incomingCreditNotes()`, or `receipts()` to create, update, or delete expense documents.
-
-2. **Reference `source` Not Root**: The response uses `source.type` and `source.id` — not `source_type` / `source_id` at the root level.
-```php
-// Correct
-$type = $expense['source']['type'];
-$id   = $expense['source']['id'];
-```
-
-3. **Efficient Filtering**: Combine filters to reduce data returned.
-```php
-$expenses = Teamleader::expenses()->list([
-    'source_types' => ['incomingInvoice'],
-    'review_statuses' => ['pending'],
-    'payment_statuses' => ['unpaid'],
-]);
-```
-
-4. **Pagination for Large Datasets**: Always paginate for large result sets.
-```php
-$expenses = Teamleader::expenses()->list([], [
-    'page_size' => 100,
+    'sort'        => [['field' => 'document_date', 'order' => 'desc']],
+    'page_size'   => 50,
     'page_number' => 1,
 ]);
 ```
 
-5. **Use Helper Methods**: Take advantage of helper methods for common queries.
+Sort fields are **validated** — `InvalidArgumentException` for any field
+outside `document_date`, `due_date`, `supplier_name`.
+
+String filter values are coerced to arrays internally (e.g. `'pending'` becomes `['pending']`).
+
+---
+
+## Helper Methods
+
+### Review status shortcuts
+
 ```php
-// Preferred
-$pending = Teamleader::expenses()->pending();
-$unpaid  = Teamleader::expenses()->unpaid();
+$pending  = Teamleader::expenses()->pending();   // review_statuses: ['pending']
+$approved = Teamleader::expenses()->approved();  // review_statuses: ['approved']
+$refused  = Teamleader::expenses()->refused();   // review_statuses: ['refused']
 ```
+
+### Payment status shortcuts
+
+```php
+$paid   = Teamleader::expenses()->paid();    // payment_statuses: ['paid']
+$unpaid = Teamleader::expenses()->unpaid();  // payment_statuses: ['unpaid']
+```
+
+### Bookkeeping status shortcuts
+
+```php
+$sent    = Teamleader::expenses()->sent();     // bookkeeping_statuses: ['sent']
+$notSent = Teamleader::expenses()->notSent();  // bookkeeping_statuses: ['not_sent']
+```
+
+### `bySourceType(string|array $sourceTypes)`
+
+```php
+$invoices    = Teamleader::expenses()->bySourceType('incomingInvoice');
+$creditNotes = Teamleader::expenses()->bySourceType('incomingCreditNote');
+$receipts    = Teamleader::expenses()->bySourceType('receipt');
+$mixed       = Teamleader::expenses()->bySourceType(['incomingInvoice', 'receipt']);
+```
+
+### `bySupplier(string $type, string $id)`
+
+Validates `$type` is `company` or `contact` before the request.
+
+```php
+$expenses = Teamleader::expenses()->bySupplier('company', 'company-uuid');
+$expenses = Teamleader::expenses()->bySupplier('contact', 'contact-uuid');
+```
+
+### `byDepartment(string|array $departmentIds)`
+
+```php
+$expenses = Teamleader::expenses()->byDepartment('dept-uuid');
+$expenses = Teamleader::expenses()->byDepartment(['dept-uuid-1', 'dept-uuid-2']);
+```
+
+### `byDateRange(string $startDate, string $endDate)`
+
+Applies a `document_date` filter with `operator: between`.
+
+```php
+$expenses = Teamleader::expenses()->byDateRange('2025-01-01', '2025-03-31');
+$expenses = Teamleader::expenses()->byDateRange('2025-01-01', '2025-03-31', [
+    'source_types' => ['incomingInvoice'],
+]);
+```
+
+### `byPaidAtRange(string $startDate, string $endDate)`
+
+Applies a `paid_at` filter with `operator: between`.
+
+```php
+$expenses = Teamleader::expenses()->byPaidAtRange('2025-01-01', '2025-03-31');
+```
+
+### `searchByTerm(string $term)`
+
+Searches by document number and supplier name (case-insensitive).
+
+```php
+$expenses = Teamleader::expenses()->searchByTerm('Acme');
+```
+
+---
+
+## Filters
+
+| Filter                 | Type   | Description                                                    |
+|------------------------|--------|----------------------------------------------------------------|
+| `term`                 | string | Search by document number and supplier name (case-insensitive) |
+| `source_types`         | array  | `incomingInvoice`, `incomingCreditNote`, `receipt`             |
+| `review_statuses`      | array  | `pending`, `approved`, `refused`                               |
+| `bookkeeping_statuses` | array  | `sent`, `not_sent`                                             |
+| `payment_statuses`     | array  | `paid`, `unpaid`                                               |
+| `department_ids`       | array  | One or more department UUIDs                                   |
+| `supplier`             | object | `{type: company\|contact, id: uuid}` — type is validated       |
+| `document_date`        | object | Date operator filter (see below)                               |
+| `paid_at`              | object | Date operator filter (see below)                               |
+
+### Date filter operators
+
+`document_date` and `paid_at` both accept an operator object. `buildDateFilter()` throws `InvalidArgumentException`
+if `operator` is missing.
+
+| Operator   | Additional keys             | Description                |
+|------------|-----------------------------|----------------------------|
+| `is_empty` | —                           | Documents with no date set |
+| `equals`   | `value` (YYYY-MM-DD)        | Exact match                |
+| `before`   | `value` (YYYY-MM-DD)        | Before a date              |
+| `after`    | `value` (YYYY-MM-DD)        | After a date               |
+| `between`  | `start`, `end` (YYYY-MM-DD) | Within a range             |
+
+```php
+// Exact date
+$expenses = Teamleader::expenses()->list([
+    'document_date' => ['operator' => 'equals', 'value' => '2025-04-01'],
+]);
+
+// Before a date
+$expenses = Teamleader::expenses()->list([
+    'document_date' => ['operator' => 'before', 'value' => '2025-04-01'],
+]);
+
+// No document date set
+$expenses = Teamleader::expenses()->list([
+    'document_date' => ['operator' => 'is_empty'],
+]);
+
+// Paid within a range
+$expenses = Teamleader::expenses()->list([
+    'paid_at' => ['operator' => 'between', 'start' => '2025-01-01', 'end' => '2025-03-31'],
+]);
+```
+
+---
+
+## Sorting
+
+| Field           | Description                  |
+|-----------------|------------------------------|
+| `document_date` | Date on the document         |
+| `due_date`      | Payment due date             |
+| `supplier_name` | Supplier name alphabetically |
+
+```php
+$expenses = Teamleader::expenses()->list([], [
+    'sort' => [['field' => 'document_date', 'order' => 'desc']],
+]);
+```
+
+---
+
+## Response Structure
+
+Each item has a `source` object pointing to the underlying document:
+
+```php
+[
+    'data' => [
+        [
+            'source'              => ['type' => 'incomingInvoice', 'id' => 'invoice-uuid'],
+            'title'               => 'Software licences Q2',
+            'supplier'            => ['type' => 'company', 'id' => 'company-uuid'],   // nullable
+            'document_number'     => 'INV-2025-042',   // nullable
+            'document_date'       => '2025-04-01',      // nullable
+            'due_date'            => '2025-05-01',       // nullable
+            'currency'            => ['code' => 'EUR'],
+            'total'               => ['tax_exclusive' => ['amount' => 1000.0], 'tax_inclusive' => ['amount' => 1210.0]],
+            'company_entity'      => ['type' => 'company_entity', 'id' => 'entity-uuid'], // nullable
+            'file'                => ['type' => 'file', 'id' => 'file-uuid'],              // nullable
+            'payment_reference'   => '+++123/4567/89012+++',  // nullable
+            'review_status'       => 'approved',   // pending | approved | refused
+            'bookkeeping_status'  => 'not_sent',   // sent | not_sent
+            'iban_number'         => 'BE68539007547034',   // nullable
+            'payment_status'      => 'not_paid',   // unknown | paid | partially_paid | not_paid
+            'paid_amount'         => null,          // nullable
+            'paid_at'             => null,          // nullable
+        ],
+    ],
+    'meta' => ['page' => ['size' => 20, 'number' => 1], 'matches' => 150],
+]
+```
+
+To fetch the full document from a list result:
+
+```php
+foreach ($expenses['data'] as $expense) {
+    $sourceId   = $expense['source']['id'];
+    $sourceType = $expense['source']['type'];
+
+    if ($sourceType === 'incomingInvoice') {
+        $full = Teamleader::incomingInvoices()->info($sourceId);
+    } elseif ($sourceType === 'incomingCreditNote') {
+        $full = Teamleader::incomingCreditNotes()->info($sourceId);
+    } else {
+        $full = Teamleader::receipts()->info($sourceId);
+    }
+}
+```
+
+---
+
+## Usage Examples
+
+### Process all approved, unsent invoices
+
+```php
+$expenses = Teamleader::expenses()->list([
+    'source_types'        => ['incomingInvoice'],
+    'review_statuses'     => ['approved'],
+    'bookkeeping_statuses'=> ['not_sent'],
+]);
+
+foreach ($expenses['data'] as $expense) {
+    Teamleader::incomingInvoices()->sendToBookkeeping($expense['source']['id']);
+}
+```
+
+### Monthly expense report
+
+```php
+$expenses = Teamleader::expenses()->byDateRange('2025-04-01', '2025-04-30');
+
+$totals = ['incomingInvoice' => 0, 'incomingCreditNote' => 0, 'receipt' => 0];
+foreach ($expenses['data'] as $expense) {
+    $totals[$expense['source']['type']] += $expense['total']['tax_inclusive']['amount'] ?? 0;
+}
+```
+
+---
 
 ## Error Handling
 
 ```php
-use McoreServices\TeamleaderSDK\Facades\Teamleader;
+use InvalidArgumentException;
 
+// Missing operator on date filter
 try {
-    $expenses = Teamleader::expenses()->list([
-        'supplier' => ['type' => 'company', 'id' => 'company-uuid'],
-        'review_statuses' => ['approved'],
+    Teamleader::expenses()->list([
+        'document_date' => ['start' => '2025-01-01', 'end' => '2025-03-31'],
     ]);
+} catch (InvalidArgumentException $e) {
+    // 'Date filter requires an operator: is_empty, between, equals, before, after'
+}
 
-    if (empty($expenses['data'])) {
-        // No matching expenses found
-    }
+// Invalid supplier type
+try {
+    Teamleader::expenses()->bySupplier('team', 'uuid');
+} catch (InvalidArgumentException $e) {
+    // "Invalid supplier type 'team'. Must be one of: company, contact"
+}
 
-} catch (\InvalidArgumentException $e) {
-    // Invalid filter values (e.g. wrong supplier type, bad sort field)
-    Log::error('Invalid filter: ' . $e->getMessage());
-
-} catch (\Exception $e) {
-    Log::error('Failed to fetch expenses: ' . $e->getMessage());
+// Invalid sort field
+try {
+    Teamleader::expenses()->list([], ['sort' => [['field' => 'created_at']]]);
+} catch (InvalidArgumentException $e) {
+    // "Invalid sort field 'created_at'. Available fields: document_date, due_date, supplier_name"
 }
 ```
 
+---
+
 ## Related Resources
 
-- **[Incoming Invoices](incoming-invoices.md)** - Create and manage incoming invoices
-- **[Incoming Credit Notes](incoming-creditnotes.md)** - Create and manage incoming credit notes
-- **[Receipts](receipts.md)** - Create and manage expense receipts
-- **[Bookkeeping Submissions](bookkeeping-submissions.md)** - Track bookkeeping submissions
-- **[Companies](../crm/companies.md)** - Supplier information
+- [[Incoming-Invoices]] — Create, update, delete incoming invoices
+- [[Incoming-Credit-Notes]] — Create, update, delete incoming credit notes
+- [[Receipts]] — Create, update, delete receipts
+- [[Bookkeeping-Submissions]] — Track bookkeeping submission history

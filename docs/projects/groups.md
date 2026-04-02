@@ -1,19 +1,21 @@
 # Groups
 
-Manage project groups in Teamleader Focus (organizes tasks and materials).
+Manage project groups in Teamleader Focus (Projects v2).
 
 ## Overview
 
-Groups organize tasks and materials within projects into logical sections or phases. They can have their own billing methods and be assigned to users or teams.
+Groups organise tasks and materials within a project into phases or logical sections. They can carry their own billing
+method, colour, dates, and assignees.
 
-## Navigation
+Access via `Teamleader::groups()`.
 
-- [Endpoint](#endpoint)
-- [Capabilities](#capabilities)
-- [Available Methods](#available-methods)
-- [Response Structure](#response-structure)
-- [Usage Examples](#usage-examples)
-- [Related Resources](#related-resources)
+> **`update()` billing_method uses a special object** — not a plain string. Pass `{value, update_strategy}`.
+>
+> **`delete()` requires a strategy** — defaults to `ungroup_tasks_and_materials`.
+>
+> **`duplicate()` uses `origin_id`** parameter name, not `id`.
+>
+> **No pagination.**
 
 ## Endpoint
 
@@ -21,152 +23,182 @@ Groups organize tasks and materials within projects into logical sections or pha
 
 ## Capabilities
 
-- **Pagination**: ❌ Not Supported
-- **Filtering**: ✅ Supported
-- **Sorting**: ❌ Not Supported
-- **Sideloading**: ❌ Not Supported
-- **Creation**: ✅ Supported
-- **Update**: ✅ Supported
-- **Deletion**: ✅ Supported
+| Capability  | Supported                         |
+|-------------|-----------------------------------|
+| Pagination  | ❌ Not supported                   |
+| Filtering   | ✅ Supported (`ids`, `project_id`) |
+| Sorting     | ❌ Not supported                   |
+| Sideloading | ❌ Not supported                   |
+| Creation    | ✅ Supported                       |
+| Update      | ✅ Supported                       |
+| Deletion    | ✅ Supported                       |
 
-## Available Methods
+---
 
-### `create()`
+## Methods
+
+### `list(array $filters = [], array $options = [])`
+
+```php
+use McoreServices\TeamleaderSDK\Facades\Teamleader;
+
+$groups = Teamleader::groups()->list(['project_id' => 'project-uuid']);
+$groups = Teamleader::groups()->list(['ids' => ['group-uuid-1', 'group-uuid-2']]);
+```
+
+---
+
+### `info(string $id)`
+
+```php
+$group = Teamleader::groups()->info('group-uuid');
+```
+
+---
+
+### `create(array $data)`
+
+Required fields validated before the request:
+
+| Required     | Notes        |
+|--------------|--------------|
+| `project_id` | Project UUID |
+| `title`      | Group title  |
+
+**Billing methods:** `time_and_materials`, `fixed_price`, `parent_fixed_price`, `non_billable`
+
+`fixed_price` billing requires a `fixed_price: {amount, currency}` object.
 
 ```php
 $group = Teamleader::groups()->create([
-    'project_id' => 'project-uuid',
-    'title' => 'Phase 1: Design',
-    'description' => 'Initial design phase',
-    'color' => '#00B2B2',
+    'project_id'     => 'project-uuid',
+    'title'          => 'Phase 1: Discovery',
+    'description'    => 'Research and requirements gathering',
     'billing_method' => 'fixed_price',
-    'fixed_price' => [
-        'amount' => 5000.00,
-        'currency' => 'EUR'
-    ]
+    'fixed_price'    => ['amount' => 5000.0, 'currency' => 'EUR'],
+    'color'          => '#00B2B2',
+    'start_date'     => '2025-05-01',
+    'end_date'       => '2025-05-31',
 ]);
 ```
 
-**Billing Methods:**
-- `time_and_materials`
-- `fixed_price` (requires `fixed_price`)
-- `parent_fixed_price`
-- `non_billable`
+---
 
-### `update()`
+### `update(mixed $id, array $data)`
+
+Injects `id` into the request body. When updating `billing_method`, it must be an object with `value`
+and `update_strategy` — not a plain string.
+
+**Update strategies for `billing_method`:** `none`, `cascade`
 
 ```php
 Teamleader::groups()->update('group-uuid', [
-    'title' => 'Updated Phase Title',
-    'billing_method' => 'fixed_price',
-    'fixed_price' => [
-        'amount' => 6000.00,
-        'currency' => 'EUR'
-    ]
+    'title' => 'Phase 1 — Updated',
+]);
+
+// Updating billing method requires the special object form
+Teamleader::groups()->update('group-uuid', [
+    'billing_method' => [
+        'value'           => 'time_and_materials',
+        'update_strategy' => 'cascade',  // propagate to child tasks/materials
+    ],
 ]);
 ```
 
-### `delete()`
+---
 
-**Delete Strategies:**
-- `ungroup_tasks_and_materials` (default) - Move items out of group
-- `delete_tasks_and_materials` - Delete everything
-- `delete_tasks_materials_and_unbilled_timetrackings` - Delete all
+### `delete(mixed $id, string $deleteStrategy = 'ungroup_tasks_and_materials')`
+
+**Delete strategies (validated):**
+
+| Strategy                                            | Behaviour                                           |
+|-----------------------------------------------------|-----------------------------------------------------|
+| `ungroup_tasks_and_materials`                       | Default — moves items out of the group              |
+| `delete_tasks_and_materials`                        | Deletes the group and all its items                 |
+| `delete_tasks_materials_and_unbilled_timetrackings` | Deletes group, items, and any unbilled time entries |
 
 ```php
-Teamleader::groups()->delete('group-uuid', 'ungroup_tasks_and_materials');
+Teamleader::groups()->delete('group-uuid');
+Teamleader::groups()->delete('group-uuid', 'delete_tasks_and_materials');
 ```
 
-### `duplicate()`
+---
+
+### `duplicate(string $originId)`
+
+Creates a copy of the group and its tasks/materials (without time trackings).
 
 ```php
-$newGroup = Teamleader::groups()->duplicate('group-uuid');
+$copy = Teamleader::groups()->duplicate('group-uuid');
 ```
 
-### `assign()` / `unassign()`
+---
+
+### `assign(string $groupId, string $assigneeType, string $assigneeId)` / `unassign()`
+
+Assignee type validated: `user`, `team`. Shortcuts available:
 
 ```php
 Teamleader::groups()->assign('group-uuid', 'user', 'user-uuid');
-Teamleader::groups()->unassign('group-uuid', 'user', 'user-uuid');
+Teamleader::groups()->assignUser('group-uuid', 'user-uuid');
+Teamleader::groups()->assignTeam('group-uuid', 'team-uuid');
+Teamleader::groups()->unassignUser('group-uuid', 'user-uuid');
+Teamleader::groups()->unassignTeam('group-uuid', 'team-uuid');
 ```
 
-### Helper Methods
+---
+
+## Helper Methods
+
+### `forProject(string $projectId)`
 
 ```php
-// Get groups for a project
 $groups = Teamleader::groups()->forProject('project-uuid');
 ```
 
-## Response Structure
+---
 
-```json
-{
-  "id": "group-uuid",
-  "project": {
-    "type": "nextgenProject",
-    "id": "project-uuid"
-  },
-  "title": "Phase 1: Design",
-  "description": "Initial design phase",
-  "color": "#00B2B2",
-  "billing_method": "fixed_price",
-  "fixed_price": {
-    "amount": 5000.00,
-    "currency": "EUR"
-  },
-  "billing_status": "not_billed",
-  "assignees": []
+## Filters
+
+| Filter       | Type   | Description            |
+|--------------|--------|------------------------|
+| `ids`        | array  | Filter by group UUIDs  |
+| `project_id` | string | Filter by project UUID |
+
+---
+
+## Error Handling
+
+```php
+use InvalidArgumentException;
+
+// Missing required field
+try {
+    Teamleader::groups()->create(['project_id' => 'uuid']); // missing title
+} catch (InvalidArgumentException $e) {
+    // 'title is required'
+}
+
+// Wrong billing_method format on update
+try {
+    Teamleader::groups()->update('uuid', ['billing_method' => 'time_and_materials']); // wrong — needs object
+} catch (InvalidArgumentException $e) {
+    // 'billing_method must be an object with value and update_strategy'
+}
+
+// Invalid delete strategy
+try {
+    Teamleader::groups()->delete('uuid', 'archive');
+} catch (InvalidArgumentException $e) {
+    // 'Invalid delete strategy. Must be one of: ...'
 }
 ```
 
-## Usage Examples
-
-### Create Project Phases
-
-```php
-$phases = [
-    ['title' => 'Phase 1: Discovery', 'amount' => 3000],
-    ['title' => 'Phase 2: Design', 'amount' => 5000],
-    ['title' => 'Phase 3: Development', 'amount' => 15000],
-    ['title' => 'Phase 4: Testing', 'amount' => 4000],
-];
-
-foreach ($phases as $phase) {
-    Teamleader::groups()->create([
-        'project_id' => $projectId,
-        'title' => $phase['title'],
-        'billing_method' => 'fixed_price',
-        'fixed_price' => [
-            'amount' => $phase['amount'],
-            'currency' => 'EUR'
-        ]
-    ]);
-}
-```
-
-### Update Group Billing Method
-
-```php
-// Change from T&M to fixed price
-Teamleader::groups()->update('group-uuid', [
-    'billing_method' => 'fixed_price',
-    'fixed_price' => [
-        'amount' => 8000.00,
-        'currency' => 'EUR'
-    ]
-], 'cascade');  // Update strategy: 'none' or 'cascade'
-```
-
-## Best Practices
-
-1. **Use groups for phases**: Organize project work logically
-2. **Set clear colors**: Visual differentiation
-3. **Choose appropriate delete strategy**: Consider time trackings
-4. **Use fixed price for phases**: Better budget control
+---
 
 ## Related Resources
 
-- **[Projects](projects.md)** - Parent projects
-- **[Project Tasks](project-tasks.md)** - Add tasks to groups
-- **[Materials](materials.md)** - Add materials to groups
-- **[Project Lines](project-lines.md)** - Manage group membership
+- [[Projects]] — Parent project
+- [[Project-Lines]] — List all lines in a project including groups
+- [[Project-Tasks]] — Tasks that live inside groups
+- [[Materials]] — Materials that live inside groups

@@ -4,31 +4,18 @@ Manage support tickets in Teamleader Focus.
 
 ## Overview
 
-The Tickets resource provides full CRUD (Create, Read, Update, Delete) operations for managing support tickets in your Teamleader system. Tickets can be linked to customers, assigned to users, tracked through status changes, and include both customer-facing replies and internal notes.
+The Tickets resource provides full CRUD for support tickets, plus message threading (customer replies, internal notes,
+message import).
 
-## Navigation
+Access via `Teamleader::tickets()`.
 
-- [Endpoint](#endpoint)
-- [Capabilities](#capabilities)
-- [Available Methods](#available-methods)
-    - [list()](#list)
-    - [info()](#info)
-    - [create()](#create)
-    - [update()](#update)
-    - [delete()](#delete)
-    - [addReply()](#addreply)
-    - [addInternalMessage()](#addinternalmessage)
-    - [listMessages()](#listmessages)
-    - [getMessage()](#getmessage)
-    - [importMessage()](#importmessage)
-- [Helper Methods](#helper-methods)
-- [Filters](#filters)
-- [Response Structure](#response-structure)
-- [Usage Examples](#usage-examples)
-- [Common Use Cases](#common-use-cases)
-- [Best Practices](#best-practices)
-- [Error Handling](#error-handling)
-- [Related Resources](#related-resources)
+> **Assignee type must be `user`** — not `team`. Passing any other type throws `InvalidArgumentException`.
+>
+> **Participant customer type must be `company`** — contacts are not valid participants.
+>
+> **`forCustomer()` uses the `relates_to` filter** internally, not a `customer` filter.
+>
+> **`create()` returns `data.{id, type}`.** `update()` and `delete()` return HTTP 204 (no body).
 
 ## Endpoint
 
@@ -36,771 +23,231 @@ The Tickets resource provides full CRUD (Create, Read, Update, Delete) operation
 
 ## Capabilities
 
-- **Pagination**: ✅ Supported
-- **Filtering**: ✅ Supported
-- **Sorting**: ❌ Not Supported
-- **Sideloading**: ❌ Not Supported
-- **Creation**: ✅ Supported
-- **Update**: ✅ Supported
-- **Deletion**: ✅ Supported
+| Capability  | Supported       |
+|-------------|-----------------|
+| Pagination  | ✅ Supported     |
+| Filtering   | ✅ Supported     |
+| Sorting     | ❌ Not supported |
+| Sideloading | ❌ Not supported |
+| Creation    | ✅ Supported     |
+| Update      | ✅ Supported     |
+| Deletion    | ✅ Supported     |
 
-## Available Methods
+---
 
-### `list()`
+## Methods
 
-Get all tickets with optional filtering and pagination.
+### `list(array $filters = [], array $options = [])`
 
-**Parameters:**
-- `filters` (array): Filters to apply
-- `options` (array): Additional options (page_size, page_number)
-
-**Example:**
 ```php
 use McoreServices\TeamleaderSDK\Facades\Teamleader;
 
-// Get all tickets
 $tickets = Teamleader::tickets()->list();
 
-// Get tickets for specific customer
-$tickets = Teamleader::tickets()->list([
-    'customer' => [
-        'type' => 'company',
-        'id' => 'company-uuid'
-    ]
-]);
-
-// With pagination
-$tickets = Teamleader::tickets()->list([], [
-    'page_size' => 50,
-    'page_number' => 2
-]);
+$tickets = Teamleader::tickets()->list(
+    ['ids' => ['ticket-uuid-1', 'ticket-uuid-2']],
+    ['page_size' => 50, 'page_number' => 1]
+);
 ```
 
-### `info()`
+---
 
-Get detailed information about a specific ticket.
+### `info(string $id)`
 
-**Parameters:**
-- `id` (string): Ticket UUID
+Throws `InvalidArgumentException` if `$id` is empty.
 
-**Example:**
 ```php
-// Get ticket information
 $ticket = Teamleader::tickets()->info('ticket-uuid');
 ```
 
-### `create()`
+---
 
-Create a new ticket.
+### `create(array $data)`
 
-**Required Fields:**
-- `subject` (string): Ticket subject/title
-- `customer` (object): Customer object with type and id
-- `ticket_status_id` (string): Ticket status UUID
+Three fields required and validated:
 
-**Optional Fields:**
-- `assignee` (object): Assignee object with type and id
-- `project_id` (string): Project UUID
-- `custom_fields` (array): Custom field values
+| Required           | Validation                                  |
+|--------------------|---------------------------------------------|
+| `subject`          | Non-empty string                            |
+| `customer`         | Object `{type: contact\|company, id: uuid}` |
+| `ticket_status_id` | Non-empty string                            |
 
-**Example:**
+Returns `data.{id, type}`.
+
 ```php
 $ticket = Teamleader::tickets()->create([
-    'subject' => 'Website login issue',
-    'customer' => [
-        'type' => 'company',
-        'id' => 'company-uuid'
-    ],
-    'ticket_status_id' => 'status-uuid',
-    'assignee' => [
-        'type' => 'user',
-        'id' => 'user-uuid'
-    ]
+    'subject'          => 'Login issue on mobile app',
+    'customer'         => ['type' => 'company', 'id' => 'company-uuid'],
+    'ticket_status_id' => 'open-status-uuid',
+    'assignee'         => ['type' => 'user', 'id' => 'user-uuid'],
+    'project_id'       => 'project-uuid',
+    'custom_fields'    => [['id' => 'field-uuid', 'value' => 'high']],
+]);
+
+$ticketId = $ticket['data']['id'];
+```
+
+---
+
+### `update(mixed $id, array $data)`
+
+Returns HTTP 204. Customer and assignee structures are validated when provided.
+
+```php
+Teamleader::tickets()->update('ticket-uuid', [
+    'ticket_status_id' => 'resolved-status-uuid',
+    'assignee'         => ['type' => 'user', 'id' => 'new-user-uuid'],
 ]);
 ```
 
-### `update()`
+---
 
-Update an existing ticket.
+### `delete(mixed $id)`
 
-**Parameters:**
-- `id` (string): Ticket UUID
-- `data` (array): Fields to update
+Returns HTTP 204.
 
-**Example:**
 ```php
-$ticket = Teamleader::tickets()->update('ticket-uuid', [
-    'subject' => 'Updated subject',
-    'ticket_status_id' => 'new-status-uuid',
-    'assignee' => [
-        'type' => 'user',
-        'id' => 'new-user-uuid'
-    ]
-]);
+Teamleader::tickets()->delete('ticket-uuid');
 ```
 
-### `delete()`
+---
 
-Delete a ticket.
+### `addReply(string $ticketId, string $message, string $statusId, array $attachments = [])`
 
-**Parameters:**
-- `id` (string): Ticket UUID
+Adds a customer-facing reply. `$message` is HTML. Returns `data.{id, type}` of the created message.
 
-**Example:**
 ```php
-$result = Teamleader::tickets()->delete('ticket-uuid');
-```
-
-### `addReply()`
-
-Add a customer-facing reply to a ticket.
-
-**Parameters:**
-- `ticketId` (string): Ticket UUID
-- `message` (string): Message content (HTML)
-- `messageType` (string): Type of message ('external_public' or 'external_internal')
-
-**Example:**
-```php
-// Add public reply
-$result = Teamleader::tickets()->addReply(
+Teamleader::tickets()->addReply(
     'ticket-uuid',
-    '<p>Thank you for your inquiry. We are investigating this issue.</p>',
-    'external_public'
-);
-
-// Add internal reply (not visible to customer)
-$result = Teamleader::tickets()->addReply(
-    'ticket-uuid',
-    '<p>Reply sent to customer via email</p>',
-    'external_internal'
+    '<p>We are investigating this issue and will update you shortly.</p>',
+    'status-uuid'
 );
 ```
 
-### `addInternalMessage()`
+---
 
-Add an internal note to a ticket (not visible to customer).
+### `addInternalMessage(string $ticketId, string $message, array $attachments = [])`
 
-**Parameters:**
-- `ticketId` (string): Ticket UUID
-- `message` (string): Internal message content (HTML)
+Adds an internal note — not visible to the customer. Returns `data.{id, type}`.
 
-**Example:**
 ```php
-$result = Teamleader::tickets()->addInternalMessage(
+Teamleader::tickets()->addInternalMessage(
     'ticket-uuid',
-    '<p>Spoke with customer via phone. Issue resolved.</p>'
+    '<p>Spoke with customer by phone. Issue is reproduced on their end.</p>'
 );
 ```
 
-### `listMessages()`
+---
 
-Get all messages for a ticket.
+### `listMessages(string $ticketId, array $filters = [], array $options = [])`
 
-**Parameters:**
-- `ticketId` (string): Ticket UUID
+Lists all messages on a ticket. Message `type` filter is validated when provided.
 
-**Example:**
 ```php
 $messages = Teamleader::tickets()->listMessages('ticket-uuid');
 
-foreach ($messages['data'] as $message) {
-    echo $message['message'];
-}
+// Filter by type (validated)
+$messages = Teamleader::tickets()->listMessages('ticket-uuid', ['type' => 'internal']);
 ```
 
-### `getMessage()`
+---
 
-Get details of a specific message.
+### `getMessage(string $messageId)`
 
-**Parameters:**
-- `messageId` (string): Message UUID
+Fetches a single message. Note: uses param key `message_id`, not `id`.
 
-**Example:**
 ```php
 $message = Teamleader::tickets()->getMessage('message-uuid');
 ```
 
-### `importMessage()`
+---
 
-Import an existing message (e.g., from email integration).
+### `importMessage(string $ticketId, string $body, string $sentByType, string $sentById, string $sentAt, array $attachments = [])`
 
-**Parameters:**
-- `ticketId` (string): Ticket UUID
-- `message` (string): Message content (HTML)
-- `authorType` (string): Author type ('user' or 'contact')
-- `authorId` (string): Author UUID
-- `sentAt` (string): When message was sent (ISO 8601 format)
+Imports a historical message (e.g. from an email integration). `$sentByType` validated: `company`, `contact`, `user`.
 
-**Example:**
 ```php
-// Import email from contact
-$result = Teamleader::tickets()->importMessage(
+Teamleader::tickets()->importMessage(
     'ticket-uuid',
-    '<p>I am having trouble accessing my account.</p>',
-    'contact',
+    '<p>Hi, I cannot log in.</p>',
+    'contact',           // company | contact | user
     'contact-uuid',
-    '2025-10-17T09:30:00+00:00'
-);
-
-// Import reply from user
-$result = Teamleader::tickets()->importMessage(
-    'ticket-uuid',
-    '<p>I have reset your password. Please try again.</p>',
-    'user',
-    'user-uuid',
-    '2025-10-17T10:15:00+00:00'
+    '2025-04-15T09:30:00+02:00'
 );
 ```
+
+---
 
 ## Helper Methods
 
-### Customer Filtering
+| Method                                  | Filter sent                                      |
+|-----------------------------------------|--------------------------------------------------|
+| `forCustomer(string $type, string $id)` | `relates_to: {type, id}` — type validated        |
+| `forProjects(array $projectIds)`        | `project_ids: [...]` — throws on empty           |
+| `byIds(array $ids)`                     | `ids: [...]` — throws on empty                   |
+| `excludeStatuses(array $statusIds)`     | `exclude: {status_ids: [...]}` — throws on empty |
 
 ```php
-// Get tickets for a company
 $tickets = Teamleader::tickets()->forCustomer('company', 'company-uuid');
-
-// Get tickets for a contact
-$tickets = Teamleader::tickets()->forCustomer('contact', 'contact-uuid');
+$tickets = Teamleader::tickets()->forProjects(['project-uuid-1', 'project-uuid-2']);
+$tickets = Teamleader::tickets()->byIds(['uuid-1', 'uuid-2']);
+$tickets = Teamleader::tickets()->excludeStatuses(['closed-status-uuid']);
 ```
 
-### Project Filtering
-
-```php
-// Get tickets for specific projects
-$tickets = Teamleader::tickets()->forProjects([
-    'project-uuid-1',
-    'project-uuid-2'
-]);
-```
-
-### ID Filtering
-
-```php
-// Get specific tickets by IDs
-$tickets = Teamleader::tickets()->byIds(['uuid1', 'uuid2', 'uuid3']);
-```
+---
 
 ## Filters
 
-Available filters for the `list()` method:
+| Filter        | Type   | Description                                      |
+|---------------|--------|--------------------------------------------------|
+| `ids`         | array  | Filter by ticket UUIDs                           |
+| `relates_to`  | object | `{type: contact\|company, id: uuid}`             |
+| `project_ids` | array  | Filter by project UUIDs                          |
+| `exclude`     | object | `{status_ids: [...]}` — exclude certain statuses |
 
-| Filter | Type | Description |
-|--------|------|-------------|
-| `ids` | array | Array of ticket UUIDs |
-| `customer` | object | Filter by customer (type and id) |
-| `project_ids` | array | Filter by project UUIDs |
-
-### Customer Filter Structure
-
-```php
-[
-    'customer' => [
-        'type' => 'company', // or 'contact'
-        'id' => 'uuid-here'
-    ]
-]
-```
-
-## Response Structure
-
-### List Response
-
-```php
-[
-    'data' => [
-        [
-            'id' => 'ticket-uuid',
-            'subject' => 'Website login issue',
-            'customer' => [
-                'type' => 'company',
-                'id' => 'company-uuid'
-            ],
-            'assignee' => [
-                'type' => 'user',
-                'id' => 'user-uuid'
-            ],
-            'ticket_status' => [
-                'type' => 'ticketStatus',
-                'id' => 'status-uuid'
-            ],
-            'project' => [
-                'type' => 'project',
-                'id' => 'project-uuid'
-            ],
-            'created_at' => '2025-10-17T09:00:00+00:00',
-            'updated_at' => '2025-10-17T14:30:00+00:00'
-        ]
-    ],
-    'meta' => [
-        'page' => [
-            'size' => 20,
-            'number' => 1
-        ],
-        'matches' => 45
-    ]
-]
-```
-
-### Info Response
-
-```php
-[
-    'data' => [
-        'id' => 'ticket-uuid',
-        'subject' => 'Website login issue',
-        'customer' => [
-            'type' => 'company',
-            'id' => 'company-uuid'
-        ],
-        'assignee' => [
-            'type' => 'user',
-            'id' => 'user-uuid'
-        ],
-        'ticket_status' => [
-            'type' => 'ticketStatus',
-            'id' => 'status-uuid'
-        ],
-        'project' => [
-            'type' => 'project',
-            'id' => 'project-uuid'
-        ],
-        'custom_fields' => [
-            [
-                'definition' => [
-                    'type' => 'customFieldDefinition',
-                    'id' => 'field-uuid'
-                ],
-                'value' => 'Custom value'
-            ]
-        ],
-        'created_at' => '2025-10-17T09:00:00+00:00',
-        'updated_at' => '2025-10-17T14:30:00+00:00',
-        'web_url' => 'https://focus.teamleader.eu/ticket_detail.php?id=123'
-    ]
-]
-```
-
-### Messages List Response
-
-```php
-[
-    'data' => [
-        [
-            'id' => 'message-uuid',
-            'message' => '<p>Thank you for reporting this issue.</p>',
-            'message_type' => 'external_public',
-            'author' => [
-                'type' => 'user',
-                'id' => 'user-uuid'
-            ],
-            'sent_at' => '2025-10-17T10:00:00+00:00'
-        ],
-        [
-            'id' => 'message-uuid-2',
-            'message' => '<p>Internal note about the issue</p>',
-            'message_type' => 'internal',
-            'author' => [
-                'type' => 'user',
-                'id' => 'user-uuid'
-            ],
-            'sent_at' => '2025-10-17T10:30:00+00:00'
-        ]
-    ]
-]
-```
-
-## Usage Examples
-
-### Create Support Ticket
-
-```php
-// Create new support ticket for company
-$ticket = Teamleader::tickets()->create([
-    'subject' => 'Unable to access dashboard',
-    'customer' => [
-        'type' => 'company',
-        'id' => 'company-uuid'
-    ],
-    'ticket_status_id' => 'open-status-uuid',
-    'assignee' => [
-        'type' => 'user',
-        'id' => 'support-agent-uuid'
-    ],
-    'project_id' => 'support-project-uuid'
-]);
-
-// Add initial reply
-Teamleader::tickets()->addReply(
-    $ticket['data']['id'],
-    '<p>Thank you for contacting support. We are looking into this issue.</p>',
-    'external_public'
-);
-```
-
-### Update Ticket Status
-
-```php
-// Get ticket
-$ticket = Teamleader::tickets()->info('ticket-uuid');
-
-// Update to resolved status
-Teamleader::tickets()->update($ticket['data']['id'], [
-    'ticket_status_id' => 'resolved-status-uuid'
-]);
-
-// Add resolution note
-Teamleader::tickets()->addInternalMessage(
-    $ticket['data']['id'],
-    '<p>Issue resolved. Password was reset.</p>'
-);
-```
-
-### Reassign Ticket
-
-```php
-// Reassign ticket to different agent
-Teamleader::tickets()->update('ticket-uuid', [
-    'assignee' => [
-        'type' => 'user',
-        'id' => 'new-agent-uuid'
-    ]
-]);
-
-// Add internal note about reassignment
-Teamleader::tickets()->addInternalMessage(
-    'ticket-uuid',
-    '<p>Reassigned to John for specialized support.</p>'
-);
-```
-
-### Get Ticket Conversation
-
-```php
-// Get all messages for a ticket
-$messages = Teamleader::tickets()->listMessages('ticket-uuid');
-
-echo "<h2>Ticket Conversation</h2>";
-
-foreach ($messages['data'] as $message) {
-    $type = $message['message_type'];
-    $author = $message['author']['type'];
-    $time = date('Y-m-d H:i', strtotime($message['sent_at']));
-    
-    echo "<div class='message message-{$type}'>";
-    echo "<strong>{$author} at {$time}:</strong><br>";
-    echo $message['message'];
-    echo "</div>";
-}
-```
-
-### Import Email Conversation
-
-```php
-// Import customer's initial email
-$importedMsg = Teamleader::tickets()->importMessage(
-    'ticket-uuid',
-    '<p>Hello, I cannot log into my account. Can you help?</p>',
-    'contact',
-    'contact-uuid',
-    '2025-10-17T08:30:00+00:00'
-);
-
-// Import agent's email reply
-$importedReply = Teamleader::tickets()->importMessage(
-    'ticket-uuid',
-    '<p>I have reset your password. Check your email.</p>',
-    'user',
-    'agent-uuid',
-    '2025-10-17T09:15:00+00:00'
-);
-```
-
-### Customer Support Dashboard
-
-```php
-// Get open tickets for company
-$openTickets = Teamleader::tickets()->forCustomer('company', 'company-uuid');
-
-// Filter by status (if needed)
-$statuses = Teamleader::ticketStatus()->list();
-$openStatusIds = array_column(
-    array_filter($statuses['data'], fn($s) => $s['type'] === 'open'),
-    'id'
-);
-
-// Display tickets
-foreach ($openTickets['data'] as $ticket) {
-    echo "Ticket: {$ticket['subject']}<br>";
-    echo "Status: {$ticket['ticket_status']['id']}<br>";
-    
-    // Get latest message
-    $messages = Teamleader::tickets()->listMessages($ticket['id']);
-    if (!empty($messages['data'])) {
-        $latest = $messages['data'][0];
-        echo "Last update: {$latest['sent_at']}<br>";
-    }
-    
-    echo "<hr>";
-}
-```
-
-## Common Use Cases
-
-### 1. Ticket Management System
-
-```php
-class TicketManager
-{
-    public function createFromEmail(array $emailData): array
-    {
-        // Create ticket
-        $ticket = Teamleader::tickets()->create([
-            'subject' => $emailData['subject'],
-            'customer' => [
-                'type' => 'contact',
-                'id' => $emailData['contact_id']
-            ],
-            'ticket_status_id' => $this->getDefaultStatusId()
-        ]);
-        
-        // Import email as first message
-        Teamleader::tickets()->importMessage(
-            $ticket['data']['id'],
-            $emailData['body'],
-            'contact',
-            $emailData['contact_id'],
-            $emailData['sent_at']
-        );
-        
-        return $ticket;
-    }
-    
-    public function assignToAgent(string $ticketId, string $agentId): void
-    {
-        Teamleader::tickets()->update($ticketId, [
-            'assignee' => [
-                'type' => 'user',
-                'id' => $agentId
-            ]
-        ]);
-    }
-    
-    public function resolve(string $ticketId, string $resolution): void
-    {
-        // Update status
-        Teamleader::tickets()->update($ticketId, [
-            'ticket_status_id' => $this->getResolvedStatusId()
-        ]);
-        
-        // Add resolution note
-        Teamleader::tickets()->addInternalMessage($ticketId, $resolution);
-    }
-}
-```
-
-### 2. SLA Tracking
-
-```php
-// Check tickets approaching SLA deadline
-function getTicketsApproachingSLA(int $hours = 24): array
-{
-    $tickets = Teamleader::tickets()->list();
-    $approaching = [];
-    
-    foreach ($tickets['data'] as $ticket) {
-        $created = new DateTime($ticket['created_at']);
-        $now = new DateTime();
-        $age = $now->diff($created)->h;
-        
-        if ($age > (48 - $hours) && $age < 48) { // 48h SLA
-            $approaching[] = [
-                'ticket' => $ticket,
-                'hours_remaining' => 48 - $age
-            ];
-        }
-    }
-    
-    return $approaching;
-}
-```
-
-### 3. Customer Communication
-
-```php
-// Send update to customer
-function sendCustomerUpdate(string $ticketId, string $message): void
-{
-    Teamleader::tickets()->addReply(
-        $ticketId,
-        "<p>{$message}</p>",
-        'external_public'
-    );
-    
-    // Also log internal note
-    Teamleader::tickets()->addInternalMessage(
-        $ticketId,
-        '<p>Customer update sent at ' . date('Y-m-d H:i:s') . '</p>'
-    );
-}
-```
-
-### 4. Ticket Statistics
-
-```php
-// Get ticket statistics for company
-function getTicketStats(string $companyId): array
-{
-    $tickets = Teamleader::tickets()->forCustomer('company', $companyId);
-    
-    $stats = [
-        'total' => count($tickets['data']),
-        'by_status' => [],
-        'average_age_days' => 0
-    ];
-    
-    $totalAge = 0;
-    
-    foreach ($tickets['data'] as $ticket) {
-        // Count by status
-        $statusId = $ticket['ticket_status']['id'];
-        $stats['by_status'][$statusId] = ($stats['by_status'][$statusId] ?? 0) + 1;
-        
-        // Calculate age
-        $created = new DateTime($ticket['created_at']);
-        $now = new DateTime();
-        $age = $now->diff($created)->days;
-        $totalAge += $age;
-    }
-    
-    if ($stats['total'] > 0) {
-        $stats['average_age_days'] = $totalAge / $stats['total'];
-    }
-    
-    return $stats;
-}
-```
-
-## Best Practices
-
-### 1. Use Clear Ticket Subjects
-
-```php
-// Good: Descriptive subject
-$ticket = Teamleader::tickets()->create([
-    'subject' => 'Login error: "Invalid credentials" on mobile app',
-    'customer' => [...],
-    'ticket_status_id' => 'status-uuid'
-]);
-
-// Less helpful: Vague subject
-// 'subject' => 'Problem'
-```
-
-### 2. Add Context in Messages
-
-```php
-// Good: Include relevant details
-Teamleader::tickets()->addReply(
-    'ticket-uuid',
-    '<p>I have investigated the login issue. The problem was caused by an expired session token. I have reset your session and you should now be able to log in.</p>',
-    'external_public'
-);
-```
-
-### 3. Use Internal Messages for Notes
-
-```php
-// Document internal actions
-Teamleader::tickets()->addInternalMessage(
-    'ticket-uuid',
-    '<p>Contacted customer via phone. Confirmed issue is resolved. Awaiting customer confirmation before closing.</p>'
-);
-```
-
-### 4. Link Tickets to Projects
-
-```php
-// Link ticket to relevant project for better tracking
-$ticket = Teamleader::tickets()->create([
-    'subject' => 'Feature request: Export to Excel',
-    'customer' => [...],
-    'ticket_status_id' => 'status-uuid',
-    'project_id' => 'website-redesign-project-uuid'
-]);
-```
-
-### 5. Handle Pagination for Large Lists
-
-```php
-function getAllTicketsForCustomer(string $type, string $id): array
-{
-    $allTickets = [];
-    $page = 1;
-    $pageSize = 100;
-
-    do {
-        $response = Teamleader::tickets()->forCustomer($type, $id)
-            ->list([], [
-                'page_size' => $pageSize,
-                'page_number' => $page
-            ]);
-
-        $allTickets = array_merge($allTickets, $response['data']);
-        $page++;
-    } while (count($response['data']) === $pageSize);
-
-    return $allTickets;
-}
-```
+---
 
 ## Error Handling
 
 ```php
-use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
+use InvalidArgumentException;
 
+// Assignee type must be 'user'
 try {
-    $ticket = Teamleader::tickets()->create([
-        'subject' => 'Support request',
-        'customer' => [
-            'type' => 'company',
-            'id' => 'company-uuid'
-        ],
-        'ticket_status_id' => 'status-uuid'
+    Teamleader::tickets()->create([
+        'subject'          => 'Test',
+        'customer'         => ['type' => 'company', 'id' => 'uuid'],
+        'ticket_status_id' => 'status-uuid',
+        'assignee'         => ['type' => 'team', 'id' => 'team-uuid'],
     ]);
-} catch (TeamleaderException $e) {
-    if ($e->getCode() === 422) {
-        // Validation error
-        Log::error('Ticket creation failed', [
-            'errors' => $e->getDetails()
-        ]);
-    } elseif ($e->getCode() === 404) {
-        // Status or customer not found
-        Log::error('Resource not found');
-    }
+} catch (InvalidArgumentException $e) {
+    // 'Assignee type must be "user"'
 }
 
-// Adding messages
+// Participant customer type must be 'company'
 try {
-    Teamleader::tickets()->addReply('ticket-uuid', '<p>Message</p>', 'external_public');
-} catch (TeamleaderException $e) {
-    if ($e->getCode() === 404) {
-        Log::error('Ticket not found');
-    }
+    Teamleader::tickets()->create([
+        ...,
+        'participant' => ['customer' => ['type' => 'contact', 'id' => 'uuid']],
+    ]);
+} catch (InvalidArgumentException $e) {
+    // 'Participant customer type must be "company"'
+}
+
+// Invalid sentByType on importMessage
+try {
+    Teamleader::tickets()->importMessage('ticket-uuid', '<p>msg</p>', 'team', 'uuid', '2025-01-01T00:00:00+00:00');
+} catch (InvalidArgumentException $e) {
+    // 'Invalid sent_by type. Must be one of: company, contact, user'
 }
 ```
 
+---
+
 ## Related Resources
 
-- [Ticket Status](ticket-status.md) - Ticket status management
-- [Companies](../crm/companies.md) - Link tickets to companies
-- [Contacts](../crm/contacts.md) - Link tickets to contacts
-- [Users](../general/users.md) - Assign tickets to users
-- [Projects](../projects/projects.md) - Link tickets to projects
-- [Time Tracking](../time-tracking/time-tracking.md) - Track time on tickets
-
-## See Also
-
-- [Usage Guide](../usage.md) - General SDK usage
-- [Filtering](../filtering.md) - Advanced filtering techniques
+- [[Ticket-Status]] — Status definitions used on tickets
+- [[Companies]] — Tickets linked to companies
+- [[Contacts]] — Tickets linked to contacts
+- [[Projects]] — Optional project link on tickets
+- [[Time-Tracking]] — Log time against tickets

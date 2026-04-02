@@ -1,557 +1,271 @@
-# Error Codes Reference
+# Errors
 
-Complete reference for all HTTP status codes and exceptions used by the Teamleader SDK.
+Reference for all exceptions and HTTP status codes used by the Teamleader SDK.
 
-## 📊 Quick Reference Table
+## Overview
 
-| Code | Exception | Description | Retry? | Common Causes |
-|------|-----------|-------------|--------|---------------|
-| 400 | `TeamleaderException` | Bad Request | ❌ No | Invalid request format, missing required fields |
-| 401 | `AuthenticationException` | Unauthorized | ❌ No | Invalid or expired credentials, missing token |
-| 403 | `AuthorizationException` | Forbidden | ❌ No | Insufficient permissions, scope issues |
-| 404 | `NotFoundException` | Not Found | ❌ No | Resource doesn't exist, wrong UUID |
-| 422 | `ValidationException` | Validation Failed | ❌ No | Invalid field values, data type mismatch |
-| 429 | `RateLimitExceededException` | Too Many Requests | ✅ Yes | Rate limit exceeded |
-| 500 | `ServerException` | Internal Server Error | ✅ Yes | Teamleader server issue |
-| 502 | `ServerException` | Bad Gateway | ✅ Yes | Teamleader gateway issue |
-| 503 | `ServerException` | Service Unavailable | ✅ Yes | Teamleader maintenance or overload |
-| 504 | `ServerException` | Gateway Timeout | ✅ Yes | Request timeout at gateway |
-| 0 | `ConnectionException` | Connection Failed | ✅ Yes | Network issue, DNS failure |
+The SDK maps every API response and connection failure to a typed PHP exception. Each exception
+extends `TeamleaderException`, so you can catch broadly or narrow down to specific conditions.
 
-## 🔴 Client Errors (4xx)
+Whether exceptions are thrown is controlled by the `throw_exceptions` flag in `config/teamleader.php`. One exception to
+this rule: `RateLimitExceededException` (429) **always** throws, regardless of that setting, because silently swallowing
+a rate-limit failure returns empty data to the caller with no indication of why.
 
-### 400 - Bad Request
+---
 
-**Exception:** `TeamleaderException`  
-**Retry:** No  
-**Description:** The request was malformed or contains invalid syntax.
+## Exception Reference
 
-**Common Causes:**
-- Invalid JSON syntax
-- Missing required parameters
-- Incorrect parameter types
-- Malformed date formats
+| HTTP Status | Exception Class              | Retryable  | Log Level |
+|-------------|------------------------------|------------|-----------|
+| 400         | `TeamleaderException`        | ❌          | warning   |
+| 401         | `AuthenticationException`    | ❌          | error     |
+| 403         | `AuthorizationException`     | ❌          | warning   |
+| 404         | `NotFoundException`          | ❌          | info      |
+| 422         | `ValidationException`        | ❌          | warning   |
+| 429         | `RateLimitExceededException` | ✅ (manual) | warning   |
+| 500         | `ServerException`            | ✅ (auto)   | critical  |
+| 502         | `ServerException`            | ✅ (auto)   | critical  |
+| 503         | `ServerException`            | ✅ (auto)   | critical  |
+| 504         | `ServerException`            | ✅ (auto)   | critical  |
+| 0           | `ConnectionException`        | ✅ (auto)   | error     |
+| —           | `ConfigurationException`     | ❌          | critical  |
 
-**Example Response:**
-```json
-{
-    "errors": [
-        {
-            "title": "Invalid JSON format"
-        }
-    ]
-}
-```
+---
 
-**Handling:**
+## Client Errors (4xx)
+
+### 400 — Bad Request
+
+**Exception:** `TeamleaderException`
+
+The request was malformed. Common causes: missing required fields, wrong data types, invalid JSON, malformed dates.
+
 ```php
+use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
+
 try {
     $company = Teamleader::companies()->create($data);
 } catch (TeamleaderException $e) {
     if ($e->getCode() === 400) {
-        Log::error('Bad request', [
-            'errors' => $e->getAllErrors(),
-            'data' => $data
-        ]);
-        
-        // Fix the data structure and retry
+        Log::error('Bad request', ['errors' => $e->getAllErrors()]);
     }
 }
 ```
 
 ---
 
-### 401 - Unauthorized
+### 401 — Unauthorized
 
-**Exception:** `AuthenticationException`  
-**Retry:** No  
-**Description:** Authentication failed or access token is invalid/expired.
+**Exception:** `AuthenticationException`
 
-**Common Causes:**
-- Access token expired
-- Invalid access token
-- Access token revoked
-- Missing Authorization header
-- Failed token refresh
+Token is missing, expired, or invalid. The SDK handles token refresh automatically before requests. If this exception is
+thrown, the refresh itself has failed.
 
-**Example Response:**
-```json
-{
-    "error": "invalid_token",
-    "error_description": "The access token provided is invalid"
-}
-```
-
-**Handling:**
 ```php
 use McoreServices\TeamleaderSDK\Exceptions\AuthenticationException;
 
 try {
     $companies = Teamleader::companies()->list();
 } catch (AuthenticationException $e) {
-    // Redirect to re-authenticate
-    Log::warning('Authentication failed, redirecting to OAuth');
-    return redirect()->route('teamleader.authorize');
+    // Re-authenticate via OAuth flow
+    return redirect(Teamleader::authorize());
 }
 ```
-
-**Prevention:**
-- The SDK automatically refreshes tokens
-- Use `Teamleader::isAuthenticated()` before making requests
-- Handle authentication in middleware
 
 ---
 
-### 403 - Forbidden
+### 403 — Forbidden
 
-**Exception:** `AuthorizationException`  
-**Retry:** No  
-**Description:** Request was valid but server refuses to authorize it.
+**Exception:** `AuthorizationException`
 
-**Common Causes:**
-- Insufficient OAuth scopes
-- Account doesn't have feature enabled
-- User lacks permission for the resource
-- Attempting to modify read-only data
+The authenticated user does not have the required scopes or permissions for this operation.
 
-**Example Response:**
-```json
-{
-    "errors": [
-        {
-            "title": "Insufficient permissions"
-        }
-    ]
-}
-```
-
-**Handling:**
 ```php
 use McoreServices\TeamleaderSDK\Exceptions\AuthorizationException;
 
 try {
-    $invoice = Teamleader::invoices()->book($invoiceId);
+    $invoice = Teamleader::invoices()->create($data);
 } catch (AuthorizationException $e) {
-    Log::warning('User lacks permission', [
-        'user_id' => auth()->id(),
-        'action' => 'book_invoice',
-        'invoice_id' => $invoiceId
-    ]);
-    
-    return response()->json([
-        'error' => 'You do not have permission to book invoices'
-    ], 403);
+    Log::warning('Insufficient permissions', ['message' => $e->getMessage()]);
 }
 ```
-
-**Resolution:**
-- Check OAuth scopes in your Teamleader app settings
-- Verify user permissions in Teamleader
-- Contact Teamleader support if feature should be available
 
 ---
 
-### 404 - Not Found
+### 404 — Not Found
 
-**Exception:** `NotFoundException`  
-**Retry:** No  
-**Description:** The requested resource doesn't exist.
+**Exception:** `NotFoundException`
 
-**Common Causes:**
-- Incorrect UUID
-- Resource was deleted
-- Typo in endpoint or ID
-- Wrong resource type for ID
+The requested resource does not exist, or the UUID is incorrect.
 
-**Example Response:**
-```json
-{
-    "errors": [
-        {
-            "title": "Resource not found"
-        }
-    ]
-}
-```
-
-**Handling:**
 ```php
 use McoreServices\TeamleaderSDK\Exceptions\NotFoundException;
 
 try {
-    $company = Teamleader::companies()->info($companyId);
+    $contact = Teamleader::contacts()->info('contact-uuid');
 } catch (NotFoundException $e) {
-    Log::info('Company not found', ['id' => $companyId]);
-    
-    // Try to find by alternative identifier
-    $companies = Teamleader::companies()->byVatNumber($vatNumber);
-    
-    if (empty($companies['data'])) {
-        abort(404, 'Company not found');
-    }
+    // Resource does not exist — handle gracefully
+    return null;
 }
 ```
 
 ---
 
-### 422 - Unprocessable Entity
+### 422 — Validation Failed
 
-**Exception:** `ValidationException`  
-**Retry:** No  
-**Description:** Request was well-formed but contains semantic errors.
+**Exception:** `ValidationException`
 
-**Common Causes:**
-- Invalid field values
-- Business rule violations
-- Required field missing
-- Field value out of range
-- Invalid email format
-- Invalid date format
+The API rejected the request due to invalid field values. Call `getAllErrors()` to retrieve the full list of validation
+messages.
 
-**Example Response:**
-```json
-{
-    "errors": [
-        {
-            "title": "Validation failed",
-            "detail": {
-                "email": ["The email field must be a valid email address"]
-            }
-        }
-    ]
-}
-```
-
-**Handling:**
 ```php
 use McoreServices\TeamleaderSDK\Exceptions\ValidationException;
 
 try {
-    $contact = Teamleader::contacts()->create($data);
+    $deal = Teamleader::deals()->create($data);
 } catch (ValidationException $e) {
-    // Get all validation errors
-    $errors = $e->getAllErrors();
-    
-    // Log for debugging
-    Log::error('Validation failed', [
-        'errors' => $errors,
-        'data' => $data
-    ]);
-    
-    // Return to user
-    return back()->withErrors([
-        'teamleader' => 'Validation failed: ' . implode(', ', $errors)
-    ])->withInput();
+    $errors = $e->getAllErrors(); // array of error strings
+    return back()->withErrors($errors);
 }
 ```
-
-**Prevention:**
-- Validate data before sending to API
-- Check required fields
-- Validate email formats
-- Validate date formats (ISO 8601)
-- Check data types match API expectations
 
 ---
 
-### 429 - Too Many Requests
+### 429 — Rate Limit Exceeded
 
-**Exception:** `RateLimitExceededException`  
-**Retry:** Yes (after delay)  
-**Description:** Rate limit exceeded.
+**Exception:** `RateLimitExceededException`
 
-**Rate Limits:**
-- **200 requests per minute** (sliding window)
-- Headers indicate limit status
-- SDK automatically throttles
+**Always thrown**, regardless of the `throw_exceptions` configuration flag.
 
-**Response Headers:**
-```
-X-RateLimit-Limit: 200
-X-RateLimit-Remaining: 0
-X-RateLimit-Reset: 1634567890
-Retry-After: 30
-```
+The exception carries:
 
-**Example Response:**
-```json
-{
-    "errors": [
-        {
-            "title": "Rate limit exceeded"
-        }
-    ]
-}
-```
+- `getRetryAfter()` — seconds to wait before retrying (from `Retry-After` header, defaults to 60)
+- `getResetTime()` — Unix timestamp when the rate limit resets (from `X-RateLimit-Reset` header)
 
-**Handling:**
+The SDK's built-in retry logic does **not** automatically retry 429 responses. Sleeping for 60 seconds inside a queue
+worker blocks the thread. Handle this at the job/queue level instead.
+
 ```php
 use McoreServices\TeamleaderSDK\Exceptions\RateLimitExceededException;
 
 try {
-    $companies = Teamleader::companies()->list();
+    $invoices = Teamleader::invoices()->list();
 } catch (RateLimitExceededException $e) {
     $retryAfter = $e->getRetryAfter(); // seconds
-    $resetTime = $e->getResetTime(); // Unix timestamp
     
-    Log::warning('Rate limit exceeded', [
-        'retry_after' => $retryAfter,
-        'reset_time' => date('Y-m-d H:i:s', $resetTime)
-    ]);
-    
-    // Wait and retry
-    sleep($retryAfter);
-    return Teamleader::companies()->list();
+    // Delay and re-dispatch rather than sleeping inline
+    dispatch(new FetchInvoicesJob())->delay(now()->addSeconds($retryAfter));
 }
 ```
 
-**Prevention:**
-The SDK automatically handles rate limiting:
-- Monitors request count
-- Applies throttling at 70% capacity
-- Respects `Retry-After` headers
-- Implements exponential backoff
+---
 
-Check rate limit status:
-```php
-$stats = Teamleader::getRateLimitStats();
+## Server Errors (5xx)
 
-if ($stats['usage_percentage'] > 80) {
-    Log::warning('Approaching rate limit', $stats);
-}
-```
+**Exception:** `ServerException`
 
-## 🔴 Server Errors (5xx)
+Covers 500, 502, 503, and 504. These are transient Teamleader-side failures. The SDK automatically retries server errors
+using exponential backoff.
 
-### 500 - Internal Server Error
-
-**Exception:** `ServerException`  
-**Retry:** Yes (with exponential backoff)  
-**Description:** Teamleader server encountered an error.
-
-**Common Causes:**
-- Teamleader API bug
-- Database issue on Teamleader side
-- Unexpected error in Teamleader's code
-
-**Handling:**
 ```php
 use McoreServices\TeamleaderSDK\Exceptions\ServerException;
 
 try {
-    $deal = Teamleader::deals()->create($data);
+    $result = Teamleader::deals()->create($data);
 } catch (ServerException $e) {
-    Log::critical('Teamleader server error', [
-        'status_code' => $e->getCode(),
-        'message' => $e->getMessage()
-    ]);
-    
-    // The SDK automatically retries
-    // If retries exhausted, queue for later
+    // Retries exhausted — queue for later
     dispatch(new CreateDealJob($data))->delay(now()->addMinutes(5));
 }
 ```
 
 ---
 
-### 502 - Bad Gateway
+## Connection Errors
 
-**Exception:** `ServerException`  
-**Retry:** Yes  
-**Description:** Teamleader gateway received invalid response.
+**Exception:** `ConnectionException`
 
-**Common Causes:**
-- Teamleader backend server issue
-- Load balancer problem
-- Gateway configuration issue
+Thrown when the HTTP request cannot be completed. Common causes: network unavailability, DNS failure, SSL handshake
+failure, firewall blocking.
 
----
-
-### 503 - Service Unavailable
-
-**Exception:** `ServerException`  
-**Retry:** Yes  
-**Description:** Teamleader service temporarily unavailable.
-
-**Common Causes:**
-- Scheduled maintenance
-- Temporary overload
-- Deployment in progress
-
-**Handling:**
-```php
-try {
-    $result = Teamleader::invoices()->list();
-} catch (ServerException $e) {
-    if ($e->getCode() === 503) {
-        // Service temporarily unavailable
-        // Schedule for later processing
-        Cache::put('teamleader_unavailable', true, 300);
-        
-        return response()->json([
-            'message' => 'Teamleader is temporarily unavailable. Please try again in a few minutes.'
-        ], 503);
-    }
-}
-```
-
----
-
-### 504 - Gateway Timeout
-
-**Exception:** `ServerException`  
-**Retry:** Yes  
-**Description:** Gateway timeout waiting for Teamleader response.
-
-**Common Causes:**
-- Request took too long to process
-- Network latency
-- Large dataset processing
-
-## 🔌 Connection Errors
-
-### Connection Failed
-
-**Exception:** `ConnectionException`  
-**Retry:** Yes  
-**Description:** Failed to establish connection to Teamleader.
-
-**Common Causes:**
-- Network connectivity issues
-- DNS resolution failure
-- Firewall blocking requests
-- SSL/TLS handshake failure
-
-**Handling:**
 ```php
 use McoreServices\TeamleaderSDK\Exceptions\ConnectionException;
 
 try {
     $companies = Teamleader::companies()->list();
 } catch (ConnectionException $e) {
-    Log::error('Connection failed', [
-        'message' => $e->getMessage(),
-        'context' => $e->getContext()
-    ]);
-    
-    // Check network connectivity
-    // Notify monitoring system
-    // Queue for retry
+    Log::error('Teamleader unreachable', ['message' => $e->getMessage()]);
 }
 ```
 
-## 🎯 Best Practices
+---
 
-### Error Handling Strategy
+## Configuration Errors
+
+**Exception:** `ConfigurationException`
+
+Thrown during SDK initialisation when required credentials or settings are missing. Logged at `critical` level.
+
+---
+
+## Recommended Catch Order
+
+Catch specific exceptions before broad ones. `TeamleaderException` is the base class for all SDK exceptions.
 
 ```php
 use McoreServices\TeamleaderSDK\Exceptions\{
     AuthenticationException,
     ValidationException,
     RateLimitExceededException,
+    NotFoundException,
     ServerException,
+    ConnectionException,
     TeamleaderException
 };
 
 try {
     $result = Teamleader::companies()->create($data);
-    
+
 } catch (ValidationException $e) {
-    // User error - show validation messages
+    // Fix input and retry — do not queue
     return back()->withErrors($e->getAllErrors());
-    
+
 } catch (AuthenticationException $e) {
-    // Auth issue - redirect to reconnect
-    return redirect()->route('teamleader.authorize');
-    
+    // Re-authenticate
+    return redirect(Teamleader::authorize());
+
 } catch (RateLimitExceededException $e) {
-    // Rate limit - wait and retry or queue
-    dispatch(new ProcessLater($data))->delay($e->getRetryAfter());
-    
-} catch (ServerException $e) {
-    // Server issue - SDK auto-retries, then queue
-    Log::critical('Server error after retries', ['error' => $e->getMessage()]);
-    dispatch(new ProcessLater($data))->delay(now()->addMinutes(5));
-    
+    // Re-dispatch after delay — do not sleep inline
+    dispatch(new CreateCompanyJob($data))->delay(now()->addSeconds($e->getRetryAfter()));
+
+} catch (NotFoundException $e) {
+    // Resource gone — handle gracefully
+    return null;
+
+} catch (ServerException | ConnectionException $e) {
+    // Transient — queue for retry
+    dispatch(new CreateCompanyJob($data))->delay(now()->addMinutes(5));
+
 } catch (TeamleaderException $e) {
-    // General error - log and notify
-    Log::error('Teamleader API error', [
-        'code' => $e->getCode(),
-        'message' => $e->getMessage()
-    ]);
+    // Unexpected error
+    Log::error('Teamleader error', ['code' => $e->getCode(), 'message' => $e->getMessage()]);
 }
 ```
-
-### Retry Logic
-
-The SDK implements automatic retry with exponential backoff for:
-- `ServerException` (500, 502, 503, 504)
-- `RateLimitExceededException` (429)
-- `ConnectionException`
-
-**Default retry configuration:**
-```php
-'api' => [
-    'retry_attempts' => 3,
-    'retry_delay' => 1000, // Base delay in milliseconds
-]
-```
-
-**Exponential backoff formula:**
-```
-delay = min(baseDelay * (2 ^ attempt) + jitter, maxDelay)
-```
-
-### Logging Strategy
-
-```php
-// Critical errors (requires immediate attention)
-Log::critical('Authentication completely failed');
-
-// Errors (abnormal conditions)
-Log::error('API request failed after retries', $context);
-
-// Warnings (unusual but handled)
-Log::warning('Rate limit approaching', $stats);
-
-// Info (notable events)
-Log::info('Resource created successfully', ['id' => $id]);
-
-// Debug (detailed information)
-Log::debug('API request details', $requestData);
-```
-
-### Monitoring
-
-Track these metrics:
-- Authentication failures
-- Rate limit hits
-- Server error frequency
-- Average response times
-- Retry success rates
-
-```php
-// Example monitoring
-$stats = Teamleader::getRateLimitStats();
-
-if ($stats['usage_percentage'] > 90) {
-    // Alert monitoring system
-    alert('Teamleader rate limit critical');
-}
-```
-
-## 🆘 Getting Help
-
-If you encounter errors not covered here:
-
-1. **Check Logs**: Review Laravel logs for detailed error information
-2. **SDK Status**: Run `php artisan teamleader:health`
-3. **Teamleader Status**: Check [status.teamleader.eu](https://status.teamleader.eu)
-4. **Documentation**: See [official API docs](https://developer.focus.teamleader.eu/)
-5. **GitHub Issues**: Search or create an issue
-6. **Support**: Contact help@mcore-services.be
 
 ---
 
-**Last Updated:** March 2026  
-**SDK Version:** 1.2.0
+## Configuration
+
+```php
+// config/teamleader.php
+'error_handling' => [
+    'throw_exceptions' => true, // false = log only (except 429, which always throws)
+],
+```
+
+---
+
+## Related Resources
+
+- [[Filtering]] — Filter parameters and validation
+- [[Sideloading]] — Loading related data
+- [[Usage]] — General SDK usage guide

@@ -1,23 +1,18 @@
 # Withholding Tax Rates
 
-Access withholding tax rate information in Teamleader Focus.
+Read withholding tax rate definitions in Teamleader Focus.
 
 ## Overview
 
-The Withholding Tax Rates resource provides read-only access to withholding tax rates configured in your Teamleader account. Withholding tax rates are used for certain types of invoices where tax is withheld at source.
+Withholding tax rates apply to invoices where tax is withheld at source — common in certain professional services
+invoicing contexts. The rates are configured in Teamleader Focus settings and cannot be modified through the API.
 
-**Important:** This resource is read-only. Withholding tax rates are configured in Teamleader Focus settings and cannot be created or modified through the API.
+Access via `Teamleader::withholdingTaxRates()`.
 
-## Navigation
-
-- [Endpoint](#endpoint)
-- [Capabilities](#capabilities)
-- [Available Methods](#available-methods)
-- [Helper Methods](#helper-methods)
-- [Response Structure](#response-structure)
-- [Usage Examples](#usage-examples)
-- [Best Practices](#best-practices)
-- [Related Resources](#related-resources)
+> **No filters, pagination, or sorting.** `list()` passes an empty filter object to the API and returns all rates in one
+> response. All helpers are **client-side**.
+>
+> **Float comparison uses tolerance of `0.0001`** in `findByRate()` to avoid IEEE 754 floating-point precision issues.
 
 ## Endpoint
 
@@ -25,155 +20,115 @@ The Withholding Tax Rates resource provides read-only access to withholding tax 
 
 ## Capabilities
 
-- **Pagination**: ❌ Not Supported
-- **Filtering**: ❌ Not Supported
-- **Sorting**: ❌ Not Supported
-- **Sideloading**: ❌ Not Supported
-- **Creation**: ❌ Not Supported
-- **Update**: ❌ Not Supported
-- **Deletion**: ❌ Not Supported
+| Capability  | Supported       |
+|-------------|-----------------|
+| Pagination  | ❌ Not supported |
+| Filtering   | ❌ Not supported |
+| Sorting     | ❌ Not supported |
+| Sideloading | ❌ Not supported |
+| Creation    | ❌ Not supported |
+| Update      | ❌ Not supported |
+| Deletion    | ❌ Not supported |
 
-## Available Methods
+---
 
-### `list()`
+## Methods
 
-Get all available withholding tax rates.
+### `list(array $filters = [], array $options = [])`
 
-**Parameters:** None
+Returns all withholding tax rates in a single response.
 
-**Example:**
 ```php
 use McoreServices\TeamleaderSDK\Facades\Teamleader;
 
-// Get all withholding tax rates
 $rates = Teamleader::withholdingTaxRates()->list();
 ```
 
+---
+
 ## Helper Methods
 
-### `findByRate()`
+All helpers are **client-side** — they call `list()` then filter in PHP.
 
-Find a withholding tax rate by its exact rate value.
+### `find(string $id)`
+
+Returns the rate object with that UUID, or `null`.
 
 ```php
-// Find 15% withholding tax rate
-$rate = Teamleader::withholdingTaxRates()->findByRate(0.15);
+$rate = Teamleader::withholdingTaxRates()->find('rate-uuid');
 ```
 
-### `findByDescription()`
+### `findByRate(float $rate)`
 
-Find a withholding tax rate by its description.
+Matches using float tolerance (`0.0001`). Returns the first match, or `null`.
+
+```php
+$rate = Teamleader::withholdingTaxRates()->findByRate(0.15); // 15%
+$rate = Teamleader::withholdingTaxRates()->findByRate(0.10); // 10%
+```
+
+### `findByDescription(string $description, bool $exactMatch = true)`
+
+Case-insensitive search. Default is exact match; pass `false` for partial.
 
 ```php
 $rate = Teamleader::withholdingTaxRates()->findByDescription('15%');
+$rate = Teamleader::withholdingTaxRates()->findByDescription('15', false); // partial
+```
+
+### `findByRateRange(float $minRate, float $maxRate)`
+
+Returns all rates between two values (inclusive). Returns an empty array if none found.
+
+```php
+$rates = Teamleader::withholdingTaxRates()->findByRateRange(0.05, 0.15);
 ```
 
 ### `asOptions()`
 
-Get withholding tax rates formatted as key-value pairs for dropdowns.
+Returns flat `[id => description]` map.
 
 ```php
 $options = Teamleader::withholdingTaxRates()->asOptions();
-// Returns: ['uuid-1' => '15%', 'uuid-2' => '10%', ...]
+// ['uuid-1' => '15%', 'uuid-2' => '10%', 'uuid-3' => '0%']
 ```
+
+---
 
 ## Response Structure
 
-### List Response
-
-```json
-{
-  "data": [
-    {
-      "id": "uuid",
-      "description": "15%",
-      "rate": 0.15
-    },
-    {
-      "id": "uuid",
-      "description": "10%",
-      "rate": 0.10
-    },
-    {
-      "id": "uuid",
-      "description": "0%",
-      "rate": 0.00
-    }
-  ]
-}
+```php
+[
+    'data' => [
+        ['id' => 'uuid', 'description' => '15%', 'rate' => 0.15],
+        ['id' => 'uuid', 'description' => '10%', 'rate' => 0.10],
+        ['id' => 'uuid', 'description' => '0%',  'rate' => 0.0],
+    ],
+]
 ```
+
+---
 
 ## Usage Examples
 
-### Get Available Withholding Tax Rates
-
 ```php
-$rates = Teamleader::withholdingTaxRates()->list();
+// Use on invoice creation
+$rate = Teamleader::withholdingTaxRates()->findByRate(0.15);
 
-echo "Available withholding tax rates:\n";
-foreach ($rates['data'] as $rate) {
-    echo "- {$rate['description']} ({$rate['rate']})\n";
-}
-```
-
-### Use in Invoice Creation
-
-```php
-// Get withholding tax rate
-$withholdingRate = Teamleader::withholdingTaxRates()->findByRate(0.15);
-
-$invoice = Teamleader::invoices()->create([
-    'invoice_date' => '2024-02-01',
-    'invoicee' => [...],
-    'grouped_lines' => [...],
-    'withholding_tax_rate_id' => $withholdingRate['id']
+Teamleader::invoices()->create([
+    ...,
+    'withholding_tax_rate_id' => $rate['id'],
 ]);
+
+// Cache rates
+$rates = Cache::remember('tl_withholding_tax_rates', 86400, fn() =>
+    Teamleader::withholdingTaxRates()->list()
+);
 ```
 
-### Calculate Withholding Tax
-
-```php
-$amount = 1000.00;
-$rate = Teamleader::withholdingTaxRates()->findByRate(0.15);
-
-$withholdingTax = $amount * $rate['rate'];
-$netAmount = $amount - $withholdingTax;
-
-echo "Gross amount: €{$amount}\n";
-echo "Withholding tax ({$rate['description']}): €{$withholdingTax}\n";
-echo "Net amount: €{$netAmount}\n";
-```
-
-## Best Practices
-
-### 1. Cache Withholding Tax Rates
-
-```php
-use Illuminate\Support\Facades\Cache;
-
-$rates = Cache::remember('withholding_tax_rates', 86400, function () {
-    return Teamleader::withholdingTaxRates()->list();
-});
-```
-
-### 2. Use Helper Methods
-
-```php
-// Good: Clear and concise
-$rate = Teamleader::withholdingTaxRates()->findByRate(0.15);
-
-// Less ideal: Manual searching
-$rates = Teamleader::withholdingTaxRates()->list();
-$rate = null;
-foreach ($rates['data'] as $r) {
-    if ($r['rate'] === 0.15) {
-        $rate = $r;
-        break;
-    }
-}
-```
+---
 
 ## Related Resources
 
-- [Invoices](invoices.md) - Invoice management
-- [Tax Rates](tax-rates.md) - Standard tax information
+- [[Invoices]] — `withholding_tax_rate_id` is an optional field on invoice creation
+- [[Tax-Rates]] — Standard VAT/sales tax rates applied to line items
