@@ -15,6 +15,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.7] - 2026-05-12
+
+### Fixed
+
+#### New Projects — `Groups` Resource Hits Wrong Endpoint (404)
+- **`Groups`** (`src/Resources/Projects/Groups.php`): Corrected `getBasePath()` to return
+  `'projects-v2/projectGroups'` instead of `'projectGroups'`. All eight methods on the resource
+  (`list`, `info`, `create`, `update`, `delete`, `duplicate`, `assign`, `unassign`) were posting
+  to `https://api.focus.teamleader.eu/projectGroups.list` (and equivalents), which returns a
+  generic 404 — the path is missing the required `/projects-v2/` prefix used by the new Projects
+  module.
+- **Root cause**: The resource was registered under the SDK alias `groups` but the underlying
+  path was missing the `projects-v2/` module prefix that Teamleader requires for all new Projects
+  endpoints. The 404 came back from Teamleader's edge router without an `X-Api-Version` header,
+  confirming the URL never resolved to a known route.
+- **Impact**: Every call against `Teamleader::groups()` was failing with 404 since the resource
+  was introduced. Integrations relying on milestone (project group) data could not list, create,
+  update, or otherwise interact with groups via the SDK.
+
+```php
+// Before (broken): URL resolved to /projectGroups.list — 404
+protected function getBasePath(): string
+{
+    return 'projectGroups';
+}
+
+// After (fixed): URL resolves to /projects-v2/projectGroups.list — 200
+protected function getBasePath(): string
+{
+    return 'projects-v2/projectGroups';
+}
+```
+
+### Verified
+
+- `Teamleader::groups()->list(['project_id' => $uuid])` now returns the expected
+  `data` array of project groups for the given project.
+- `Teamleader::groups()->info($uuid)` resolves correctly.
+- Other operations (`create`, `update`, `delete`, `duplicate`, `assign`, `unassign`) all share
+  the same base path and benefit automatically from the fix.
+
+---
+
 ## [1.2.6] - 2026-03-30
 
 ### Fixed

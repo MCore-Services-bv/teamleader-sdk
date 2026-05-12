@@ -117,7 +117,7 @@ class Groups extends Resource
      */
     protected function getBasePath(): string
     {
-        return 'projectGroups';
+        return 'projects-v2/projectGroups';
     }
 
     /**
