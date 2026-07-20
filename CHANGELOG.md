@@ -15,6 +15,86 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.8] - 2026-07-20
+
+Catches the SDK up with the Teamleader Focus API changelog additions from late March
+through June 2026. Adds two new endpoints and one new resource, plus field/enum additions
+and validation across existing resources.
+
+### Added
+
+#### Calendar
+- **`Calls`** (`src/Resources/Calendar/Calls.php`): Added `delete()` targeting the new
+  `calls.delete` endpoint (Teamleader 2026-05-08) and set `$supportsDeletion = true`.
+- **`Meetings`** (`src/Resources/Calendar/Meetings.php`): `list()` now supports the `group_id`
+  filter (nextgen project group, 2026-04-29). It cannot be combined with `milestone_id` — a guard
+  throws `InvalidArgumentException` when both are provided.
+
+#### General
+- **`Notes`** (`src/Resources/General/Notes.php`): Added `delete()` targeting the new
+  `notes.delete` endpoint (2026-06-09) and set `$supportsDeletion = true`.
+- **`Notes`**: Added `meeting` as a valid subject type for `create()` and the `list()` subject
+  filter (2026-04-01).
+- **`UserSchedules`** (`src/Resources/General/UserSchedules.php`): New resource wrapping the new
+  `userSchedules.list` endpoint (2026-06-19). Returns per-day working schedules for one or more
+  users over a date range of at most 7 days, with `forUser()` / `forUsers()` helpers. Registered
+  as `Teamleader::userSchedules()`. Teamleader has deprecated `users.getWeekSchedule` in favour of
+  this endpoint.
+
+#### Projects
+- **`Materials`** (`src/Resources/Projects/Materials.php`): Added `parent_fixed_price` as a valid
+  `billing_method` for `create()`/`update()`, and as a documented response value for
+  `info()`/`list()` (2026-04-30). `parent_fixed_price` is only accepted by the API when the parent
+  is fixed-price.
+
+#### Invoicing
+- **`Invoices`** (`src/Resources/Invoicing/Invoices.php`): Added `expected_payment_method`
+  validation used by `create()`, `update()` and `updateBooked()` — validates the `method` enum
+  (`direct_debit`, `credit_card`, `cash`, `cheque`, `bankers_draft`, `bank_transfer`,
+  `payment_card`, `sepa_direct_debit`) and requires `reference` when `method` is
+  `sepa_direct_debit` (added to `updateBooked` 2026-04-23).
+- **`Invoices`**: Added the `ubl/xrechnung` download format to `download()`.
+- **`Invoices`**: Added `listDrafts()`, `status` filter validation, and `getValidPeppolStatuses()`.
+
+#### Tickets
+- **`Tickets`** (`src/Resources/Tickets/Tickets.php`): Added `project_id` support to
+  `create()`/`update()` (2026-06-09). A ticket links to either a legacy `milestone_id` or a
+  new-projects `project_id`, but not both — a guard enforces this.
+
+### Changed
+
+- **`Invoices`**: `send()` now treats `recipients` as optional, matching the API (when omitted,
+  the invoice is sent to the invoicee's email).
+- **`Invoices`**: Documented pass-through `quotation_id` on `create()` — links the invoice to a
+  source quotation and its deal, and marks the deal as won (2026-06-24).
+- **`Deals`** (`src/Resources/Deals/Deals.php`): Documented pass-through `purchase_order_number`
+  on `create()`/`update()` (2026-05-26).
+- **`Projects`** (`src/Resources/Projects/Projects.php`): Documented the nullable pass-through
+  `initial_time_tracked`, `initial_price`, `initial_cost`, `initial_amount_billed` and
+  `initial_amount_paid` seeding fields on `update()` (2026-05-06).
+
+### Deprecated
+
+- **`Invoices`**: `draft()` (which lists draft invoices) is deprecated in favour of `listDrafts()`,
+  to avoid confusion with `create()`, which posts to `invoices.draft` to create a draft.
+
+### Fixed
+
+- **`Invoices`**: Removed a superseded `expected_payment_method.method` check that validated
+  against a 3-value list and ran before the full validator, causing valid methods (`cash`,
+  `cheque`, `bankers_draft`, `bank_transfer`, `payment_card`) to be rejected on `create()`. Removed
+  the now-unused `$validPaymentMethods` property.
+- **`Invoices`**: `download()` previously rejected the valid `ubl/xrechnung` format.
+
+### Notes
+
+- Response-only additions that require no code change (they flow through untouched and are
+  documented on the wiki): **`Meetings`** `created_by` and the `online_meeting_room` →
+  `customer_meeting_room` rename; **`TimeTracking`** `nextgenTask` in the `relates_to` sideload;
+  **`Users`** `teams` on `users.me`.
+
+---
+
 ## [1.2.7] - 2026-05-12
 
 ### Fixed
