@@ -15,7 +15,7 @@ class Notes extends Resource
 
     protected bool $supportsUpdate = true;
 
-    protected bool $supportsDeletion = false; // API docs don't show delete endpoint
+    protected bool $supportsDeletion = true;
 
     protected bool $supportsBatch = false;
 
@@ -381,13 +381,20 @@ class Notes extends Resource
     }
 
     /**
-     * Override delete method since it's not supported
+     * Delete a note.
+     *
+     * @param  string  $id  Note UUID
+     * @param  mixed  ...$additionalParams  Unused
+     *
+     * @throws InvalidArgumentException When the ID is not a valid UUID
      */
     public function delete($id, ...$additionalParams): array
     {
-        throw new BadMethodCallException(
-            'Notes do not support deletion via API'
-        );
+        $this->validateId($id);
+
+        return $this->api->request('POST', $this->getBasePath().'.delete', [
+            'id' => $id,
+        ]);
     }
 
     /**
