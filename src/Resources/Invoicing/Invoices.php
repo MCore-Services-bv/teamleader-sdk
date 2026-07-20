@@ -84,13 +84,20 @@ class Invoices extends Resource
         'pdf',
         'ubl/e-fff',
         'ubl/peppol_bis_3',
+        'ubl/xrechnung',
     ];
 
-    // Valid payment methods
-    protected array $validPaymentMethods = [
-        'sepa_direct_debit',
+    // Valid expected_payment_method.method values (ExpectedPaymentMethod schema).
+    // reference is required only when method is sepa_direct_debit.
+    protected array $validExpectedPaymentMethods = [
         'direct_debit',
         'credit_card',
+        'cash',
+        'cheque',
+        'bankers_draft',
+        'bank_transfer',
+        'payment_card',
+        'sepa_direct_debit',
     ];
 
     // Valid Peppol submission statuses (returned in info/list responses)
@@ -238,6 +245,7 @@ class Invoices extends Resource
      * Optional fields:
      * - currency (object): code and optional exchange_rate
      * - project_id (string): Project UUID
+     *  - quotation_id (string): links the invoice to a source quotation and its  deal, and marks the deal as won
      * - purchase_order_number (string)
      * - invoice_date (string): YYYY-MM-DD
      * - discounts (array)
@@ -313,13 +321,9 @@ class Invoices extends Resource
         // Validate grouped lines
         $this->validateGroupedLines($data['grouped_lines']);
 
-        // Validate expected payment method if provided
-        if (isset($data['expected_payment_method']['method']) &&
-            ! in_array($data['expected_payment_method']['method'], $this->validPaymentMethods)) {
-            throw new InvalidArgumentException(
-                'Invalid payment method. Must be one of: '.
-                implode(', ', $this->validPaymentMethods)
-            );
+        // Validate expected_payment_method if provided
+        if (isset($data['expected_payment_method']) && is_array($data['expected_payment_method'])) {
+            $this->validateExpectedPaymentMethod($data['expected_payment_method']);
         }
     }
 
@@ -414,6 +418,34 @@ class Invoices extends Resource
     }
 
     /**
+     * Validate an expected_payment_method object.
+     *
+     * - `method` must be one of the supported values
+     * - when `method` is `sepa_direct_debit`, `reference` is required
+     *
+     * @throws InvalidArgumentException
+     */
+    protected function validateExpectedPaymentMethod(array $expectedPaymentMethod): void
+    {
+        if (! isset($expectedPaymentMethod['method'])) {
+            throw new InvalidArgumentException('expected_payment_method must include a "method" value');
+        }
+
+        if (! in_array($expectedPaymentMethod['method'], $this->validExpectedPaymentMethods)) {
+            throw new InvalidArgumentException(
+                'Invalid expected_payment_method method. Must be one of: '.
+                implode(', ', $this->validExpectedPaymentMethods)
+            );
+        }
+
+        if ($expectedPaymentMethod['method'] === 'sepa_direct_debit' && empty($expectedPaymentMethod['reference'])) {
+            throw new InvalidArgumentException(
+                'expected_payment_method.reference is required when method is "sepa_direct_debit"'
+            );
+        }
+    }
+
+    /**
      * Update a draft invoice
      * Note: Booked invoices cannot be updated with this method
      *
@@ -485,6 +517,11 @@ class Invoices extends Resource
                 throw new InvalidArgumentException('Customer must have type and id');
             }
             $this->validateCustomerType($customer['type']);
+        }
+
+        // Validate expected_payment_method if provided
+        if (isset($data['expected_payment_method']) && is_array($data['expected_payment_method'])) {
+            $this->validateExpectedPaymentMethod($data['expected_payment_method']);
         }
     }
 
@@ -586,7 +623,7 @@ class Invoices extends Resource
      * Download an invoice in a specific format
      *
      * @param  string  $id  Invoice UUID
-     * @param  string  $format  Format (pdf, ubl/e-fff, ubl/peppol_bis_3)
+     * @param  string  $format  Format (pdf, ubl/e-fff, ubl/peppol_bis_3, ubl/xrechnung)
      * @return array Returns temporary download URL and expiration
      */
     public function download(string $id, string $format = 'pdf'): array
@@ -611,13 +648,16 @@ class Invoices extends Resource
      * @param  array  $recipients  Recipients (to, cc, bcc arrays)
      * @param  array|null  $attachments  Optional file IDs to attach
      */
-    public function send(string $id, array $content, array $recipients, ?array $attachments = null): array
+    public function send(string $id, array $content, array $recipients = [], ?array $attachments = null): array
     {
         $data = [
             'id' => $id,
             'content' => $content,
-            'recipients' => $recipients,
         ];
+
+        if (! empty($recipients)) {
+            $data['recipients'] = $recipients;
+        }
 
         if (! empty($attachments)) {
             $data['attachments'] = $attachments;
@@ -643,23 +683,21 @@ class Invoices extends Resource
             throw new InvalidArgumentException('Email body is required');
         }
 
-        if (! isset($data['recipients']['to']) || ! is_array($data['recipients']['to']) || empty($data['recipients']['to'])) {
-            throw new InvalidArgumentException('At least one recipient in "to" field is required');
-        }
-
         // Validate recipient structure
-        foreach (['to', 'cc', 'bcc'] as $field) {
-            if (isset($data['recipients'][$field])) {
-                foreach ($data['recipients'][$field] as $recipient) {
-                    if (! isset($recipient['email']) || empty($recipient['email'])) {
-                        throw new InvalidArgumentException("Email is required for all {$field} recipients");
-                    }
-
-                    if (isset($recipient['customer'])) {
-                        if (! isset($recipient['customer']['type']) || ! isset($recipient['customer']['id'])) {
-                            throw new InvalidArgumentException('Customer must have type and id');
+        if (isset($data['recipients'])) {
+            foreach (['to', 'cc', 'bcc'] as $field) {
+                if (isset($data['recipients'][$field])) {
+                    foreach ($data['recipients'][$field] as $recipient) {
+                        if (! isset($recipient['email']) || empty($recipient['email'])) {
+                            throw new InvalidArgumentException("Email is required for all {$field} recipients");
                         }
-                        $this->validateCustomerType($recipient['customer']['type']);
+
+                        if (isset($recipient['customer'])) {
+                            if (! isset($recipient['customer']['type']) || ! isset($recipient['customer']['id'])) {
+                                throw new InvalidArgumentException('Customer must have type and id');
+                            }
+                            $this->validateCustomerType($recipient['customer']['type']);
+                        }
                     }
                 }
             }
@@ -739,12 +777,26 @@ class Invoices extends Resource
     }
 
     /**
-     * Get draft invoices
+     * List draft invoices.
+     *
+     * @param  array  $additionalFilters  Additional filters to apply
+     * @param  array  $options  Pagination and sorting options
+     *
+     * @deprecated Use listDrafts() — draft() is easily confused with create(),
+     *             which is what actually creates a draft (POST invoices.draft).
+     */
+    public function draft(array $additionalFilters = [], array $options = []): array
+    {
+        return $this->listDrafts($additionalFilters, $options);
+    }
+
+    /**
+     * List draft invoices.
      *
      * @param  array  $additionalFilters  Additional filters to apply
      * @param  array  $options  Pagination and sorting options
      */
-    public function draft(array $additionalFilters = [], array $options = []): array
+    public function listDrafts(array $additionalFilters = [], array $options = []): array
     {
         return $this->list(
             array_merge(['status' => ['draft']], $additionalFilters),
@@ -804,9 +856,20 @@ class Invoices extends Resource
         $apiFilters = [];
 
         foreach ($filters as $key => $value) {
-            // Handle special cases
-            if ($key === 'status' && is_string($value)) {
-                $apiFilters[$key] = [$value];
+            if ($key === 'status') {
+                // status must be an array of valid statuses; coerce a lone string.
+                $statuses = is_array($value) ? $value : [$value];
+
+                foreach ($statuses as $status) {
+                    if (! in_array($status, $this->validStatuses)) {
+                        throw new InvalidArgumentException(
+                            "Invalid status '{$status}'. Must be one of: ".
+                            implode(', ', $this->validStatuses)
+                        );
+                    }
+                }
+
+                $apiFilters[$key] = array_values($statuses);
             } else {
                 $apiFilters[$key] = $value;
             }
@@ -1078,5 +1141,19 @@ class Invoices extends Resource
                 'fields' => [],
             ],
         ];
+    }
+
+    /**
+     * Get the possible Peppol submission statuses.
+     *
+     * These are the values that may appear in the (nullable) `peppol_status`
+     * field of info()/list() responses. Peppol status is read-only — it is not
+     * a request parameter or a list filter.
+     *
+     * @return array<int, string>
+     */
+    public function getValidPeppolStatuses(): array
+    {
+        return $this->validPeppolStatuses;
     }
 }
