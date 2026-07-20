@@ -14,7 +14,7 @@ class Calls extends Resource
 
     protected bool $supportsUpdate = true;
 
-    protected bool $supportsDeletion = false; // No delete endpoint in API
+    protected bool $supportsDeletion = true;
 
     protected bool $supportsBatch = false;
 
@@ -33,6 +33,56 @@ class Calls extends Resource
         'relates_to' => 'Filter calls by related object (company)',
         'call_outcome_id' => 'Filter on completed calls by outcome',
     ];
+
+    /**
+     * Get call information
+     */
+    public function info(string $id): array
+    {
+        $this->validateId($id);
+
+        return $this->api->request('POST', $this->getBasePath().'.info', [
+            'id' => $id,
+        ]);
+    }
+
+    /**
+     * Get the base path for the calls resource
+     */
+    protected function getBasePath(): string
+    {
+        return 'calls';
+    }
+
+    /**
+     * Mark a call as complete
+     */
+    public function complete(string $id, ?string $outcomeId = null, ?string $outcomeSummary = null): array
+    {
+        $this->validateId($id);
+
+        $data = ['id' => $id];
+
+        if ($outcomeId !== null) {
+            $data['call_outcome_id'] = $outcomeId;
+        }
+
+        if ($outcomeSummary !== null) {
+            $data['outcome_summary'] = $outcomeSummary;
+        }
+
+        return $this->api->request('POST', $this->getBasePath().'.complete', $data);
+    }
+
+    /**
+     * Get upcoming calls (scheduled after today)
+     */
+    public function upcoming(array $options = []): array
+    {
+        $today = date('Y-m-d');
+
+        return $this->list(['scheduled_after' => $today], $options);
+    }
 
     /**
      * List calls with filtering and pagination
@@ -78,15 +128,68 @@ class Calls extends Resource
     }
 
     /**
-     * Get call information
+     * Get overdue calls (scheduled before today, not completed)
      */
-    public function info(string $id): array
+    public function overdue(array $options = []): array
     {
-        $this->validateId($id);
+        $today = date('Y-m-d');
 
-        return $this->api->request('POST', $this->getBasePath().'.info', [
-            'id' => $id,
-        ]);
+        return $this->list(['scheduled_before' => $today], $options);
+    }
+
+    /**
+     * Get calls for a specific company
+     */
+    public function forCompany(string $companyId, array $options = []): array
+    {
+        $this->validateId($companyId, 'Company');
+
+        return $this->list([
+            'relates_to' => [
+                'type' => 'company',
+                'id' => $companyId,
+            ],
+        ], $options);
+    }
+
+    /**
+     * Get today's calls
+     */
+    public function today(array $options = []): array
+    {
+        $today = date('Y-m-d');
+
+        return $this->betweenDates($today, $today, $options);
+    }
+
+    /**
+     * Get calls within a date range
+     */
+    public function betweenDates(string $startDate, string $endDate, array $options = []): array
+    {
+        return $this->list([
+            'scheduled_after' => $startDate,
+            'scheduled_before' => $endDate,
+        ], $options);
+    }
+
+    /**
+     * Get this week's calls
+     */
+    public function thisWeek(array $options = []): array
+    {
+        $startOfWeek = date('Y-m-d', strtotime('monday this week'));
+        $endOfWeek = date('Y-m-d', strtotime('sunday this week'));
+
+        return $this->betweenDates($startOfWeek, $endOfWeek, $options);
+    }
+
+    /**
+     * Schedule a call (alias for create with more intuitive naming)
+     */
+    public function schedule(array $data): array
+    {
+        return $this->create($data);
     }
 
     /**
@@ -120,6 +223,14 @@ class Calls extends Resource
     }
 
     /**
+     * Reschedule a call (update only the due_at field)
+     */
+    public function reschedule(string $id, string $newDateTime): array
+    {
+        return $this->update($id, ['due_at' => $newDateTime]);
+    }
+
+    /**
      * Update an existing call
      */
     public function update(string $id, array $data): array
@@ -133,109 +244,6 @@ class Calls extends Resource
     }
 
     /**
-     * Mark a call as complete
-     */
-    public function complete(string $id, ?string $outcomeId = null, ?string $outcomeSummary = null): array
-    {
-        $this->validateId($id);
-
-        $data = ['id' => $id];
-
-        if ($outcomeId !== null) {
-            $data['call_outcome_id'] = $outcomeId;
-        }
-
-        if ($outcomeSummary !== null) {
-            $data['outcome_summary'] = $outcomeSummary;
-        }
-
-        return $this->api->request('POST', $this->getBasePath().'.complete', $data);
-    }
-
-    /**
-     * Get upcoming calls (scheduled after today)
-     */
-    public function upcoming(array $options = []): array
-    {
-        $today = date('Y-m-d');
-
-        return $this->list(['scheduled_after' => $today], $options);
-    }
-
-    /**
-     * Get overdue calls (scheduled before today, not completed)
-     */
-    public function overdue(array $options = []): array
-    {
-        $today = date('Y-m-d');
-
-        return $this->list(['scheduled_before' => $today], $options);
-    }
-
-    /**
-     * Get calls for a specific company
-     */
-    public function forCompany(string $companyId, array $options = []): array
-    {
-        $this->validateId($companyId, 'Company');
-
-        return $this->list([
-            'relates_to' => [
-                'type' => 'company',
-                'id' => $companyId,
-            ],
-        ], $options);
-    }
-
-    /**
-     * Get calls within a date range
-     */
-    public function betweenDates(string $startDate, string $endDate, array $options = []): array
-    {
-        return $this->list([
-            'scheduled_after' => $startDate,
-            'scheduled_before' => $endDate,
-        ], $options);
-    }
-
-    /**
-     * Get today's calls
-     */
-    public function today(array $options = []): array
-    {
-        $today = date('Y-m-d');
-
-        return $this->betweenDates($today, $today, $options);
-    }
-
-    /**
-     * Get this week's calls
-     */
-    public function thisWeek(array $options = []): array
-    {
-        $startOfWeek = date('Y-m-d', strtotime('monday this week'));
-        $endOfWeek = date('Y-m-d', strtotime('sunday this week'));
-
-        return $this->betweenDates($startOfWeek, $endOfWeek, $options);
-    }
-
-    /**
-     * Schedule a call (alias for create with more intuitive naming)
-     */
-    public function schedule(array $data): array
-    {
-        return $this->create($data);
-    }
-
-    /**
-     * Reschedule a call (update only the due_at field)
-     */
-    public function reschedule(string $id, string $newDateTime): array
-    {
-        return $this->update($id, ['due_at' => $newDateTime]);
-    }
-
-    /**
      * Get completed calls with a specific outcome
      */
     public function withOutcome(string $outcomeId, array $options = []): array
@@ -246,10 +254,19 @@ class Calls extends Resource
     }
 
     /**
-     * Get the base path for the calls resource
+     * Delete a call.
+     *
+     * @param  string  $id  Call UUID
+     * @param  mixed  ...$additionalParams  Unused
+     *
+     * @throws InvalidArgumentException When the ID is not a valid UUID
      */
-    protected function getBasePath(): string
+    public function delete($id, ...$additionalParams): array
     {
-        return 'calls';
+        $this->validateId($id);
+
+        return $this->api->request('POST', $this->getBasePath().'.delete', [
+            'id' => $id,
+        ]);
     }
 }
