@@ -46,6 +46,7 @@ class TeamleaderSDK
         'closingDays' => Resources\General\ClosingDays::class,
         'dayOffTypes' => Resources\General\DayOffTypes::class,
         'daysOff' => Resources\General\DaysOff::class,
+        'userSchedules' => Resources\General\UserSchedules::class,
 
         // CRM
         'companies' => Resources\CRM\Companies::class,
