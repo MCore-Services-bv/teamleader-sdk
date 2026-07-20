@@ -188,6 +188,9 @@ class Deals extends Resource
     /**
      * Create a new deal
      *
+     * Optional pass-through fields include:
+     * - purchase_order_number (string|null): the customer's purchase order number
+     *
      * @param  array  $data  Deal data
      *
      * @throws InvalidArgumentException
@@ -201,6 +204,9 @@ class Deals extends Resource
 
     /**
      * Update a deal
+     *
+     * Optional pass-through fields include:
+     * - purchase_order_number (string|null): the customer's purchase order number
      *
      * @param  string  $id  Deal UUID
      * @param  array  $data  Data to update

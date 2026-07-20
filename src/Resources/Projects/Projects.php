@@ -179,6 +179,14 @@ class Projects extends Resource
     /**
      * Update an existing project
      *
+     * All fields are pass-through. Notable nullable fields, used mainly when
+     * seeding a project with data migrated from another system (2026-05-06):
+     * - initial_time_tracked (object|null): {value, unit: hours|minutes|seconds}
+     * - initial_price (object|null): {amount, currency}
+     * - initial_cost (object|null): {amount, currency}
+     * - initial_amount_billed (object|null): {amount, currency}
+     * - initial_amount_paid (object|null): {amount, currency}
+     *
      * @param  string  $id  Project UUID
      * @param  array  $data  Data to update
      */

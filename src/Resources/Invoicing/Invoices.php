@@ -245,7 +245,7 @@ class Invoices extends Resource
      * Optional fields:
      * - currency (object): code and optional exchange_rate
      * - project_id (string): Project UUID
-     *  - quotation_id (string): links the invoice to a source quotation and its  deal, and marks the deal as won
+     * - quotation_id (string): links the invoice to a source quotation and its deal, and marks the deal as won
      * - purchase_order_number (string)
      * - invoice_date (string): YYYY-MM-DD
      * - discounts (array)

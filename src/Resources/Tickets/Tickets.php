@@ -165,9 +165,10 @@ class Tickets extends Resource
      * Create a new ticket
      *
      * Required fields: subject, customer, ticket_status_id
-     *  Optional linkage (mutually exclusive):
-     *    - milestone_id (string): link to a legacy-projects milestone
-     *    - project_id (string): link to a new-projects project
+     *
+     * Optional linkage (mutually exclusive):
+     * - milestone_id (string): link to a legacy-projects milestone
+     * - project_id (string): link to a new-projects project
      *
      * @param  array  $data  Ticket data
      */
@@ -270,9 +271,10 @@ class Tickets extends Resource
 
     /**
      * Update an existing ticket
-     *  Optional linkage (mutually exclusive; pass null to unlink):
-     *    - milestone_id (string|null)
-     *    - project_id (string|null)
+     *
+     * Optional linkage (mutually exclusive; pass null to unlink):
+     * - milestone_id (string|null): link to a legacy-projects milestone
+     * - project_id (string|null): link to a new-projects project
      *
      * @param  string  $id  Ticket UUID
      * @param  array  $data  Data to update
