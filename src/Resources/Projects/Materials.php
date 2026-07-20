@@ -38,10 +38,12 @@ class Materials extends Resource
     ];
 
     // Valid billing methods
+    // Note: parent_fixed_price is only accepted by the API when the parent is fixed-price.
     protected array $billingMethods = [
         'fixed_price',
         'unit_price',
         'non_billable',
+        'parent_fixed_price',
     ];
 
     // Valid status values
@@ -191,7 +193,8 @@ class Materials extends Resource
      * - group_id (string): Group UUID — if omitted, material is not added to a group
      * - after_id (string|null): UUID to position after; null = top; omit = bottom
      * - description (string): Free-text description
-     * - billing_method (string): fixed_price|unit_price|non_billable
+     * - billing_method (string): fixed_price|unit_price|non_billable|parent_fixed_price
+     *      (parent_fixed_price only valid when the parent is fixed_price)
      * - quantity (number): Actual quantity used
      * - quantity_estimated (number): Estimated quantity
      * - unit_price (object|null): {amount, currency}
@@ -224,7 +227,8 @@ class Materials extends Resource
      * - title (string)
      * - description (string|null)
      * - status (string): to_do|in_progress|on_hold|done
-     * - billing_method (string): fixed_price|unit_price|non_billable
+     * - billing_method (string): fixed_price|unit_price|non_billable|parent_fixed_price
+     *   (parent_fixed_price only valid when the parent is fixed_price)
      * - quantity (number|null): Actual quantity used
      * - quantity_estimated (number|null): Estimated quantity
      * - unit_price (object|null): {amount, currency}
@@ -344,7 +348,7 @@ class Materials extends Resource
                     'data.title' => 'Material title',
                     'data.description' => 'Material description (nullable)',
                     'data.status' => 'Material status (to_do, in_progress, on_hold, done)',
-                    'data.billing_method' => 'Billing method (fixed_price, unit_price, non_billable)',
+                    'data.billing_method' => 'Billing method (fixed_price, unit_price, non_billable, parent_fixed_price)',
                     'data.billing_status' => 'Billing status (not_billable, not_billed, partially_billed, fully_billed)',
                     'data.quantity' => 'Actual quantity used (nullable number)',
                     'data.quantity_estimated' => 'Estimated quantity (nullable number)',
