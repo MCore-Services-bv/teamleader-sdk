@@ -34,6 +34,7 @@ class Notes extends Resource
         'creditNote',
         'deal',
         'invoice',
+        'meeting',
         'nextgenProject',
         'product',
         'project',
