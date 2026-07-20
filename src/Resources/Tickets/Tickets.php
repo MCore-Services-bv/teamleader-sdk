@@ -137,40 +137,6 @@ class Tickets extends Resource
     ];
 
     /**
-     * Get the base path for the tickets resource
-     */
-    protected function getBasePath(): string
-    {
-        return 'tickets';
-    }
-
-    /**
-     * List tickets with filtering and pagination
-     *
-     * @param  array  $filters  Filter parameters
-     * @param  array  $options  Pagination options
-     */
-    public function list(array $filters = [], array $options = []): array
-    {
-        $params = [];
-
-        // Apply filters
-        if (! empty($filters)) {
-            $params['filter'] = $this->buildFilters($filters);
-        }
-
-        // Apply pagination
-        if (isset($options['page_size']) || isset($options['page_number'])) {
-            $params['page'] = [
-                'size' => $options['page_size'] ?? 20,
-                'number' => $options['page_number'] ?? 1,
-            ];
-        }
-
-        return $this->api->request('POST', $this->getBasePath().'.list', $params);
-    }
-
-    /**
      * Get detailed ticket information
      *
      * @param  string  $id  Ticket UUID
@@ -188,9 +154,20 @@ class Tickets extends Resource
     }
 
     /**
+     * Get the base path for the tickets resource
+     */
+    protected function getBasePath(): string
+    {
+        return 'tickets';
+    }
+
+    /**
      * Create a new ticket
      *
      * Required fields: subject, customer, ticket_status_id
+     *  Optional linkage (mutually exclusive):
+     *    - milestone_id (string): link to a legacy-projects milestone
+     *    - project_id (string): link to a new-projects project
      *
      * @param  array  $data  Ticket data
      */
@@ -202,7 +179,100 @@ class Tickets extends Resource
     }
 
     /**
+     * Validate ticket data before sending to API
+     *
+     * @param  string  $operation  Operation type (create or update)
+     *
+     * @throws InvalidArgumentException
+     */
+    protected function validateTicketData(array $data, string $operation = 'create'): void
+    {
+        // Required fields for creation
+        if ($operation === 'create') {
+            if (empty($data['subject'])) {
+                throw new InvalidArgumentException('Ticket subject is required');
+            }
+
+            if (empty($data['customer'])) {
+                throw new InvalidArgumentException('Customer is required');
+            }
+
+            if (empty($data['ticket_status_id'])) {
+                throw new InvalidArgumentException('Ticket status ID is required');
+            }
+        }
+
+        // Validate customer structure
+        if (isset($data['customer'])) {
+            if (! isset($data['customer']['type']) || ! isset($data['customer']['id'])) {
+                throw new InvalidArgumentException('Customer must have type and id');
+            }
+
+            if (! in_array($data['customer']['type'], $this->customerTypes)) {
+                throw new InvalidArgumentException(
+                    'Invalid customer type. Must be one of: '.implode(', ', $this->customerTypes)
+                );
+            }
+        }
+
+        // Validate assignee structure if present
+        if (isset($data['assignee'])) {
+            if (! isset($data['assignee']['type']) || ! isset($data['assignee']['id'])) {
+                throw new InvalidArgumentException('Assignee must have type and id');
+            }
+
+            if ($data['assignee']['type'] !== 'user') {
+                throw new InvalidArgumentException('Assignee type must be "user"');
+            }
+        }
+
+        // Validate participant structure if present
+        if (isset($data['participant'])) {
+            if (! isset($data['participant']['customer'])) {
+                throw new InvalidArgumentException('Participant must have customer');
+            }
+
+            $customer = $data['participant']['customer'];
+            if (! isset($customer['type']) || ! isset($customer['id'])) {
+                throw new InvalidArgumentException('Participant customer must have type and id');
+            }
+
+            if ($customer['type'] !== 'company') {
+                throw new InvalidArgumentException('Participant customer type must be "company"');
+            }
+        }
+
+        // Validate initial_reply if present
+        if (isset($data['initial_reply'])) {
+            if (! in_array($data['initial_reply'], $this->initialReplyOptions)) {
+                throw new InvalidArgumentException(
+                    'Invalid initial_reply value. Must be one of: '.implode(', ', $this->initialReplyOptions)
+                );
+            }
+        }
+
+        // Validate custom fields structure if present
+        if (isset($data['custom_fields']) && is_array($data['custom_fields'])) {
+            foreach ($data['custom_fields'] as $field) {
+                if (! isset($field['id'])) {
+                    throw new InvalidArgumentException('Each custom field must have an id');
+                }
+            }
+        }
+
+        // A ticket links to a legacy milestone OR a new project, but not both.
+        if (! empty($data['milestone_id']) && ! empty($data['project_id'])) {
+            throw new InvalidArgumentException(
+                'A ticket can be linked to either a milestone_id or a project_id, but not both.'
+            );
+        }
+    }
+
+    /**
      * Update an existing ticket
+     *  Optional linkage (mutually exclusive; pass null to unlink):
+     *    - milestone_id (string|null)
+     *    - project_id (string|null)
      *
      * @param  string  $id  Ticket UUID
      * @param  array  $data  Data to update
@@ -450,6 +520,51 @@ class Tickets extends Resource
     }
 
     /**
+     * List tickets with filtering and pagination
+     *
+     * @param  array  $filters  Filter parameters
+     * @param  array  $options  Pagination options
+     */
+    public function list(array $filters = [], array $options = []): array
+    {
+        $params = [];
+
+        // Apply filters
+        if (! empty($filters)) {
+            $params['filter'] = $this->buildFilters($filters);
+        }
+
+        // Apply pagination
+        if (isset($options['page_size']) || isset($options['page_number'])) {
+            $params['page'] = [
+                'size' => $options['page_size'] ?? 20,
+                'number' => $options['page_number'] ?? 1,
+            ];
+        }
+
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
+    }
+
+    /**
+     * Build filters for the API request
+     */
+    protected function buildFilters(array $filters): array
+    {
+        $formatted = [];
+
+        foreach ($filters as $key => $value) {
+            // Handle nested filters like relates_to and exclude
+            if (in_array($key, ['relates_to', 'exclude'])) {
+                $formatted[$key] = $value;
+            } else {
+                $formatted[$key] = $value;
+            }
+        }
+
+        return $formatted;
+    }
+
+    /**
      * Get tickets for specific projects
      *
      * @param  array  $projectIds  Array of project UUIDs
@@ -514,108 +629,6 @@ class Tickets extends Resource
         );
 
         return $this->list($filters, $options);
-    }
-
-    /**
-     * Build filters for the API request
-     */
-    protected function buildFilters(array $filters): array
-    {
-        $formatted = [];
-
-        foreach ($filters as $key => $value) {
-            // Handle nested filters like relates_to and exclude
-            if (in_array($key, ['relates_to', 'exclude'])) {
-                $formatted[$key] = $value;
-            } else {
-                $formatted[$key] = $value;
-            }
-        }
-
-        return $formatted;
-    }
-
-    /**
-     * Validate ticket data before sending to API
-     *
-     * @param  string  $operation  Operation type (create or update)
-     *
-     * @throws InvalidArgumentException
-     */
-    protected function validateTicketData(array $data, string $operation = 'create'): void
-    {
-        // Required fields for creation
-        if ($operation === 'create') {
-            if (empty($data['subject'])) {
-                throw new InvalidArgumentException('Ticket subject is required');
-            }
-
-            if (empty($data['customer'])) {
-                throw new InvalidArgumentException('Customer is required');
-            }
-
-            if (empty($data['ticket_status_id'])) {
-                throw new InvalidArgumentException('Ticket status ID is required');
-            }
-        }
-
-        // Validate customer structure
-        if (isset($data['customer'])) {
-            if (! isset($data['customer']['type']) || ! isset($data['customer']['id'])) {
-                throw new InvalidArgumentException('Customer must have type and id');
-            }
-
-            if (! in_array($data['customer']['type'], $this->customerTypes)) {
-                throw new InvalidArgumentException(
-                    'Invalid customer type. Must be one of: '.implode(', ', $this->customerTypes)
-                );
-            }
-        }
-
-        // Validate assignee structure if present
-        if (isset($data['assignee'])) {
-            if (! isset($data['assignee']['type']) || ! isset($data['assignee']['id'])) {
-                throw new InvalidArgumentException('Assignee must have type and id');
-            }
-
-            if ($data['assignee']['type'] !== 'user') {
-                throw new InvalidArgumentException('Assignee type must be "user"');
-            }
-        }
-
-        // Validate participant structure if present
-        if (isset($data['participant'])) {
-            if (! isset($data['participant']['customer'])) {
-                throw new InvalidArgumentException('Participant must have customer');
-            }
-
-            $customer = $data['participant']['customer'];
-            if (! isset($customer['type']) || ! isset($customer['id'])) {
-                throw new InvalidArgumentException('Participant customer must have type and id');
-            }
-
-            if ($customer['type'] !== 'company') {
-                throw new InvalidArgumentException('Participant customer type must be "company"');
-            }
-        }
-
-        // Validate initial_reply if present
-        if (isset($data['initial_reply'])) {
-            if (! in_array($data['initial_reply'], $this->initialReplyOptions)) {
-                throw new InvalidArgumentException(
-                    'Invalid initial_reply value. Must be one of: '.implode(', ', $this->initialReplyOptions)
-                );
-            }
-        }
-
-        // Validate custom fields structure if present
-        if (isset($data['custom_fields']) && is_array($data['custom_fields'])) {
-            foreach ($data['custom_fields'] as $field) {
-                if (! isset($field['id'])) {
-                    throw new InvalidArgumentException('Each custom field must have an id');
-                }
-            }
-        }
     }
 
     /**
