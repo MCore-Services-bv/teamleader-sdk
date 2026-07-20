@@ -32,7 +32,8 @@ class Meetings extends Resource
         'employee_id' => 'Filter by assigned employee UUID',
         'start_date' => 'Filter meetings from this date (YYYY-MM-DD)',
         'end_date' => 'Filter meetings up to this date (YYYY-MM-DD)',
-        'milestone_id' => 'Filter by project milestone UUID',
+        'milestone_id' => 'Filter by legacy project milestone UUID (cannot be combined with group_id)',
+        'group_id' => 'Filter by nextgen project group UUID (cannot be combined with milestone_id)',
         'term' => 'Search meetings by title or description',
         'recurrence_id' => 'Filter by recurring meeting series UUID',
     ];
@@ -72,11 +73,22 @@ class Meetings extends Resource
     /**
      * List meetings with optional filtering, pagination and sorting.
      *
-     * @param  array  $filters  Filters to apply (ids, employee_id, start_date, end_date, milestone_id, term, recurrence_id)
+     * @param  array  $filters  Filters to apply (ids, employee_id, start_date, end_date,
+     *                          milestone_id, group_id, term, recurrence_id).
+     *                          `group_id` (nextgen project group) cannot be combined with
+     *                          `milestone_id` (legacy milestone).
      * @param  array  $options  Pagination and sort options (page_size, page_number, sort, include)
+     *
+     * @throws InvalidArgumentException When both group_id and milestone_id are provided
      */
     public function list(array $filters = [], array $options = []): array
     {
+        if (! empty($filters['group_id']) && ! empty($filters['milestone_id'])) {
+            throw new InvalidArgumentException(
+                'The "group_id" filter cannot be combined with "milestone_id". Use one or the other.'
+            );
+        }
+
         $params = $this->buildFilterParams($filters, $options);
 
         return $this->api->request('POST', $this->getBasePath().'.list', $params);
@@ -103,7 +115,14 @@ class Meetings extends Resource
     }
 
     /**
-     * Schedule a new meeting
+     * Schedule a new meeting.
+     *
+     * Required: title, starts_at, ends_at, attendees (incl. at least one user), customer.
+     * Optional (pass-through) includes, among others:
+     *   - project_id (string): link the meeting to a nextgen project
+     *   - group_id (string): link the meeting to a nextgen project group
+     *   - milestone_id (string): link the meeting to a legacy milestone
+     *   - location (object): supports the inline `address` location type
      */
     public function schedule(array $data): array
     {
@@ -148,7 +167,11 @@ class Meetings extends Resource
     }
 
     /**
-     * Update an existing meeting
+     * Update an existing meeting.
+     *
+     * Accepts the same optional pass-through params as schedule(), including
+     * project_id, group_id, milestone_id, and the inline `address` location type.
+     * If attendees is provided it must still include at least one user attendee.
      */
     public function update($id, array $data): array
     {
