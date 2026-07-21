@@ -15,6 +15,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.0] - 2026-07-20
+
+### Added
+
+- **Laravel 13 support.** `illuminate/support` now allows `^13.0`; the test matrix runs
+  Laravel 13 on PHP 8.3–8.5 with `orchestra/testbench` `^11.0`.
+- **PHP 8.5 support.** Added to the test matrix for both Laravel 12 (PHP 8.2–8.5) and
+  Laravel 13 (PHP 8.3–8.5).
+
+### Changed
+
+- **Requirement:** `illuminate/support` is now `^12.0|^13.0`.
+- **Dev/test:** `orchestra/testbench` `^10.0|^11.0`, `phpunit/phpunit` `^11.5.50|^12.5.8`
+  (the range accepted by both testbench 10 and 11).
+- **CI:** matrix expanded to Laravel 12 + 13 across PHP 8.2–8.5. Laravel 13 requires PHP 8.3+,
+  so the PHP 8.2 × Laravel 13 combination is excluded.
+
+---
+
 ## [2.0.0] - 2026-07-20
 
 ### Removed
