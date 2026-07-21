@@ -15,6 +15,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.0] - 2026-07-20
+
+### Removed
+
+- **BREAKING — dropped support for Laravel 10 and Laravel 11.** Both have reached end-of-life
+  (Laravel 10 security support ended Feb 2025; Laravel 11 in March 2026), and every released
+  10.x/11.x version now carries unpatched security advisories — Composer refuses to install them.
+  The SDK now targets Laravel 12.
+
+### Changed
+
+- **Requirement:** `illuminate/support` is now `^12.0` (was `^10.0|^11.0|^12.0`).
+- **Dev/test:** `orchestra/testbench` `^10.0`, `phpunit/phpunit` `^11.5.1`.
+- **CI:** the test matrix is now Laravel 12 across PHP 8.2, 8.3 and 8.4; upgraded
+  `actions/checkout` and `actions/cache` to v4.
+
+### Added
+
+- **PHP 8.4 support** — added to the test matrix (`"php": "^8.2"` already permitted it).
+
+### Upgrading
+
+- **On Laravel 12:** no changes required.
+- **Still on Laravel 10 or 11:** upgrade to Laravel 12 (recommended), or pin the SDK to `^1.2`
+  until you can. Note that Laravel 10/11 themselves have unpatched security advisories.
+
+---
+
 ## [1.2.8] - 2026-07-20
 
 Catches the SDK up with the Teamleader Focus API changelog additions from late March
