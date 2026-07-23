@@ -15,6 +15,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.1] - 2026-07-23
+
+Patch release. Fixes a `TypeError` that could break every SDK entry point after a
+successful OAuth authorization, and completes the facade's IDE annotations.
+
+### Fixed
+
+- **`TokenService`**: `expires_at` is no longer written to the cache as a live
+  `Carbon` instance. Cache stores serialize their payload, and when that payload
+  could not be rehydrated PHP returned a `__PHP_Incomplete_Class`, which
+  `Carbon::parse()` rejects. The result was an uncaught
+  `Carbon\Carbon::parse(): Argument #1 ($time) must be of type
+  DateTimeInterface|...|null, __PHP_Incomplete_Class given` on any code path
+  that touched the token — including `php artisan teamleader:health`,
+  `Teamleader::isAuthenticated()` and every API call. Both the cache and the
+  database now store a plain string.
+- **`TokenService`**: added `parseExpiresAt()`, which safely normalises strings,
+  unix timestamps and `DateTimeInterface` instances and returns `null` for
+  anything unreadable. Callers treat `null` as "expired / needs refresh"
+  instead of throwing.
+- **`TokenService`**: `getTokensFromCache()` is now self-healing. An expiry it
+  cannot read is logged, the cached token entries are purged, and the database
+  becomes the source of truth again — so existing installations recover on the
+  next call without a manual `cache:clear`.
+- **`TokenService`**: `shouldRefreshToken()` and `hasValidTokens()` no longer
+  mutate `$expiresAt` when applying the refresh threshold and the five minute
+  buffer. Carbon is mutable, so the previous code logged an `expires_at` that
+  was shifted by 15 minutes (respectively 5 minutes).
+- **`TokenService`**: `getTokenInfo()` and `shouldRefreshToken()` cast Carbon 3's
+  float diffs to sensible values before returning or logging them.
+
+### Changed
+
+- **`Facades\Teamleader`**: the `@method` block now covers every resource
+  registered in `TeamleaderSDK::$resources` and every public method on
+  `TeamleaderSDK`, including `getAuthorizationUrl()`. IDEs previously reported
+  "Method 'getAuthorizationUrl' not found" for the exact snippet published in
+  the README, and gave no completion for most resources. No runtime behaviour
+  changed — the annotations were incomplete, not the code.
+
+### Added
+
+- `tests/Unit/Services/TokenServiceCacheIntegrityTest.php` — regression coverage
+  for a poisoned cache entry, scalar cache storage, self-healing, and a missing
+  expiry.
+
+### Upgrade notes
+
+No configuration or migration changes. If an installation is currently stuck on
+the `__PHP_Incomplete_Class` error, upgrading is enough; the cache repairs
+itself on the next token read. `php artisan cache:clear` also resolves it.
+
+---
+
 ## [2.1.0] - 2026-07-20
 
 ### Added
