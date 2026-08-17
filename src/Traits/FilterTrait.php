@@ -190,6 +190,34 @@ trait FilterTrait
     }
 
     /**
+     * Queue one or more includes for the next request (fluent interface).
+     *
+     * Resources expose typed wrappers around this — Deals::withCustomer(),
+     * TimeTracking::withMaterials() and so on. The queued includes are consumed
+     * and cleared by applyPendingIncludes() when the request is built, so the
+     * fluent state does not leak into a subsequent call on the same instance.
+     *
+     * @param  array|string  $includes  An include path, or an array of them
+     * @return static
+     */
+    public function with($includes)
+    {
+        $includes = is_array($includes) ? $includes : [$includes];
+
+        foreach ($includes as $include) {
+            if (! is_string($include) || $include === '') {
+                continue;
+            }
+
+            if (! in_array($include, $this->pendingIncludes, true)) {
+                $this->pendingIncludes[] = $include;
+            }
+        }
+
+        return $this;
+    }
+
+    /**
      * Property to store pending includes for fluent interface
      */
     protected array $pendingIncludes = [];

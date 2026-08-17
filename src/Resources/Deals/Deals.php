@@ -39,7 +39,18 @@ class Deals extends Resource
     // Default includes
     protected array $defaultIncludes = [];
 
-    // Common filters based on API documentation
+    /**
+     * Filters accepted by deals.list.
+     *
+     * Verified against @teamleader/focus-api-specification v1.197.0 — these are
+     * exactly the keys the endpoint declares, and the keys of this array are
+     * used as the filter whitelist in buildFilters(). Keeping the whitelist and
+     * the documentation in one place is deliberate: they previously drifted, and
+     * the SDK carried tag() / untag() / withTags() methods plus a `tags` filter
+     * for endpoints Teamleader has never exposed.
+     *
+     * @see https://developer.focus.teamleader.eu/docs/api/deals-list
+     */
     protected array $commonFilters = [
         'ids' => 'Array of deal UUIDs to filter by',
         'term' => 'Search term (filters on title, reference, and customer name)',
@@ -51,7 +62,7 @@ class Deals extends Resource
         'responsible_user_id' => 'Filter by responsible user UUID (string or array)',
         'updated_since' => 'Filter by last update date (inclusive)',
         'created_before' => 'Filter by creation date (inclusive)',
-        'status' => 'Filter by deal status (open, won, lost)',
+        'status' => 'Filter by deal status (open, won, lost) — string is coerced to array',
         'pipeline_ids' => 'Array of pipeline UUIDs',
     ];
 
@@ -69,10 +80,23 @@ class Deals extends Resource
         'company',
     ];
 
-    // Available sort fields
+    /**
+     * Sort fields accepted by deals.list.
+     *
+     * The API declares only these two; anything else is rejected by
+     * buildSort() rather than silently coerced.
+     */
     protected array $availableSortFields = [
-        'created_at',
-        'weighted_value',
+        'created_at' => 'Sort by creation date',
+        'weighted_value' => 'Sort by weighted deal value',
+    ];
+
+    // Filter keys whose value the API expects as an array, but which are
+    // convenient to pass as a single string
+    protected array $arrayFilters = [
+        'ids',
+        'pipeline_ids',
+        'status',
     ];
 
     // Available currency codes
@@ -122,21 +146,44 @@ class Deals extends Resource
                 ->withResponsibleUser()
                 ->list(["status" => ["open"]]);',
         ],
+        'sorted_deals' => [
+            'description' => 'Get deals sorted by weighted value',
+            'code' => '$deals = $teamleader->deals()->list([], ["sort" => "weighted_value", "sort_order" => "desc"]);',
+        ],
+        'sideload_custom_fields' => [
+            'description' => 'Get deals with custom fields sideloaded',
+            'code' => '$deals = $teamleader->deals()->list([], ["include" => "custom_fields"]);',
+        ],
     ];
 
     /**
-     * List deals with enhanced filtering and sorting
+     * List deals with filtering, sorting, pagination and sideloading
      *
-     * @param  array  $filters  Filters to apply
-     * @param  array  $options  Additional options (sorting, pagination, includes)
+     * Unknown filter keys throw rather than being forwarded — the API ignores
+     * keys it does not recognise and returns a full unfiltered result set with
+     * a 200, which is indistinguishable from a correct response.
+     *
+     * @param  array  $filters  Filters to apply — see $commonFilters
+     * @param  array  $options  sort, sort_order, page_size, page_number, include
+     *
+     * @throws InvalidArgumentException When a filter key or sort field is not supported
      */
     public function list(array $filters = [], array $options = []): array
     {
         $params = [];
 
         // Add filters
+        //
+        // This routes through buildFilters() rather than assigning $filters
+        // directly. The whitelist has always existed on this class; list() just
+        // never called it, so any key a caller invented was passed straight to
+        // the API.
         if (! empty($filters)) {
-            $params['filter'] = $filters;
+            $apiFilters = $this->buildFilters($filters);
+
+            if (! empty($apiFilters)) {
+                $params['filter'] = $apiFilters;
+            }
         }
 
         // Add pagination
@@ -153,10 +200,12 @@ class Deals extends Resource
         }
 
         // Add includes
+        //
+        // Must go through applyIncludes(), which writes the `includes` (plural)
+        // body key. The singular form is silently ignored by the API — see the
+        // note on FilterTrait::applyIncludes().
         if (isset($options['include'])) {
-            $params['include'] = is_array($options['include'])
-                ? implode(',', $options['include'])
-                : $options['include'];
+            $params = $this->applyIncludes($params, $options['include']);
         }
 
         // Apply any pending includes from fluent interface
@@ -501,80 +550,145 @@ class Deals extends Resource
     }
 
     /**
-     * Build filters array for the API request
+     * Build the filter object for the API request
+     *
+     * Rejects keys deals.list does not accept. The API ignores unrecognised
+     * filter keys and answers 200 with the full unfiltered set, so forwarding
+     * them produces silently wrong results rather than an error.
+     *
+     * Values for ids, pipeline_ids and status are coerced to arrays when a
+     * single string is given, since the API requires arrays for all three.
      *
      * @param  array  $filters  User-provided filters
      * @return array API-formatted filters
+     *
+     * @throws InvalidArgumentException When a filter key is not supported
      */
     protected function buildFilters(array $filters): array
     {
+        $supported = array_keys($this->commonFilters);
+        $unknown = array_diff(array_keys($filters), $supported);
+
+        if ($unknown !== []) {
+            throw new InvalidArgumentException(
+                'Unsupported filter '.(count($unknown) > 1 ? 'keys' : 'key')
+                .' for deals.list: '.implode(', ', $unknown)
+                .'. Supported: '.implode(', ', $supported).'.'
+            );
+        }
+
         $apiFilters = [];
 
-        // Handle IDs filter
-        if (isset($filters['ids']) && is_array($filters['ids'])) {
-            $apiFilters['ids'] = $filters['ids'];
-        }
-
-        // Handle term filter
-        if (isset($filters['term'])) {
-            $apiFilters['term'] = $filters['term'];
-        }
-
-        // Handle customer filter
-        if (isset($filters['customer'])) {
-            $apiFilters['customer'] = $filters['customer'];
-        }
-
-        // Handle phase_id filter
-        if (isset($filters['phase_id'])) {
-            $apiFilters['phase_id'] = $filters['phase_id'];
-        }
-
-        // Handle estimated_closing_date filter
-        if (isset($filters['estimated_closing_date'])) {
-            $apiFilters['estimated_closing_date'] = $filters['estimated_closing_date'];
-        }
-
-        // Handle estimated_closing_date_from filter
-        if (isset($filters['estimated_closing_date_from'])) {
-            $apiFilters['estimated_closing_date_from'] = $filters['estimated_closing_date_from'];
-        }
-
-        // Handle estimated_closing_date_until filter
-        if (isset($filters['estimated_closing_date_until'])) {
-            $apiFilters['estimated_closing_date_until'] = $filters['estimated_closing_date_until'];
-        }
-
-        // Handle responsible_user_id filter (can be string or array)
-        if (isset($filters['responsible_user_id'])) {
-            $apiFilters['responsible_user_id'] = $filters['responsible_user_id'];
-        }
-
-        // Handle updated_since filter
-        if (isset($filters['updated_since'])) {
-            $apiFilters['updated_since'] = $filters['updated_since'];
-        }
-
-        // Handle created_before filter
-        if (isset($filters['created_before'])) {
-            $apiFilters['created_before'] = $filters['created_before'];
-        }
-
-        // Handle status filter
-        if (isset($filters['status'])) {
-            if (is_string($filters['status'])) {
-                $apiFilters['status'] = [$filters['status']];
-            } elseif (is_array($filters['status'])) {
-                $apiFilters['status'] = $filters['status'];
+        foreach ($filters as $key => $value) {
+            if ($value === null) {
+                continue;
             }
-        }
 
-        // Handle pipeline_ids filter
-        if (isset($filters['pipeline_ids']) && is_array($filters['pipeline_ids'])) {
-            $apiFilters['pipeline_ids'] = $filters['pipeline_ids'];
+            if (in_array($key, $this->arrayFilters, true) && ! is_array($value)) {
+                $apiFilters[$key] = [$value];
+
+                continue;
+            }
+
+            $apiFilters[$key] = $value;
         }
 
         return $apiFilters;
+    }
+
+    /**
+     * Build the sort object for the API request
+     *
+     * The API expects an array of objects — [['field' => ..., 'order' => ...]].
+     *
+     * This method did not exist on this class before v2.1.2, while list()
+     * called it, so passing a sort option raised
+     * "Call to undefined method ...::buildSort()".
+     *
+     * @param  array|string  $sort  A field name, an array of field names, or an
+     *                              array of ['field' => ..., 'order' => ...] entries
+     * @param  string  $order  Default order applied to entries that do not carry one
+     *
+     * @throws InvalidArgumentException When a sort field or order is not supported
+     */
+    protected function buildSort($sort, string $order = 'desc'): array
+    {
+        $order = $this->normaliseSortOrder($order);
+
+        // Already a list of sort objects
+        if (is_array($sort) && isset($sort[0]) && is_array($sort[0])) {
+            return array_map(function (array $entry) use ($order) {
+                $field = $entry['field'] ?? null;
+
+                if (! is_string($field)) {
+                    throw new InvalidArgumentException('Each sort entry must contain a field.');
+                }
+
+                return [
+                    'field' => $this->validateSortField($field),
+                    'order' => $this->normaliseSortOrder($entry['order'] ?? $order),
+                ];
+            }, $sort);
+        }
+
+        // A single ['field' => ..., 'order' => ...] entry
+        if (is_array($sort) && isset($sort['field'])) {
+            return [[
+                'field' => $this->validateSortField($sort['field']),
+                'order' => $this->normaliseSortOrder($sort['order'] ?? $order),
+            ]];
+        }
+
+        // A list of field names
+        if (is_array($sort)) {
+            return array_map(fn ($field) => [
+                'field' => $this->validateSortField($field),
+                'order' => $order,
+            ], array_values($sort));
+        }
+
+        // A single field name
+        return [[
+            'field' => $this->validateSortField($sort),
+            'order' => $order,
+        ]];
+    }
+
+    /**
+     * Ensure a sort field is one the API accepts
+     *
+     * @throws InvalidArgumentException
+     */
+    protected function validateSortField(mixed $field): string
+    {
+        if (! is_string($field) || ! array_key_exists($field, $this->availableSortFields)) {
+            throw new InvalidArgumentException(
+                'Invalid sort field: '.(is_string($field) ? $field : gettype($field))
+                .'. deals.list accepts: '.implode(', ', array_keys($this->availableSortFields)).'.'
+            );
+        }
+
+        return $field;
+    }
+
+    /**
+     * Ensure a sort order is asc or desc
+     *
+     * @throws InvalidArgumentException
+     */
+    protected function normaliseSortOrder(mixed $order): string
+    {
+        if (! is_string($order)) {
+            throw new InvalidArgumentException('Sort order must be a string: asc or desc.');
+        }
+
+        $normalised = strtolower($order);
+
+        if (! in_array($normalised, ['asc', 'desc'], true)) {
+            throw new InvalidArgumentException("Invalid sort order: {$order}. Must be asc or desc.");
+        }
+
+        return $normalised;
     }
 
     /**
