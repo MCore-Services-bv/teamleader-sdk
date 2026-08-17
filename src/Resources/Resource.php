@@ -45,10 +45,24 @@ abstract class Resource
 
     protected bool $supportsBatch = false;
 
+    /**
+     * Whether this resource asks the API for pagination metadata.
+     *
+     * Teamleader only returns a `meta` block when `includes=pagination` is sent
+     * with the request. Resources that send it should set this to true so the
+     * generated documentation describes the response they actually produce.
+     *
+     * When false, callers get no total count and no page count, so the end of a
+     * list can only be inferred from a page shorter than the requested page size.
+     */
+    protected bool $requestsPaginationMeta = false;
+
     // Documentation properties
     protected array $commonFilters = [];
 
     protected array $availableIncludes = [];
+
+    protected array $availableSortFields = [];
 
     protected array $usageExamples = [];
 
@@ -98,6 +112,34 @@ abstract class Resource
             $markdown .= "\n";
         }
 
+        // Sort fields
+        if (! empty($docs['available_sort_fields'])) {
+            $markdown .= "## Sort Fields\n\n";
+            foreach ($docs['available_sort_fields'] as $field => $description) {
+                $markdown .= is_string($field)
+                    ? "- `{$field}`: {$description}\n"
+                    : "- `{$description}`\n";
+            }
+            $markdown .= "\n";
+        }
+
+        // Pagination
+        $markdown .= "## Pagination\n\n";
+        $markdown .= $docs['pagination']['supported'] ? "Supported.\n\n" : "Not supported.\n\n";
+        $markdown .= "> **Note:** {$docs['pagination']['note']}\n\n";
+
+        // Response formats
+        if (! empty($docs['response_formats'])) {
+            $markdown .= "## Response Formats\n\n";
+            foreach ($docs['response_formats'] as $operation => $keys) {
+                $markdown .= "**`{$operation}`**\n\n";
+                foreach ($keys as $key => $description) {
+                    $markdown .= "- `{$key}`: {$description}\n";
+                }
+                $markdown .= "\n";
+            }
+        }
+
         // Usage examples
         if (! empty($docs['usage_examples'])) {
             $markdown .= "## Usage Examples\n\n";
@@ -138,6 +180,7 @@ abstract class Resource
             'usage_examples' => $this->getUsageExamples(),
             'rate_limit_costs' => $this->getRateLimitCost(),
             'response_formats' => $this->getResponseFormat(),
+            'pagination' => $this->getPaginationBehaviour(),
         ];
     }
 
@@ -220,7 +263,7 @@ abstract class Resource
      */
     protected function getAvailableSortFields(): array
     {
-        return $this->availableSortFields ?? [];
+        return $this->availableSortFields;
     }
 
     /**
@@ -275,34 +318,91 @@ abstract class Resource
     /**
      * Get response format information for each operation
      *
-     * Documents the structure of API responses for different operations.
-     * Useful for understanding what data to expect in responses.
+     * Describes the array the SDK hands back, which is not quite the API's own
+     * response: the SDK adds a `headers` key to every successful response, and
+     * converts an HTTP 204 into a `success` / `status_code` / `message` array.
+     *
+     * Derived from this resource's capability flags rather than asserted for all
+     * resources, because the keys genuinely differ. Before v2.1.2 this method
+     * claimed every `list` response carried `pagination`, `included` and `meta`;
+     * none of the three is returned by default, and `included` does not exist in
+     * the API at all — sideloaded data is embedded inside each record in `data`,
+     * not in a separate top-level block.
      *
      * @return array Nested array describing response formats
      */
     protected function getResponseFormat(): array
     {
+        $headers = 'Response headers, including X-RateLimit-Limit, '
+            .'X-RateLimit-Remaining and X-RateLimit-Reset. Added by the SDK.';
+
+        $listFormat = [
+            'data' => 'Array of resource objects',
+            'headers' => $headers,
+        ];
+
+        if ($this->requestsPaginationMeta) {
+            $listFormat['meta'] = 'Pagination metadata (page.size, page.number, matches). '
+                .'Only returned because this resource sends includes=pagination.';
+        }
+
         return [
-            'list' => [
-                'data' => 'Array of resource objects',
-                'pagination' => 'Pagination metadata (if applicable)',
-                'included' => 'Sideloaded related resources (if requested)',
-                'meta' => 'Additional metadata',
-            ],
+            'list' => $listFormat,
             'info' => [
                 'data' => 'Single resource object',
-                'included' => 'Sideloaded related resources (if requested)',
+                'headers' => $headers,
             ],
             'create' => [
                 'data' => 'Created resource object with generated ID',
+                'headers' => $headers,
             ],
             'update' => [
-                'data' => 'Updated resource object',
+                'data' => 'Updated resource object, when the endpoint returns a body',
+                'headers' => $headers,
+                'success' => 'Present instead of data when the API answers 204 No Content',
+                'status_code' => 'Present alongside success on a 204 response',
+                'message' => 'Present alongside success on a 204 response',
             ],
             'delete' => [
-                'success' => 'Boolean indicating success',
-                'message' => 'Confirmation message (if applicable)',
+                'success' => 'Boolean indicating success (the API answers 204)',
+                'status_code' => 'HTTP status code',
+                'message' => 'Confirmation message',
+                'headers' => $headers,
             ],
+        ];
+    }
+
+    /**
+     * Describe how this resource paginates
+     *
+     * Surfaced through getDocumentation() so the pagination behaviour and the
+     * supportsPagination flag cannot drift apart.
+     *
+     * @return array Pagination support, metadata availability, and how to detect
+     *               the end of a list
+     */
+    protected function getPaginationBehaviour(): array
+    {
+        if (! $this->supportsPagination) {
+            return [
+                'supported' => false,
+                'returns_metadata' => false,
+                'note' => 'This endpoint is not paginated. It returns every record in one '
+                    .'response, and page_size / page_number are not accepted.',
+            ];
+        }
+
+        return [
+            'supported' => true,
+            'returns_metadata' => $this->requestsPaginationMeta,
+            'default_page_size' => 20,
+            'note' => $this->requestsPaginationMeta
+                ? 'A meta block carrying the total match count is returned, because this '
+                .'resource sends includes=pagination.'
+                : 'No total count and no page count are returned. The only end-of-list '
+                .'signal is a page shorter than the requested page size, so a full '
+                .'final page costs one extra empty request and the number of requests '
+                .'a complete enumeration needs cannot be known in advance.',
         ];
     }
 
@@ -324,9 +424,14 @@ abstract class Resource
     }
 
     /**
-     * NOTE: buildQueryParams and buildSort methods are now provided by FilterTrait
-     * The old implementations that called buildFilters() have been removed
-     * to prevent conflicts with the trait's applyFilters() method
+     * NOTE: buildQueryParams, applyFilters, applySorting and applyPagination are
+     * provided by FilterTrait. The old implementations here called buildFilters()
+     * and were removed to prevent conflicts with the trait's applyFilters().
+     *
+     * There is no buildSort() on this class or on FilterTrait — the trait's
+     * equivalent is applySorting(). Resources that call $this->buildSort() must
+     * define it themselves; fifteen do. Deals called it without defining it,
+     * which was a fatal error on any sorted list() call until v2.1.2.
      */
 
     /**

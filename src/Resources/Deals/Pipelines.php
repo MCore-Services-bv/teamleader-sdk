@@ -13,6 +13,8 @@ class Pipelines extends Resource
     // Resource capabilities
     protected bool $supportsPagination = true;
 
+    protected bool $requestsPaginationMeta = true;
+
     protected bool $supportsFiltering = true;
 
     protected bool $supportsSorting = false;

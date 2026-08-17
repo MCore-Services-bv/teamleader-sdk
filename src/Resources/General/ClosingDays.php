@@ -28,6 +28,10 @@ class ClosingDays extends Resource
 
     protected bool $supportsPagination = true;
 
+    // This resource sends includes=pagination on every list call, so the API
+    // returns a meta block carrying the total match count
+    protected bool $requestsPaginationMeta = true;
+
     // Available includes for sideloading (none for closing days)
     protected array $availableIncludes = [];
 
@@ -106,6 +110,11 @@ class ClosingDays extends Resource
     /**
      * List closing days with enhanced filtering and pagination
      *
+     * Pagination metadata is always requested. The API only returns
+     * `meta.matches` when `includes=pagination` is sent, it costs nothing extra,
+     * and without it there is no total count — the only end-of-list signal would
+     * be a page shorter than the requested page size.
+     *
      * @param  array  $filters  Filters to apply
      * @param  array  $options  Additional options (pagination)
      */
@@ -126,10 +135,14 @@ class ClosingDays extends Resource
             ];
         }
 
-        // Add pagination to includes if requested
-        if (isset($options['include_pagination']) && $options['include_pagination']) {
-            $params['include'] = 'pagination';
-        }
+        // Request pagination metadata.
+        //
+        // This was previously sent as `include` (singular) and only when the
+        // caller passed include_pagination. The API silently ignores the
+        // singular key — the same defect fixed SDK-wide in v1.2.3 — so the
+        // option never worked. The `include_pagination` option is now redundant
+        // but harmless; metadata is always requested.
+        $params['includes'] = 'pagination';
 
         return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
