@@ -35,7 +35,19 @@ class TimeTracking extends Resource
     // Default includes
     protected array $defaultIncludes = [];
 
-    // Available subject types
+    /**
+     * Subject types accepted when writing a time tracking entry
+     * (timeTracking.add and timeTracking.update).
+     *
+     * Verified against @teamleader/focus-api-specification v1.197.0. Note this
+     * is deliberately wider than $filterSubjectTypes: `nextgenTask` can carry
+     * tracked time but is not accepted as a `filter.subject.type` on
+     * timeTracking.list.
+     *
+     * The spec's update schema omits `nextgenTask` while the add schema includes
+     * it. Rather than guess which is authoritative, the SDK accepts it on both
+     * writes — the API is the backstop if update genuinely refuses it.
+     */
     protected array $availableSubjectTypes = [
         'company',
         'contact',
@@ -44,6 +56,31 @@ class TimeTracking extends Resource
         'nextgenTask',
         'ticket',
         'todo',
+    ];
+
+    /**
+     * Subject types accepted by the timeTracking.list subject filter.
+     *
+     * `nextgenTask` is absent — the API does not offer it as a filter value even
+     * though time can be tracked against one.
+     */
+    protected array $filterSubjectTypes = [
+        'company',
+        'contact',
+        'event',
+        'milestone',
+        'ticket',
+        'todo',
+    ];
+
+    /**
+     * Sort fields accepted by timeTracking.list.
+     *
+     * The API declares exactly one. Anything else is silently ignored by the
+     * API, so it is rejected here instead.
+     */
+    protected array $availableSortFields = [
+        'starts_on' => 'Sort by the date the entry started',
     ];
 
     // Common filters based on API documentation
@@ -201,14 +238,16 @@ class TimeTracking extends Resource
 
     /**
      * Filter entries by subject
+     *
+     * Note that `nextgenTask` is not accepted here even though time can be
+     * tracked against one — the API offers no such filter value. Use
+     * relatedTo() for project-side filtering.
+     *
+     * @throws InvalidArgumentException When the subject type is not a valid filter value
      */
     public function forSubject(string $subjectId, string $subjectType, array $options = []): array
     {
-        if (! in_array($subjectType, $this->availableSubjectTypes)) {
-            throw new InvalidArgumentException(
-                'Invalid subject type. Must be one of: '.implode(', ', $this->availableSubjectTypes)
-            );
-        }
+        $this->validateFilterSubjectType($subjectType);
 
         return $this->list(
             array_merge(
@@ -221,15 +260,13 @@ class TimeTracking extends Resource
 
     /**
      * Filter entries by subject types
+     *
+     * @throws InvalidArgumentException When a subject type is not a valid filter value
      */
     public function forSubjectTypes(array $subjectTypes, array $options = []): array
     {
         foreach ($subjectTypes as $type) {
-            if (! in_array($type, $this->availableSubjectTypes)) {
-                throw new InvalidArgumentException(
-                    'Invalid subject type: '.$type.'. Must be one of: '.implode(', ', $this->availableSubjectTypes)
-                );
-            }
+            $this->validateFilterSubjectType($type);
         }
 
         return $this->list(
@@ -385,7 +422,10 @@ class TimeTracking extends Resource
     }
 
     /**
-     * Validate subject structure
+     * Validate subject structure for create and update
+     *
+     * Writes accept a wider set of subject types than the list filter does —
+     * see $availableSubjectTypes and $filterSubjectTypes.
      */
     protected function validateSubject(array $subject): void
     {
@@ -405,7 +445,22 @@ class TimeTracking extends Resource
     }
 
     /**
-     * Build filters array for the API request
+     * Build the filter object for the API request
+     *
+     * Unknown filter keys throw rather than being forwarded. The API ignores
+     * filter keys it does not recognise and answers 200 with the full unfiltered
+     * result set, which is indistinguishable from a correct response — a
+     * `updated_since` filter that was never applied returns every entry in the
+     * account rather than the requested window.
+     *
+     * `updated_since`, `invoiced` and `invoiceable` are the confirmed cases.
+     * None of them exist on timeTracking.list.
+     *
+     * Note that null, empty-string and empty-array values are skipped before
+     * validation, so `['user_id' => null]` is treated as "not set" rather than
+     * as an error.
+     *
+     * @throws InvalidArgumentException When a filter key or value is not supported
      */
     protected function applyFilters(array $params = [], array $filters = [])
     {
@@ -422,9 +477,7 @@ class TimeTracking extends Resource
 
             switch ($key) {
                 case 'ids':
-                    if (is_array($value)) {
-                        $apiFilters['ids'] = $value;
-                    }
+                    $apiFilters['ids'] = is_array($value) ? $value : [$value];
                     break;
 
                 case 'user_id':
@@ -436,27 +489,51 @@ class TimeTracking extends Resource
                     break;
 
                 case 'subject':
-                    if (is_array($value) && isset($value['id']) && isset($value['type'])) {
-                        $apiFilters['subject'] = $value;
+                    if (! is_array($value) || ! isset($value['id']) || ! isset($value['type'])) {
+                        throw new InvalidArgumentException(
+                            'The subject filter must contain both id and type.'
+                        );
                     }
+
+                    $this->validateFilterSubjectType($value['type']);
+
+                    $apiFilters['subject'] = $value;
                     break;
 
                 case 'subject_types':
-                    if (is_array($value)) {
-                        $apiFilters['subject_types'] = $value;
+                    if (! is_array($value)) {
+                        throw new InvalidArgumentException('The subject_types filter must be an array.');
                     }
+
+                    foreach ($value as $type) {
+                        $this->validateFilterSubjectType($type);
+                    }
+
+                    $apiFilters['subject_types'] = $value;
                     break;
 
                 case 'relates_to':
-                    if (is_array($value) && isset($value['id']) && isset($value['type'])) {
-                        $apiFilters['relates_to'] = $value;
+                    if (! is_array($value) || ! isset($value['id']) || ! isset($value['type'])) {
+                        throw new InvalidArgumentException(
+                            'The relates_to filter must contain both id and type.'
+                        );
                     }
+
+                    if (! in_array($value['type'], $this->validRelatesToTypes, true)) {
+                        throw new InvalidArgumentException(
+                            "Invalid relates_to type: {$value['type']}. Must be one of: "
+                            .implode(', ', $this->validRelatesToTypes).'.'
+                        );
+                    }
+
+                    $apiFilters['relates_to'] = $value;
                     break;
 
                 default:
-                    // Pass through any other filters as-is
-                    $apiFilters[$key] = $value;
-                    break;
+                    throw new InvalidArgumentException(
+                        "Invalid filter key '{$key}' for timeTracking.list. Supported filters: "
+                        .implode(', ', array_keys($this->commonFilters)).'.'
+                    );
             }
         }
 
@@ -468,7 +545,33 @@ class TimeTracking extends Resource
     }
 
     /**
+     * Validate a subject type used as a list filter value
+     *
+     * @throws InvalidArgumentException
+     */
+    protected function validateFilterSubjectType(mixed $type): void
+    {
+        if (! is_string($type) || ! in_array($type, $this->filterSubjectTypes, true)) {
+            $message = 'Invalid subject type for the timeTracking.list filter: '
+                .(is_string($type) ? $type : gettype($type))
+                .'. Must be one of: '.implode(', ', $this->filterSubjectTypes).'.';
+
+            if ($type === 'nextgenTask') {
+                $message .= ' Time can be tracked against a nextgenTask, but the API '
+                    .'does not accept it as a filter value. Use relates_to instead.';
+            }
+
+            throw new InvalidArgumentException($message);
+        }
+    }
+
+    /**
      * Apply sorting to the API request
+     *
+     * The API accepts a single sort field, `starts_on`. Anything else is
+     * silently ignored by the API, so it is rejected here.
+     *
+     * @throws InvalidArgumentException When the sort field or order is not supported
      */
     protected function applySorting(array $params = [], $sort = null, $order = 'asc'): array
     {
@@ -477,9 +580,12 @@ class TimeTracking extends Resource
             return $params;
         }
 
-        // If sort is already an array with proper structure, use it directly
+        // If sort is already a list of sort objects
         if (is_array($sort) && isset($sort[0]['field'])) {
-            $params['sort'] = $sort;
+            $params['sort'] = array_map(fn (array $entry) => [
+                'field' => $this->validateSortField($entry['field']),
+                'order' => $this->normaliseSortOrder($entry['order'] ?? $order),
+            ], $sort);
 
             return $params;
         }
@@ -487,8 +593,8 @@ class TimeTracking extends Resource
         // If sort is an array with 'field' and 'order' keys
         if (is_array($sort) && isset($sort['field'])) {
             $params['sort'] = [[
-                'field' => $sort['field'],
-                'order' => $sort['order'] ?? $order,
+                'field' => $this->validateSortField($sort['field']),
+                'order' => $this->normaliseSortOrder($sort['order'] ?? $order),
             ]];
 
             return $params;
@@ -497,15 +603,55 @@ class TimeTracking extends Resource
         // If sort is a string (field name), convert to proper structure
         if (is_string($sort)) {
             $params['sort'] = [[
-                'field' => $sort,
-                'order' => $order,
+                'field' => $this->validateSortField($sort),
+                'order' => $this->normaliseSortOrder($order),
             ]];
 
             return $params;
         }
 
-        // Default: return params unchanged if we can't handle the sort format
-        return $params;
+        throw new InvalidArgumentException(
+            'Unrecognised sort format. Pass a field name, '
+            ."['field' => ..., 'order' => ...], or a list of those."
+        );
+    }
+
+    /**
+     * Ensure a sort field is one the API accepts
+     *
+     * @throws InvalidArgumentException
+     */
+    protected function validateSortField(mixed $field): string
+    {
+        if (! is_string($field) || ! array_key_exists($field, $this->availableSortFields)) {
+            throw new InvalidArgumentException(
+                'Invalid sort field: '.(is_string($field) ? $field : gettype($field))
+                .'. timeTracking.list accepts: '
+                .implode(', ', array_keys($this->availableSortFields)).'.'
+            );
+        }
+
+        return $field;
+    }
+
+    /**
+     * Ensure a sort order is asc or desc
+     *
+     * @throws InvalidArgumentException
+     */
+    protected function normaliseSortOrder(mixed $order): string
+    {
+        if (! is_string($order)) {
+            throw new InvalidArgumentException('Sort order must be a string: asc or desc.');
+        }
+
+        $normalised = strtolower($order);
+
+        if (! in_array($normalised, ['asc', 'desc'], true)) {
+            throw new InvalidArgumentException("Invalid sort order: {$order}. Must be asc or desc.");
+        }
+
+        return $normalised;
     }
 
     /**
