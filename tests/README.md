@@ -2,427 +2,238 @@
 
 ## Running Tests
 
-### Basic Test Execution
-
 ```bash
-# Run all tests
+# Run everything (the redis group is excluded by phpunit.xml)
 composer test
 
-# Run tests with coverage report
-vendor/bin/phpunit --coverage-html coverage
-
-# Run specific test suite
+# Run a single suite
 vendor/bin/phpunit tests/Feature
 vendor/bin/phpunit tests/Unit
 
-# Run specific test file
-vendor/bin/phpunit tests/Feature/CompaniesResourceTest.php
+# Run a single file or method
+vendor/bin/phpunit tests/Unit/Resources/FilesResourceTest.php
+vendor/bin/phpunit --filter=test_for_product_filters_by_product_subject
 
-# Run specific test method
-vendor/bin/phpunit --filter=it_can_list_companies
-
-# Run with verbose output
-vendor/bin/phpunit --verbose
+# Run the Redis-dependent tests (requires a running Redis)
+vendor/bin/phpunit --group=redis
 ```
 
-### Code Coverage
+### Coverage
 
 ```bash
-# Generate HTML coverage report
 vendor/bin/phpunit --coverage-html build/coverage
-
-# Generate text coverage summary
 vendor/bin/phpunit --coverage-text
-
-# Generate Clover XML (for CI)
 vendor/bin/phpunit --coverage-clover build/logs/clover.xml
-
-# View HTML report (after generation)
-open build/coverage/index.html
 ```
 
 ## Test Structure
 
 ```
 tests/
-├── Feature/                      # Integration tests
-│   ├── AuthenticationTest.php    # OAuth flow testing
-│   ├── CompaniesResourceTest.php # Companies resource tests
-│   └── ConfigurationValidatorTest.php # Config validation tests
+├── Feature/                            # Integration tests
+│   ├── AuthenticationTest.php          # OAuth URL generation, token set/clear
+│   ├── CompaniesResourceTest.php       # Resource wiring and capability flags
+│   └── ConfigurationValidatorTest.php  # Config validation and reporting
 │
-├── Unit/                         # Unit tests
+├── Unit/
+│   ├── Resources/
+│   │   └── FilesResourceTest.php       # Request payload assertions
 │   └── Services/
-│       ├── ErrorHandlerTest.php      # Error handling tests
-│       ├── RateLimiterTest.php       # Rate limiter tests
-│       └── TokenServiceTest.php      # Token service tests
+│       ├── ErrorHandlerTest.php        # Exception mapping, retry behaviour
+│       ├── RateLimiterTest.php         # Sliding window (group: redis)
+│       ├── TokenServiceTest.php        # Store, read, expire, clear
+│       └── TokenServiceCacheIntegrityTest.php  # v2.1.1 cache poisoning regression
 │
-└── TestCase.php                  # Base test class with helpers
+├── Support/
+│   └── RecordingApiClient.php          # TeamleaderSDK double that records requests
+│
+├── ResourceTestCase.php                # Base class for payload assertions
+└── TestCase.php                        # Base class (Orchestra Testbench)
 ```
 
-## Test Categories
+## Conventions
 
-### Feature Tests
-Integration tests that test complete workflows and resource interactions:
-- Authentication flows
-- Resource CRUD operations
-- Configuration validation
-- End-to-end scenarios
+**Method naming.** Test methods are prefixed `test_` and use snake_case:
+`test_throws_rate_limit_exception_for429`. The `/** @test */` annotation is not
+used anywhere in this suite — don't introduce it.
 
-### Unit Tests
-Isolated tests for individual components:
-- Service classes
-- Utility functions
-- Error handlers
-- Rate limiters
-
-## Writing Tests
-
-### Feature Test Example
+**Attributes over annotations.** PHP 8 attributes are used for PHPUnit metadata:
 
 ```php
-<?php
+use PHPUnit\Framework\Attributes\Group;
 
-namespace McoreServices\TeamleaderSDK\Tests\Feature;
+#[Group('redis')]
+class RateLimiterTest extends TestCase { /* ... */ }
+```
 
-use McoreServices\TeamleaderSDK\Tests\TestCase;
-use McoreServices\TeamleaderSDK\TeamleaderSDK;
+**Which base class.** Extend `TestCase` for services and anything that doesn't
+build a request. Extend `ResourceTestCase` when the thing under test is the
+payload a resource produces.
 
-class CompaniesResourceTest extends TestCase
+## Testing Resources
+
+Most bugs this SDK has shipped were in the payload, not the response: a body key
+the API silently ignores (`include` where it wants `includes`), a wrong shape (a
+sort string array instead of objects), or a filter that was dropped without
+warning. The API answers `200` to all of these, so the only way to catch them is
+to assert on what the SDK *builds*.
+
+`ResourceTestCase` wires up a `RecordingApiClient` — a `TeamleaderSDK` subclass
+that overrides `request()` to record the call and return a canned response. No
+network, no token, no Redis.
+
+```php
+use McoreServices\TeamleaderSDK\Resources\Files\Files;
+use McoreServices\TeamleaderSDK\Tests\ResourceTestCase;
+
+final class FilesResourceTest extends ResourceTestCase
 {
-    private TeamleaderSDK $sdk;
-
-    protected function setUp(): void
+    public function test_for_product_filters_by_product_subject(): void
     {
-        parent::setUp();
-        
-        $this->sdk = new TeamleaderSDK();
-        $this->sdk->setAccessToken('test_token');
-    }
+        $this->resource(Files::class)->forProduct('product-uuid');
 
-    /** @test */
-    public function it_can_list_companies(): void
-    {
-        $companies = $this->sdk->companies()->list();
-        
-        $this->assertIsArray($companies);
-        $this->assertArrayHasKey('data', $companies);
-    }
-
-    /** @test */
-    public function it_can_get_company_info(): void
-    {
-        $companyId = 'test-uuid';
-        $company = $this->sdk->companies()->info($companyId);
-        
-        $this->assertIsArray($company);
-        $this->assertArrayHasKey('data', $company);
+        $this->assertLastEndpoint('files.list');
+        $this->assertLastBodyHas('filter.subject.type', 'product');
     }
 }
 ```
 
-### Unit Test Example
+### Available assertions
+
+| Assertion | Purpose |
+|---|---|
+| `assertLastEndpoint(string)` | The endpoint of the most recent call |
+| `assertEndpointCalled(string)` | An endpoint was called at some point |
+| `assertLastBodyHas(string $path, mixed $value = null)` | Dot-notation path exists, optionally with a value |
+| `assertLastBodyMissing(string $path)` | Dot-notation path is absent |
+| `assertLastBody(array)` | Exact body match |
+| `assertLastBodyKeys(array)` | Top-level keys, order-insensitive |
+| `assertRequestCount(int)` | Number of requests made |
+| `assertNoRequestMade()` | Nothing reached the API |
+
+Prefer `assertLastBodyHas()` over `assertLastBody()` — an exact match couples the
+test to every default the SDK applies, so a change to pagination defaults breaks
+a test about sorting.
+
+`assertNoRequestMade()` is the one to reach for when testing client-side
+validation. Pair it with `try`/`finally` so it still runs when the expected
+exception is thrown:
 
 ```php
-<?php
-
-namespace McoreServices\TeamleaderSDK\Tests\Unit\Services;
-
-use McoreServices\TeamleaderSDK\Tests\TestCase;
-use McoreServices\TeamleaderSDK\Services\TeamleaderErrorHandler;
-use McoreServices\TeamleaderSDK\Exceptions\ValidationException;
-use Psr\Log\NullLogger;
-
-class ErrorHandlerTest extends TestCase
+public function test_rejects_an_invalid_subject_type(): void
 {
-    private TeamleaderErrorHandler $errorHandler;
+    $this->expectException(InvalidArgumentException::class);
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-        $this->errorHandler = new TeamleaderErrorHandler(new NullLogger(), true);
-    }
-
-    /** @test */
-    public function it_throws_validation_exception_for_422(): void
-    {
-        $this->expectException(ValidationException::class);
-
-        $result = [
-            'error' => true,
-            'status_code' => 422,
-            'message' => 'Validation failed',
-            'errors' => ['Field is required']
-        ];
-
-        $this->errorHandler->handleApiError($result, 'test');
-    }
-
-    /** @test */
-    public function it_identifies_retryable_errors(): void
-    {
-        $serverError = new ServerException('Server error', 500);
-        
-        $this->assertTrue($this->errorHandler->isRetryableError($serverError));
+    try {
+        $this->resource(Files::class)->forSubject('banana', 'some-uuid');
+    } finally {
+        $this->assertNoRequestMade();
     }
 }
 ```
 
-### Testing Best Practices
+### Queueing responses
 
-#### 1. Use Descriptive Test Names
+The recording client returns `['data' => [], 'headers' => []]` by default. Queue
+something specific when the code under test reads the response:
+
 ```php
-// Good - clear what's being tested
-/** @test */
-public function it_refreshes_expired_tokens(): void
+$this->api->queueListResponse([
+    ['id' => 'file-uuid', 'name' => 'datasheet.pdf'],
+]);
 
-// Bad - unclear purpose
-/** @test */
-public function test_tokens(): void
+$response = $this->resource(Files::class)->forProduct('product-uuid');
 ```
 
-#### 2. Follow Arrange-Act-Assert Pattern
-```php
-/** @test */
-public function it_filters_companies_by_status(): void
-{
-    // Arrange - set up test data
-    $filters = ['status' => 'active'];
-    
-    // Act - perform the action
-    $result = $this->sdk->companies()->list($filters);
-    
-    // Assert - verify the outcome
-    $this->assertArrayHasKey('data', $result);
-}
-```
+`queueResponse(array)`, `queueResponses(array)` and `setDefaultResponse(array)`
+are also available. Queued responses are consumed in order; once exhausted, the
+default is returned again.
 
-#### 3. Test Both Success and Failure Cases
-```php
-/** @test */
-public function it_creates_company_successfully(): void
-{
-    $data = ['name' => 'Test Company'];
-    $result = $this->sdk->companies()->create($data);
-    
-    $this->assertFalse($result['error']);
-}
+## Test Environment
 
-/** @test */
-public function it_fails_to_create_company_without_name(): void
-{
-    $this->expectException(ValidationException::class);
-    
-    $this->sdk->companies()->create([]);
-}
-```
+`TestCase::getEnvironmentSetUp()` sets:
 
-#### 4. Use Data Providers for Similar Tests
-```php
-/**
- * @test
- * @dataProvider invalidEmailProvider
- */
-public function it_rejects_invalid_email_formats(string $email): void
-{
-    $this->expectException(ValidationException::class);
-    
-    $this->sdk->contacts()->create([
-        'first_name' => 'John',
-        'email' => $email
-    ]);
-}
+- `teamleader.client_id`, `client_secret`, `redirect_uri` — test values
+- `teamleader.caching.enabled` — `false`
+- `teamleader.rate_limiting.enabled` — `false`
+- `teamleader.error_handling.throw_exceptions` — `true`
+- `cache.default` — `array`
 
-public static function invalidEmailProvider(): array
-{
-    return [
-        ['not-an-email'],
-        ['missing@domain'],
-        ['@nodomain.com'],
-    ];
-}
-```
-
-## Test Environment Setup
-
-### Configuration
-
-Tests use the `TestCase` base class which automatically:
-- Sets up SQLite in-memory database
-- Configures test Teamleader credentials
-- Enables exception throwing
-- Disables rate limiting and caching for tests
-
-### Custom Test Environment
+It does **not** set up a database. Anything needing one has to configure it
+itself:
 
 ```php
-// In your test class
 protected function getEnvironmentSetUp($app): void
 {
     parent::getEnvironmentSetUp($app);
-    
-    // Override config for this test
-    $app['config']->set('teamleader.api.timeout', 60);
-    $app['config']->set('teamleader.caching.enabled', false);
+
+    $app['config']->set('database.default', 'testing');
+    $app['config']->set('database.connections.testing', [
+        'driver' => 'sqlite',
+        'database' => ':memory:',
+        'prefix' => '',
+    ]);
 }
 ```
 
-### Mocking HTTP Responses
+### Redis tests
 
-```php
-use Illuminate\Support\Facades\Http;
+`RateLimiterTest` needs a real Redis and is tagged `#[Group('redis')]`, which
+`phpunit.xml` excludes by default. It uses DB 15 to avoid colliding with
+application data, and calls `reset()` in `setUp()` so tests stay isolated
+despite sharing an instance.
 
-/** @test */
-public function it_handles_api_errors_gracefully(): void
-{
-    Http::fake([
-        'api.focus.teamleader.eu/*' => Http::response([
-            'errors' => [['title' => 'Not found']]
-        ], 404)
-    ]);
-    
-    $result = $this->sdk->companies()->info('invalid-id');
-    
-    $this->assertTrue($result['error']);
-    $this->assertEquals(404, $result['status_code']);
-}
+Locally, run Redis on `127.0.0.1:6379` or set `REDIS_HOST` in `.env.testing`.
+
+## Continuous Integration
+
+The workflow lives in `.github/workflows/tests.yml` and runs the suite twice:
+once with the `redis` group excluded, once with only that group and a
+`redis:7-alpine` service wired in.
+
+**Keep the matrix in sync with `composer.json`.** Laravel 10 and 11 were dropped
+at v2.0 — both carry unpatched CVEs and Composer's security advisories block
+installation — so they must not appear here.
+
+```yaml
+strategy:
+  matrix:
+    php: ['8.2', '8.3']
+    laravel: ['12.*', '13.*']
 ```
 
 ## Coverage Goals
 
-### Current Coverage
-- ✅ Feature tests for core functionality
-- ✅ Unit tests for critical services
-- ⚠️ Resource tests in progress
+Current state:
 
-### Target Coverage (Before 1.0.0 Stable)
-- **Overall:** 80% code coverage
-- **Services:** 90% coverage
-- **Resources:** 70% coverage (CRUD operations)
-- **Error Handling:** 100% coverage
+- ✅ Services: token handling, error mapping, rate limiting
+- ✅ Payload assertions for resources (infrastructure in place)
+- ⚠️ Only one resource has payload tests — the rest are uncovered
 
-### Priority Areas
-1. **High Priority** (Needed before 1.0.0):
-    - All service classes (TokenService, RateLimiter, ErrorHandler)
-    - OAuth authentication flow
-    - Rate limiting behavior
-    - Error handling and retries
+Targets:
 
-2. **Medium Priority**:
-    - Core resources (Companies, Contacts, Deals, Invoices)
-    - Filtering and pagination
-    - Sideloading functionality
+| Area | Target |
+|---|---|
+| Error handling | 100% |
+| Services | 90% |
+| Resources | 70% (CRUD paths) |
+| Overall | 80% |
 
-3. **Lower Priority**:
-    - Less-used resources
-    - Edge cases
-    - Legacy migration utilities
+Priority order: services first, then the resources most used in production
+(Companies, Contacts, Deals, Invoices), then the long tail.
 
 ## Contributing Tests
 
-When adding features or fixing bugs:
+When fixing a bug, write the test that would have caught it before writing the
+fix. For payload bugs that means asserting on the body — a test that only checks
+the method returns an array would have passed against every one of the defects
+listed at the top of this file.
 
-### 1. Write Tests First (TDD)
-```php
-// 1. Write failing test
-/** @test */
-public function it_can_filter_by_custom_field(): void
-{
-    $result = $this->sdk->companies()->filterByCustomField('field-id', 'value');
-    $this->assertNotEmpty($result['data']);
-}
+Before committing:
 
-// 2. Implement feature
-// 3. Test passes ✅
-```
-
-### 2. Test Requirements for PRs
-- [ ] All existing tests pass
-- [ ] New tests added for new features
-- [ ] Tests added for bug fixes
-- [ ] Edge cases covered
-- [ ] Documentation updated
-
-### 3. Running Tests Before Committing
 ```bash
-# Quick check
+vendor/bin/pint
 composer test
-
-# Full check with coverage
-vendor/bin/phpunit --coverage-text
-
-# Ensure no breaking changes
-vendor/bin/phpunit --testsuite=Feature
-```
-
-## Continuous Integration
-
-### GitHub Actions (Recommended)
-
-Create `.github/workflows/tests.yml`:
-
-```yaml
-name: Tests
-
-on: [push, pull_request]
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        php: ['8.2', '8.3']
-        laravel: ['10.*', '11.*']
-    
-    steps:
-    - uses: actions/checkout@v3
-    - uses: shivammathur/setup-php@v2
-      with:
-        php-version: ${{ matrix.php }}
-    - run: composer install
-    - run: composer test
-```
-
-## Debugging Tests
-
-### View Detailed Output
-```bash
-# Show all output
-vendor/bin/phpunit --verbose
-
-# Show debug information
-vendor/bin/phpunit --debug
-
-# Stop on first failure
-vendor/bin/phpunit --stop-on-failure
-```
-
-### Using dd() in Tests
-```php
-/** @test */
-public function it_debugs_response(): void
-{
-    $result = $this->sdk->companies()->list();
-    
-    // Dump and die to inspect
-    dd($result);
-    
-    $this->assertNotEmpty($result);
-}
-```
-
-### Test-Specific Logging
-```php
-/** @test */
-public function it_logs_for_debugging(): void
-{
-    Log::info('Test starting', ['context' => 'debug']);
-    
-    $result = $this->sdk->companies()->list();
-    
-    Log::info('Result received', $result);
-    
-    $this->assertNotEmpty($result);
-}
 ```
 
 ## Resources
@@ -437,7 +248,3 @@ public function it_logs_for_debugging(): void
 - **Issues:** [GitHub Issues](https://github.com/mcore-services-bv/teamleader-sdk/issues)
 - **Discussions:** [GitHub Discussions](https://github.com/mcore-services-bv/teamleader-sdk/discussions)
 - **Email:** help@mcore-services.be
-
----
-
-**Happy Testing!** 🧪
