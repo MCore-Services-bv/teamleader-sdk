@@ -7,6 +7,11 @@ use McoreServices\TeamleaderSDK\Resources\Resource;
 
 class CustomFields extends Resource
 {
+    /**
+     * Safety limit on the number of pages all() will fetch.
+     */
+    protected const MAX_PAGES = 50;
+
     protected string $description = 'Manage custom field definitions in Teamleader Focus';
 
     // Resource capabilities
@@ -18,12 +23,16 @@ class CustomFields extends Resource
 
     protected bool $supportsBatch = false;
 
-    protected bool $supportsPagination = true; // FIX: API does paginate (default page size = 20)
+    protected bool $supportsPagination = true; // API paginates (default page size = 20)
 
-    // Available includes for sideloading
-    protected array $availableIncludes = [
-        // No specific includes mentioned in API docs for custom fields
-    ];
+    protected bool $supportsFiltering = true;
+
+    protected bool $supportsSorting = true;    // customFieldDefinitions.list sorts on label and context
+
+    protected bool $supportsSideloading = false; // The endpoint declares no includes
+
+    // Available includes for sideloading (none — the API declares none)
+    protected array $availableIncludes = [];
 
     // Valid types based on API documentation
     protected array $validTypes = [
@@ -46,7 +55,13 @@ class CustomFields extends Resource
         'user',
     ];
 
-    // Valid contexts based on API documentation
+    /**
+     * Valid context values.
+     *
+     * Verified against @teamleader/focus-api-specification v1.197.0 — this is
+     * the complete Context enum. Note that `quotation` and `creditnote` are not
+     * in it; helpers for both were removed in v2.1.2 because the API rejects them.
+     */
     protected array $validContexts = [
         'contact',
         'company',
@@ -57,6 +72,25 @@ class CustomFields extends Resource
         'invoice',
         'subscription',
         'ticket',
+    ];
+
+    /**
+     * Context values the API returns that differ from the value it accepts.
+     *
+     * Teamleader accepts `context: deal` as a filter but returns `context: sale`
+     * on the definitions it sends back. Teamleader has confirmed this is a defect
+     * on their side. Until it is fixed, responses are normalised here so that what
+     * you filter by and what you read back are the same string — otherwise any
+     * comparison against 'deal' silently matches nothing.
+     *
+     * Normalisation is one-directional on purpose: `sale` is not accepted as an
+     * inbound filter value, because the API rejects it and quietly translating an
+     * invalid input into a valid one would hide the discrepancy in both directions.
+     *
+     * Remove an entry here once the API stops returning the left-hand value.
+     */
+    protected array $contextResponseAliases = [
+        'sale' => 'deal',
     ];
 
     // Types that support the 'options' configuration key
@@ -76,17 +110,34 @@ class CustomFields extends Resource
         'telephone',
     ];
 
-    // Common filters based on API documentation
+    /**
+     * Filters accepted by customFieldDefinitions.list.
+     *
+     * The keys of this array are the filter whitelist used by buildFilters().
+     * There is no `type` filter — see byType(), which filters client-side.
+     */
     protected array $commonFilters = [
         'ids' => 'Array of custom field UUIDs to filter by',
         'context' => 'Filter by context (contact, company, deal, project, milestone, product, invoice, subscription, ticket)',
     ];
 
+    /**
+     * Sort fields accepted by customFieldDefinitions.list.
+     */
+    protected array $availableSortFields = [
+        'label' => 'Sort by field label',
+        'context' => 'Sort by context',
+    ];
+
     // Usage examples specific to custom fields
     protected array $usageExamples = [
         'list_all' => [
-            'description' => 'Get all custom fields',
+            'description' => 'Get the first page of custom fields',
             'code' => '$customFields = $teamleader->customFields()->list();',
+        ],
+        'list_every_page' => [
+            'description' => 'Get every custom field definition, paging automatically',
+            'code' => '$customFields = $teamleader->customFields()->all();',
         ],
         'list_by_context' => [
             'description' => 'Get custom fields for specific context',
@@ -119,13 +170,18 @@ class CustomFields extends Resource
     }
 
     /**
-     * List custom fields with optional filtering and pagination.
+     * List custom fields with optional filtering, sorting and pagination.
      *
-     * The Teamleader API defaults to a page size of 20. Always pass
-     * page_size and page_number via $options to retrieve all records.
+     * The Teamleader API defaults to a page size of 20. Pass page_size and
+     * page_number via $options, or use all() to page automatically.
+     *
+     * Deal definitions come back from the API with `context: sale`; this method
+     * normalises that to `deal` — see $contextResponseAliases.
      *
      * @param  array  $filters  Filters to apply (ids, context)
-     * @param  array  $options  Pagination options: page_size, page_number
+     * @param  array  $options  page_size, page_number, sort, sort_order
+     *
+     * @throws InvalidArgumentException When a filter key or sort field is not supported
      */
     public function list(array $filters = [], array $options = []): array
     {
@@ -133,7 +189,11 @@ class CustomFields extends Resource
 
         // Apply filters
         if (! empty($filters)) {
-            $params['filter'] = $this->buildFilters($filters);
+            $apiFilters = $this->buildFilters($filters);
+
+            if (! empty($apiFilters)) {
+                $params['filter'] = $apiFilters;
+            }
         }
 
         // Apply pagination — required to retrieve more than the default 20 records
@@ -142,26 +202,82 @@ class CustomFields extends Resource
             'number' => $options['page_number'] ?? 1,
         ];
 
-        return $this->api->request('POST', $this->getBasePath().'.list', $params);
+        // Apply sorting
+        if (isset($options['sort'])) {
+            $params['sort'] = $this->buildSort($options['sort'], $options['sort_order'] ?? 'asc');
+        }
+
+        $response = $this->api->request('POST', $this->getBasePath().'.list', $params);
+
+        return $this->normaliseContextValues($response);
+    }
+
+    /**
+     * Get every custom field definition, paging until the list is exhausted.
+     *
+     * The API returns no total count, so the end of the list is inferred from a
+     * page shorter than the requested page size. A full final page therefore
+     * costs one extra empty request.
+     *
+     * Makes multiple API calls. The returned array carries `data` and
+     * `total_count` but no `headers`, since there is no single response to take
+     * them from.
+     *
+     * @param  array  $filters  Filters to apply to every page
+     * @param  int  $pageSize  Records per request
+     */
+    public function all(array $filters = [], int $pageSize = 100): array
+    {
+        $definitions = [];
+        $pageNumber = 1;
+
+        do {
+            $response = $this->list($filters, [
+                'page_size' => $pageSize,
+                'page_number' => $pageNumber,
+            ]);
+
+            $batch = $response['data'] ?? [];
+
+            if (! is_array($batch) || $batch === []) {
+                break;
+            }
+
+            $definitions = array_merge($definitions, $batch);
+            $pageNumber++;
+        } while (count($batch) === $pageSize && $pageNumber <= self::MAX_PAGES);
+
+        return [
+            'data' => $definitions,
+            'total_count' => count($definitions),
+        ];
     }
 
     /**
      * Get custom field information
      *
+     * Deal definitions come back from the API with `context: sale`; this method
+     * normalises that to `deal` — see $contextResponseAliases.
+     *
      * @param  string  $id  Custom field UUID
-     * @param  mixed  $includes  Includes (not used for custom fields)
+     * @param  mixed  $includes  Not supported by this endpoint
+     *
+     * @throws InvalidArgumentException When includes are requested
      */
     public function info($id, $includes = null): array
     {
-        $params = ['id' => $id];
-
         if (! empty($includes)) {
-            $params = $this->applyIncludes($params, $includes);
+            throw new InvalidArgumentException(
+                'customFieldDefinitions does not support sideloading. '
+                .'Call info() with the id only.'
+            );
         }
 
-        $params = $this->applyPendingIncludes($params);
+        $response = $this->api->request('POST', $this->getBasePath().'.info', [
+            'id' => $id,
+        ]);
 
-        return $this->api->request('POST', $this->getBasePath().'.info', $params);
+        return $this->normaliseContextValues($response);
     }
 
     /**
@@ -176,6 +292,44 @@ class CustomFields extends Resource
         $data = $this->validateCreateData($data);
 
         return $this->api->request('POST', $this->getBasePath().'.create', $data);
+    }
+
+    /**
+     * Rewrite context values the API returns inconsistently.
+     *
+     * Handles both response shapes: list() returns a numerically indexed array of
+     * definitions, info() returns a single definition. An empty data array passes
+     * through untouched.
+     */
+    protected function normaliseContextValues(array $response): array
+    {
+        if (! isset($response['data']) || ! is_array($response['data'])) {
+            return $response;
+        }
+
+        if (array_is_list($response['data'])) {
+            foreach ($response['data'] as $index => $definition) {
+                if (! is_array($definition)) {
+                    continue;
+                }
+
+                $context = $definition['context'] ?? null;
+
+                if (is_string($context) && isset($this->contextResponseAliases[$context])) {
+                    $response['data'][$index]['context'] = $this->contextResponseAliases[$context];
+                }
+            }
+
+            return $response;
+        }
+
+        $context = $response['data']['context'] ?? null;
+
+        if (is_string($context) && isset($this->contextResponseAliases[$context])) {
+            $response['data']['context'] = $this->contextResponseAliases[$context];
+        }
+
+        return $response;
     }
 
     /**
@@ -209,11 +363,7 @@ class CustomFields extends Resource
             throw new InvalidArgumentException('Custom field context is required.');
         }
 
-        if (! in_array($data['context'], $this->validContexts, true)) {
-            throw new InvalidArgumentException(
-                "Invalid custom field context '{$data['context']}'. Valid contexts: ".implode(', ', $this->validContexts)
-            );
-        }
+        $this->validateContext($data['context']);
 
         // Validate optional: configuration
         if (isset($data['configuration']) && is_array($data['configuration'])) {
@@ -221,6 +371,29 @@ class CustomFields extends Resource
         }
 
         return $data;
+    }
+
+    /**
+     * Validate a context value against the API's Context enum
+     *
+     * @throws InvalidArgumentException
+     */
+    protected function validateContext(string $context): void
+    {
+        if (in_array($context, $this->validContexts, true)) {
+            return;
+        }
+
+        $message = "Invalid custom field context '{$context}'. Valid contexts: "
+            .implode(', ', $this->validContexts).'.';
+
+        if (isset($this->contextResponseAliases[$context])) {
+            $message .= " The API returns '{$context}' in responses but does not accept it as a filter; "
+                ."use '{$this->contextResponseAliases[$context]}' instead. The SDK normalises this "
+                .'automatically on the way back.';
+        }
+
+        throw new InvalidArgumentException($message);
     }
 
     /**
@@ -274,116 +447,134 @@ class CustomFields extends Resource
      * Get custom fields for a specific context
      *
      * @param  string  $context  The context to filter by
+     * @param  array  $options  Pagination and sorting options
+     *
+     * @throws InvalidArgumentException When the context is not one the API accepts
      */
-    public function forContext(string $context): array
+    public function forContext(string $context, array $options = []): array
     {
-        return $this->list(['context' => $context]);
+        $this->validateContext($context);
+
+        return $this->list(['context' => $context], $options);
     }
 
     /**
      * Get contact custom fields
      */
-    public function forContacts(): array
+    public function forContacts(array $options = []): array
     {
-        return $this->forContext('contact');
+        return $this->forContext('contact', $options);
     }
 
     /**
      * Get company custom fields
      */
-    public function forCompanies(): array
+    public function forCompanies(array $options = []): array
     {
-        return $this->forContext('company');
+        return $this->forContext('company', $options);
     }
 
     /**
      * Get deal custom fields
+     *
+     * The API returns these with `context: sale`; the SDK normalises that to
+     * `deal` so the value you filter by and the value you read back match.
      */
-    public function forDeals(): array
+    public function forDeals(array $options = []): array
     {
-        return $this->forContext('deal');
+        return $this->forContext('deal', $options);
     }
 
     /**
-     * Get sale custom fields (alias for forDeals — same API context)
+     * Get sale custom fields — alias for forDeals()
+     *
+     * Kept for callers who think in the API's response vocabulary. `sale` is what
+     * the API returns; `deal` is what it accepts, and what the SDK returns after
+     * normalisation.
      */
-    public function forSales(): array
+    public function forSales(array $options = []): array
     {
-        return $this->forContext('deal');
+        return $this->forContext('deal', $options);
     }
 
     /**
      * Get subscription custom fields
      */
-    public function forSubscriptions(): array
+    public function forSubscriptions(array $options = []): array
     {
-        return $this->forContext('subscription');
-    }
-
-    /**
-     * Get quotation custom fields
-     */
-    public function forQuotations(): array
-    {
-        return $this->forContext('quotation');
-    }
-
-    /**
-     * Get credit note custom fields
-     */
-    public function forCreditnotes(): array
-    {
-        return $this->forContext('creditnote');
+        return $this->forContext('subscription', $options);
     }
 
     /**
      * Get project custom fields
      */
-    public function forProjects(): array
+    public function forProjects(array $options = []): array
     {
-        return $this->forContext('project');
+        return $this->forContext('project', $options);
     }
 
     /**
      * Get invoice custom fields
      */
-    public function forInvoices(): array
+    public function forInvoices(array $options = []): array
     {
-        return $this->forContext('invoice');
+        return $this->forContext('invoice', $options);
     }
 
     /**
      * Get product custom fields
      */
-    public function forProducts(): array
+    public function forProducts(array $options = []): array
     {
-        return $this->forContext('product');
+        return $this->forContext('product', $options);
     }
 
     /**
      * Get milestone custom fields
      */
-    public function forMilestones(): array
+    public function forMilestones(array $options = []): array
     {
-        return $this->forContext('milestone');
+        return $this->forContext('milestone', $options);
     }
 
     /**
      * Get ticket custom fields
      */
-    public function forTickets(): array
+    public function forTickets(array $options = []): array
     {
-        return $this->forContext('ticket');
+        return $this->forContext('ticket', $options);
     }
 
     /**
-     * Get custom fields by type
+     * Get custom fields of a specific type
+     *
+     * The API has no `type` filter, so this pages through every definition and
+     * filters client-side. It therefore makes multiple API calls and returns
+     * `data` and `total_count` without `headers`.
      *
      * @param  string  $type  The field type
+     *
+     * @throws InvalidArgumentException When the type is not one the API defines
      */
     public function byType(string $type): array
     {
-        return $this->list(['type' => $type]);
+        if (! in_array($type, $this->validTypes, true)) {
+            throw new InvalidArgumentException(
+                "Invalid custom field type '{$type}'. Valid types: ".implode(', ', $this->validTypes)
+            );
+        }
+
+        $all = $this->all();
+
+        $matching = array_values(array_filter(
+            $all['data'],
+            fn ($definition) => is_array($definition) && ($definition['type'] ?? null) === $type
+        ));
+
+        return [
+            'data' => $matching,
+            'total_count' => count($matching),
+        ];
     }
 
     /**
@@ -397,21 +588,134 @@ class CustomFields extends Resource
     }
 
     /**
-     * Build filters array for the API request
+     * Build the filter object for the API request
+     *
+     * Rejects keys customFieldDefinitions.list does not accept. The API ignores
+     * unrecognised filter keys and answers 200 with the full unfiltered set, so
+     * forwarding them produces silently wrong results rather than an error.
+     *
+     * @throws InvalidArgumentException When a filter key is not supported
      */
     protected function buildFilters(array $filters): array
     {
-        $apiFilters = [];
+        $supported = array_keys($this->commonFilters);
+        $unknown = array_diff(array_keys($filters), $supported);
 
-        if (isset($filters['ids']) && is_array($filters['ids'])) {
-            $apiFilters['ids'] = $filters['ids'];
+        if ($unknown !== []) {
+            $message = 'Unsupported filter '.(count($unknown) > 1 ? 'keys' : 'key')
+                .' for customFieldDefinitions.list: '.implode(', ', $unknown)
+                .'. Supported: '.implode(', ', $supported).'.';
+
+            if (in_array('type', $unknown, true)) {
+                $message .= ' The API has no type filter; use byType(), which filters client-side.';
+            }
+
+            throw new InvalidArgumentException($message);
         }
 
-        if (isset($filters['context']) && is_string($filters['context'])) {
+        $apiFilters = [];
+
+        if (isset($filters['ids'])) {
+            $apiFilters['ids'] = is_array($filters['ids']) ? $filters['ids'] : [$filters['ids']];
+        }
+
+        if (isset($filters['context'])) {
+            if (! is_string($filters['context'])) {
+                throw new InvalidArgumentException('The context filter must be a string.');
+            }
+
+            $this->validateContext($filters['context']);
+
             $apiFilters['context'] = $filters['context'];
         }
 
         return $apiFilters;
+    }
+
+    /**
+     * Build the sort object for the API request
+     *
+     * The API expects an array of objects — [['field' => ..., 'order' => ...]].
+     *
+     * @param  array|string  $sort  A field name, an array of field names, or an
+     *                              array of ['field' => ..., 'order' => ...] entries
+     * @param  string  $order  Default order applied to entries that do not carry one
+     *
+     * @throws InvalidArgumentException When a sort field or order is not supported
+     */
+    protected function buildSort($sort, string $order = 'asc'): array
+    {
+        $order = $this->normaliseSortOrder($order);
+
+        // Already a list of sort objects
+        if (is_array($sort) && isset($sort[0]) && is_array($sort[0])) {
+            return array_map(function (array $entry) use ($order) {
+                return [
+                    'field' => $this->validateSortField($entry['field'] ?? null),
+                    'order' => $this->normaliseSortOrder($entry['order'] ?? $order),
+                ];
+            }, $sort);
+        }
+
+        // A single ['field' => ..., 'order' => ...] entry
+        if (is_array($sort) && isset($sort['field'])) {
+            return [[
+                'field' => $this->validateSortField($sort['field']),
+                'order' => $this->normaliseSortOrder($sort['order'] ?? $order),
+            ]];
+        }
+
+        // A list of field names
+        if (is_array($sort)) {
+            return array_map(fn ($field) => [
+                'field' => $this->validateSortField($field),
+                'order' => $order,
+            ], array_values($sort));
+        }
+
+        // A single field name
+        return [[
+            'field' => $this->validateSortField($sort),
+            'order' => $order,
+        ]];
+    }
+
+    /**
+     * Ensure a sort field is one the API accepts
+     *
+     * @throws InvalidArgumentException
+     */
+    protected function validateSortField(mixed $field): string
+    {
+        if (! is_string($field) || ! array_key_exists($field, $this->availableSortFields)) {
+            throw new InvalidArgumentException(
+                'Invalid sort field: '.(is_string($field) ? $field : gettype($field))
+                .'. customFieldDefinitions.list accepts: '
+                .implode(', ', array_keys($this->availableSortFields)).'.'
+            );
+        }
+
+        return $field;
+    }
+
+    /**
+     * Ensure a sort order is asc or desc
+     *
+     * @throws InvalidArgumentException
+     */
+    protected function normaliseSortOrder(mixed $order): string
+    {
+        if (! is_string($order)) {
+            throw new InvalidArgumentException('Sort order must be a string: asc or desc.');
+        }
+
+        $normalised = strtolower($order);
+
+        if (! in_array($normalised, ['asc', 'desc'], true)) {
+            throw new InvalidArgumentException("Invalid sort order: {$order}. Must be asc or desc.");
+        }
+
+        return $normalised;
     }
 
     /**
@@ -422,7 +726,7 @@ class CustomFields extends Resource
         return [
             'contact' => 'Contact custom fields',
             'company' => 'Company custom fields',
-            'deal' => 'Deal custom fields',
+            'deal' => 'Deal custom fields (returned by the API as "sale", normalised to "deal")',
             'project' => 'Project custom fields',
             'milestone' => 'Milestone custom fields',
             'product' => 'Product custom fields',
