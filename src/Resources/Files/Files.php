@@ -34,12 +34,60 @@ class Files extends Resource
 
     // Common filters based on API documentation
     protected array $commonFilters = [
-        'subject' => 'Object containing subject type and id (company, contact, deal, invoice, etc.)',
+        'subject' => 'REQUIRED: Object containing subject type and id — see $listSubjectTypes for accepted types',
     ];
 
-    // Available sort fields
+    // Available sort fields — updated_at is the only field the API accepts
     protected array $availableSortFields = [
         'updated_at' => 'Sort by file update date',
+    ];
+
+    /**
+     * Subject types accepted by files.list.
+     *
+     * Verified against @teamleader/focus-api-specification v1.197.0.
+     *
+     * This list deliberately differs from $uploadSubjectTypes: `meeting`,
+     * `product` and `project` are valid for listing only, and `temporary` is
+     * valid for uploading only — a temporary file has no subject to filter on.
+     *
+     * Both `project` and `nextgenProject` are accepted here. `project` is the
+     * legacy project system and `nextgenProject` is the current one; see the
+     * Projects and LegacyProjects resources, or call
+     * Teamleader::accounts()->getProjectsVersion() to find out which system an
+     * account is on.
+     *
+     * @see https://developer.focus.teamleader.eu/docs/api/files-list
+     */
+    protected array $listSubjectTypes = [
+        'company',
+        'contact',
+        'creditNote',
+        'deal',
+        'invoice',
+        'meeting',
+        'nextgenProject',
+        'product',
+        'project',
+        'ticket',
+    ];
+
+    /**
+     * Subject types accepted by files.upload.
+     *
+     * `temporary` requires no subject id; every other type does.
+     *
+     * @see https://developer.focus.teamleader.eu/docs/api/files-upload
+     */
+    protected array $uploadSubjectTypes = [
+        'company',
+        'contact',
+        'creditNote',
+        'deal',
+        'invoice',
+        'nextgenProject',
+        'temporary',
+        'ticket',
     ];
 
     // Usage examples specific to files
@@ -47,6 +95,10 @@ class Files extends Resource
         'list_for_subject' => [
             'description' => 'Get all files for a company',
             'code' => '$files = $teamleader->files()->list([\'subject\' => [\'type\' => \'company\', \'id\' => \'company-uuid\']]);',
+        ],
+        'list_for_product' => [
+            'description' => 'Get all files attached to a product (technical sheets, EPB documentation)',
+            'code' => '$files = $teamleader->files()->forProduct(\'product-uuid\');',
         ],
         'upload_file' => [
             'description' => 'Upload a file to a company',
@@ -75,18 +127,46 @@ class Files extends Resource
     }
 
     /**
+     * Validate a subject type against the types the given operation accepts.
+     *
+     * files.list and files.upload accept different sets — see $listSubjectTypes
+     * and $uploadSubjectTypes.
+     *
+     * @param  string  $type  The subject type to validate
+     * @param  string  $operation  Either 'list' or 'upload'
+     *
+     * @throws InvalidArgumentException When the type is not valid for the operation
+     */
+    protected function validateSubjectType(string $type, string $operation = 'list'): void
+    {
+        $validTypes = $operation === 'upload'
+            ? $this->uploadSubjectTypes
+            : $this->listSubjectTypes;
+
+        if (! in_array($type, $validTypes, true)) {
+            throw new InvalidArgumentException(
+                "Invalid subject type: {$type}. files.{$operation} accepts: "
+                .implode(', ', $validTypes).'.'
+            );
+        }
+    }
+
+    /**
      * Build query parameters for Files API requests.
      *
-     * Files API requires a 'filter' object with 'subject' containing type and id.
+     * The Files API requires a 'filter' object containing 'subject' with both
+     * type and id — there is no way to list files without one.
      *
      * @param  array  $baseParams  Base parameters
      * @param  array  $filters  Filters to apply (must contain 'subject' => ['type' => ..., 'id' => ...])
-     * @param  string|null  $sort  Sorting field
+     * @param  string|null  $sort  Sorting field (only 'updated_at' is accepted)
      * @param  string  $sortOrder  Sort order
      * @param  int  $pageSize  Page size
      * @param  int  $pageNumber  Page number
-     * @param  mixed  $includes  Includes (not used for files)
+     * @param  mixed  $includes  Ignored — files do not support sideloading
      * @return array Complete parameters array
+     *
+     * @throws InvalidArgumentException When the subject filter is missing or invalid
      */
     protected function buildQueryParams(
         array $baseParams = [],
@@ -99,45 +179,52 @@ class Files extends Resource
     ): array {
         $params = $baseParams;
 
-        // Build filter object - Files API requires subject filter
-        if (! empty($filters)) {
-            $filterObj = [];
-
-            // Handle subject filter (required for Files API)
-            if (isset($filters['subject'])) {
-                $subject = $filters['subject'];
-
-                // Validate subject structure
-                if (! isset($subject['type']) || ! isset($subject['id'])) {
-                    throw new InvalidArgumentException(
-                        'subject filter must contain both type and id'
-                    );
-                }
-
-                // Validate subject type
-                $validTypes = ['company', 'contact', 'deal', 'invoice', 'creditNote', 'nextgenProject', 'ticket', 'temporary'];
-                if (! in_array($subject['type'], $validTypes)) {
-                    throw new InvalidArgumentException(
-                        "Invalid subject type: {$subject['type']}. Must be one of: ".implode(', ', $validTypes)
-                    );
-                }
-
-                $filterObj['subject'] = [
-                    'type' => $subject['type'],
-                    'id' => $subject['id'],
-                ];
-            }
-
-            // Only add filter if we have something
-            if (! empty($filterObj)) {
-                $params['filter'] = $filterObj;
-            }
+        // The subject filter is required by the API — fail here rather than
+        // sending a request that can only come back as a 400.
+        if (! isset($filters['subject'])) {
+            throw new InvalidArgumentException(
+                'The subject filter is required for files.list. Pass '
+                ."['subject' => ['type' => ..., 'id' => ...]], or use one of the "
+                .'forCompany(), forDeal(), forProduct() helpers.'
+            );
         }
 
-        // Build sort object
+        $subject = $filters['subject'];
+
+        if (! is_array($subject) || ! isset($subject['type']) || ! isset($subject['id'])) {
+            throw new InvalidArgumentException(
+                'subject filter must contain both type and id'
+            );
+        }
+
+        $this->validateSubjectType($subject['type'], 'list');
+
+        $params['filter'] = [
+            'subject' => [
+                'type' => $subject['type'],
+                'id' => $subject['id'],
+            ],
+        ];
+
+        // Build sort object.
+        //
+        // The API expects an array of objects — [['field' => ..., 'order' => ...]].
+        // A string array such as ['-updated_at'] is silently ignored, so results
+        // come back in the API's own order with no error.
         if ($sort !== null) {
-            $direction = strtolower($sortOrder) === 'asc' ? '' : '-';
-            $params['sort'] = [$direction.$sort];
+            if (! array_key_exists($sort, $this->availableSortFields)) {
+                throw new InvalidArgumentException(
+                    "Invalid sort field: {$sort}. files.list accepts: "
+                    .implode(', ', array_keys($this->availableSortFields)).'.'
+                );
+            }
+
+            $params['sort'] = [
+                [
+                    'field' => $sort,
+                    'order' => strtolower($sortOrder) === 'asc' ? 'asc' : 'desc',
+                ],
+            ];
         }
 
         // Build page object
@@ -152,7 +239,14 @@ class Files extends Resource
     }
 
     /**
-     * List files with enhanced filtering and sorting
+     * List files for a subject.
+     *
+     * The subject filter is required — see buildQueryParams().
+     *
+     * @param  array  $filters  Must contain 'subject' => ['type' => ..., 'id' => ...]
+     * @param  array  $options  sort, sort_order, page_size, page_number
+     *
+     * @throws InvalidArgumentException When the subject filter is missing or invalid
      */
     public function list(array $filters = [], array $options = []): array
     {
@@ -186,11 +280,16 @@ class Files extends Resource
     /**
      * Request upload link for a file
      *
+     * Note that files.upload accepts a narrower set of subject types than
+     * files.list — see $uploadSubjectTypes.
+     *
      * @param  string  $name  File name with extension
-     * @param  string  $subjectType  Subject type (company, contact, deal, invoice, creditNote, nextgenProject, ticket, temporary)
+     * @param  string  $subjectType  Subject type — see $uploadSubjectTypes
      * @param  string|null  $subjectId  Subject UUID — not required when subjectType is 'temporary'
      * @param  string|null  $folder  Optional folder name (defaults to General in account language)
      * @return array Upload location and expires_at
+     *
+     * @throws InvalidArgumentException When the name, subject type or subject id is missing or invalid
      */
     public function upload(string $name, string $subjectType, ?string $subjectId = null, ?string $folder = null): array
     {
@@ -202,10 +301,7 @@ class Files extends Resource
             throw new InvalidArgumentException('Subject type is required');
         }
 
-        $validSubjectTypes = ['company', 'contact', 'deal', 'invoice', 'creditNote', 'nextgenProject', 'ticket', 'temporary'];
-        if (! in_array($subjectType, $validSubjectTypes)) {
-            throw new InvalidArgumentException('Invalid subject type. Must be one of: '.implode(', ', $validSubjectTypes));
-        }
+        $this->validateSubjectType($subjectType, 'upload');
 
         // subject.id is required for all types except temporary
         if ($subjectType !== 'temporary' && empty($subjectId)) {
@@ -266,12 +362,16 @@ class Files extends Resource
     /**
      * Helper method to get files for a specific subject
      *
-     * @param  string  $subjectType  Subject type (company, contact, deal, etc.)
+     * @param  string  $subjectType  Subject type — see $listSubjectTypes
      * @param  string  $subjectId  Subject UUID
-     * @param  array  $options  Additional options
+     * @param  array  $options  Additional options (sort, sort_order, page_size, page_number, filters)
+     *
+     * @throws InvalidArgumentException When the subject type is not valid for files.list
      */
     public function forSubject(string $subjectType, string $subjectId, array $options = []): array
     {
+        $this->validateSubjectType($subjectType, 'list');
+
         return $this->list(
             array_merge([
                 'subject' => [
@@ -300,6 +400,14 @@ class Files extends Resource
     }
 
     /**
+     * Get files for a credit note
+     */
+    public function forCreditNote(string $creditNoteId, array $options = []): array
+    {
+        return $this->forSubject('creditNote', $creditNoteId, $options);
+    }
+
+    /**
      * Get files for a deal
      */
     public function forDeal(string $dealId, array $options = []): array
@@ -316,11 +424,51 @@ class Files extends Resource
     }
 
     /**
-     * Get files for a project
+     * Get files for a meeting
+     *
+     * Listing only — files cannot be uploaded to a meeting through the API.
+     */
+    public function forMeeting(string $meetingId, array $options = []): array
+    {
+        return $this->forSubject('meeting', $meetingId, $options);
+    }
+
+    /**
+     * Get files for a product
+     *
+     * Products carry technical attachments — specification sheets, EPB
+     * documentation, installation instructions — which an integration mirroring
+     * the product catalogue needs to enumerate alongside the product record.
+     *
+     * Listing only — files cannot be uploaded to a product through the API.
+     */
+    public function forProduct(string $productId, array $options = []): array
+    {
+        return $this->forSubject('product', $productId, $options);
+    }
+
+    /**
+     * Get files for a project on the current (nextgen) project system
+     *
+     * This is the counterpart to Teamleader::projects(). For accounts still on
+     * the old project system use forLegacyProject() instead.
      */
     public function forProject(string $projectId, array $options = []): array
     {
         return $this->forSubject('nextgenProject', $projectId, $options);
+    }
+
+    /**
+     * Get files for a project on the legacy project system
+     *
+     * This is the counterpart to Teamleader::legacyProjects(). For accounts on
+     * the current project system use forProject() instead.
+     *
+     * Listing only — files cannot be uploaded to a legacy project through the API.
+     */
+    public function forLegacyProject(string $projectId, array $options = []): array
+    {
+        return $this->forSubject('project', $projectId, $options);
     }
 
     /**
