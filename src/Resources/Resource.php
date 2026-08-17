@@ -407,6 +407,29 @@ abstract class Resource
     }
 
     /**
+     * Validate data before a create or update request
+     *
+     * A pass-through hook. Resources override it to enforce their own rules and
+     * may return a modified payload — several call `parent::validateData()` at
+     * the end of their override, which is why this base implementation has to
+     * exist even though it does nothing.
+     *
+     * Note that most resources do their validation in a bespoke method instead
+     * (validateDealData(), validateCreateData(), validateTimeTrackingData(), and
+     * so on) and never call this. It is a hook, not a guaranteed pipeline step:
+     * nothing in this base class invokes it, so overriding it does not by itself
+     * make validation run.
+     *
+     * @param  array  $data  The payload about to be sent
+     * @param  string  $operation  'create' or 'update'
+     * @return array The payload to send
+     */
+    protected function validateData(array $data, string $operation = 'create'): array
+    {
+        return $data;
+    }
+
+    /**
      * Validate a UUID format
      *
      * Ensures the provided ID matches UUID v4 format.
