@@ -430,6 +430,66 @@ abstract class Resource
     }
 
     /**
+     * Reject list() arguments this endpoint cannot use
+     *
+     * Every resource inherits the same list(array $filters, array $options)
+     * signature, but a number of Teamleader endpoints accept no filter, sort or
+     * page parameters at all. Silently discarding what the caller asked for is
+     * the worst option available: the request succeeds, the full unfiltered list
+     * comes back, and the mistake surfaces much later in whatever consumed it.
+     *
+     * A pager that treats a short page as "end of list" reads a complete list as
+     * complete by coincidence, and starts looping forever once the account grows
+     * past the requested page size.
+     *
+     * Resources wrapping such an endpoint call this at the top of list(). What
+     * gets rejected is driven by the capability flags, so a resource that
+     * supports pagination but not filtering — Tags, for example — only rejects
+     * filters.
+     *
+     * @param  array  $filters  The filters the caller passed
+     * @param  array  $options  The options the caller passed
+     *
+     * @throws InvalidArgumentException When an argument cannot be honoured
+     */
+    protected function rejectUnsupportedListArguments(array $filters, array $options): void
+    {
+        $endpoint = $this->getBasePath().'.list';
+
+        if ($filters !== [] && ! $this->supportsFiltering) {
+            throw new InvalidArgumentException(
+                "{$endpoint} does not support filtering. Passed: "
+                .implode(', ', array_keys($filters))
+                .'. Call list() without filters; the endpoint returns every record. '
+                .'See getCapabilities() for what this resource supports.'
+            );
+        }
+
+        if (! $this->supportsSorting) {
+            $sortKeys = array_intersect(['sort', 'sort_order', 'sort_field'], array_keys($options));
+
+            if ($sortKeys !== []) {
+                throw new InvalidArgumentException(
+                    "{$endpoint} does not support sorting. Passed: "
+                    .implode(', ', $sortKeys).'. Records come back in the order the API chooses.'
+                );
+            }
+        }
+
+        if (! $this->supportsPagination) {
+            $pageKeys = array_intersect(['page', 'page_size', 'page_number'], array_keys($options));
+
+            if ($pageKeys !== []) {
+                throw new InvalidArgumentException(
+                    "{$endpoint} does not support pagination. Passed: "
+                    .implode(', ', $pageKeys).'. The endpoint returns every record in a '
+                    .'single response, so there are no pages to request.'
+                );
+            }
+        }
+    }
+
+    /**
      * Validate a UUID format
      *
      * Ensures the provided ID matches UUID v4 format.

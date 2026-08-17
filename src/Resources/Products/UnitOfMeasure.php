@@ -7,7 +7,7 @@ use McoreServices\TeamleaderSDK\Resources\Resource;
 
 class UnitOfMeasure extends Resource
 {
-    protected string $description = 'Manage units of measure in Teamleader Focus';
+    protected string $description = 'Manage units of measure in Teamleader Focus — read-only, and unpaginated: list() returns every unit in one response and accepts no arguments';
 
     // Resource capabilities - Units of Measure are read-only based on API docs
     protected bool $supportsCreation = false;
@@ -62,12 +62,41 @@ class UnitOfMeasure extends Resource
     /**
      * List all units of measure
      *
-     * @param  array  $filters  Not used for this endpoint
-     * @param  array  $options  Not used for this endpoint
+     * `unitsOfMeasure.list` takes no request body at all — the API specification
+     * declares no filter, page or sort parameter for it. The inherited signature
+     * still offers them, so arguments are rejected rather than discarded: before
+     * v2.1.2 they were dropped silently, and every call returned the complete
+     * list regardless of what was asked for.
+     *
+     * @param  array  $filters  Must be empty — this endpoint accepts no filters
+     * @param  array  $options  Must be empty — this endpoint accepts no sorting or pagination
+     *
+     * @throws \InvalidArgumentException When any argument is passed
      */
     public function list(array $filters = [], array $options = []): array
     {
+        $this->rejectUnsupportedListArguments($filters, $options);
+
         return $this->api->request('POST', $this->getBasePath().'.list', []);
+    }
+
+    /**
+     * Units of measure have no info endpoint
+     *
+     * `unitsOfMeasure.list` is the only endpoint Teamleader exposes for this
+     * resource. Use findById(), which resolves against the full list.
+     *
+     * @param  string  $id
+     * @param  mixed  $includes
+     *
+     * @throws \InvalidArgumentException Always
+     */
+    public function info($id, $includes = null): array
+    {
+        throw new \InvalidArgumentException(
+            'unitsOfMeasure has no info endpoint — list() is the only one the API exposes. '
+            .'Use findById() to resolve a single unit from the full list.'
+        );
     }
 
     /**
