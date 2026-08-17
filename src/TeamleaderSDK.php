@@ -104,6 +104,11 @@ class TeamleaderSDK
         'materials' => Resources\Projects\Materials::class,
         'projectLines' => Resources\Projects\ProjectLines::class,
         'projects' => Resources\Projects\Projects::class,
+        // Alias for projects(). Teamleader names the webhook event family
+        // "nextgenProject" while naming the resource "projects-v2/projects", so
+        // reasoning from the event names leads people to look for this method.
+        // See the Projects class docblock.
+        'nextgenProjects' => Resources\Projects\Projects::class,
         'projectTasks' => Resources\Projects\ProjectTasks::class,
 
         // Pganning

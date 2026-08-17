@@ -3,11 +3,39 @@
 namespace McoreServices\TeamleaderSDK\Resources\Projects;
 
 use InvalidArgumentException;
+use McoreServices\TeamleaderSDK\Resources\Other\Accounts;
 use McoreServices\TeamleaderSDK\Resources\Resource;
 
+/**
+ * LegacyProjects — the original project system in Teamleader Focus.
+ *
+ * The names do not line up with the class names; to be explicit:
+ *
+ *     SDK method   Teamleader::legacyProjects()
+ *     API path     projects.*        (the bare path belongs to the OLD system)
+ *     Webhooks     project.created, project.updated, project.deleted
+ *
+ * The current system is {@see Projects}, on the `projects-v2/projects.*` path,
+ * with `nextgenProject.*` webhook events. So the class names and the endpoint
+ * paths run in opposite directions: `Projects` is the newer class on the longer
+ * path, `LegacyProjects` is the older class on the shorter one.
+ *
+ * **Do not infer which system an account is on from whether a list call returns
+ * rows.** Both endpoints answer. Ask directly:
+ *
+ *     Teamleader::accounts()->getProjectsVersion();      // "projects-v2" or "legacy"
+ *     Teamleader::accounts()->isUsingLegacyProjects();   // bool
+ *
+ * Accounts are migrated to the new system over time;
+ * Accounts::getAutoSwitchDate() reports when, if it is scheduled.
+ *
+ * @see Projects For the current ("nextgen") project system
+ * @see Accounts::getProjectsVersion()
+ * @see https://developer.focus.teamleader.eu/docs/api/projects-list
+ */
 class LegacyProjects extends Resource
 {
-    protected string $description = 'Manage legacy projects in Teamleader Focus';
+    protected string $description = 'Manage legacy projects in Teamleader Focus — the original project system (API path projects, webhook events project.*). See Projects for the current system.';
 
     // Resource capabilities
     protected bool $supportsCreation = true;
@@ -66,6 +94,14 @@ class LegacyProjects extends Resource
         'close_project' => [
             'description' => 'Close a project',
             'code' => '$result = $teamleader->legacyProjects()->close("project-uuid");',
+        ],
+        'check_which_system' => [
+            'description' => 'Check whether this account is on the legacy system at all',
+            'code' => 'if ($teamleader->accounts()->isUsingLegacyProjects()) {
+                $projects = $teamleader->legacyProjects()->list();
+            } else {
+                $projects = $teamleader->projects()->list();
+            }',
         ],
     ];
 

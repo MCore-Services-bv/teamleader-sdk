@@ -176,6 +176,7 @@ use Psr\Log\LoggerInterface;
  * @method static ProjectLines projectLines()
  * @method static ProjectTasks projectTasks()
  * @method static Projects projects()
+ * @method static Projects nextgenProjects() Alias for projects() — Teamleader's webhook vocabulary
  *
  * Planning
  * @method static PlannableItems plannable_items()

@@ -3,11 +3,44 @@
 namespace McoreServices\TeamleaderSDK\Resources\Projects;
 
 use InvalidArgumentException;
+use McoreServices\TeamleaderSDK\Resources\Other\Accounts;
 use McoreServices\TeamleaderSDK\Resources\Resource;
 
+/**
+ * Projects — the current ("nextgen") project system in Teamleader Focus.
+ *
+ * Teamleader uses three different names for this one thing, and they do not
+ * line up. To be explicit:
+ *
+ *     SDK method   Teamleader::projects()  (alias: Teamleader::nextgenProjects())
+ *     API path     projects-v2/projects.*
+ *     Webhooks     nextgenProject.created, nextgenProject.updated,
+ *                  nextgenProject.closed, nextgenProject.deleted
+ *
+ * Reading the webhook names, it is natural to assume `projects()` must be the
+ * legacy resource and that some `nextgenProjects()` covers the new system. It is
+ * the other way round: this class is what Teamleader calls "nextgen", and
+ * `nextgenProjects()` is registered as an alias for exactly that reason.
+ *
+ * The old system is {@see LegacyProjects}, which uses the bare `projects.*`
+ * path — so the shorter path belongs to the older resource. Teamleader chose the
+ * `projects-v2` prefix for the new module to avoid colliding with those existing
+ * endpoints.
+ *
+ * **Do not infer which system an account is on from whether a list call returns
+ * rows.** Both endpoints answer, so querying this resource and receiving real
+ * projects does not mean the account is on nextgen. Ask directly:
+ *
+ *     Teamleader::accounts()->getProjectsVersion();   // "projects-v2" or "legacy"
+ *     Teamleader::accounts()->isUsingProjectsV2();    // bool
+ *
+ * @see LegacyProjects For accounts still on the old project system
+ * @see Accounts::getProjectsVersion()
+ * @see https://developer.focus.teamleader.eu/docs/api/projects-v2-projects-list
+ */
 class Projects extends Resource
 {
-    protected string $description = 'Manage projects in Teamleader Focus (New Projects API v2)';
+    protected string $description = 'Manage projects in Teamleader Focus — the current "nextgen" project system (API path projects-v2/projects, webhook events nextgenProject.*)';
 
     // Resource capabilities
     protected bool $supportsCreation = true;
@@ -98,6 +131,18 @@ class Projects extends Resource
         'close_project' => [
             'description' => 'Close a project',
             'code' => '$result = $teamleader->projects()->close("project-uuid");',
+        ],
+        'nextgen_alias' => [
+            'description' => 'Same resource under the name Teamleader uses for its webhook events',
+            'code' => '$projects = $teamleader->nextgenProjects()->list(); // identical to projects()',
+        ],
+        'check_which_system' => [
+            'description' => 'Check which project system the account is on before querying',
+            'code' => 'if ($teamleader->accounts()->isUsingProjectsV2()) {
+                $projects = $teamleader->projects()->list();
+            } else {
+                $projects = $teamleader->legacyProjects()->list();
+            }',
         ],
     ];
 
