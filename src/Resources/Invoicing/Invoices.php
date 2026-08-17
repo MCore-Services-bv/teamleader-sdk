@@ -5,6 +5,29 @@ namespace McoreServices\TeamleaderSDK\Resources\Invoicing;
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
 
+/**
+ * Invoices in Teamleader Focus.
+ *
+ * **Untitled sections.** In `grouped_lines`, the `section` key is optional. A
+ * group with no title must omit the key entirely — Teamleader rejects both
+ * `['section' => ['title' => null]]` and `['section' => ['title' => '']]` with
+ * HTTP 400. This matters on read-modify-write: `info()` returns
+ * `section.title` as `null` for untitled sections, so echoing that value straight
+ * back is rejected. Drop the key instead:
+ *
+ *     foreach ($info['data']['grouped_lines'] as $group) {
+ *         $out = ['line_items' => $lineItems];
+ *
+ *         if (! empty($group['section']['title'])) {
+ *             $out['section'] = ['title' => $group['section']['title']];
+ *         }
+ *
+ *         $groupedLines[] = $out;
+ *     }
+ *
+ * Untitled sections are common: Teamleader's UI creates them by default when
+ * the user does not name a section.
+ */
 class Invoices extends Resource
 {
     protected string $description = 'Manage invoices in Teamleader Focus';
@@ -345,17 +368,39 @@ class Invoices extends Resource
     /**
      * Validate grouped lines structure
      *
+     * `section` is optional. The API's InvoicesGroupedLinesRequest structure
+     * lists only `line_items` as required, and `invoices.info` returns
+     * `section.title` as nullable — so a read-modify-write round trip on an
+     * invoice with untitled sections produces groups with no title.
+     *
+     * When a group has no title the `section` key must be omitted entirely.
+     * Teamleader rejects both `{"title": null}` and `{"title": ""}` with
+     * HTTP 400 "grouped_lines must be valid", so there is exactly one accepted
+     * way to express an untitled group. Requiring `section.title` — as this
+     * method did before v2.1.2 — made invoices.draft, invoices.update and
+     * invoices.updateBooked unreachable for any invoice with untitled sections,
+     * which is what Teamleader's own UI creates when the user does not name one.
+     *
      * @throws InvalidArgumentException
      */
     private function validateGroupedLines(array $groupedLines): void
     {
-        if (! is_array($groupedLines)) {
-            throw new InvalidArgumentException('grouped_lines must be an array');
-        }
-
         foreach ($groupedLines as $group) {
-            if (! isset($group['section']['title'])) {
-                throw new InvalidArgumentException('Each grouped line must have a section with a title');
+            if (! is_array($group)) {
+                throw new InvalidArgumentException('Each grouped line must be an array');
+            }
+
+            if (array_key_exists('section', $group)) {
+                if (! is_array($group['section']) || ! array_key_exists('title', $group['section'])) {
+                    throw new InvalidArgumentException('When present, section must contain a title');
+                }
+
+                if (! is_string($group['section']['title']) || $group['section']['title'] === '') {
+                    throw new InvalidArgumentException(
+                        'section.title must be a non-empty string. Omit the section key entirely '
+                        .'for untitled groups — the API rejects both null and "".'
+                    );
+                }
             }
 
             if (! isset($group['line_items']) || ! is_array($group['line_items'])) {
