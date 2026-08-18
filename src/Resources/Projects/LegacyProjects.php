@@ -70,11 +70,15 @@ class LegacyProjects extends Resource
         'updated_since' => 'ISO 8601 datetime',
     ];
 
-    // Available sort fields
+    /**
+     * Sort fields accepted by projects.list.
+     *
+     * Verified against @teamleader/focus-api-specification.
+     */
     protected array $availableSortFields = [
-        'due_on',
-        'title',
-        'created_at',
+        'due_on' => 'Sort by project due date',
+        'title' => 'Sort by project title',
+        'created_at' => 'Sort by creation date',
     ];
 
     // Usage examples specific to legacy projects
@@ -277,6 +281,8 @@ class LegacyProjects extends Resource
 
         // Apply filters
         if (! empty($filters)) {
+            $this->rejectUnknownFilters($filters);
+
             $params['filter'] = [];
 
             // Customer filter (nested object)
@@ -318,15 +324,97 @@ class LegacyProjects extends Resource
 
         // Apply sorting
         if (isset($options['sort'])) {
-            $params['sort'] = $options['sort'];
+            $params['sort'] = $this->normaliseSort($options['sort'], $options['sort_order'] ?? 'asc');
         } elseif (isset($options['sort_field'])) {
             $params['sort'] = [[
-                'field' => $options['sort_field'],
+                'field' => $this->validateSortField($options['sort_field']),
                 'order' => $options['sort_order'] ?? 'asc',
             ]];
         }
 
         return $this->api->request('POST', $this->getBasePath().'.list', $params);
+    }
+
+    /**
+     * Reject filter keys projects.list does not accept
+     *
+     * The API ignores unrecognised filter keys and answers 200 with the full
+     * unfiltered set, so a mistyped key silently returns every project.
+     *
+     * `customer` may be passed either as a nested object or as the flattened
+     * `customer.type` / `customer.id` pair, so all three are accepted.
+     *
+     * @throws InvalidArgumentException When a filter key is not supported
+     */
+    protected function rejectUnknownFilters(array $filters): void
+    {
+        $supported = array_merge(['customer'], array_keys($this->commonFilters));
+
+        $unknown = array_diff(array_keys($filters), $supported);
+
+        if ($unknown !== []) {
+            throw new InvalidArgumentException(
+                'Unsupported filter '.(count($unknown) > 1 ? 'keys' : 'key')
+                .' for projects.list: '.implode(', ', $unknown)
+                .'. Supported: '.implode(', ', $supported).'.'
+            );
+        }
+    }
+
+    /**
+     * Normalise the sort option into the array-of-objects shape the API expects
+     *
+     * @param  array|string  $sort
+     *
+     * @throws InvalidArgumentException When a sort field is not supported
+     */
+    protected function normaliseSort($sort, string $order = 'asc'): array
+    {
+        if (is_string($sort)) {
+            return [['field' => $this->validateSortField($sort), 'order' => $order]];
+        }
+
+        if (is_array($sort) && isset($sort['field'])) {
+            return [[
+                'field' => $this->validateSortField($sort['field']),
+                'order' => $sort['order'] ?? $order,
+            ]];
+        }
+
+        if (is_array($sort)) {
+            return array_map(function ($entry) use ($order) {
+                if (is_array($entry)) {
+                    return [
+                        'field' => $this->validateSortField($entry['field'] ?? null),
+                        'order' => $entry['order'] ?? $order,
+                    ];
+                }
+
+                return ['field' => $this->validateSortField($entry), 'order' => $order];
+            }, array_values($sort));
+        }
+
+        throw new InvalidArgumentException(
+            'Unrecognised sort format. Pass a field name, '
+            ."['field' => ..., 'order' => ...], or a list of those."
+        );
+    }
+
+    /**
+     * Ensure a sort field is one projects.list accepts
+     *
+     * @throws InvalidArgumentException
+     */
+    protected function validateSortField(mixed $field): string
+    {
+        if (! is_string($field) || ! array_key_exists($field, $this->availableSortFields)) {
+            throw new InvalidArgumentException(
+                'Invalid sort field: '.(is_string($field) ? $field : gettype($field))
+                .'. projects.list accepts: '.implode(', ', array_keys($this->availableSortFields)).'.'
+            );
+        }
+
+        return $field;
     }
 
     /**

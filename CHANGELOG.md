@@ -15,6 +15,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.2.1] - 2026-08-18
+
+Patch release. Closes the findings from the post-release audit of the wiki and
+root documentation — three phantom filters, two missing guards, and a method that
+could fatal on PHP builds without `ext-calendar`.
+
+### Fixed
+
+- **`Companies`**: removed the `name` and `company_number` filters. Neither
+  exists on `companies.list` — the API ignored them and returned every company
+  with HTTP 200, so `byName('Acme')` silently produced the complete account list.
+  Unknown filter keys now throw, as they already did on Deals, TimeTracking and
+  CustomFields. `search()` / the `term` filter is the working equivalent: it
+  searches name as well as VAT number, emails and telephones.
+- **`ClosingDays`**: unknown filter keys throw instead of being dropped, and sort
+  options are rejected rather than ignored — this endpoint has no sorting.
+- **`ClosingDays::getCommonHolidays()`**: no longer raises
+  `Error: Call to undefined function easter_date()` on PHP builds without
+  `ext-calendar`. Easter Monday is omitted when the extension is absent; the
+  three fixed dates are still returned.
+- **`LegacyProjects`**: unknown filter keys throw instead of being dropped, and
+  sort fields are validated against the three the API accepts (`due_on`, `title`,
+  `created_at`) rather than being passed through unchecked.
+
+### Deprecated
+
+- **`Companies::byName()`** — throws `InvalidArgumentException` explaining that
+  `companies.list` has no `name` filter, and pointing at `search()`. Removed in
+  v3.0. It previously returned every company in the account.
+
+### Changed
+
+- **`LegacyProjects::$availableSortFields`**: now a keyed map with descriptions,
+  matching the convention used by the other resources and surfacing in
+  `getDocumentation()`.
+
+### Documentation
+
+- **README**: corrected roughly fifteen non-working code examples — a named
+  `includes:` parameter that does not exist, `webhooks()->create()` (it is
+  `register()`), `customFieldDefinitions()` (it is `customFields()`), wrong casing
+  on `incomingCreditNotes()`, `user_availability()` and `plannable_items()`,
+  `uploadLogo()` shown taking a file id rather than a base64 data URI,
+  `invoices()->draft()` used for drafting rather than listing, `withCache()` and
+  two exception classes that do not exist, and the webhook event
+  `invoice.created`, which is not in the API. Laravel version corrected to 12/13,
+  and the three dead `/docs` links point at the wiki.
+- **SECURITY.md**: supported versions listed `1.0.x-alpha` only, which told
+  researchers that no shipped version was supported. Now covers 2.2.x back to the
+  2.0 cutoff, with scope boundaries and a note that
+  `TEAMLEADER_LOG_ALL_REQUESTS` writes payloads containing personal data.
+- **CONTRIBUTING.md**: aligned with the codebase — the `@test` annotation it
+  recommended contradicts the test suite, `composer test-coverage` does not
+  exist, and the `/docs` folder was removed. Adds guidance on writing tests
+  against the API specification rather than against the current implementation,
+  which is how six phantom includes survived in `CompaniesResourceTest`.
+- **Wiki**: sixteen resource pages rewritten against the specification during the
+  v2.2.0 cycle; twelve contained at least one factual error. `Accounts` no longer
+  documents a `getDefaultId()` method — no such method exists.
+
+### Upgrade notes
+
+`Companies::byName()` now throws where it previously returned every company.
+Anywhere it appears, replace it with `search()`. Any code passing `name` or
+`company_number` as a `companies.list` filter will also now throw; those filters
+were never applied.
+
+---
+
 ## [2.2.0] - 2026-08-18
 
 Patch release, and an unusually large one. It began as four issues raised while

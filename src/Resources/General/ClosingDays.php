@@ -120,6 +120,8 @@ class ClosingDays extends Resource
      */
     public function list(array $filters = [], array $options = []): array
     {
+        $this->rejectUnsupportedListArguments([], $options);
+
         $params = [];
 
         // Apply filters
@@ -149,9 +151,25 @@ class ClosingDays extends Resource
 
     /**
      * Build filters array for the API request
+     *
+     * Unknown filter keys throw rather than being dropped. The API ignores
+     * filter keys it does not recognise and answers 200 with the full
+     * unfiltered set, so a mistyped key silently returns every closing day.
+     *
+     * @throws InvalidArgumentException When a filter key is not supported
      */
     protected function buildFilters(array $filters): array
     {
+        $unknown = array_diff(array_keys($filters), array_keys($this->commonFilters));
+
+        if ($unknown !== []) {
+            throw new InvalidArgumentException(
+                'Unsupported filter '.(count($unknown) > 1 ? 'keys' : 'key')
+                .' for closingDays.list: '.implode(', ', $unknown)
+                .'. Supported: '.implode(', ', array_keys($this->commonFilters)).'.'
+            );
+        }
+
         $apiFilters = [];
 
         // Handle date_before filter
@@ -332,16 +350,21 @@ class ClosingDays extends Resource
      */
     public function getCommonHolidays(int $year, string $country = 'BE'): array
     {
-        // Basic holidays for Belgium (can be extended)
+        // Belgium only. The $country parameter is accepted for forward
+        // compatibility but is not yet used — every date below is Belgian.
         $holidays = [
             'New Year\'s Day' => $year.'-01-01',
             'Christmas Day' => $year.'-12-25',
             'Boxing Day' => $year.'-12-26',
         ];
 
-        // Add Easter-based holidays (simplified calculation)
-        $easter = easter_date($year);
-        $holidays['Easter Monday'] = date('Y-m-d', $easter + 86400);
+        // Easter Monday needs ext-calendar, which is not present in every PHP
+        // build. Without it this method used to raise
+        // "Call to undefined function easter_date()"; the fixed dates above are
+        // still returned.
+        if (function_exists('easter_date')) {
+            $holidays['Easter Monday'] = date('Y-m-d', easter_date($year) + 86400);
+        }
 
         return $holidays;
     }

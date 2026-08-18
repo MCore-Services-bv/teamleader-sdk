@@ -71,7 +71,6 @@ class Companies extends Resource
     protected array $commonFilters = [
         'ids' => 'Array of company UUIDs',
         'email' => 'Email address (requires type and email fields)',
-        'name' => 'Company name (fuzzy search)',
         'vat_number' => 'VAT number',
         'national_identification_number' => 'National identification number',
         'term' => 'Search term (searches name, VAT, emails, phones)',
@@ -158,12 +157,20 @@ class Companies extends Resource
 
     /**
      * Fuzzy search by company name
+     *
+     * @deprecated since v2.2.1 — companies.list has no `name` filter. The API
+     * ignored it and returned every company, unfiltered, with HTTP 200. Use
+     * search() / the `term` filter, which searches name as well as VAT number,
+     * emails and telephones. This method will be removed in v3.0.
+     *
+     * @throws InvalidArgumentException Always
      */
     public function byName(string $name, array $options = []): array
     {
-        return $this->list(
-            array_merge(['name' => $name], $options['filters'] ?? []),
-            $options
+        throw new InvalidArgumentException(
+            'companies.list has no `name` filter — this method silently returned every '
+            ."company. Use search('{$name}') instead, which filters on name, VAT number, "
+            .'emails and telephones via the `term` filter.'
         );
     }
 
@@ -483,10 +490,6 @@ class Companies extends Resource
                     }
                     break;
 
-                case 'name':
-                    $apiFilters['name'] = $value;
-                    break;
-
                 case 'vat_number':
                     $apiFilters['vat_number'] = $value;
                     break;
@@ -528,9 +531,15 @@ class Companies extends Resource
                     $apiFilters['term'] = $value;
                     break;
 
-                case 'company_number':
-                    $apiFilters['company_number'] = $value;
-                    break;
+                default:
+                    throw new InvalidArgumentException(
+                        "Invalid filter key '{$key}' for companies.list. Supported filters: "
+                        .implode(', ', array_keys($this->commonFilters))
+                        .". 'search' and 'general_search' are accepted as aliases for 'term'."
+                        .($key === 'name'
+                            ? " companies.list has no name filter — use 'term', which searches name, VAT, emails and telephones."
+                            : '')
+                    );
             }
         }
 
