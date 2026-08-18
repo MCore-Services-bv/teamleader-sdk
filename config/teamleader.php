@@ -63,6 +63,18 @@ return [
     | Teamleader allows 200 requests per sliding minute. The SDK automatically
     | throttles requests when approaching this limit.
     |
+    | When the window is full the SDK waits for a slot rather than firing a
+    | request that can only come back as a 429. That wait is capped by
+    | max_wait_ms: once the cap is reached, a RateLimitExceededException is
+    | thrown and the decision returns to the caller.
+    |
+    | The default is deliberately short. Waiting out a full window can take up
+    | to a minute, which in a queue worker is a held slot and in a web request
+    | is a hanging page. Catching the exception and calling release() with
+    | getRetryAfter() is usually better than blocking. Raise this if you would
+    | rather the SDK sit out longer stalls itself — a CLI import, for instance,
+    | where blocking costs nothing.
+    |
     */
     'rate_limiting' => [
         'enabled' => env('TEAMLEADER_RATE_LIMITING_ENABLED', true),
@@ -71,6 +83,10 @@ return [
         'aggressive_throttling' => env('TEAMLEADER_AGGRESSIVE_THROTTLING', true),
         'respect_retry_after' => env('TEAMLEADER_RESPECT_RETRY_AFTER', true),
         'redis_connection' => env('TEAMLEADER_RATE_LIMIT_REDIS_CONNECTION', 'default'),
+
+        // Maximum time the SDK will wait for a rate limit slot before throwing.
+        // Set to 65000 to wait out a full sliding window.
+        'max_wait_ms' => env('TEAMLEADER_RATE_LIMIT_MAX_WAIT_MS', 5000),
     ],
 
     /*

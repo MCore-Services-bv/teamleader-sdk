@@ -387,7 +387,20 @@ class TeamleaderSDK
                 $rateLimitCheck = $this->rateLimiter->checkAndThrottle();
 
                 $waitedMs = 0;
-                $maxWaitMs = (int) config('teamleader.rate_limiting.max_wait_ms', 65000);
+
+                // Default deliberately short. Waiting out a full rate limit
+                // window can take up to a minute, which in a queue worker is a
+                // held slot and in a web request is a hanging page — behaviour
+                // no consumer asked for and none had before v2.1.2, when the
+                // gate never really blocked at all. So the SDK waits briefly and
+                // then hands the decision back to the caller, which is what
+                // withRetry() already does by re-throwing rate limit errors
+                // without sleeping so a worker can release() instead of
+                // blocking its thread.
+                //
+                // Raise teamleader.rate_limiting.max_wait_ms to have the SDK sit
+                // out longer stalls itself.
+                $maxWaitMs = (int) config('teamleader.rate_limiting.max_wait_ms', 5000);
 
                 while (! $rateLimitCheck['can_proceed']) {
                     // Floor at one second: delay_applied is in milliseconds and
@@ -396,10 +409,9 @@ class TeamleaderSDK
 
                     if ($waitedMs + $delayMs > $maxWaitMs) {
                         // Bounded rather than indefinite. An unbounded wait in the
-                        // core request path is a hang waiting to happen, and it
-                        // would contradict withRetry(), which deliberately
-                        // re-throws rate limit errors without sleeping so a queue
-                        // worker can release() instead of blocking its thread.
+                        // core request path is a hang waiting to happen, and a
+                        // long one changes the SDK's behaviour under load in a
+                        // way a patch release should not impose.
                         $this->logger->warning('TeamleaderSDK: Giving up waiting for rate limit window', [
                             'waited_ms' => $waitedMs,
                             'max_wait_ms' => $maxWaitMs,
@@ -409,8 +421,9 @@ class TeamleaderSDK
 
                         throw new RateLimitExceededException(
                             'Rate limit window did not clear within the configured maximum wait of '
-                            .round($maxWaitMs / 1000, 1).'s. Retry later, or raise '
-                            .'teamleader.rate_limiting.max_wait_ms.',
+                            .round($maxWaitMs / 1000, 1).'s. Retry later — in a queue worker, '
+                            .'release() using getRetryAfter(). Raise '
+                            .'teamleader.rate_limiting.max_wait_ms to have the SDK wait longer.',
                             (int) ceil($delayMs / 1000)
                         );
                     }
