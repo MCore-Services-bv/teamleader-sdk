@@ -35,7 +35,16 @@ class Webhooks extends Resource
     // Common filters (none for webhooks)
     protected array $commonFilters = [];
 
-    // Available webhook event types
+    /**
+     * Webhook event types accepted by webhooks.register and webhooks.unregister.
+     *
+     * Verified complete against @teamleader/focus-api-specification v1.197.0 on
+     * 2026-08-17: 95 types, exact match in both directions.
+     *
+     * Note the two project families — `project.*` for the legacy project system
+     * and `nextgenProject.*` for the current one. See the Projects and
+     * LegacyProjects resources for which SDK method corresponds to which.
+     */
     protected array $eventTypes = [
         'account.deactivated',
         'account.deleted',
@@ -202,11 +211,18 @@ class Webhooks extends Resource
      * List all registered webhooks
      * Webhooks are returned ordered by URL
      *
-     * @param  array  $filters  Not used for webhooks
-     * @param  array  $options  Not used for webhooks
+     * `webhooks.list` takes no request body — no filter, page or sort parameter
+     * exists for it. Arguments are rejected rather than discarded.
+     *
+     * @param  array  $filters  Must be empty — this endpoint accepts no filters
+     * @param  array  $options  Must be empty — this endpoint accepts no sorting or pagination
+     *
+     * @throws InvalidArgumentException When any argument is passed
      */
     public function list(array $filters = [], array $options = []): array
     {
+        $this->rejectUnsupportedListArguments($filters, $options);
+
         return $this->api->request('POST', $this->getBasePath().'.list');
     }
 

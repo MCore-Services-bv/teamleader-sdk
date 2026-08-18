@@ -77,12 +77,39 @@ class PaymentTerms extends Resource
     /**
      * List all payment terms
      *
-     * @param  array  $filters  Not used for payment terms
-     * @param  array  $options  Not used for payment terms
+     * `paymentTerms.list` takes no request body — no filter, page or sort
+     * parameter exists for it. Arguments are rejected rather than discarded.
+     *
+     * The response carries a `meta.default` key holding the UUID of the account's
+     * default payment term. That is a bespoke meta block, unrelated to the
+     * `includes=pagination` metadata other endpoints return.
+     *
+     * @param  array  $filters  Must be empty — this endpoint accepts no filters
+     * @param  array  $options  Must be empty — this endpoint accepts no sorting or pagination
+     *
+     * @throws InvalidArgumentException When any argument is passed
      */
     public function list(array $filters = [], array $options = []): array
     {
+        $this->rejectUnsupportedListArguments($filters, $options);
+
         return $this->api->request('POST', $this->getBasePath().'.list', []);
+    }
+
+    /**
+     * Document the meta block this endpoint always returns
+     *
+     * Unlike the pagination meta other resources can request, paymentTerms.list
+     * returns meta.default unconditionally.
+     */
+    protected function getResponseFormat(): array
+    {
+        $formats = parent::getResponseFormat();
+
+        $formats['list']['meta'] = 'Object containing `default`: the UUID of the '
+            .'account default payment term. Always present.';
+
+        return $formats;
     }
 
     /**

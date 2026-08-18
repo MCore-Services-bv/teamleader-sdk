@@ -60,45 +60,55 @@ class Tags extends Resource
     }
 
     /**
-     * List tags with enhanced parameter handling
+     * List tags with pagination and sorting
      *
-     * @param  array  $filters  Filters (not supported for tags)
-     * @param  array  $options  Pagination and sorting options
+     * `tags.list` accepts `page` and `sort` but has no filter object at all, so
+     * filters are rejected rather than discarded. The API declares exactly one
+     * sort field (`tag`) and one order (`asc`); anything else is rejected too,
+     * rather than being silently rewritten to the supported value as it was
+     * before v2.1.2 — a caller asking for descending order got ascending back
+     * with no indication the request had been changed.
+     *
+     * @param  array  $filters  Must be empty — this endpoint accepts no filters
+     * @param  array  $options  page_size, page_number, sort, sort_order
+     *
+     * @throws \InvalidArgumentException When filters are passed or the sort is unsupported
      */
     public function list(array $filters = [], array $options = []): array
     {
+        $this->rejectUnsupportedListArguments($filters, $options);
+
         $params = [];
 
         // Handle pagination
-        if ($this->supportsPagination) {
-            $params['page'] = [
-                'size' => $options['page_size'] ?? 20,
-                'number' => $options['page_number'] ?? 1,
-            ];
+        $params['page'] = [
+            'size' => $options['page_size'] ?? 20,
+            'number' => $options['page_number'] ?? 1,
+        ];
+
+        // Handle sorting — the API accepts only field 'tag' and order 'asc'
+        $sortField = $options['sort'] ?? 'tag';
+        $sortOrder = $options['sort_order'] ?? 'asc';
+
+        if ($sortField !== 'tag') {
+            throw new \InvalidArgumentException(
+                "Invalid sort field: {$sortField}. tags.list accepts only 'tag'."
+            );
         }
 
-        // Handle sorting - tags only support sorting by 'tag' field
-        if ($this->supportsSorting) {
-            $sortField = $options['sort'] ?? 'tag';
-            $sortOrder = $options['sort_order'] ?? 'asc';
-
-            // Validate sort field (only 'tag' is supported)
-            if ($sortField !== 'tag') {
-                $sortField = 'tag';
-            }
-
-            // Validate sort order (only 'asc' is supported according to API docs)
-            if ($sortOrder !== 'asc') {
-                $sortOrder = 'asc';
-            }
-
-            $params['sort'] = [
-                [
-                    'field' => $sortField,
-                    'order' => $sortOrder,
-                ],
-            ];
+        if (strtolower((string) $sortOrder) !== 'asc') {
+            throw new \InvalidArgumentException(
+                "Invalid sort order: {$sortOrder}. tags.list accepts only 'asc' — "
+                .'the API does not support descending order on this endpoint.'
+            );
         }
+
+        $params['sort'] = [
+            [
+                'field' => 'tag',
+                'order' => 'asc',
+            ],
+        ];
 
         return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
@@ -209,6 +219,13 @@ class Tags extends Resource
 
     /**
      * Get paginated results with better metadata
+     *
+     * The `pagination` key this adds is computed client-side from the page size
+     * and the number of rows returned. The API sends no pagination metadata for
+     * tags — `tags.list` declares no meta block — so `has_more_pages` is an
+     * inference from a full page, not a fact from the server. A complete final
+     * page therefore reports has_more_pages = true and costs one extra empty
+     * request to disprove.
      *
      * @param  int  $pageSize  Items per page
      * @param  int  $pageNumber  Page number (1-based)

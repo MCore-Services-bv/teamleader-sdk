@@ -67,11 +67,18 @@ class DayOffTypes extends Resource
     /**
      * List all day off types
      *
-     * @return array
+     * `dayOffTypes.list` takes no request body — no filter, page or sort
+     * parameter exists for it. Arguments are rejected rather than discarded.
+     *
+     * @param  array  $filters  Must be empty — this endpoint accepts no filters
+     * @param  array  $options  Must be empty — this endpoint accepts no sorting or pagination
+     *
+     * @throws InvalidArgumentException When any argument is passed
      */
-    public function list(array $filters = [], array $options = [])
+    public function list(array $filters = [], array $options = []): array
     {
-        // Day off types API doesn't support filters or pagination based on docs
+        $this->rejectUnsupportedListArguments($filters, $options);
+
         return $this->api->request('POST', $this->getBasePath().'.list');
     }
 
@@ -141,13 +148,27 @@ class DayOffTypes extends Resource
 
     /**
      * Validate day off type data
+     *
+     * Empty strings and empty arrays are stripped, but `null` is preserved:
+     * `date_validity` is declared nullable on dayOffTypes.update, so passing
+     * null is how a caller clears the validity period. Stripping it would drop
+     * the clear silently and the field would keep its old value with no error.
+     * This is the same defect fixed for Contacts and Companies in v1.2.6.
      */
     protected function validateData(array $data, string $operation = 'create'): array
     {
-        // Remove empty values
-        $data = array_filter($data, function ($value) {
-            return $value !== '' && $value !== null && $value !== [];
-        });
+        // Remove empty values, but keep null — it signals a field clear to the API
+        $data = array_filter($data, function ($value, $key) {
+            if ($key === 'id') {
+                return true;
+            }
+
+            if ($value === null) {
+                return true;
+            }
+
+            return $value !== '' && $value !== [];
+        }, ARRAY_FILTER_USE_BOTH);
 
         // Validate color format if provided
         if (isset($data['color']) && ! empty($data['color'])) {
