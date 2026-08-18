@@ -67,11 +67,18 @@ class CommercialDiscounts extends Resource
     /**
      * List commercial discounts with optional filtering
      *
-     * @param  array  $filters  Filter parameters
-     * @param  array  $options  Not used for commercial discounts
+     * The endpoint accepts a department_id filter but no sorting or pagination,
+     * so those arguments are rejected rather than discarded.
+     *
+     * @param  array  $filters  department_id
+     * @param  array  $options  Must be empty — no sorting or pagination
+     *
+     * @throws \InvalidArgumentException When an unsupported argument is passed
      */
     public function list(array $filters = [], array $options = []): array
     {
+        $this->rejectUnsupportedListArguments([], $options);
+
         $params = [];
 
         // Apply filters
@@ -127,8 +134,14 @@ class CommercialDiscounts extends Resource
     /**
      * Get commercial discounts formatted as options for select dropdowns
      *
+     * Keyed by discount UUID. Teamleader added `id` to the
+     * commercialDiscounts.list response in July 2026; before that the endpoint
+     * returned only name and department, so this method used the name as its own
+     * key and two discounts sharing a name across departments collapsed into one
+     * entry.
+     *
      * @param  string|null  $departmentId  Optional department filter
-     * @return array Array with name as both key and value (no ID in response)
+     * @return array Array with discount UUID as key and name as value
      */
     public function asOptions(?string $departmentId = null): array
     {
@@ -137,7 +150,13 @@ class CommercialDiscounts extends Resource
 
         $options = [];
         foreach ($result['data'] as $discount) {
-            // Note: API doesn't return ID, so we use name as key
+            if (isset($discount['id'])) {
+                $options[$discount['id']] = $discount['name'];
+
+                continue;
+            }
+
+            // Defensive: an account whose API has not yet been updated
             $options[$discount['name']] = $discount['name'];
         }
 
@@ -229,10 +248,49 @@ class CommercialDiscounts extends Resource
     }
 
     /**
+     * Find a commercial discount by ID
+     *
+     * The endpoint has no info() counterpart, so this resolves against the list.
+     * `id` was added to the commercialDiscounts.list response in July 2026.
+     *
+     * @param  string  $id  Commercial discount UUID
+     * @return array|null Commercial discount data or null if not found
+     */
+    public function find(string $id): ?array
+    {
+        $result = $this->list();
+
+        foreach ($result['data'] ?? [] as $discount) {
+            if (($discount['id'] ?? null) === $id) {
+                return $discount;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Build filters for the API request
+     *
+     * commercialDiscounts.list accepts one filter, department_id. Unknown keys
+     * throw rather than being forwarded — the API ignores filter keys it does
+     * not recognise and answers 200 with the full unfiltered set.
+     *
+     * @throws \InvalidArgumentException When a filter key is not supported
      */
     protected function buildFilters(array $filters): array
     {
+        $supported = array_keys($this->commonFilters);
+        $unknown = array_diff(array_keys($filters), $supported);
+
+        if ($unknown !== []) {
+            throw new \InvalidArgumentException(
+                'Unsupported filter '.(count($unknown) > 1 ? 'keys' : 'key')
+                .' for commercialDiscounts.list: '.implode(', ', $unknown)
+                .'. Supported: '.implode(', ', $supported).'.'
+            );
+        }
+
         return $filters;
     }
 
@@ -246,6 +304,7 @@ class CommercialDiscounts extends Resource
                 'description' => 'Array of commercial discounts',
                 'fields' => [
                     'data' => 'Array of commercial discount objects',
+                    'data[].id' => 'Commercial discount UUID (added by Teamleader in July 2026)',
                     'data[].name' => 'Discount name',
                     'data[].department' => 'Department reference object',
                     'data[].department.id' => 'Department UUID',

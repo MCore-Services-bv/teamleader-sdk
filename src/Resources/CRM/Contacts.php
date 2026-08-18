@@ -26,10 +26,23 @@ class Contacts extends Resource
 
     protected bool $supportsSideloading = true;
 
-    // Available includes for sideloading (based on API docs)
+    /**
+     * Includes accepted by contacts.list.
+     *
+     * Verified against @teamleader/focus-api-specification v1.197.0. Only
+     * `custom_fields` exists.
+     *
+     * `price_list` was listed here until v2.1.2 and is not an include: Teamleader
+     * returns it automatically on both list and info whenever the account has
+     * access to price lists, and null when no price list is set on the contact.
+     * Requesting it did nothing — the API ignores include values it does not
+     * recognise, and the field came back regardless, which is why the mistake
+     * was invisible.
+     *
+     * Note that contacts.info accepts no includes parameter at all.
+     */
     protected array $availableIncludes = [
         'custom_fields',
-        'price_list',
     ];
 
     // Default includes
@@ -73,23 +86,42 @@ class Contacts extends Resource
             'description' => 'Create a new contact',
             'code' => '$contact = $teamleader->contacts()->create(["first_name" => "John", "last_name" => "Doe"]);',
         ],
+        'link_price_list' => [
+            'description' => 'Link a contact to a price list',
+            'code' => '$teamleader->contacts()->update("contact-uuid", ["price_list_id" => "price-list-uuid"]);',
+        ],
+        'clear_price_list' => [
+            'description' => 'Remove the price list from a contact',
+            'code' => '$teamleader->contacts()->update("contact-uuid", ["price_list_id" => null]);',
+        ],
     ];
 
     /**
-     * Get contact information with enhanced include handling
+     * Get contact information
+     *
+     * `contacts.info` accepts no includes parameter — the spec declares none.
+     * Custom fields and the price list are returned automatically; `price_list`
+     * is present whenever the account has access to price lists, and null when
+     * no price list is set on the contact.
+     *
+     * @param  string  $id  Contact UUID
+     * @param  mixed  $includes  Not supported by this endpoint
+     *
+     * @throws InvalidArgumentException When includes are requested
      */
     public function info($id, $includes = null): array
     {
-        $params = ['id' => $id];
-
-        if (! empty($includes)) {
-            $params = $this->applyIncludes($params, $includes);
+        if (! empty($includes) || ! empty($this->getPendingIncludes())) {
+            throw new InvalidArgumentException(
+                'contacts.info accepts no includes parameter. Custom fields and '
+                .'price_list are returned automatically. Use list() if you need '
+                .'includes=custom_fields.'
+            );
         }
 
-        // Apply any pending includes from fluent interface
-        $params = $this->applyPendingIncludes($params);
-
-        return $this->api->request('POST', $this->getBasePath().'.info', $params);
+        return $this->api->request('POST', $this->getBasePath().'.info', [
+            'id' => $id,
+        ]);
     }
 
     /**
@@ -403,19 +435,14 @@ class Contacts extends Resource
     }
 
     /**
-     * Include custom fields in the next request
+     * Include custom fields in the next list() request
+     *
+     * The only include contacts.list accepts. Note that contacts.info takes no
+     * includes at all, so this must not be chained into info().
      */
     public function withCustomFields(): self
     {
         return $this->with('custom_fields');
-    }
-
-    /**
-     * Include price list in the next request
-     */
-    public function withPriceList(): self
-    {
-        return $this->with('price_list');
     }
 
     /**

@@ -26,22 +26,46 @@ class Companies extends Resource
 
     protected bool $supportsSideloading = true;
 
-    // Available includes for sideloading
+    /**
+     * Includes accepted by companies.list.
+     *
+     * Verified against @teamleader/focus-api-specification v1.197.0. Only
+     * `custom_fields` exists for list.
+     *
+     * Until v2.1.2 this declared seven values — addresses, business_type,
+     * responsible_user, added_by, tags, custom_fields and price_list — of which
+     * six were not includes at all. Those fields are returned by default, so
+     * requesting them appeared to work: the API ignores unrecognised include
+     * values and the data arrived regardless.
+     *
+     * `price_list` in particular is returned automatically whenever the account
+     * has access to price lists, and is null when no price list is set on the
+     * company.
+     *
+     * @see $infoIncludes For the different set companies.info accepts
+     */
     protected array $availableIncludes = [
-        'addresses',
-        'business_type',
-        'responsible_user',
-        'added_by',
-        'tags',
         'custom_fields',
-        'price_list',
     ];
 
-    // Default includes
-    protected array $defaultIncludes = [
-        'responsible_user',
-        'addresses',
+    /**
+     * Includes accepted by companies.info.
+     *
+     * A different set from companies.list — the info endpoint offers related
+     * records rather than custom fields.
+     */
+    protected array $infoIncludes = [
+        'related_companies',
+        'related_contacts',
     ];
+
+    /**
+     * Default includes.
+     *
+     * Empty. Until v2.1.2 this was ['responsible_user', 'addresses'], so every
+     * companies request carried two include values the API does not recognise.
+     */
+    protected array $defaultIncludes = [];
 
     // Common filters based on API documentation
     protected array $commonFilters = [
@@ -155,19 +179,65 @@ class Companies extends Resource
     }
 
     /**
-     * Get company information with enhanced include handling
+     * Get company information
+     *
+     * `companies.info` accepts `related_companies` and `related_contacts` as
+     * includes — not `custom_fields`, which is a companies.list include. Custom
+     * fields and the price list are returned automatically; `price_list` is
+     * present whenever the account has access to price lists, and null when no
+     * price list is set on the company.
+     *
+     * @param  string  $id  Company UUID
+     * @param  mixed  $includes  related_companies and/or related_contacts
+     *
+     * @throws InvalidArgumentException When an include is not valid for this endpoint
      */
     public function info($id, $includes = null): array
     {
         $params = ['id' => $id];
 
-        if (! empty($includes)) {
-            $params = $this->applyIncludes($params, $includes);
+        $requested = $includes ?? $this->getPendingIncludes();
+
+        if (! empty($requested)) {
+            $this->validateInfoIncludes($requested);
+
+            $params = $this->applyIncludes($params, $requested);
         }
 
-        $params = $this->applyPendingIncludes($params);
+        // Consume any pending includes so they do not leak into a later call
+        $this->applyPendingIncludes([]);
 
         return $this->api->request('POST', $this->getBasePath().'.info', $params);
+    }
+
+    /**
+     * Reject includes companies.info does not accept
+     *
+     * @param  array|string  $includes
+     *
+     * @throws InvalidArgumentException
+     */
+    protected function validateInfoIncludes($includes): void
+    {
+        $requested = is_array($includes)
+            ? $includes
+            : array_map('trim', explode(',', (string) $includes));
+
+        foreach ($requested as $include) {
+            if (in_array($include, $this->infoIncludes, true)) {
+                continue;
+            }
+
+            $message = "Invalid include for companies.info: {$include}. Accepts: "
+                .implode(', ', $this->infoIncludes).'.';
+
+            if ($include === 'custom_fields') {
+                $message .= ' custom_fields is a companies.list include; companies.info '
+                    .'returns custom fields automatically.';
+            }
+
+            throw new InvalidArgumentException($message);
+        }
     }
 
     /**
@@ -335,46 +405,33 @@ class Companies extends Resource
     }
 
     /**
-     * Include methods for fluent interface
+     * Include custom fields in the next list() request
+     *
+     * The only include companies.list accepts.
      */
-    public function withAddresses()
-    {
-        return $this->with('addresses');
-    }
-
-    public function withBusinessType()
-    {
-        return $this->with('business_type');
-    }
-
-    public function withResponsibleUser()
-    {
-        return $this->with('responsible_user');
-    }
-
-    public function withAddedBy()
-    {
-        return $this->with('added_by');
-    }
-
     public function withCustomFields()
     {
         return $this->with('custom_fields');
     }
 
-    public function withPriceList()
+    /**
+     * Include related companies in the next info() request
+     *
+     * companies.info only — not accepted by companies.list.
+     */
+    public function withRelatedCompanies()
     {
-        return $this->with('price_list');
+        return $this->with('related_companies');
     }
 
-    public function withCommonRelationships()
+    /**
+     * Include related contacts in the next info() request
+     *
+     * companies.info only — not accepted by companies.list.
+     */
+    public function withRelatedContacts()
     {
-        return $this->with([
-            'addresses',
-            'responsible_user',
-            'business_type',
-            'tags',
-        ]);
+        return $this->with('related_contacts');
     }
 
     /**
