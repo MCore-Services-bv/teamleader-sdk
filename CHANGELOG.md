@@ -15,6 +15,260 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.2.0] - 2026-08-18
+
+Patch release, and an unusually large one. It began as four issues raised while
+integrating the SDK into a client project and grew as each was verified against
+`@teamleader/focus-api-specification` v1.197.0 rather than against the code.
+
+Almost everything here shares one failure mode: **the SDK sent something the API
+silently ignores.** Teamleader answers 200 to an unrecognised filter key, an
+unknown include, a wrong-shaped sort object and a singular `include` parameter.
+Nothing errors, plausible data comes back, and the mistake surfaces days later in
+a component with no reason to suspect the SDK. Six such defects were found in
+code nobody had reported a problem with — three of them fatal errors on code
+paths the SDK's own documentation recommended.
+
+Three fixes were prompted by Teamleader's July 2026 changelog: `price_list` on
+`contacts.info` and `companies.info`, `price_list_id` on the add and update
+endpoints, and the new `id` field on `commercialDiscounts.list`.
+
+### Fixed
+
+**Silently ignored parameters**
+
+- **`Deals::list()`**: sideloads are sent as `includes` (plural). The API ignores
+  the singular form, so `deals()->list([], ['include' => 'custom_fields'])`
+  returned deals with no custom fields and no error, while the fluent
+  `->withCustomFields()` form worked. The same class gave two different answers
+  depending on which syntax was used, and the documented one was the broken one.
+  This is the defect fixed SDK-wide in v1.2.3; `Deals::list()` hand-rolled the
+  parameter instead of calling `FilterTrait::applyIncludes()` and never received
+  the fix.
+- **`ClosingDays::list()`**: same defect, third instance. Pagination metadata is
+  now requested on every call rather than through an `include_pagination` option
+  that never worked.
+- **`Files`**: the sort parameter is built as an array of objects rather than a
+  string array. `['-updated_at']` is ignored by the API, so sorting has never
+  worked on this resource.
+- **`Contacts`, `Companies`**: `price_list` is no longer requested as an include.
+  Teamleader returns it automatically whenever the account has access to price
+  lists, and `null` when none is set on the customer. `Companies` additionally
+  declared six includes that do not exist — `addresses`, `business_type`,
+  `responsible_user`, `added_by`, `tags` and `price_list` — and sent
+  `responsible_user` and `addresses` as *defaults on every request*. Those fields
+  are returned by default, so requesting them appeared to work. **No response
+  data changes; only a no-op parameter is removed.**
+- **`Contacts::info()`**: rejects includes. `contacts.info` declares no includes
+  parameter at all.
+- **`Companies::info()`**: validates against `related_companies` and
+  `related_contacts`, the includes this endpoint actually accepts — a different
+  set from `companies.list`.
+
+**Fatal errors on documented code paths**
+
+- **`FilterTrait`**: added the missing `with()` method. `applyPendingIncludes()`
+  consumed `$pendingIncludes`, but nothing ever populated it and no `with()`
+  existed anywhere in the SDK, so every fluent sideload wrapper raised
+  `Error: Call to undefined method` — 23 call sites across `Meetings`,
+  `Products`, `Users`, `Companies`, `Contacts`, `Deals` and `TimeTracking`. That
+  includes the `->withCustomer()->withResponsibleUser()->list()` example
+  published in the Deals resource's own usage examples. The fluent interface has
+  never worked in any released version.
+- **`Deals::list()`**: sorting no longer raises
+  `Error: Call to undefined method Deals::buildSort()`. `list()` called
+  `buildSort()`, which fifteen other resources define but this one did not, and
+  which is on neither `Resource` nor `FilterTrait`. Any call passing a `sort`
+  option was fatal. The method now validates the field against the two the API
+  accepts and builds the object shape it expects.
+- **`Resource`**: added the missing `validateData()` hook. Fourteen resources
+  declare an override of it and `ClosingDays` calls `parent::validateData()`,
+  which was a fatal error waiting for the first caller.
+
+**Arguments accepted and discarded**
+
+- **`UnitOfMeasure::list()`**: rejects filters, sorting and pagination instead of
+  discarding them. `unitsOfMeasure.list` takes no request body, so every call
+  returned the complete list regardless of what was requested — `paginate(5, 2)`
+  returned page 1. A pager trusting the signature re-processes the same records
+  indefinitely once an account grows past the page size.
+- **`PaymentTerms`, `DayOffTypes`, `Webhooks`**: same guard, same reason.
+- **`Tags::list()`**: rejects filters, which `tags.list` does not support, and
+  rejects unsupported sort values rather than silently rewriting them. Asking for
+  descending order previously returned ascending with no indication.
+- **`TimeTracking::applyFilters()`**: unknown filter keys throw instead of being
+  forwarded. `updated_since`, `invoiced` and `invoiceable` are the confirmed
+  cases, none of which the endpoint supports — a two-day query returned all
+  32,985 entries in the account.
+- **`Deals::list()`**: filters route through `buildFilters()`, which existed on
+  the class and was never called.
+- **`CommercialDiscounts`**: filters are whitelisted.
+
+**Validation stricter or looser than the API**
+
+- **`Invoices::validateGroupedLines()`**: `section` is optional, matching the
+  API's `InvoicesGroupedLinesRequest` structure. Requiring `section.title` made
+  `invoices.draft`, `invoices.update` and `invoices.updateBooked` unreachable for
+  any invoice with an untitled section — a shape Teamleader's own UI produces by
+  default. When a group has no title the `section` key must be omitted entirely;
+  the API rejects both a null and an empty-string title with HTTP 400.
+- **`Files`**: `files.list` and `files.upload` validate against separate subject
+  type lists. `meeting`, `product` and `project` are accepted for listing and
+  were previously all rejected; `temporary` is upload-only and is now rejected
+  for listing.
+- **`Files::list()`**: requires the subject filter the API requires, rather than
+  sending a request that can only return 400.
+- **`TimeTracking`**: subject types are split between the wider set accepted for
+  writing and the narrower set accepted as a list filter — `nextgenTask` can
+  carry tracked time but is not a valid filter value.
+- **`DayOffTypes::validateData()`**: preserves `null`, so `date_validity` can be
+  cleared. The API declares it nullable on update; stripping the null dropped the
+  clear silently. Same defect fixed for `Contacts` and `Companies` in v1.2.6.
+- **`CustomFields::forContext()`**: validates against the API's context enum.
+
+**Documentation that described a different SDK**
+
+- **`Resource::getResponseFormat()`**: describes the response the SDK actually
+  returns. It claimed every `list` response carried `pagination`, `included` and
+  `meta`. None is returned by default; `meta` appears only when a resource sends
+  `includes=pagination`, and **`included` does not exist anywhere in the
+  Teamleader API** — sideloaded data is embedded in each record in `data`.
+  Meanwhile `headers`, which the SDK adds to every successful response and which
+  carries the rate-limit budget, was undocumented. The format is now derived from
+  each resource's capability flags. A consumer following the old documentation
+  would write a pager keyed on `$response['pagination']`, which is always absent,
+  and silently see only the first page of every entity.
+- **`Resource::getDocumentation()`**: added a `pagination` block stating that the
+  API returns no total count, so the end of a list must be inferred from a page
+  shorter than the requested page size — meaning a full final page costs one
+  extra empty request.
+- **`Resource::generateMarkdownDocs()`**: renders response formats, sort fields
+  and the pagination note, none of which it previously output.
+
+**Rate limiting**
+
+- **`TeamleaderSDK::request()`**: waits until the limiter confirms a free slot.
+  It previously checked, slept, rechecked, and dispatched regardless of what the
+  recheck said — so a still-full window produced the 429 the proactive limiter
+  exists to prevent. The wait was also `sleep((int) $ms / 1000)`, truncating any
+  sub-second delay to zero.
+- **`TeamleaderSDK::request()`**: records every request, not only successful ones.
+  Teamleader counts 4xx responses and the 429s themselves against the budget, so
+  recording only successes made the window drift optimistic precisely when errors
+  were already occurring.
+- **`ApiRateLimiterService::checkAndThrottle()`**: gates on the API's own
+  `X-RateLimit-Remaining` as well as the local window, taking whichever is more
+  conservative. The header value was stored in Redis and never read, which made
+  the most authoritative number available purely decorative — and meant that
+  after a 429, the cleared window read as full headroom.
+- **`TeamleaderSDK::request()`**: honours `teamleader.rate_limiting.enabled`.
+  Redis was contacted on every request even with the flag off.
+
+**Custom field contexts**
+
+- **`CustomFields`**: `context: sale` in `list()` and `info()` responses is
+  normalised to `context: deal`. The API accepts `deal` as a filter but returns
+  `sale` in the body — a known defect on Teamleader's side — so any code
+  comparing a stored definition's context against `deal` silently matched
+  nothing. The mapping lives in `$contextResponseAliases` and can be removed once
+  the API is corrected. Normalisation is one-directional: `sale` is not accepted
+  as an inbound filter value.
+- **`CustomFields::byType()`**: filters client-side. The endpoint has no `type`
+  filter, so the key was dropped and every call returned the entire catalogue.
+- **`CustomFields`**: sorting is implemented. `$supportsSorting` defaulted to
+  `true` while `list()` built no sort at all.
+
+### Added
+
+- **`Files::forProduct()`**, **`forMeeting()`**, **`forCreditNote()`** and
+  **`forLegacyProject()`** — helpers for subject types the API accepts.
+- **`Resource::rejectUnsupportedListArguments()`** — shared, capability-driven
+  guard for endpoints that accept no filter, sort or page parameters.
+- **`Resource::validateData()`** — the base hook fourteen resources override.
+- **`Resource::$requestsPaginationMeta`** — declares whether a resource requests
+  pagination metadata, so generated documentation matches the real response.
+- **`FilterTrait::with()`** — the fluent include queue.
+- **`CustomFields::all()`** — pages through every definition.
+- **`CommercialDiscounts::find()`** — resolves a discount by the `id` Teamleader
+  added to `commercialDiscounts.list` in July 2026.
+- **`Companies::withRelatedCompanies()`** and **`withRelatedContacts()`**.
+- **`Teamleader::nextgenProjects()`** — alias for `projects()`. Teamleader names
+  the webhook family `nextgenProject` while naming the resource
+  `projects-v2/projects`, so reasoning from the event names leads people to look
+  for this method.
+- **`teamleader.rate_limiting.max_wait_ms`** — caps how long the SDK waits for a
+  rate limit slot before throwing `RateLimitExceededException`. Defaults to 5000.
+- **Resource test harness** — `tests/Support/RecordingApiClient.php` and
+  `tests/ResourceTestCase.php`, which assert on the request a resource builds
+  rather than on the response. Every payload defect in this release was invisible
+  to the previous suite.
+
+### Changed
+
+- **`Projects`, `LegacyProjects`**: class docblocks state the relationship
+  between the SDK method name, the API path and the webhook event family.
+  `projects()` is the current ("nextgen") system on `projects-v2/projects` with
+  `nextgenProject.*` events; `legacyProjects()` is the old system on the bare
+  `projects` path with `project.*` events — so the class names and the endpoint
+  paths run in opposite directions. Both point at
+  `Accounts::getProjectsVersion()`, since both endpoints answer and the system in
+  use cannot be inferred from whether a list call returns rows. No runtime change.
+- **`CommercialDiscounts::asOptions()`**: keyed by discount UUID rather than by
+  name. The name was used only because the API returned no id; two discounts
+  sharing a name across departments collapsed into one entry.
+- **`Deals::$availableSortFields`**: now a keyed map with descriptions, matching
+  the convention used by the other resources.
+- **`Webhooks::$eventTypes`**: verified complete against the specification —
+  95 types, exact match in both directions. No change to the list itself.
+
+### Removed
+
+- **`CustomFields::forQuotations()`** and **`forCreditnotes()`** — both passed
+  context values (`quotation`, `creditnote`) that are not in Teamleader's context
+  enum, so they returned empty results or a 422.
+- **`Companies::withAddresses()`**, **`withBusinessType()`**,
+  **`withResponsibleUser()`**, **`withAddedBy()`**, **`withCommonRelationships()`**
+  and **`withPriceList()`**; **`Contacts::withPriceList()`** — all requested
+  includes the API does not accept.
+
+### Tests
+
+Added `RecordingApiClient`, `ResourceTestCase`, and payload tests for `Files`,
+`Deals`, `CustomFields`, `Invoices`, `TimeTracking`, `UnitOfMeasure` and
+`Resource`, plus `RateLimiterGateTest`. `tests/TestCase.php` now configures the
+Redis connection so the `redis` group can run without the phpredis extension;
+`predis/predis` is a new dev dependency.
+
+`CompaniesResourceTest::test_has_sideloading_options` asserted that `addresses`
+and `responsible_user` were valid includes. They never were — the test had
+locked in the defect. It is replaced by assertions derived from the specification.
+
+### Upgrade notes
+
+No migration. Three things to be aware of:
+
+**Calls that were silently wrong now throw.** Unsupported filter keys, unknown
+sort fields, invalid subject types and includes the API does not accept all raise
+`InvalidArgumentException` before the request is sent. This is the intended
+outcome — the previous behaviour returned plausible but wrong data — but code
+that relied on it will surface at the call site on upgrade. `TimeTracking`,
+`Deals`, `Tags`, `UnitOfMeasure`, `Files` and `CustomFields` are the resources
+most likely to be affected.
+
+**`config/teamleader.php` gained a key.** Installations that published the config
+will not receive `rate_limiting.max_wait_ms`; it falls back to 5000, so nothing
+breaks, but the knob is invisible until added manually. Set it to 65000 to have
+the SDK wait out a full rate limit window rather than throwing.
+
+**Rate limiting is now slower and more accurate.** Counting failed requests and
+consulting the API's own remaining count both make the limiter more
+conservative, so a long-running sync may take longer than before. It will also
+now block for up to five seconds when the window is full, where previously it
+dispatched immediately and took the 429. Catch `RateLimitExceededException` and
+`release($e->getRetryAfter())` in queue workers.
+
+---
+
 ## [2.1.1] - 2026-07-23
 
 Patch release. Fixes a `TypeError` that could break every SDK entry point after a
@@ -674,19 +928,3 @@ Each release will include:
 - **Removed**: Removed features
 - **Fixed**: Bug fixes
 - **Security**: Security improvements and fixes
-
----
-
-**[Unreleased]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.2.4...HEAD
-**[1.2.4]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.2.3...v1.2.4
-**[1.2.3]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.2.2...v1.2.3
-**[1.2.2]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.2.1...v1.2.2
-**[1.2.1]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.2.0...v1.2.1
-**[1.2.0]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.6...v1.2.0
-**[1.1.6]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.5...v1.1.6
-**[1.1.5]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.4...v1.1.5
-**[1.1.4]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.3...v1.1.4
-**[1.1.3]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.2...v1.1.3
-**[1.1.2]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.1...v1.1.2
-**[1.1.1]**: https://github.com/mcore-services-bv/teamleader-sdk/compare/v1.1.0-alpha...v1.1.1
-**[1.1.0-alpha]**: https://github.com/mcore-services-bv/teamleader-sdk/releases/tag/v1.1.0-alpha
