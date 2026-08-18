@@ -24,17 +24,23 @@ class Quotations extends Resource
 
     protected bool $supportsFiltering = true;
 
-    protected bool $supportsSideloading = true;
+    // Neither quotations.list nor quotations.info declares an includes
+    // parameter. Until v2.2.2 this was true and $availableIncludes advertised an
+    // `expiry` include that the API has never accepted.
+    protected bool $supportsSideloading = false;
 
-    // Available includes for sideloading
-    protected array $availableIncludes = [
-        'expiry' => 'Include expiry information (only if user has access to quotation expiry)',
-    ];
+    // Available includes for sideloading — none exist for this resource
+    protected array $availableIncludes = [];
 
-    // Common filters based on API documentation
+    /**
+     * Filters accepted by quotations.list.
+     *
+     * Verified against @teamleader/focus-api-specification: `ids` is the only
+     * one. `status` was declared here until v2.2.2 and is not a filter — the API
+     * ignored it and returned every quotation. See byStatus().
+     */
     protected array $commonFilters = [
         'ids' => 'Array of quotation UUIDs to filter by',
-        'status' => 'Filter by status(es): open, accepted, expired, rejected, closed',
     ];
 
     // Quotation status values
@@ -62,8 +68,8 @@ class Quotations extends Resource
             'code' => '$quotations = $teamleader->quotations()->list([\'ids\' => [\'uuid1\', \'uuid2\']]);',
         ],
         'get_single' => [
-            'description' => 'Get a single quotation with expiry',
-            'code' => '$quotation = $teamleader->quotations()->include(\'expiry\')->info(\'quotation-uuid\');',
+            'description' => 'Get a single quotation',
+            'code' => '$quotation = $teamleader->quotations()->info(\'quotation-uuid\');',
         ],
         'create' => [
             'description' => 'Create a new quotation',
@@ -90,22 +96,26 @@ class Quotations extends Resource
     /**
      * Get quotation information
      *
+     * `quotations.info` declares no includes parameter — everything the endpoint
+     * returns comes back automatically.
+     *
      * @param  string  $id  Quotation UUID
-     * @param  mixed  $includes  Includes to load (e.g., 'expiry')
+     * @param  mixed  $includes  Not supported by this endpoint
+     *
+     * @throws InvalidArgumentException When includes are requested
      */
     public function info($id, $includes = null): array
     {
-        $params = ['id' => $id];
-
-        // Apply includes
-        if (! empty($includes)) {
-            $params = $this->applyIncludes($params, $includes);
+        if (! empty($includes) || ! empty($this->getPendingIncludes())) {
+            throw new InvalidArgumentException(
+                'quotations.info accepts no includes parameter. The `expiry` include '
+                .'advertised before v2.2.2 does not exist in the API.'
+            );
         }
 
-        // Apply any pending includes from fluent interface
-        $params = $this->applyPendingIncludes($params);
-
-        return $this->api->request('POST', $this->getBasePath().'.info', $params);
+        return $this->api->request('POST', $this->getBasePath().'.info', [
+            'id' => $id,
+        ]);
     }
 
     /**
@@ -267,8 +277,16 @@ class Quotations extends Resource
             $params['filter'] = $this->buildFilters($filters);
         }
 
-        // Apply pagination
-        if (isset($options['page'])) {
+        // Apply pagination. The SDK-wide convention is page_size / page_number;
+        // this resource only understood a nested ['page' => ['size' => ...]]
+        // array until v2.2.2, so the standard form was silently ignored and every
+        // call returned the API default of 20.
+        if (isset($options['page_size']) || isset($options['page_number'])) {
+            $params['page'] = [
+                'size' => $options['page_size'] ?? 20,
+                'number' => $options['page_number'] ?? 1,
+            ];
+        } elseif (isset($options['page'])) {
             $params['page'] = $this->buildPagination($options['page']);
         }
 
@@ -280,18 +298,27 @@ class Quotations extends Resource
      */
     protected function buildFilters(array $filters): array
     {
-        $apiFilters = [];
+        $supported = array_keys($this->commonFilters);
 
-        // Handle IDs filter
-        if (isset($filters['ids']) && is_array($filters['ids'])) {
-            $apiFilters['ids'] = $filters['ids'];
+        $unknown = array_diff(array_keys($filters), $supported);
+
+        if ($unknown !== []) {
+            $message = 'Unsupported filter '.(count($unknown) > 1 ? 'keys' : 'key')
+                .' for quotations.list: '.implode(', ', $unknown)
+                .'. Supported: '.implode(', ', $supported).'.';
+
+            if (in_array('status', $unknown, true)) {
+                $message .= ' quotations.list has no status filter — the API ignores it '
+                    .'and returns every quotation. Filter client-side on data[].status.';
+            }
+
+            throw new InvalidArgumentException($message);
         }
 
-        // Handle status filter
-        if (isset($filters['status'])) {
-            $apiFilters['status'] = is_string($filters['status'])
-                ? [$filters['status']]
-                : $filters['status'];
+        $apiFilters = [];
+
+        if (isset($filters['ids'])) {
+            $apiFilters['ids'] = is_array($filters['ids']) ? $filters['ids'] : [$filters['ids']];
         }
 
         return $apiFilters;
@@ -318,23 +345,21 @@ class Quotations extends Resource
     /**
      * Get quotations by status
      *
+     * @deprecated since v2.2.2 — quotations.list has no `status` filter. The API
+     * ignored it and returned every quotation, so this method never filtered
+     * anything. Fetch and filter client-side on `data[].status`. Removed in v3.0.
+     *
      * @param  string|array  $status  Single status or array of statuses
+     *
+     * @throws InvalidArgumentException Always
      */
     public function byStatus($status): array
     {
-        if (is_string($status)) {
-            $status = [$status];
-        }
-
-        foreach ($status as $s) {
-            if (! in_array($s, $this->validStatuses)) {
-                throw new InvalidArgumentException(
-                    "Invalid status '{$s}'. Must be one of: ".implode(', ', $this->validStatuses)
-                );
-            }
-        }
-
-        return $this->list(['status' => $status]);
+        throw new InvalidArgumentException(
+            'quotations.list has no `status` filter — this method silently returned every '
+            .'quotation. Fetch with list() and filter client-side on data[].status, '
+            .'e.g. array_filter($result[\'data\'], fn ($q) => $q[\'status\'] === \'open\').'
+        );
     }
 
     /**

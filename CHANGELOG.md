@@ -15,6 +15,109 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.2.2] - 2026-08-18
+
+Patch release. Ten findings from a source scan against
+`@teamleader/focus-api-specification` — two fatals, three filters or includes
+the API has never accepted, and five consistency defects. Every one of them
+failed silently or on a code path the SDK's own documentation recommended.
+
+### Fixed
+
+- **`Projects::list()`**: sorting by a field name no longer raises
+  `TypeError: array_map(): Argument #2 ($array) must be of type array, string
+  given`. `buildSort()` tested `isset($sort['field'])`, which is false for a
+  string in PHP 8, then passed the string to `array_map()` — so
+  `projects()->list([], ['sort' => 'title'])` was fatal. It now accepts a field
+  name, a list of names, a single `['field' => ..., 'order' => ...]` entry, or a
+  list of those, and validates the field against the eighteen the API declares.
+  Same defect class as the `Deals::buildSort()` fatal fixed in v2.2.0.
+- **`Projects::buildFilters()`**: filters are now whitelisted. Both branches of
+  its `if`/`else` assigned the same value, so every key passed through
+  unchecked — and the API ignores filter keys it does not recognise, answering
+  `200` with the full unfiltered set. `projects-v2/projects.list` accepts `ids`,
+  `status`, `customers`, `deal_ids`, `quotation_ids` and `term`; anything else
+  now throws. `ids`, `deal_ids` and `quotation_ids` accept a lone string and wrap
+  it.
+- **Sideload option key**: `Projects`, `Orders`, `Pipelines` and `Invoices` read
+  `$options['includes']` while the rest of the SDK reads `$options['include']`.
+  So `['include' => 'custom_fields']` was silently ignored on those four, and
+  `['includes' => ...]` was silently ignored everywhere else — the caller-facing
+  version of the body-key defect fixed in v1.2.3. **Both keys are now accepted
+  everywhere**, resolved by `FilterTrait::resolveIncludesOption()`. `include`
+  wins when both are given, since it is the documented one. No existing call
+  breaks either way.
+- **`Orders::$availableIncludes`**: was a keyed map
+  (`['custom_fields' => 'Include custom field values...']`) where every other
+  resource uses a flat list, so `getCapabilities()['available_includes']`
+  returned a different structure for this one resource and generic iteration
+  over capabilities broke. Now a list.
+- **`Pipelines::delete()`**: called `parent::delete()`, but `Resource` defines
+  no `delete()` method — so deleting a pipeline raised
+  `Error: Call to undefined method`. The request is now built directly, sending
+  `migrate_phases` only when migrations are supplied. `prepareDeleteData()` was
+  written for that delegation, was never reached, and has been removed. Fourth
+  member of the missing-base-method family, after `buildSort()`, `with()` and
+  `validateData()`.
+- **`Quotations`**: `supportsSideloading` was `true` and `$availableIncludes`
+  advertised an `expiry` include. Neither `quotations.list` nor `quotations.info`
+  declares an includes parameter at all, so the include was never accepted.
+  Sideloading is now `false`, the include list is empty, and `info()` throws if
+  includes are passed.
+- **`Quotations`**: removed the `status` filter. `quotations.list` accepts `ids`
+  and nothing else — the API ignored `status` and returned every quotation.
+  `byStatus()` therefore never filtered anything and now throws, pointing at
+  client-side filtering on `data[].status`. Deprecated, removed in v3.0. Same
+  defect as `Companies::byName()` in v2.2.1.
+- **`Quotations::list()`**: now accepts the SDK-wide `page_size` / `page_number`
+  options. It previously understood only a nested `['page' => ['size' => ...]]`
+  array, so the standard form was silently ignored and every call returned the
+  API default of 20 records.
+- **`Orders`** and **`Quotations`**: usage examples called
+  `->include('custom_fields')` and `->include('expiry')`. No such method exists —
+  the fluent method is `with()`, and Quotations has no includes to request at
+  all. Second and third SDK-published examples found to be unrunnable, after
+  `Deals::withCustomer()` in v2.2.0.
+- **`Pipelines::list()`**: removed dead debug logging. It was guarded by
+  `function_exists('Log')` — `Log` is a class, not a function, so the condition
+  was always false and neither log line ever ran. The unused
+  `Illuminate\Support\Facades\Log` import went with it.
+
+### Added
+
+- **`FilterTrait::resolveIncludesOption()`** — reads either option key and
+  returns the value for `applyIncludes()`.
+- **`FilterTrait::normaliseSort()`**, **`validateSortField()`** and
+  **`normaliseSortOrder()`** — shared sort handling accepting all four input
+  forms, validating against `$availableSortFields` when the resource declares it
+  as a keyed map. Resources that define their own copies keep them, since a class
+  method takes precedence over a trait method; consolidating the fifteen existing
+  `buildSort()` implementations onto the trait is a v3.0 item.
+
+### Documentation
+
+- **`API-list-endpoint-contract.md`** — generated reference listing the real
+  filters, sort fields and includes for all 58 `.list` endpoints, extracted from
+  the specification. This is the cross-reference for the filter parity sweep
+  planned for v2.3.0.
+
+### Upgrade notes
+
+`Quotations::byStatus()` now throws where it previously returned every
+quotation. Replace it with a `list()` call and a client-side filter on
+`data[].status`. The `status` filter key throws for the same reason.
+
+`Projects::list()` now throws on unsupported filter keys where it previously
+forwarded them. Those filters were never applied — the API dropped them and
+returned every project — so any code relying on them was already getting the
+wrong result set.
+
+Sorting on `Projects` accepts more input shapes than before, and validates the
+field. A sort field that is not one of the eighteen the API declares now throws
+rather than being silently ignored.
+
+---
+
 ## [2.2.1] - 2026-08-18
 
 Patch release. Closes the findings from the post-release audit of the wiki and

@@ -2,7 +2,6 @@
 
 namespace McoreServices\TeamleaderSDK\Resources\Deals;
 
-use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
 
@@ -61,36 +60,15 @@ class Pipelines extends Resource
             ];
         }
 
-        // Include pagination meta data by default
-        if (! isset($options['includes'])) {
-            $options['includes'] = 'pagination';
-        }
+        // Request pagination metadata by default, so meta.matches carries a
+        // real total count. Both the `include` and `includes` option keys are
+        // accepted; either overrides the default.
+        $params = $this->applyIncludes(
+            $params,
+            $this->resolveIncludesOption($options) ?? 'pagination'
+        );
 
-        if (isset($options['includes'])) {
-            $params['includes'] = $options['includes'];
-        }
-
-        // Debug logging
-        if (function_exists('Log') && class_exists(Log::class)) {
-            Log::debug('DealPipelines list request', [
-                'filters' => $filters,
-                'options' => $options,
-                'final_params' => $params,
-            ]);
-        }
-
-        $response = $this->api->request('POST', $this->getBasePath().'.list', $params);
-
-        // Debug logging for response
-        if (function_exists('Log') && class_exists(Log::class)) {
-            Log::debug('DealPipelines list response', [
-                'has_error' => isset($response['error']),
-                'response_keys' => array_keys($response),
-                'data_count' => isset($response['data']) ? count($response['data']) : 0,
-            ]);
-        }
-
-        return $response;
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
@@ -147,10 +125,16 @@ class Pipelines extends Resource
     }
 
     /**
-     * Delete a deal pipeline with phase migration
+     * Delete a deal pipeline, optionally migrating its phases
+     *
+     * Deals in the deleted pipeline's phases are moved to the phases named in
+     * $migratePhases, each entry being
+     * ['old_phase_id' => ..., 'new_phase_id' => ...].
      *
      * @param  string  $id  Pipeline UUID to delete
-     * @param  mixed  ...$additionalParams  Additional parameters (expects migratePhases array as first param)
+     * @param  mixed  ...$additionalParams  Expects an array of phase migrations as the first param
+     *
+     * @throws InvalidArgumentException When the migration argument is not an array
      */
     public function delete($id, ...$additionalParams): array
     {
@@ -162,17 +146,17 @@ class Pipelines extends Resource
             );
         }
 
-        return parent::delete($id, $migratePhases);
-    }
+        // Built here rather than delegated. Until v2.2.2 this called
+        // parent::delete(), but Resource defines no delete() — so every call
+        // raised "Error: Call to undefined method". prepareDeleteData() was
+        // written for that delegation and was never reached either.
+        $params = ['id' => $id];
 
-    /**
-     * Prepare additional data for delete operation
-     */
-    protected function prepareDeleteData($id, ...$additionalParams): array
-    {
-        $migratePhases = $additionalParams[0] ?? [];
+        if ($migratePhases !== []) {
+            $params['migrate_phases'] = $migratePhases;
+        }
 
-        return ['migrate_phases' => $migratePhases];
+        return $this->api->request('POST', $this->getBasePath().'.delete', $params);
     }
 
     /**

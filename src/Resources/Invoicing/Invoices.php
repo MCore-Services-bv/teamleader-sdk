@@ -883,12 +883,8 @@ class Invoices extends Resource
             $params['sort'] = $this->buildSort($options['sort']);
         }
 
-        // Apply includes
-        if (! empty($options['includes'])) {
-            $params['includes'] = is_array($options['includes'])
-                ? implode(',', $options['includes'])
-                : $options['includes'];
-        }
+        // Apply includes — accepts both the `include` and `includes` option keys
+        $params = $this->applyIncludes($params, $this->resolveIncludesOption($options));
 
         return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }

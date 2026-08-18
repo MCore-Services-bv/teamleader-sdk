@@ -25,9 +25,13 @@ class Orders extends Resource
 
     protected bool $supportsSideloading = true;
 
-    // Available includes for sideloading
+    // Available includes for sideloading.
+    //
+    // A flat list, matching every other resource. Until v2.2.2 this was a keyed
+    // map, so getCapabilities()['available_includes'] returned a different shape
+    // here than anywhere else and generic iteration over capabilities broke.
     protected array $availableIncludes = [
-        'custom_fields' => 'Include custom field values for the order',
+        'custom_fields',
     ];
 
     // Common filters based on API documentation
@@ -60,7 +64,7 @@ class Orders extends Resource
         ],
         'get_single' => [
             'description' => 'Get a single order with custom fields',
-            'code' => '$order = $teamleader->orders()->include(\'custom_fields\')->info(\'order-uuid\');',
+            'code' => '$order = $teamleader->orders()->with(\'custom_fields\')->info(\'order-uuid\');',
         ],
         'by_ids' => [
             'description' => 'Get orders by IDs using convenience method',
@@ -91,12 +95,8 @@ class Orders extends Resource
             $params['filter'] = $this->buildFilters($filters);
         }
 
-        // Apply includes from options
-        if (isset($options['includes'])) {
-            $params['includes'] = is_array($options['includes'])
-                ? implode(',', $options['includes'])
-                : $options['includes'];
-        }
+        // Apply includes — accepts both the `include` and `includes` option keys
+        $params = $this->applyIncludes($params, $this->resolveIncludesOption($options));
 
         // Apply any pending includes from fluent interface
         $params = $this->applyPendingIncludes($params);

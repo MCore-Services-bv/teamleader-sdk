@@ -218,6 +218,137 @@ trait FilterTrait
     }
 
     /**
+     * Resolve the sideload option from a caller's $options array.
+     *
+     * The SDK's convention is `$options['include']` (singular) as the *option*
+     * key, translated to `includes` (plural) as the *body* key by
+     * applyIncludes(). Four resources — Projects, Orders, Pipelines and
+     * Invoices — historically read `$options['includes']` instead, so
+     * `['include' => 'custom_fields']` was silently ignored on those and
+     * `['includes' => ...]` was silently ignored everywhere else.
+     *
+     * Both keys are now accepted everywhere. `include` wins when both are
+     * present, since it is the documented one.
+     *
+     * @return array|string|null Null when neither key is set
+     */
+    protected function resolveIncludesOption(array $options)
+    {
+        if (! empty($options['include'])) {
+            return $options['include'];
+        }
+
+        if (! empty($options['includes'])) {
+            return $options['includes'];
+        }
+
+        return null;
+    }
+
+    /**
+     * Normalise a sort option into the array-of-objects shape the API expects.
+     *
+     * Accepts a field name, a list of field names, a single
+     * ['field' => ..., 'order' => ...] entry, or a list of those.
+     *
+     * Resources that declare $availableSortFields get their fields validated;
+     * those that do not are passed through unchecked.
+     *
+     * Note that several resources define their own copies of this method and of
+     * validateSortField()/normaliseSortOrder(). A class method takes precedence
+     * over a trait method, so those keep their own behaviour. Consolidating them
+     * onto this trait is a v3.0 item.
+     *
+     * @param  array|string  $sort
+     *
+     * @throws \InvalidArgumentException When a sort field or order is not supported
+     */
+    protected function normaliseSort($sort, string $order = 'asc'): array
+    {
+        $order = $this->normaliseSortOrder($order);
+
+        // Already a list of sort objects
+        if (is_array($sort) && isset($sort[0]) && is_array($sort[0])) {
+            return array_map(fn (array $entry) => [
+                'field' => $this->validateSortField($entry['field'] ?? null),
+                'order' => $this->normaliseSortOrder($entry['order'] ?? $order),
+            ], array_values($sort));
+        }
+
+        // A single ['field' => ..., 'order' => ...] entry
+        if (is_array($sort) && isset($sort['field'])) {
+            return [[
+                'field' => $this->validateSortField($sort['field']),
+                'order' => $this->normaliseSortOrder($sort['order'] ?? $order),
+            ]];
+        }
+
+        // A list of field names
+        if (is_array($sort)) {
+            return array_map(fn ($field) => [
+                'field' => $this->validateSortField($field),
+                'order' => $order,
+            ], array_values($sort));
+        }
+
+        // A single field name
+        return [[
+            'field' => $this->validateSortField($sort),
+            'order' => $order,
+        ]];
+    }
+
+    /**
+     * Ensure a sort field is one the endpoint accepts.
+     *
+     * Validates against $availableSortFields when the resource declares it as a
+     * keyed map. Resources that declare it as a plain list, or not at all, get a
+     * type check only.
+     *
+     * @throws \InvalidArgumentException
+     */
+    protected function validateSortField(mixed $field): string
+    {
+        if (! is_string($field) || $field === '') {
+            throw new \InvalidArgumentException(
+                'Sort field must be a non-empty string, '.gettype($field).' given.'
+            );
+        }
+
+        $available = $this->availableSortFields ?? [];
+
+        // Only validate against a keyed map — a plain list carries no descriptions
+        // and predates the convention.
+        if ($available !== [] && ! array_is_list($available) && ! array_key_exists($field, $available)) {
+            throw new \InvalidArgumentException(
+                "Invalid sort field: {$field}. Accepted: ".implode(', ', array_keys($available)).'.'
+            );
+        }
+
+        return $field;
+    }
+
+    /**
+     * Ensure a sort order is asc or desc.
+     *
+     * @throws \InvalidArgumentException
+     */
+    protected function normaliseSortOrder(mixed $order): string
+    {
+        if (! is_string($order)) {
+            throw new \InvalidArgumentException('Sort order must be a string: asc or desc.');
+        }
+
+        $normalised = strtolower($order);
+
+        if (! in_array($normalised, ['asc', 'desc'], true)) {
+            throw new \InvalidArgumentException("Invalid sort order: {$order}. Must be asc or desc.");
+        }
+
+        return $normalised;
+    }
+
+    /**
      * Property to store pending includes for fluent interface
      */
     protected array $pendingIncludes = [];

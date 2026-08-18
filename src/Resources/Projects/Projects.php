@@ -196,15 +196,14 @@ class Projects extends Resource
 
         // Apply sorting
         if (! empty($options['sort'])) {
-            $params['sort'] = $this->buildSort($options['sort']);
+            $params['sort'] = $this->buildSort($options['sort'], $options['sort_order'] ?? 'desc');
         }
 
-        // Apply includes
-        if (! empty($options['includes'])) {
-            $params['includes'] = is_array($options['includes'])
-                ? implode(',', $options['includes'])
-                : $options['includes'];
-        }
+        // Apply includes — accepts both the `include` and `includes` option keys
+        $params = $this->applyIncludes($params, $this->resolveIncludesOption($options));
+
+        // Apply any pending includes from the fluent interface
+        $params = $this->applyPendingIncludes($params);
 
         return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
@@ -650,15 +649,33 @@ class Projects extends Resource
      */
     protected function buildFilters(array $filters): array
     {
+        $supported = array_keys($this->commonFilters);
+
+        $unknown = array_diff(array_keys($filters), $supported);
+
+        if ($unknown !== []) {
+            throw new InvalidArgumentException(
+                'Unsupported filter '.(count($unknown) > 1 ? 'keys' : 'key')
+                .' for projects-v2/projects.list: '.implode(', ', $unknown)
+                .'. Supported: '.implode(', ', $supported).'.'
+            );
+        }
+
         $formatted = [];
 
         foreach ($filters as $key => $value) {
-            // Pass through complex filter structures as-is
-            if (in_array($key, ['customers'])) {
-                $formatted[$key] = $value;
-            } else {
-                $formatted[$key] = $value;
+            if ($value === null) {
+                continue;
             }
+
+            // ids, deal_ids and quotation_ids are arrays; wrap a lone string
+            if (in_array($key, ['ids', 'deal_ids', 'quotation_ids'], true) && ! is_array($value)) {
+                $formatted[$key] = [$value];
+
+                continue;
+            }
+
+            $formatted[$key] = $value;
         }
 
         return $formatted;
@@ -669,20 +686,13 @@ class Projects extends Resource
      */
     protected function buildSort($sort, string $order = 'desc'): array
     {
-        if (isset($sort['field'])) {
-            // Single sort field
-            return [[
-                'field' => $sort['field'],
-                'order' => $sort['order'] ?? 'desc',
-            ]];
-        }
-
-        // Multiple sort fields
-        return array_map(function ($item) {
-            return [
-                'field' => $item['field'],
-                'order' => $item['order'] ?? 'desc',
-            ];
-        }, $sort);
+        // Delegates to FilterTrait::normaliseSort(), which handles a field name,
+        // a list of names, a single ['field' => ..., 'order' => ...] entry, or a
+        // list of those, and validates the field against $availableSortFields.
+        //
+        // Before v2.2.2 a plain string fell through to array_map() and raised
+        // "TypeError: array_map(): Argument #2 must be of type array, string
+        // given" — so list([], ['sort' => 'title']) was fatal.
+        return $this->normaliseSort($sort, $order);
     }
 }
