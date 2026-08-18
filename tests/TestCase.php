@@ -50,5 +50,42 @@ abstract class TestCase extends Orchestra
 
         // Use array cache for testing
         $app['config']->set('cache.default', 'array');
+
+        $this->configureRedis($app);
+    }
+
+    /**
+     * Configure the Redis connection used by the #[Group('redis')] tests.
+     *
+     * Defaults to predis, a pure-PHP client, so the suite does not require the
+     * phpredis C extension to be compiled into whichever PHP the contributor
+     * happens to be running. Set REDIS_CLIENT=phpredis to use the extension
+     * where it is available.
+     *
+     * Database 15 keeps the sliding-window keys away from application data,
+     * which normally lives in database 0.
+     *
+     * Override the host and port via environment variables when Redis is not on
+     * the default address — Laravel Herd, for example, serves it on 6380:
+     *
+     *     REDIS_PORT=6380 vendor/bin/phpunit --group=redis
+     *
+     * @param  Application  $app
+     */
+    protected function configureRedis($app): void
+    {
+        $app['config']->set('database.redis.client', env('REDIS_CLIENT', 'predis'));
+
+        $app['config']->set('database.redis.options', [
+            'cluster' => 'redis',
+            'prefix' => '',
+        ]);
+
+        $app['config']->set('database.redis.default', [
+            'host' => env('REDIS_HOST', '127.0.0.1'),
+            'password' => env('REDIS_PASSWORD'),
+            'port' => (int) env('REDIS_PORT', 6379),
+            'database' => (int) env('REDIS_DB', 15),
+        ]);
     }
 }

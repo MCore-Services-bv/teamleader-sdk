@@ -18,7 +18,8 @@
         "phpunit/phpunit": "^11.5.50|^12.5.8",
         "orchestra/testbench": "^10.0|^11.0",
         "mockery/mockery": "^1.6",
-        "laravel/pint": "^1.13"
+        "laravel/pint": "^1.13",
+        "predis/predis": "^3.6"
     },
     "scripts": {
         "test": "vendor/bin/phpunit",

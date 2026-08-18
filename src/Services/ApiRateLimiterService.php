@@ -71,19 +71,41 @@ class ApiRateLimiterService
 
     /**
      * Check if a request can be made and apply throttling if needed
+     *
+     * Gates on whichever of the two signals is more conservative: the local
+     * sliding window, and the `X-RateLimit-Remaining` value the API last
+     * reported. The header value matters whenever the two diverge — another
+     * integration on the same account, a second application, a manual API
+     * client, or requests made before this window was populated. Before v2.1.2
+     * the header value was stored in Redis by updateFromResponseHeaders() and
+     * then never read, which made the most authoritative number available
+     * purely decorative.
      */
     public function checkAndThrottle(): array
     {
         $this->cleanupOldRequests();
 
         $currentUsage = $this->getCurrentUsage();
-        $usagePercentage = ($currentUsage / self::RATE_LIMIT) * 100;
+        $localRemaining = self::RATE_LIMIT - $currentUsage;
+
+        $headerRemaining = $this->getHeaderRemaining();
+
+        $effectiveRemaining = $headerRemaining !== null
+            ? min($localRemaining, $headerRemaining)
+            : $localRemaining;
+
+        // Express the effective remaining as usage so the progressive throttle
+        // thresholds react to the API's number too, not just the local count.
+        $effectiveUsage = self::RATE_LIMIT - $effectiveRemaining;
+        $usagePercentage = ($effectiveUsage / self::RATE_LIMIT) * 100;
 
         $throttleInfo = [
             'can_proceed' => true,
             'current_usage' => $currentUsage,
             'usage_percentage' => round($usagePercentage, 1),
-            'remaining' => self::RATE_LIMIT - $currentUsage,
+            'remaining' => max(0, $effectiveRemaining),
+            'local_remaining' => $localRemaining,
+            'header_remaining' => $headerRemaining,
             'delay_applied' => 0,
             'reason' => '',
             'reset_time' => $this->getNextSlotAvailableTime(),
@@ -91,22 +113,15 @@ class ApiRateLimiterService
         ];
 
         // Check if we're at or over the limit
-        if ($currentUsage >= self::RATE_LIMIT) {
-            $oldestRequestTime = $this->getOldestRequestTime();
-            $waitTime = 0;
-
-            if ($oldestRequestTime) {
-                // Wait until the oldest request falls out of the sliding window
-                $waitTime = max(0, self::WINDOW_DURATION - (microtime(true) - $oldestRequestTime));
-            } else {
-                // Fallback: wait the full window
-                $waitTime = self::WINDOW_DURATION;
-            }
+        if ($effectiveRemaining <= 0) {
+            $waitTime = $this->getSecondsUntilSlotFree();
 
             if ($waitTime > 0) {
                 $throttleInfo['can_proceed'] = false;
-                $throttleInfo['delay_applied'] = (int) ($waitTime * 1000); // Convert to milliseconds
-                $throttleInfo['reason'] = 'Sliding window rate limit exceeded, waiting for slot';
+                $throttleInfo['delay_applied'] = (int) ceil($waitTime * 1000); // Convert to milliseconds
+                $throttleInfo['reason'] = $headerRemaining !== null && $headerRemaining <= 0
+                    ? 'API reported no remaining requests, waiting for reset'
+                    : 'Sliding window rate limit exceeded, waiting for slot';
 
                 $this->logThrottling('sliding_window_exceeded', $throttleInfo);
 
@@ -131,7 +146,57 @@ class ApiRateLimiterService
     }
 
     /**
-     * Record a successful API request in the shared Redis sliding window
+     * Read the last-known remaining count reported by the API
+     *
+     * Written by updateFromResponseHeaders() and by handle429Response(), which
+     * sets it to zero for the duration of Retry-After so every worker backs off.
+     *
+     * @return int|null Null when no header value has been seen recently
+     */
+    private function getHeaderRemaining(): ?int
+    {
+        $value = $this->redis()->get(self::REMAINING_KEY);
+
+        return $value === null || $value === false ? null : (int) $value;
+    }
+
+    /**
+     * Seconds until a slot is expected to free up
+     *
+     * Prefers the reset timestamp the API gave us, since that is authoritative
+     * when the block came from the API's count rather than the local window.
+     * Falls back to the oldest request ageing out of the sliding window.
+     */
+    private function getSecondsUntilSlotFree(): float
+    {
+        $resetAt = $this->redis()->get(self::RESET_TIME_KEY);
+
+        if ($resetAt !== null && $resetAt !== false) {
+            $secondsUntilReset = (int) $resetAt - time();
+
+            if ($secondsUntilReset > 0) {
+                return (float) $secondsUntilReset;
+            }
+        }
+
+        $oldestRequestTime = $this->getOldestRequestTime();
+
+        if ($oldestRequestTime) {
+            // Wait until the oldest request falls out of the sliding window
+            return max(0, self::WINDOW_DURATION - (microtime(true) - $oldestRequestTime));
+        }
+
+        // Fallback: wait the full window
+        return (float) self::WINDOW_DURATION;
+    }
+
+    /**
+     * Record an API request in the shared Redis sliding window
+     *
+     * Called before the request is dispatched, not after it succeeds.
+     * Teamleader counts every request against the budget, including the ones
+     * that return 4xx and the 429s themselves, so recording only successes made
+     * the window drift optimistic exactly when errors were already occurring.
      */
     public function recordRequest(): void
     {

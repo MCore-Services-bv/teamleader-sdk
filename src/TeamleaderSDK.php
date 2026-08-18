@@ -7,6 +7,7 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Http\RedirectResponse;
 use McoreServices\TeamleaderSDK\Exceptions\ConfigurationException;
+use McoreServices\TeamleaderSDK\Exceptions\RateLimitExceededException;
 use McoreServices\TeamleaderSDK\Services\ApiRateLimiterService;
 use McoreServices\TeamleaderSDK\Services\TeamleaderErrorHandler;
 use McoreServices\TeamleaderSDK\Services\TokenService;
@@ -372,49 +373,90 @@ class TeamleaderSDK
                 return $result;
             }
 
-            // Check rate limiting and apply throttling
-            $rateLimitCheck = $this->rateLimiter->checkAndThrottle();
+            $rateLimitingEnabled = (bool) config('teamleader.rate_limiting.enabled', true);
 
-            if (! $rateLimitCheck['can_proceed']) {
-                // We need to wait for rate limit reset
-                $waitTimeSeconds = $rateLimitCheck['delay_applied'] / 1000;
-
-                $this->logger->warning('TeamleaderSDK: Rate limit exceeded, waiting for reset', [
-                    'wait_time_seconds' => $waitTimeSeconds,
-                    'reset_time' => $rateLimitCheck['reset_time'],
-                    'reason' => $rateLimitCheck['reason'],
-                ]);
-
-                // Sleep for the required time
-                sleep((int) $waitTimeSeconds);
-
-                // After waiting, recheck rate limits
+            if ($rateLimitingEnabled) {
+                // Wait until the limiter confirms a slot is free.
+                //
+                // Before v2.1.2 this checked once, slept, rechecked, and then
+                // dispatched regardless of what the recheck said — so a window
+                // that was still full produced a 429 the proactive limiter was
+                // supposed to prevent. The wait was also `sleep((int) $ms/1000)`,
+                // which truncates any sub-second delay to zero, meaning a
+                // corrected loop would have spun without ever waiting.
                 $rateLimitCheck = $this->rateLimiter->checkAndThrottle();
-            }
 
-            // Apply any throttling delay
-            if ($rateLimitCheck['delay_applied'] > 0) {
-                $delayMs = $rateLimitCheck['delay_applied'];
+                $waitedMs = 0;
+                $maxWaitMs = (int) config('teamleader.rate_limiting.max_wait_ms', 65000);
 
-                $this->logger->debug('TeamleaderSDK: Applying throttling delay', [
-                    'delay_ms' => $delayMs,
-                    'usage_percentage' => $rateLimitCheck['usage_percentage'],
-                    'throttle_level' => $rateLimitCheck['throttle_level'],
-                    'reason' => $rateLimitCheck['reason'],
-                ]);
+                while (! $rateLimitCheck['can_proceed']) {
+                    // Floor at one second: delay_applied is in milliseconds and
+                    // busy-looping on a sub-second value helps nobody.
+                    $delayMs = max(1000, (int) $rateLimitCheck['delay_applied']);
 
-                usleep($delayMs * 1000); // Convert to microseconds
+                    if ($waitedMs + $delayMs > $maxWaitMs) {
+                        // Bounded rather than indefinite. An unbounded wait in the
+                        // core request path is a hang waiting to happen, and it
+                        // would contradict withRetry(), which deliberately
+                        // re-throws rate limit errors without sleeping so a queue
+                        // worker can release() instead of blocking its thread.
+                        $this->logger->warning('TeamleaderSDK: Giving up waiting for rate limit window', [
+                            'waited_ms' => $waitedMs,
+                            'max_wait_ms' => $maxWaitMs,
+                            'usage_percentage' => $rateLimitCheck['usage_percentage'],
+                            'reason' => $rateLimitCheck['reason'],
+                        ]);
+
+                        throw new RateLimitExceededException(
+                            'Rate limit window did not clear within the configured maximum wait of '
+                            .round($maxWaitMs / 1000, 1).'s. Retry later, or raise '
+                            .'teamleader.rate_limiting.max_wait_ms.',
+                            (int) ceil($delayMs / 1000)
+                        );
+                    }
+
+                    $this->logger->warning('TeamleaderSDK: Rate limit window full, waiting', [
+                        'delay_ms' => $delayMs,
+                        'waited_ms' => $waitedMs,
+                        'reset_time' => $rateLimitCheck['reset_time'],
+                        'reason' => $rateLimitCheck['reason'],
+                    ]);
+
+                    usleep($delayMs * 1000);
+                    $waitedMs += $delayMs;
+
+                    $rateLimitCheck = $this->rateLimiter->checkAndThrottle();
+                }
+
+                // Apply any progressive throttling delay
+                if ($rateLimitCheck['delay_applied'] > 0) {
+                    $delayMs = $rateLimitCheck['delay_applied'];
+
+                    $this->logger->debug('TeamleaderSDK: Applying throttling delay', [
+                        'delay_ms' => $delayMs,
+                        'usage_percentage' => $rateLimitCheck['usage_percentage'],
+                        'throttle_level' => $rateLimitCheck['throttle_level'],
+                        'reason' => $rateLimitCheck['reason'],
+                    ]);
+
+                    usleep($delayMs * 1000); // Convert to microseconds
+                }
+
+                // Record the request before dispatching it.
+                //
+                // Teamleader counts every request against the budget, including
+                // the ones that come back 4xx and the 429s themselves. Recording
+                // only successes — as this did before v2.1.2 — makes the local
+                // window under-count precisely when errors are already happening,
+                // so the limiter believes it has more headroom than it does and
+                // produces further 429s.
+                $this->rateLimiter->recordRequest();
             }
 
             $result = $this->makeRequest($method, $endpoint, $data);
 
             // Handle the response through our error handler
             $this->errorHandler->handleApiError($result, "{$method} {$endpoint}");
-
-            // Record successful request for rate limiting
-            if (! isset($result['error']) || ! $result['error']) {
-                $this->rateLimiter->recordRequest();
-            }
 
             return $result;
 
