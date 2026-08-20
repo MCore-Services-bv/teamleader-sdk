@@ -15,6 +15,101 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.2.3] - 2026-08-20
+
+Patch release. `orders.list` could not be paginated, so every consumer received
+the API's default of twenty records with nothing in the response to say more
+existed. Reported from a nightly reconciliation that was silently wrong.
+
+### Added
+
+- **`Orders::all()`**: walks every page of `orders.list` and returns one `data`
+  array. The endpoint returns no total count, so the end of the list is inferred
+  from a page shorter than the one requested. A `$maxPages` guard (default 100
+  pages of 100) throws when it is reached with records still pending, rather
+  than returning a partial set that looks complete — which is the failure this
+  release exists to fix. The sideload is resolved once and replayed on every
+  page, because `applyPendingIncludes()` consumes the fluent state after the
+  first request and `with('custom_fields')->all()` would otherwise have
+  sideloaded page 1 only.
+
+### Fixed
+
+- **`Orders::list()`**: now accepts `page_size` and `page_number`.
+  `supportsPagination` was `false` and no `page` key was ever sent, so there was
+  no way to reach past the first twenty orders — and no `meta` block, no page
+  count and no error to reveal it. An account with 1,100 orders synced cleanly
+  and was wrong by 98%. Verified live on 2026-08-20 against an account holding
+  30 orders: no page parameter returned 20, `size: 100` returned all 30, page 2
+  returned 0, and `size: 5` returned five records on page 1 and five different
+  records on page 2. Passing neither option still sends no `page` key, so
+  existing calls are unchanged.
+
+  Note that `@teamleader/focus-api-specification` (v1.198.0) does **not**
+  declare `page` on `orders.list` — it declares `filter` and `includes` only,
+  where 40 of the 58 `.list` endpoints declare `page`. The capability is
+  undocumented rather than absent: an ignored parameter would have returned
+  twenty records every time, not a result set that changes with page size and
+  page number. The spec entry for this endpoint is thin elsewhere too, omitting
+  `status` from a response that carries it.
+
+- **`Orders::buildFilters()`**: filters are now whitelisted, matching `Deals`
+  since v2.2.0. `orders.list` accepts `ids` and nothing else; `department_id`,
+  `updated_since`, `order_date_after`, `term` and `status` were each confirmed
+  accepted-and-ignored against the live API, returning the full unfiltered set
+  with a 200. A deliberately invented key behaved identically, which is how the
+  others were shown to be ignored rather than merely unhelpful. Unknown keys now
+  throw. `ids` accepts a lone string and wraps it.
+
+- **`Orders::list()`**: now rejects a sort option instead of discarding it. The
+  API accepts `sort` on this endpoint and ignores it — sorting by `order_date`
+  returns the same first record as no sort at all — so a caller passing one
+  silently got none.
+
+- **Guzzle deprecation notices on every request**: `timeout`, `connect_timeout`
+  and `read_timeout` were passed to the client as whatever `config()` returned,
+  which is a string when the value comes from `.env`. Guzzle 7.11 deprecates a
+  string here and 8.0 will require `int|float`, so every API call emitted
+  deprecation notices under a strict error handler. All three are now cast.
+
+### Documentation
+
+- `Orders` usage examples now cover pagination and `all()`. The block previously
+  showed only unpaginated calls, which is part of how the gap stayed invisible.
+- `Orders::getResponseStructure()`: **26 fields the specification declares were
+  undocumented** — the `id` and `type` members of the `department`, `deal`,
+  `project`, `assignee` and `product_category` references, and the whole
+  `custom_fields[].definition` / `value` shape, on both the `list` and `info`
+  maps. Found by diffing the field map against the specification rather than by
+  reading it.
+- `Orders::getResponseStructure()`: `order_number` is documented as an integer,
+  and `status` is documented on both maps. `status` appears on live records but
+  is absent from the API specification, so it is marked as observed rather than
+  declared.
+
+### Tests
+
+- **`OrdersSpecContractTest`** — 17 tests asserting the resource's declarations
+  against `@teamleader/focus-api-specification` rather than against runtime
+  behaviour. The API answers 200 to filter keys, sort fields and includes it does
+  not recognise, so a response-based test cannot tell a working capability from
+  an ignored one; every assertion here compares a declaration in the class to a
+  declaration in the specification. Covers the filter whitelist, the sorting and
+  sideloading flags, the read-only flags, both response field maps in both
+  directions, the `payment_term` enum, and that every published usage example
+  names a method that exists.
+
+  The pagination divergence is asserted rather than ignored: the suite fails if
+  Teamleader ever declares `page` on `orders.list`, so the explanatory comments
+  can be retired at that point instead of quietly going stale.
+
+- **`tests/Fixtures/specification/`** — a mechanical extract of the specification
+  for the endpoints under test, with `generate-spec-fixtures.mjs` to regenerate
+  it. Committed so the suite needs no npm in CI. Adding a resource is one line in
+  the script's `RESOURCES` map.
+
+---
+
 ## [2.2.2] - 2026-08-18
 
 Patch release. Ten findings from a source scan against

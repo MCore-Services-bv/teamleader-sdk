@@ -167,9 +167,13 @@ class TeamleaderSDK
                 'Content-Type' => 'application/json',
             ],
             'http_errors' => false,
-            'timeout' => config('teamleader.api.timeout', 30),
-            'connect_timeout' => config('teamleader.api.connect_timeout', 10),
-            'read_timeout' => config('teamleader.api.read_timeout', 25),
+            // Cast — a config value arriving from .env is a string, and Guzzle
+            // 7.11 deprecates a string here (8.0 will require int|float), so
+            // every API call emitted two deprecation notices under a strict
+            // error handler.
+            'timeout' => (float) config('teamleader.api.timeout', 30),
+            'connect_timeout' => (float) config('teamleader.api.connect_timeout', 10),
+            'read_timeout' => (float) config('teamleader.api.read_timeout', 25),
         ]);
 
         // Use dependency injection or create instances
