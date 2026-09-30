@@ -8,12 +8,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Category-by-category spec audit: Tickets, General, Products, Planning,
-  Files, Templates, Other — one patch release each, with the matching wiki pages
+- Category-by-category spec audit: General, Products, Planning, Files,
+  Templates, Other — one patch release each, with the matching wiki pages
 - Bulk operations helper for processing large datasets
 - Enhanced caching strategies with tag-based invalidation
 - Laravel Pulse integration for monitoring
 - CLI tool for quick API exploration
+
+---
+
+## [2.2.13] - 2026-09-30
+
+The Tickets category — Tickets and Ticket Statuses — brought in line with
+`@teamleader/focus-api-specification` **1.221.0**.
+
+### Fixed
+
+- **The advertised dotted filters did nothing.** `relates_to.type`,
+  `relates_to.id` and `exclude.status_ids` were listed as filters but sent flat
+  (`"relates_to.type": …`), which the API ignored, so those calls returned
+  every ticket. They are now nested into the objects the API expects. The
+  nested form keeps working.
+- **Unknown filter keys were passed through** on tickets.list and dropped
+  silently on tickets.listMessages and ticketStatus.list, so a mistyped key
+  returned unfiltered results. They now throw. A string `ids` on
+  ticketStatus.list was dropped; it is wrapped now.
+- `update()` could not remove a third-party participant: `participant.customer`
+  null was rejected. It is accepted now.
+
+### Added
+
+- **`assignee_ids` filter**, with `assignedTo([...])` and `unassigned()`
+  helpers. A null entry matches unassigned tickets, as the API documents.
+- `listMessages()` sends `includes=pagination`, so the response carries the
+  total message count in `meta`.
+
+### Changed
+
+- **Unknown write fields throw** on tickets.create and tickets.update.
+  `initial_reply`, for example, is create only.
+- These are now checked: `relates_to.type`, the `exclude` shape, message
+  filter types, and `importMessage()`'s `sent_at`, which must be ISO 8601
+  with a timezone.
+- `info()` throws when given includes; tickets.info takes none. Unknown list
+  options throw too.
+- Constants on Tickets (`CREATE_FIELDS`, `UPDATE_FIELDS`, `REQUIRED_ON_CREATE`,
+  `CUSTOMER_TYPES`, `INITIAL_REPLY_OPTIONS`, `MESSAGE_TYPES`, `SENT_BY_TYPES`,
+  `MESSAGE_FILTERS`) and `TicketStatus::STATUS_TYPES`, each checked against the
+  spec.
+- New tests: `TicketsPayloadTest` and `TicketsSpecContractTest`. Baseline
+  22 → 21.
 
 ---
 

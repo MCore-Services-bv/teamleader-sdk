@@ -4,9 +4,15 @@ namespace McoreServices\TeamleaderSDK\Resources\Tickets;
 
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class TicketStatus extends Resource
 {
+    use ValidatesWritePayload;
+
+    /** `status` on ticketStatus.list items */
+    public const STATUS_TYPES = ['new', 'open', 'waiting_for_client', 'escalated_thirdparty', 'closed', 'custom'];
+
     protected string $description = 'Manage ticket statuses in Teamleader Focus';
 
     // Resource capabilities - Ticket statuses are read-only
@@ -38,14 +44,7 @@ class TicketStatus extends Resource
     ];
 
     // Valid status types
-    protected array $statusTypes = [
-        'new',
-        'open',
-        'waiting_for_client',
-        'escalated_thirdparty',
-        'closed',
-        'custom',
-    ];
+    protected array $statusTypes = self::STATUS_TYPES;
 
     // Usage examples specific to ticket statuses
     protected array $usageExamples = [
@@ -87,6 +86,12 @@ class TicketStatus extends Resource
      */
     public function list(array $filters = [], array $options = []): array
     {
+        if ($options !== []) {
+            throw new InvalidArgumentException(
+                'ticketStatus.list takes no paging, sorting or includes; got: '.implode(', ', array_keys($options)).'.'
+            );
+        }
+
         $params = [];
 
         // Apply filters
@@ -251,13 +256,13 @@ class TicketStatus extends Resource
      */
     protected function buildFilters(array $filters): array
     {
-        $formatted = [];
+        // Unknown keys and a string `ids` were dropped without a word until
+        // v2.2.13, returning every status.
+        $this->rejectUnknownFilters($filters, 'ticketStatus.list');
 
-        if (isset($filters['ids']) && is_array($filters['ids'])) {
-            $formatted['ids'] = $filters['ids'];
-        }
-
-        return $formatted;
+        return isset($filters['ids'])
+            ? ['ids' => is_array($filters['ids']) ? array_values($filters['ids']) : [$filters['ids']]]
+            : [];
     }
 
     /**

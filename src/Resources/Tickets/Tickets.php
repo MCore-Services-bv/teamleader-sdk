@@ -4,9 +4,40 @@ namespace McoreServices\TeamleaderSDK\Resources\Tickets;
 
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class Tickets extends Resource
 {
+    use ValidatesWritePayload;
+
+    /** Body fields tickets.create accepts */
+    public const CREATE_FIELDS = [
+        'subject', 'customer', 'ticket_status_id', 'assignee', 'custom_fields', 'description',
+        'participant', 'initial_reply', 'milestone_id', 'project_id',
+    ];
+
+    /** Body fields tickets.update accepts, besides `id` — no initial_reply */
+    public const UPDATE_FIELDS = [
+        'subject', 'description', 'ticket_status_id', 'customer', 'assignee', 'participant',
+        'custom_fields', 'milestone_id', 'project_id',
+    ];
+
+    public const REQUIRED_ON_CREATE = ['subject', 'customer', 'ticket_status_id'];
+
+    public const CUSTOMER_TYPES = ['contact', 'company'];
+
+    /** `initial_reply` on tickets.create */
+    public const INITIAL_REPLY_OPTIONS = ['automatic', 'disabled'];
+
+    /** `filter.type` on tickets.listMessages */
+    public const MESSAGE_TYPES = ['customer', 'internal', 'thirdParty'];
+
+    /** `sent_by.type` on tickets.importMessage */
+    public const SENT_BY_TYPES = ['company', 'contact', 'user'];
+
+    /** Filter keys tickets.listMessages accepts */
+    public const MESSAGE_FILTERS = ['type', 'created_before', 'created_after'];
+
     protected string $description = 'Manage tickets (support cases) in Teamleader Focus';
 
     // Resource capabilities
@@ -33,39 +64,32 @@ class Tickets extends Resource
     protected array $defaultIncludes = [];
 
     // Common filters based on API documentation
+    /**
+     * Filters tickets.list accepts. `relates_to` and `exclude` may be passed
+     * nested (['relates_to' => ['type' => ..., 'id' => ...]]) or in the dotted
+     * form listed here; until v2.2.13 the dotted form was sent as-is, which
+     * the API ignored.
+     */
     protected array $commonFilters = [
         'ids' => 'Array of ticket UUIDs',
         'relates_to.type' => 'Related entity type (contact, company)',
         'relates_to.id' => 'Related entity UUID',
         'project_ids' => 'Array of project UUIDs',
+        'assignee_ids' => 'Array of user UUIDs; a null entry matches unassigned tickets',
         'exclude.status_ids' => 'Array of status UUIDs to exclude',
     ];
 
     // Valid customer types
-    protected array $customerTypes = [
-        'contact',
-        'company',
-    ];
+    protected array $customerTypes = self::CUSTOMER_TYPES;
 
     // Valid initial reply options
-    protected array $initialReplyOptions = [
-        'automatic',
-        'disabled',
-    ];
+    protected array $initialReplyOptions = self::INITIAL_REPLY_OPTIONS;
 
     // Valid message types
-    protected array $messageTypes = [
-        'customer',
-        'internal',
-        'thirdParty',
-    ];
+    protected array $messageTypes = self::MESSAGE_TYPES;
 
     // Valid sent_by types for importing messages
-    protected array $sentByTypes = [
-        'company',
-        'contact',
-        'user',
-    ];
+    protected array $sentByTypes = self::SENT_BY_TYPES;
 
     // Usage examples specific to tickets
     protected array $usageExamples = [
@@ -148,6 +172,8 @@ class Tickets extends Resource
             throw new InvalidArgumentException('Ticket ID is required');
         }
 
+        $this->assertIncludes($includes, [], 'tickets.info');
+
         return $this->api->request('POST', $this->getBasePath().'.info', [
             'id' => $id,
         ]);
@@ -188,7 +214,8 @@ class Tickets extends Resource
      */
     protected function validateTicketData(array $data, string $operation = 'create'): void
     {
-        // Required fields for creation
+        $endpoint = 'tickets.'.$operation;
+
         if ($operation === 'create') {
             if (empty($data['subject'])) {
                 throw new InvalidArgumentException('Ticket subject is required');
@@ -201,61 +228,55 @@ class Tickets extends Resource
             if (empty($data['ticket_status_id'])) {
                 throw new InvalidArgumentException('Ticket status ID is required');
             }
+
+            $this->rejectUnknownFields($data, self::CREATE_FIELDS, $endpoint);
+        } else {
+            $this->rejectUnknownFields($data, [...self::UPDATE_FIELDS, 'id'], $endpoint);
         }
 
-        // Validate customer structure
         if (isset($data['customer'])) {
-            if (! isset($data['customer']['type']) || ! isset($data['customer']['id'])) {
+            if (! is_array($data['customer']) || ! isset($data['customer']['type']) || empty($data['customer']['id'])) {
                 throw new InvalidArgumentException('Customer must have type and id');
             }
 
-            if (! in_array($data['customer']['type'], $this->customerTypes)) {
-                throw new InvalidArgumentException(
-                    'Invalid customer type. Must be one of: '.implode(', ', $this->customerTypes)
-                );
-            }
+            $this->assertEnum($data['customer']['type'], self::CUSTOMER_TYPES, 'customer.type', $endpoint);
         }
 
-        // Validate assignee structure if present
+        // null unassigns (update)
         if (isset($data['assignee'])) {
-            if (! isset($data['assignee']['type']) || ! isset($data['assignee']['id'])) {
+            if (! is_array($data['assignee']) || ! isset($data['assignee']['type']) || empty($data['assignee']['id'])) {
                 throw new InvalidArgumentException('Assignee must have type and id');
             }
 
-            if ($data['assignee']['type'] !== 'user') {
-                throw new InvalidArgumentException('Assignee type must be "user"');
-            }
+            $this->assertEnum($data['assignee']['type'], ['user'], 'assignee.type', $endpoint);
         }
 
-        // Validate participant structure if present
+        // null removes the third-party participant (update)
         if (isset($data['participant'])) {
-            if (! isset($data['participant']['customer'])) {
+            if (! is_array($data['participant']) || ! array_key_exists('customer', $data['participant'])) {
                 throw new InvalidArgumentException('Participant must have customer');
             }
 
             $customer = $data['participant']['customer'];
-            if (! isset($customer['type']) || ! isset($customer['id'])) {
-                throw new InvalidArgumentException('Participant customer must have type and id');
-            }
 
-            if ($customer['type'] !== 'company') {
-                throw new InvalidArgumentException('Participant customer type must be "company"');
-            }
-        }
+            if ($customer !== null) {
+                if (! is_array($customer) || ! isset($customer['type']) || empty($customer['id'])) {
+                    throw new InvalidArgumentException('Participant customer must have type and id');
+                }
 
-        // Validate initial_reply if present
-        if (isset($data['initial_reply'])) {
-            if (! in_array($data['initial_reply'], $this->initialReplyOptions)) {
-                throw new InvalidArgumentException(
-                    'Invalid initial_reply value. Must be one of: '.implode(', ', $this->initialReplyOptions)
-                );
+                $this->assertEnum($customer['type'], ['company'], 'participant.customer.type', $endpoint);
             }
         }
 
-        // Validate custom fields structure if present
-        if (isset($data['custom_fields']) && is_array($data['custom_fields'])) {
+        $this->assertEnum($data['initial_reply'] ?? null, self::INITIAL_REPLY_OPTIONS, 'initial_reply', $endpoint);
+
+        if (isset($data['custom_fields'])) {
+            if (! is_array($data['custom_fields'])) {
+                throw new InvalidArgumentException('custom_fields must be a list of [id, value] entries');
+            }
+
             foreach ($data['custom_fields'] as $field) {
-                if (! isset($field['id'])) {
+                if (! is_array($field) || ! isset($field['id'])) {
                     throw new InvalidArgumentException('Each custom field must have an id');
                 }
             }
@@ -407,6 +428,10 @@ class Tickets extends Resource
             throw new InvalidArgumentException('Sent at datetime is required');
         }
 
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/', $sentAt) || strtotime($sentAt) === false) {
+            throw new InvalidArgumentException('sent_at must be an ISO 8601 datetime with a timezone, e.g. 2024-02-29T11:11:11+00:00');
+        }
+
         $data = [
             'id' => $ticketId,
             'body' => $body,
@@ -453,37 +478,42 @@ class Tickets extends Resource
             throw new InvalidArgumentException('Ticket ID is required');
         }
 
-        $params = ['id' => $ticketId];
+        $unknownOptions = array_diff(array_keys($options), ['page_size', 'page_number']);
 
-        // Apply filters
-        if (! empty($filters)) {
-            $params['filter'] = [];
-
-            if (isset($filters['type'])) {
-                if (! in_array($filters['type'], $this->messageTypes)) {
-                    throw new InvalidArgumentException(
-                        'Invalid message type. Must be one of: '.implode(', ', $this->messageTypes)
-                    );
-                }
-                $params['filter']['type'] = $filters['type'];
-            }
-
-            if (isset($filters['created_before'])) {
-                $params['filter']['created_before'] = $filters['created_before'];
-            }
-
-            if (isset($filters['created_after'])) {
-                $params['filter']['created_after'] = $filters['created_after'];
-            }
+        if ($unknownOptions !== []) {
+            throw new InvalidArgumentException(
+                'tickets.listMessages does not support: '.implode(', ', $unknownOptions).'. Supported: page_size, page_number.'
+            );
         }
 
-        // Apply pagination
+        // Unknown keys were dropped without a word until v2.2.13.
+        $unknown = array_diff(array_keys($filters), self::MESSAGE_FILTERS);
+
+        if ($unknown !== []) {
+            throw new InvalidArgumentException(
+                'Unsupported filter key for tickets.listMessages: '.implode(', ', $unknown)
+                .'. Supported: '.implode(', ', self::MESSAGE_FILTERS).'.'
+            );
+        }
+
+        $this->assertEnum($filters['type'] ?? null, self::MESSAGE_TYPES, 'filter.type', 'tickets.listMessages');
+
+        $params = ['id' => $ticketId];
+        $filter = array_filter($filters, fn ($value) => $value !== null);
+
+        if ($filter !== []) {
+            $params['filter'] = $filter;
+        }
+
         if (isset($options['page_size']) || isset($options['page_number'])) {
             $params['page'] = [
-                'size' => $options['page_size'] ?? 20,
-                'number' => $options['page_number'] ?? 1,
+                'size' => (int) ($options['page_size'] ?? 20),
+                'number' => (int) ($options['page_number'] ?? 1),
             ];
         }
+
+        // listMessages documents a total count in `meta` with includes=pagination
+        $params['includes'] = 'pagination';
 
         return $this->api->request('POST', $this->getBasePath().'.listMessages', $params);
     }
@@ -502,11 +532,7 @@ class Tickets extends Resource
         array $additionalFilters = [],
         array $options = []
     ): array {
-        if (! in_array($customerType, $this->customerTypes)) {
-            throw new InvalidArgumentException(
-                'Invalid customer type. Must be one of: '.implode(', ', $this->customerTypes)
-            );
-        }
+        $this->assertEnum($customerType, self::CUSTOMER_TYPES, 'filter.relates_to.type', 'tickets.list');
 
         $filters = array_merge(
             [
@@ -529,6 +555,14 @@ class Tickets extends Resource
      */
     public function list(array $filters = [], array $options = []): array
     {
+        $unknown = array_diff(array_keys($options), ['page_size', 'page_number']);
+
+        if ($unknown !== []) {
+            throw new InvalidArgumentException(
+                'tickets.list does not support: '.implode(', ', $unknown).'. Supported: page_size, page_number.'
+            );
+        }
+
         $params = [];
 
         // Apply filters
@@ -548,22 +582,71 @@ class Tickets extends Resource
     }
 
     /**
-     * Build filters for the API request
+     * Build the filter object for tickets.list
+     *
+     * Until v2.2.13 every key was passed through unchecked. The dotted keys
+     * this resource advertised (`relates_to.type`, `exclude.status_ids`) were
+     * sent flat, which the API ignored — so they returned every ticket.
+     *
+     * @throws InvalidArgumentException On an unknown key or value
      */
     protected function buildFilters(array $filters): array
     {
-        $formatted = [];
+        $this->rejectUnknownFilters($filters, 'tickets.list', ['relates_to', 'exclude']);
 
-        foreach ($filters as $key => $value) {
-            // Handle nested filters like relates_to and exclude
-            if (in_array($key, ['relates_to', 'exclude'])) {
-                $formatted[$key] = $value;
-            } else {
-                $formatted[$key] = $value;
+        foreach (['relates_to.type', 'relates_to.id', 'exclude.status_ids'] as $dotted) {
+            if (array_key_exists($dotted, $filters)) {
+                [$root, $child] = explode('.', $dotted);
+                $filters[$root][$child] = $filters[$dotted];
+                unset($filters[$dotted]);
             }
         }
 
-        return $formatted;
+        if (isset($filters['relates_to'])) {
+            $relatesTo = $filters['relates_to'];
+
+            if (! is_array($relatesTo) || empty($relatesTo['id']) || ! isset($relatesTo['type'])) {
+                throw new InvalidArgumentException('The relates_to filter needs both a type (contact or company) and an id.');
+            }
+
+            $this->assertEnum($relatesTo['type'], self::CUSTOMER_TYPES, 'filter.relates_to.type', 'tickets.list');
+        }
+
+        if (isset($filters['exclude']) && (! is_array($filters['exclude']) || array_keys($filters['exclude']) !== ['status_ids'])) {
+            throw new InvalidArgumentException("The exclude filter takes status_ids only: ['exclude' => ['status_ids' => [...]]].");
+        }
+
+        foreach (['ids', 'project_ids', 'assignee_ids'] as $key) {
+            if (array_key_exists($key, $filters) && ! is_array($filters[$key])) {
+                $filters[$key] = [$filters[$key]];
+            }
+        }
+
+        return array_filter($filters, fn ($value) => $value !== null);
+    }
+
+    /**
+     * Get tickets assigned to any of the given users
+     *
+     * Pass null as an entry to include unassigned tickets as well.
+     *
+     * @param  array<string|null>  $userIds
+     */
+    public function assignedTo(array $userIds, array $additionalFilters = [], array $options = []): array
+    {
+        if ($userIds === []) {
+            throw new InvalidArgumentException('At least one user ID (or null for unassigned) is required');
+        }
+
+        return $this->list(array_merge(['assignee_ids' => array_values($userIds)], $additionalFilters), $options);
+    }
+
+    /**
+     * Get tickets nobody is assigned to
+     */
+    public function unassigned(array $additionalFilters = [], array $options = []): array
+    {
+        return $this->assignedTo([null], $additionalFilters, $options);
     }
 
     /**
