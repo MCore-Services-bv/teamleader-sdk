@@ -4,9 +4,12 @@ namespace McoreServices\TeamleaderSDK\Resources\Invoicing;
 
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class PaymentMethods extends Resource
 {
+    use ValidatesWritePayload;
+
     protected string $description = 'Manage payment methods in Teamleader Focus';
 
     // Resource capabilities - Payment methods are read-only
@@ -257,14 +260,27 @@ class PaymentMethods extends Resource
 
     /**
      * Build filters for the API request
+     *
+     * paymentMethods.list accepts `ids` and `status`, both arrays. Before
+     * v2.2.7 unknown keys were forwarded, and a `status` string was sent
+     * unvalidated as a string.
+     *
+     * @throws InvalidArgumentException When a filter key or status is not supported
      */
     protected function buildFilters(array $filters): array
     {
+        $this->rejectUnknownFilters($filters, 'paymentMethods.list');
+
         $built = [];
 
         foreach ($filters as $key => $value) {
-            // Validate status values
-            if ($key === 'status' && is_array($value)) {
+            if ($value === null) {
+                continue;
+            }
+
+            $value = is_array($value) ? array_values($value) : [$value];
+
+            if ($key === 'status') {
                 $this->validateStatuses($value);
             }
 

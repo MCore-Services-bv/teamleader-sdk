@@ -4,9 +4,12 @@ namespace McoreServices\TeamleaderSDK\Resources\Invoicing;
 
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class TaxRates extends Resource
 {
+    use ValidatesWritePayload;
+
     protected string $description = 'Manage tax rates in Teamleader Focus';
 
     // Resource capabilities - Tax rates are read-only
@@ -39,9 +42,9 @@ class TaxRates extends Resource
 
     // Available sort fields
     protected array $availableSortFields = [
-        'department_id',
-        'rate',
-        'description',
+        'department_id' => 'Department',
+        'rate' => 'Tax rate',
+        'description' => 'Description',
     ];
 
     // Usage examples specific to tax rates
@@ -105,7 +108,7 @@ class TaxRates extends Resource
 
         // Apply sorting
         if (isset($options['sort'])) {
-            $params['sort'] = $this->buildSort($options['sort']);
+            $params['sort'] = $this->buildSort($options['sort'], $options['sort_order'] ?? 'asc');
         }
 
         return $this->api->request('POST', $this->getBasePath().'.list', $params);
@@ -327,28 +330,33 @@ class TaxRates extends Resource
 
     /**
      * Build filters for the API request
+     *
+     * taxRates.list accepts `department_id` only. Before v2.2.7 every key was
+     * forwarded unchecked.
+     *
+     * @throws InvalidArgumentException When an unsupported filter key is passed
      */
     protected function buildFilters(array $filters): array
     {
-        return $filters;
+        $this->rejectUnknownFilters($filters, 'taxRates.list');
+
+        return array_filter($filters, fn ($value) => $value !== null && $value !== '');
     }
 
     /**
      * Build sort parameters for the API request
+     *
+     * Before v2.2.7 only a list of sort objects worked: a field name
+     * (`['sort' => 'rate']`) made foreach() iterate a string and was then sent
+     * to the API as a string, where it expects an array of objects.
+     *
+     * @param  array|string  $sort  A field name, a list of names, or sort objects
+     *
+     * @throws InvalidArgumentException When a sort field or order is not supported
      */
-    protected function buildSort($sort, string $order = 'desc'): array
+    protected function buildSort($sort, string $order = 'asc'): array
     {
-        // Validate sort fields
-        foreach ($sort as $sortItem) {
-            if (isset($sortItem['field']) && ! in_array($sortItem['field'], $this->availableSortFields)) {
-                throw new InvalidArgumentException(
-                    "Invalid sort field '{$sortItem['field']}'. Must be one of: ".
-                    implode(', ', $this->availableSortFields)
-                );
-            }
-        }
-
-        return $sort;
+        return $this->normaliseSort($sort, $order);
     }
 
     /**
