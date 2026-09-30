@@ -2,10 +2,14 @@
 
 namespace McoreServices\TeamleaderSDK\Resources\Products;
 
+use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class PriceLists extends Resource
 {
+    use ValidatesWritePayload;
+
     protected string $description = 'Manage price lists in Teamleader Focus';
 
     // Resource capabilities - Price Lists are read-only based on API docs
@@ -68,6 +72,12 @@ class PriceLists extends Resource
      */
     public function list(array $filters = [], array $options = []): array
     {
+        if ($options !== []) {
+            throw new InvalidArgumentException(
+                'priceLists.list takes no paging, sorting or includes; got: '.implode(', ', array_keys($options)).'.'
+            );
+        }
+
         $params = [];
 
         // Apply filters
@@ -86,7 +96,7 @@ class PriceLists extends Resource
     public function byIds(array $ids): array
     {
         if (empty($ids)) {
-            throw new \InvalidArgumentException('At least one price list ID must be provided');
+            throw new InvalidArgumentException('At least one price list ID must be provided');
         }
 
         return $this->list(['ids' => $ids]);
@@ -100,13 +110,11 @@ class PriceLists extends Resource
      */
     protected function buildFilters(array $filters): array
     {
-        $apiFilters = [];
+        // Unknown keys and a string `ids` were dropped without a word until v2.2.15.
+        $this->rejectUnknownFilters($filters, 'priceLists.list');
 
-        // Handle IDs filter
-        if (isset($filters['ids']) && is_array($filters['ids'])) {
-            $apiFilters['ids'] = array_values($filters['ids']); // Ensure indexed array
-        }
-
-        return $apiFilters;
+        return isset($filters['ids'])
+            ? ['ids' => is_array($filters['ids']) ? array_values($filters['ids']) : [$filters['ids']]]
+            : [];
     }
 }

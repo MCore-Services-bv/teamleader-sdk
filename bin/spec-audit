@@ -88,7 +88,12 @@ foreach ($selected as $finding) {
 }
 ksort($byCategory);
 
-$count = fn (array $items, string $level) => count(array_filter($items, fn ($f) => $f['severity'] === $level));
+// Accepted findings have their own column and are not counted again under
+// their severity, so a category with only accepted divergences reads clean.
+$count = fn (array $items, string $level) => count(array_filter(
+    $items,
+    fn ($f) => $f['severity'] === $level && ! $baseline->isAccepted($f['id'])
+));
 
 echo "# Specification audit\n\n";
 echo "Specification **{$version}** · generated ".date('Y-m-d')."\n\n";

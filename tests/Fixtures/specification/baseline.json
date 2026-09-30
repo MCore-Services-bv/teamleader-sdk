@@ -4,7 +4,6 @@
     "open": {
         "plannableItems:filter.missing:types": "`plannableItems.list` declares filter `types` (array of string, enum: closingDay|dayOffType|meeting|task|call|externalEvent); the resource does not advertise it.",
         "plannableItems:filter.phantom:status": "Advertises filter `status`; `plannableItems.list` does not declare it, so the API ignores it and returns everything.",
-        "products:include.phantom:custom_fields": "Advertises include `custom_fields`; the specification names only: suppliers. Verify before removing.",
         "reservations:filter.missing:project_ids": "`reservations.list` declares filter `project_ids` (array of string); the resource does not advertise it.",
         "reservations:filter.missing:term": "`reservations.list` declares filter `term` (string); the resource does not advertise it.",
         "reservations:filter.missing:work_type_ids": "`reservations.list` declares filter `work_type_ids` (array of string); the resource does not advertise it."

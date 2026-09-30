@@ -2,10 +2,14 @@
 
 namespace McoreServices\TeamleaderSDK\Resources\Products;
 
+use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class Categories extends Resource
 {
+    use ValidatesWritePayload;
+
     protected string $description = 'Manage product categories in Teamleader Focus';
 
     // Resource capabilities - Product Categories are read-only based on API docs
@@ -70,6 +74,12 @@ class Categories extends Resource
      */
     public function list(array $filters = [], array $options = []): array
     {
+        if ($options !== []) {
+            throw new InvalidArgumentException(
+                'productCategories.list takes no paging, sorting or includes; got: '.implode(', ', array_keys($options)).'.'
+            );
+        }
+
         $params = [];
 
         // Apply filters
@@ -95,14 +105,10 @@ class Categories extends Resource
      */
     protected function buildFilters(array $filters): array
     {
-        $apiFilters = [];
+        // Unknown keys were dropped without a word until v2.2.15.
+        $this->rejectUnknownFilters($filters, 'productCategories.list');
 
-        // Handle department_id filter
-        if (isset($filters['department_id'])) {
-            $apiFilters['department_id'] = $filters['department_id'];
-        }
-
-        return $apiFilters;
+        return array_filter($filters, fn ($value) => $value !== null);
     }
 
     /**
