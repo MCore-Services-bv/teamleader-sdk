@@ -56,6 +56,12 @@ final class RemovedInV3Test extends TestCase
         $this->assertFalse(method_exists($class, $method), "{$class}::{$method}() was removed in v3.0.");
     }
 
+    public function test_the_unused_constants_classes_are_removed(): void
+    {
+        $this->assertFalse(class_exists('McoreServices\\TeamleaderSDK\\Constants\\TeamleaderConstants'));
+        $this->assertFalse(class_exists('McoreServices\\TeamleaderSDK\\Constants\\ErrorMessages'));
+    }
+
     public function test_the_replacements_still_exist(): void
     {
         $this->assertTrue(method_exists(Invoices::class, 'listDrafts'));

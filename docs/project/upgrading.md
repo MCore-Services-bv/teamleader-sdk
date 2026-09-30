@@ -60,6 +60,12 @@ In 2.3 all of these still ran, most of them with an `E_USER_DEPRECATED`
 notice in your log. If you upgrade to 2.3 first and clear those notices, this
 step is a no-op.
 
+### Removed classes
+
+`McoreServices\TeamleaderSDK\Constants\TeamleaderConstants` and
+`McoreServices\TeamleaderSDK\Constants\ErrorMessages` are removed. Nothing in
+the SDK read them. If your code used one of their constants, inline the value.
+
 ### Configuration
 
 If you published `config/teamleader.php`, compare it with the package's copy

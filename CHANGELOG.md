@@ -38,6 +38,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   check cleared the application's entire cache — sessions and other packages'
   data included, if they share the store.
 
+- The `McoreServices\TeamleaderSDK\Constants` namespace:
+  `TeamleaderConstants` and `ErrorMessages`. Nothing in the SDK used either.
+
+### Added (3.x branch)
+
+- `McoreServices\TeamleaderSDK\Support\ResourceCatalog`: every registered
+  resource with its endpoints, filters, sort fields, includes and
+  capabilities, read by reflection without constructing anything. The spec
+  audit and the generated API reference already used it (as the test-only
+  `SdkInventory`); it moved to `src/` for the CLI.
+
 ### Changed (3.x branch)
 
 - **`base_url`, `auth_url` and `api.retry_delay` are read.** They were in the

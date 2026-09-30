@@ -1,0 +1,423 @@
+<?php
+
+declare(strict_types=1);
+
+namespace McoreServices\TeamleaderSDK\Support;
+
+use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\TeamleaderSDK;
+use ReflectionClass;
+use ReflectionMethod;
+
+/**
+ * What the SDK declares about its resources, read without booting Laravel.
+ *
+ * Everything is taken from class declarations — property defaults via
+ * reflection and endpoint strings via the resource's source — so no resource
+ * is constructed, no config is read and no request is built. That keeps the
+ * catalog usable outside a Laravel app (bin/spec-audit, bin/docs) as well as
+ * inside one (the teamleader:* commands).
+ *
+ * One source for three consumers: the specification audit, the generated API
+ * reference and the CLI all describe a resource from what this returns, so
+ * they cannot disagree.
+ *
+ * Moved from tests/Support/Spec/SdkInventory in v3.0, which now extends it.
+ */
+class ResourceCatalog
+{
+    /** @var array<string, array<string, mixed>>|null */
+    private ?array $resources = null;
+
+    /**
+     * @param  array<string, class-string>|null  $registry  Resource key => class. Null reads
+     *                                                      the registry TeamleaderSDK declares;
+     *                                                      pass one to include resources an
+     *                                                      application added with addResource()
+     */
+    public function __construct(private readonly ?array $registry = null) {}
+
+    /**
+     * Resource key => class, exactly as registered on TeamleaderSDK.
+     *
+     * @return array<string, class-string>
+     */
+    public function registry(): array
+    {
+        if ($this->registry !== null) {
+            return $this->registry;
+        }
+
+        $defaults = (new ReflectionClass(TeamleaderSDK::class))->getDefaultProperties();
+
+        return $defaults['resources'] ?? [];
+    }
+
+    /**
+     * Deprecated resource key => canonical key, as declared on TeamleaderSDK.
+     *
+     * Empty since v3.0 removed the v2.2.6 aliases. Kept so a future rename can
+     * declare deprecated keys again and have the audit and reference pick them
+     * up without further changes.
+     *
+     * @return array<string, string>
+     */
+    public function deprecatedAliases(): array
+    {
+        $defaults = (new ReflectionClass(TeamleaderSDK::class))->getDefaultProperties();
+
+        return $defaults['deprecatedResourceAliases'] ?? [];
+    }
+
+    /**
+     * One resource, described, by key or alias.
+     *
+     * @return array<string, mixed>|null Null when no resource has that key
+     */
+    public function resource(string $key): ?array
+    {
+        $resources = $this->resources();
+
+        if (isset($resources[$key])) {
+            return $resources[$key];
+        }
+
+        foreach ($resources as $resource) {
+            if (in_array($key, $resource['aliases'], true)) {
+                return $resource;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Resources grouped by category (`CRM`, `Deals`, …), keys sorted.
+     *
+     * @return array<string, array<string, array<string, mixed>>>
+     */
+    public function byCategory(): array
+    {
+        $grouped = [];
+
+        foreach ($this->resources() as $key => $resource) {
+            $grouped[$resource['category']][$key] = $resource;
+        }
+
+        ksort($grouped);
+
+        foreach ($grouped as &$resources) {
+            ksort($resources);
+        }
+
+        return $grouped;
+    }
+
+    /**
+     * Every registered resource, described.
+     *
+     * The same class can be registered under more than one key (an alias kept
+     * for backwards compatibility); it is described once, under the first key.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    public function resources(): array
+    {
+        if ($this->resources !== null) {
+            return $this->resources;
+        }
+
+        $described = [];
+        $seen = [];
+
+        foreach ($this->registry() as $key => $class) {
+            if (isset($seen[$class])) {
+                $described[$seen[$class]]['aliases'][] = $key;
+
+                continue;
+            }
+
+            $seen[$class] = $key;
+            $described[$key] = $this->describe($key, $class);
+        }
+
+        return $this->resources = $described;
+    }
+
+    /**
+     * @param  class-string  $class
+     * @return array<string, mixed>
+     */
+    protected function describe(string $key, string $class): array
+    {
+        $reflection = new ReflectionClass($class);
+        $defaults = $reflection->getDefaultProperties();
+        $basePath = $this->basePath($reflection);
+        $source = $this->sourceOf($reflection);
+
+        [$endpoints, $dynamic] = $this->referencedEndpoints($source, $basePath);
+
+        return [
+            'key' => $key,
+            'aliases' => [],
+            'class' => $class,
+            'short_class' => $reflection->getShortName(),
+            'category' => $this->category($class),
+            'file' => $reflection->getFileName(),
+            'base_path' => $basePath,
+            'endpoints' => $endpoints,
+            'dynamic_endpoints' => $dynamic,
+            'supports' => [
+                'pagination' => (bool) ($defaults['supportsPagination'] ?? false),
+                'pagination_meta' => (bool) ($defaults['requestsPaginationMeta'] ?? false),
+                'filtering' => (bool) ($defaults['supportsFiltering'] ?? false),
+                'sorting' => (bool) ($defaults['supportsSorting'] ?? false),
+                'sideloading' => (bool) ($defaults['supportsSideloading'] ?? false),
+                'creation' => (bool) ($defaults['supportsCreation'] ?? false),
+                'update' => (bool) ($defaults['supportsUpdate'] ?? false),
+                'deletion' => (bool) ($defaults['supportsDeletion'] ?? false),
+            ],
+            'filters' => $this->names($defaults['commonFilters'] ?? []),
+            'sort_fields' => $this->names($defaults['availableSortFields'] ?? []),
+            'includes' => $defaults['availableIncludes'] ?? [],
+            // Resources whose .info endpoint takes a different include set
+            // from .list declare it separately; null means "same as list".
+            'info_includes' => $defaults['infoIncludes'] ?? null,
+            'includes_is_list' => array_is_list($defaults['availableIncludes'] ?? []),
+            'usage_examples' => $defaults['usageExamples'] ?? [],
+            'public_methods' => $this->publicMethods($reflection),
+        ];
+    }
+
+    /**
+     * The class's source plus that of every parent below Resource, so an
+     * endpoint called from a shared base class (Expenses\ExpenseDocument)
+     * counts for each resource that extends it.
+     */
+    private function sourceOf(ReflectionClass $reflection): string
+    {
+        $source = '';
+
+        for ($class = $reflection; $class !== false && $class->getName() !== Resource::class; $class = $class->getParentClass()) {
+            $source .= (string) file_get_contents((string) $class->getFileName())."\n";
+        }
+
+        return $source;
+    }
+
+    /**
+     * getBasePath() is protected and takes no arguments, so it can be read from
+     * an uninitialised instance without running the constructor.
+     */
+    private function basePath(ReflectionClass $reflection): string
+    {
+        $instance = $reflection->newInstanceWithoutConstructor();
+
+        return (string) (new ReflectionMethod($instance, 'getBasePath'))->invoke($instance);
+    }
+
+    /**
+     * `McoreServices\TeamleaderSDK\Resources\CRM\Companies` → `CRM`
+     */
+    private function category(string $class): string
+    {
+        $parts = explode('\\', $class);
+        $index = array_search('Resources', $parts, true);
+
+        return $index === false ? 'Other' : ($parts[$index + 1] ?? 'Other');
+    }
+
+    /**
+     * Filters and sort fields are declared either as a flat list or as a
+     * name => description map. Normalise to a sorted list of names.
+     *
+     * @return list<string>
+     */
+    private function names(array $declared): array
+    {
+        $names = array_is_list($declared) ? $declared : array_keys($declared);
+        $names = array_values(array_unique(array_map('strval', $names)));
+        sort($names);
+
+        return $names;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function publicMethods(ReflectionClass $reflection): array
+    {
+        $methods = array_map(
+            fn (ReflectionMethod $method) => strtolower($method->getName()),
+            $reflection->getMethods(ReflectionMethod::IS_PUBLIC)
+        );
+
+        return array_values(array_unique($methods));
+    }
+
+    /**
+     * Endpoints named in the second argument of `->request(...)` calls.
+     *
+     * Resolves the three forms the SDK uses:
+     *
+     *   $this->getBasePath().'.list'        → {base}.list
+     *   'projects-v2/tasks.assign'          → projects-v2/tasks.assign
+     *   $endpoint  (assigned earlier)        → every literal assigned to it
+     *
+     * Anything else — interpolation, a computed action name — is returned as
+     * dynamic so the report can name it for manual review rather than
+     * silently dropping it.
+     *
+     * @return array{0: list<string>, 1: list<string>}
+     */
+    private function referencedEndpoints(string $source, string $basePath): array
+    {
+        $endpoints = [];
+        $dynamic = [];
+
+        foreach ($this->endpointArguments($source) as $expression) {
+            $resolved = $this->resolve($expression, $basePath);
+
+            if ($resolved === null && preg_match('/^\$(\w+)$/', $expression, $variable)) {
+                $resolved = $this->resolveVariable($variable[1], $source, $basePath);
+            }
+
+            if ($resolved === null || $resolved === []) {
+                $dynamic[] = $expression;
+
+                continue;
+            }
+
+            array_push($endpoints, ...$resolved);
+        }
+
+        $endpoints = array_values(array_unique($endpoints));
+        sort($endpoints);
+
+        return [$endpoints, array_values(array_unique($dynamic))];
+    }
+
+    /**
+     * The second argument of every `->request(` call, as source text.
+     *
+     * Scanned with a bracket counter rather than a regex because the argument
+     * itself usually contains parentheses: `$this->getBasePath().'.list'`.
+     *
+     * @return list<string>
+     */
+    private function endpointArguments(string $source): array
+    {
+        $arguments = [];
+        $offset = 0;
+
+        while (($start = strpos($source, '->request(', $offset)) !== false) {
+            $offset = $start + strlen('->request(');
+            $parts = $this->splitArguments($source, $offset, 2);
+
+            if (count($parts) >= 2) {
+                $arguments[] = trim($parts[1]);
+            }
+        }
+
+        return $arguments;
+    }
+
+    /**
+     * Split the argument list starting at $offset (just inside the opening
+     * parenthesis) into top-level arguments, stopping after $limit.
+     *
+     * @return list<string>
+     */
+    private function splitArguments(string $source, int $offset, int $limit): array
+    {
+        $parts = [];
+        $current = '';
+        $depth = 0;
+        $quote = null;
+        $length = strlen($source);
+
+        for ($i = $offset; $i < $length; $i++) {
+            $char = $source[$i];
+
+            if ($quote !== null) {
+                $current .= $char;
+                if ($char === '\\' && $i + 1 < $length) {
+                    $current .= $source[++$i];
+                } elseif ($char === $quote) {
+                    $quote = null;
+                }
+
+                continue;
+            }
+
+            if ($char === "'" || $char === '"') {
+                $quote = $char;
+            } elseif ($char === '(' || $char === '[' || $char === '{') {
+                $depth++;
+            } elseif ($char === ')' || $char === ']' || $char === '}') {
+                if ($depth === 0) {
+                    $parts[] = $current;
+
+                    return $parts;
+                }
+                $depth--;
+            } elseif ($char === ',' && $depth === 0) {
+                $parts[] = $current;
+                $current = '';
+
+                if (count($parts) >= $limit) {
+                    return $parts;
+                }
+
+                continue;
+            }
+
+            $current .= $char;
+        }
+
+        return $parts;
+    }
+
+    /**
+     * @return list<string>|null
+     */
+    private function resolve(string $expression, string $basePath): ?array
+    {
+        if (preg_match("/^\\\$this->getBasePath\\(\\)\\s*\\.\\s*['\"](\\.[A-Za-z0-9_-]+)['\"]$/", $expression, $m)) {
+            return [$basePath.$m[1]];
+        }
+
+        if (preg_match("/^['\"]([A-Za-z0-9_\\/-]+\\.[A-Za-z0-9_-]+)['\"]$/", $expression, $m)) {
+            return [$m[1]];
+        }
+
+        return null;
+    }
+
+    /**
+     * @return list<string>|null
+     */
+    private function resolveVariable(string $name, string $source, string $basePath): ?array
+    {
+        preg_match_all('/\$'.preg_quote($name, '/').'\s*=\s*([^;]+);/', $source, $assignments);
+
+        $resolved = [];
+
+        foreach ($assignments[1] as $expression) {
+            $expression = trim($expression);
+
+            // match/ternary assignments: collect every quoted endpoint inside.
+            if (preg_match_all("/['\"]([A-Za-z0-9_\\/-]+\\.[A-Za-z][A-Za-z0-9_-]*)['\"]/", $expression, $literals)) {
+                array_push($resolved, ...$literals[1]);
+            }
+
+            if (preg_match_all("/\\\$this->getBasePath\\(\\)\\s*\\.\\s*['\"](\\.[A-Za-z0-9_-]+)['\"]/", $expression, $suffixes)) {
+                foreach ($suffixes[1] as $suffix) {
+                    $resolved[] = $basePath.$suffix;
+                }
+            }
+        }
+
+        return $resolved === [] ? null : array_values(array_unique($resolved));
+    }
+}
