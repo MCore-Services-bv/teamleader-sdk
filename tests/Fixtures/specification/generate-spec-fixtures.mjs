@@ -317,10 +317,10 @@ function describeFilter(schema) {
     return out;
 }
 
-function mediaSchema(content) {
+function mediaSchema(content, deep = false) {
     const media = content?.['application/json'] ?? Object.values(content ?? {})[0] ?? {};
 
-    return flatten(media.schema ?? {});
+    return deep ? branches(media.schema ?? {}) : flatten(media.schema ?? {});
 }
 
 // --- extraction --------------------------------------------------------------
@@ -332,7 +332,10 @@ function extract(endpoint) {
         throw new Error(`No POST /${endpoint} in specification ${pkg.version}`);
     }
 
-    const request = mediaSchema(operation.requestBody?.content);
+    // Requests are resolved deep: a oneOf beside the top-level properties
+    // (milestones.create's "With budget" / "With price", timeTracking.add's
+    // duration / end-time variants) contributes its keys to the body.
+    const request = mediaSchema(operation.requestBody?.content, true);
     const requestProperties = request.properties ?? {};
 
     const filter = branches(requestProperties.filter ?? {});

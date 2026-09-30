@@ -3,10 +3,33 @@
 namespace McoreServices\TeamleaderSDK\Resources\Projects;
 
 use InvalidArgumentException;
-use McoreServices\TeamleaderSDK\Resources\Resource;
 
-class Materials extends Resource
+/**
+ * Materials in the current ("nextgen") project system — `projects-v2/materials.*`.
+ */
+class Materials extends ProjectsV2Resource
 {
+    /** Body fields materials.create accepts */
+    public const CREATE_FIELDS = [
+        'project_id', 'title', 'group_id', 'after_id', 'description', 'billing_method',
+        'quantity', 'quantity_estimated', 'unit_price', 'unit_cost', 'unit_id', 'fixed_price',
+        'external_budget', 'internal_budget', 'start_date', 'end_date', 'product_id', 'assignees',
+    ];
+
+    /** Body fields materials.update accepts, besides `id` */
+    public const UPDATE_FIELDS = [
+        'title', 'description', 'status', 'billing_method', 'quantity', 'quantity_estimated',
+        'unit_price', 'unit_cost', 'unit_id', 'fixed_price', 'external_budget', 'internal_budget',
+        'start_date', 'end_date', 'product_id',
+    ];
+
+    /** `parent_fixed_price` is only accepted when the parent is fixed price */
+    public const BILLING_METHODS = ['fixed_price', 'unit_price', 'non_billable', 'parent_fixed_price'];
+
+    public const STATUSES = ['to_do', 'in_progress', 'on_hold', 'done'];
+
+    private const MONEY_FIELDS = ['unit_price', 'unit_cost', 'fixed_price', 'external_budget', 'internal_budget'];
+
     protected string $description = 'Manage materials in Teamleader Focus projects';
 
     // Resource capabilities based on API documentation
@@ -14,11 +37,11 @@ class Materials extends Resource
 
     protected bool $supportsUpdate = true;
 
-    protected bool $supportsDeletion = false;
+    protected bool $supportsDeletion = true;
 
     protected bool $supportsBatch = false;
 
-    protected bool $supportsPagination = false;
+    protected bool $supportsPagination = true;
 
     protected bool $supportsSorting = false;
 
@@ -37,28 +60,12 @@ class Materials extends Resource
         'ids' => 'Array of material UUIDs',
     ];
 
-    // Valid billing methods
-    // Note: parent_fixed_price is only accepted by the API when the parent is fixed-price.
-    protected array $billingMethods = [
-        'fixed_price',
-        'unit_price',
-        'non_billable',
-        'parent_fixed_price',
-    ];
+    // Kept for backwards compatibility — see the constants above
+    protected array $billingMethods = self::BILLING_METHODS;
 
-    // Valid status values
-    protected array $statusValues = [
-        'to_do',
-        'in_progress',
-        'on_hold',
-        'done',
-    ];
+    protected array $statusValues = self::STATUSES;
 
-    // Valid assignee types
-    protected array $assigneeTypes = [
-        'user',
-        'team',
-    ];
+    protected array $assigneeTypes = self::ASSIGNEE_TYPES;
 
     // Usage examples specific to materials
     protected array $usageExamples = [
@@ -114,6 +121,18 @@ class Materials extends Resource
                 "status" => "done",
             ]);',
         ],
+        'duplicate_material' => [
+            'description' => 'Duplicate a material',
+            'code' => '$copy = $teamleader->materials()->duplicate("material-uuid");',
+        ],
+        'assign_user' => [
+            'description' => 'Assign a user to a material',
+            'code' => '$teamleader->materials()->assignUser("material-uuid", "user-uuid");',
+        ],
+        'delete_material' => [
+            'description' => 'Delete a material',
+            'code' => '$teamleader->materials()->delete("material-uuid");',
+        ],
     ];
 
     /**
@@ -125,90 +144,70 @@ class Materials extends Resource
     }
 
     /**
-     * List materials with optional filtering by IDs
+     * List materials
      *
-     * Note: The only available filter is `ids`. No pagination or sorting is supported.
+     * Before v2.2.9 filter keys other than `ids` were dropped without a word,
+     * as were the paging options.
      *
      * Response fields per item:
      * - id, project {id, type}, group (nullable) {id, type: nextgenProjectGroup}
      * - title, description (nullable), status, billing_method, billing_status
-     * - quantity (nullable number): actual quantity used
-     * - quantity_estimated (nullable number): estimated quantity
-     * - unit_price (nullable) {amount, currency}
-     * - unit_cost (nullable) {amount, currency}
-     * - unit (nullable) {id, type: priceunit} — null if default unit is used
-     * - amount_billed (nullable) {amount, currency}
-     * - external_budget (nullable) {amount, currency}
-     * - external_budget_spent (nullable) {amount, currency}
-     * - internal_budget (nullable) {amount, currency}
-     * - price (nullable) {amount, currency}
-     * - fixed_price (nullable) {amount, currency}
-     * - cost (nullable) {amount, currency}
-     * - margin (nullable) {amount, currency}
-     * - margin_percentage (nullable number) — null if no "Costs on projects" access
+     * - quantity, quantity_estimated (nullable numbers)
+     * - unit_price, unit_cost, amount_billed, external_budget, external_budget_spent,
+     *   internal_budget, price, fixed_price, cost, margin (nullable {amount, currency})
+     * - unit (nullable) {id, type: priceunit} — null if the default unit is used
+     * - margin_percentage (nullable) — null without "Costs on projects" access
      * - assignees [{assignee: {type, id}, assign_type}]
-     * - start_date (nullable string), end_date (nullable string)
-     * - product (nullable) {id, type: product}
+     * - start_date, end_date (nullable), product (nullable) {id, type: product}
+     *
+     * @param  array  $filters  ids (a UUID or a list of UUIDs)
+     * @param  array  $options  page_size, page_number
+     *
+     * @throws InvalidArgumentException On an unknown filter key or option
      */
     public function list(array $filters = [], array $options = []): array
     {
+        $endpoint = $this->getBasePath().'.list';
+
+        $this->rejectUnknownFilters($filters, $endpoint);
+        $this->rejectUnknownOptions($options, ['page_size', 'page_number'], $endpoint);
+
         $params = [];
+        $filter = $this->wrapArrayFilters($filters, ['ids']);
 
-        if (! empty($filters)) {
-            $params['filter'] = [];
+        if ($filter !== []) {
+            $params['filter'] = $filter;
+        }
 
-            if (isset($filters['ids']) && is_array($filters['ids'])) {
-                $params['filter']['ids'] = $filters['ids'];
-            }
+        if (($page = $this->pageFromOptions($options)) !== null) {
+            $params['page'] = $page;
         }
 
         return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
-     * Get material information
+     * Get one material (same fields as a list() item)
      *
-     * Response fields (identical to list items, see list() docblock):
-     * Full details including billing, budget, assignees, product linkage,
-     * quantity (actual) and quantity_estimated (planned).
-     *
-     * - quantity (nullable number): actual quantity used
-     * - quantity_estimated (nullable number): estimated quantity at planning phase
+     * @param  string  $id  Material UUID
+     * @param  mixed  $includes  materials.info takes no includes; passing any throws
      */
     public function info($id, $includes = null): array
     {
-        return $this->api->request('POST', $this->getBasePath().'.info', [
-            'id' => $id,
-        ]);
+        $this->assertIncludes($includes, [], $this->getBasePath().'.info');
+
+        return $this->api->request('POST', $this->getBasePath().'.info', ['id' => $id]);
     }
 
     /**
-     * Create a new material
+     * Create a material
      *
-     * Required fields:
-     * - project_id (string): Project UUID
-     * - title (string): Material title
-     *
-     * Optional fields:
-     * - group_id (string): Group UUID — if omitted, material is not added to a group
-     * - after_id (string|null): UUID to position after; null = top; omit = bottom
-     * - description (string): Free-text description
-     * - billing_method (string): fixed_price|unit_price|non_billable|parent_fixed_price
-     *      (parent_fixed_price only valid when the parent is fixed_price)
-     * - quantity (number): Actual quantity used
-     * - quantity_estimated (number): Estimated quantity
-     * - unit_price (object|null): {amount, currency}
-     * - unit_cost (object|null): {amount, currency}
-     * - unit_id (string): Price unit UUID
-     * - fixed_price (object|null): {amount, currency} — for fixed_price billing
-     * - external_budget (object|null): {amount, currency}
-     * - internal_budget (object|null): {amount, currency}
-     * - start_date (string): YYYY-MM-DD
-     * - end_date (string): YYYY-MM-DD
-     * - product_id (string): Product UUID to couple to this material
-     * - assignees (array): [{type: team|user, id: uuid}]
+     * Requires project_id and title. `after_id` null places the material at the
+     * top of its project or group; omitting it places it at the bottom.
      *
      * Returns HTTP 201 with data.{id, type}
+     *
+     * @throws InvalidArgumentException When a required field is missing, or a field or value is not accepted
      */
     public function create(array $data): array
     {
@@ -218,30 +217,13 @@ class Materials extends Resource
     }
 
     /**
-     * Update an existing material
+     * Update a material
      *
-     * Only `id` is required. All other fields are optional.
-     * Providing null for a nullable field will clear that value.
+     * Every field is optional; null clears a nullable field. Returns HTTP 204.
      *
-     * Updatable fields:
-     * - title (string)
-     * - description (string|null)
-     * - status (string): to_do|in_progress|on_hold|done
-     * - billing_method (string): fixed_price|unit_price|non_billable|parent_fixed_price
-     *   (parent_fixed_price only valid when the parent is fixed_price)
-     * - quantity (number|null): Actual quantity used
-     * - quantity_estimated (number|null): Estimated quantity
-     * - unit_price (object|null): {amount, currency}
-     * - unit_cost (object|null): {amount, currency}
-     * - unit_id (string|null): Price unit UUID
-     * - fixed_price (object|null): {amount, currency}
-     * - external_budget (object|null): {amount, currency}
-     * - internal_budget (object|null): {amount, currency}
-     * - start_date (string|null): YYYY-MM-DD
-     * - end_date (string|null): YYYY-MM-DD
-     * - product_id (string|null): Product UUID
+     * @param  string  $id  Material UUID
      *
-     * Returns HTTP 204 (no body)
+     * @throws InvalidArgumentException When a field or value is not accepted
      */
     public function update($id, array $data): array
     {
@@ -252,7 +234,30 @@ class Materials extends Resource
     }
 
     /**
-     * Get materials by specific IDs
+     * Delete a material (new in v2.2.9)
+     *
+     * @param  string  $id  Material UUID
+     * @param  mixed  ...$additionalParams  Not used
+     */
+    public function delete($id, ...$additionalParams): array
+    {
+        return $this->api->request('POST', $this->getBasePath().'.delete', ['id' => $id]);
+    }
+
+    /**
+     * Duplicate a material (new in v2.2.9)
+     *
+     * @param  string  $originId  UUID of the material to duplicate
+     */
+    public function duplicate(string $originId): array
+    {
+        return $this->api->request('POST', $this->getBasePath().'.duplicate', [
+            'origin_id' => $originId,
+        ]);
+    }
+
+    /**
+     * Get materials by ID
      */
     public function byIds(array $ids): array
     {
@@ -260,7 +265,7 @@ class Materials extends Resource
     }
 
     /**
-     * Validate material data for create/update operations
+     * Validate a create or update body against the specification
      *
      * @param  string  $operation  'create' or 'update'
      *
@@ -268,7 +273,8 @@ class Materials extends Resource
      */
     protected function validateMaterialData(array $data, string $operation = 'create'): void
     {
-        // Required fields for create
+        $endpoint = $this->getBasePath().'.'.$operation;
+
         if ($operation === 'create') {
             if (empty($data['project_id'])) {
                 throw new InvalidArgumentException('project_id is required for creating a material');
@@ -276,54 +282,21 @@ class Materials extends Resource
             if (empty($data['title'])) {
                 throw new InvalidArgumentException('title is required for creating a material');
             }
-        }
 
-        // Required field for update
-        if ($operation === 'update') {
+            $this->rejectUnknownFields($data, self::CREATE_FIELDS, $endpoint);
+        } else {
             if (empty($data['id'])) {
                 throw new InvalidArgumentException('id is required for updating a material');
             }
+
+            $this->rejectUnknownFields($data, [...self::UPDATE_FIELDS, 'id'], $endpoint);
         }
 
-        // Validate billing_method if provided
-        if (isset($data['billing_method']) && ! in_array($data['billing_method'], $this->billingMethods)) {
-            throw new InvalidArgumentException(
-                'Invalid billing_method. Must be one of: '.implode(', ', $this->billingMethods)
-            );
-        }
-
-        // Validate status if provided
-        if (isset($data['status']) && ! in_array($data['status'], $this->statusValues)) {
-            throw new InvalidArgumentException(
-                'Invalid status. Must be one of: '.implode(', ', $this->statusValues)
-            );
-        }
-
-        // Validate assignees structure if provided
-        if (isset($data['assignees']) && is_array($data['assignees'])) {
-            foreach ($data['assignees'] as $assignee) {
-                if (! isset($assignee['type']) || ! in_array($assignee['type'], $this->assigneeTypes)) {
-                    throw new InvalidArgumentException(
-                        'Invalid assignee type. Must be one of: '.implode(', ', $this->assigneeTypes)
-                    );
-                }
-                if (! isset($assignee['id'])) {
-                    throw new InvalidArgumentException('Assignee must have an id');
-                }
-            }
-        }
-
-        // Validate monetary amounts have proper structure
-        $monetaryFields = ['unit_price', 'unit_cost', 'fixed_price', 'external_budget', 'internal_budget'];
-        foreach ($monetaryFields as $field) {
-            if (isset($data[$field]) && ! is_null($data[$field])) {
-                if (! isset($data[$field]['amount']) || ! isset($data[$field]['currency'])) {
-                    throw new InvalidArgumentException(
-                        "{$field} must contain 'amount' and 'currency' fields"
-                    );
-                }
-            }
-        }
+        $this->assertEnum($data['billing_method'] ?? null, self::BILLING_METHODS, 'billing_method', $endpoint);
+        $this->assertEnum($data['status'] ?? null, self::STATUSES, 'status', $endpoint);
+        $this->assertMoney($data, self::MONEY_FIELDS, $endpoint);
+        $this->assertAssignees($data, $endpoint);
+        $this->assertDates($data, ['start_date', 'end_date'], $endpoint);
     }
 
     /**

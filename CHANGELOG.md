@@ -8,13 +8,97 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Category-by-category spec audit: Projects,
-  Tasks, TimeTracking, Calendar, Tickets, General, Products, Planning, Files,
-  Templates, Other — one patch release each, with the matching wiki pages
+- Category-by-category spec audit: Tasks, TimeTracking, Calendar, Tickets,
+  General, Products, Planning, Files, Templates, Other — one patch release each, with the matching wiki pages
 - Bulk operations helper for processing large datasets
 - Enhanced caching strategies with tag-based invalidation
 - Laravel Pulse integration for monitoring
 - CLI tool for quick API exploration
+
+---
+
+## [2.2.9] - 2026-09-30
+
+The Projects category — Projects, Groups, Tasks, Materials, Project Lines,
+External Parties, and the legacy Projects and Milestones — brought in line with
+`@teamleader/focus-api-specification` **1.221.0**.
+
+### Fixed
+
+- **`projectTasks()->list()` with any filter was a fatal error.** It called a
+  `buildFilters()` method the class did not have. A new test scans every
+  resource for calls to methods that do not exist; this was the only one left.
+- **`projectLines()->unassigned()` returned every line.** It sent
+  `assignees: null`, which an `isset()` check then dropped, so no filter
+  reached the API. It now sends `assignees: [null]`, the form the API
+  documents; a null entry can be combined with real assignees.
+- **Legacy milestones: sorting.** A plain field name (`'sort' => 'due_on'`)
+  raised a PHP warning, and an unknown field was quietly replaced by `due_on`.
+  Both forms are accepted now and an unknown field throws.
+- **Legacy milestones: `billing_method`, `budget` and `price` looked unsupported.**
+  The spec declares them in a oneOf beside the main properties, which the
+  fixture generator missed (see Tooling). They are validated now:
+  `fixed_price` needs a `price` and takes no `budget`.
+- **Task updates were stricter than the API.** Switching a task to
+  `work_type_rate` required a `work_type_id` in the same call; the API only
+  forbids clearing it. On create, the deprecated `task_type_id` is accepted in
+  its place.
+- `projects()->info()` accepted `custom_fields`, which projects.info does not
+  take; it accepts `legacy_project` only.
+- Projects' sort fields were never validated; they are now.
+- Legacy projects' sort order was not checked; `asc`/`desc` are enforced.
+
+### Added
+
+- **Materials: `delete()`, `duplicate()`, `assign()`, `unassign()`** and the
+  `assignUser()`/`assignTeam()`/`unassignUser()`/`unassignTeam()` helpers.
+  All four endpoints existed in the API but had no SDK method.
+- **Paging** on materials and project groups (`page_size`, `page_number`),
+  added to both endpoints in spec 1.221.0.
+- `projects()->list()` sends `includes=pagination` by default, so the
+  response carries the total match count in `meta`.
+- Project groups and projects: `update()` accepts `billing_method` as a plain
+  method name and sends it as `{value, update_strategy: none}`.
+- Project lines take `types` and `assignees` as flat filter keys. The nested
+  `filter` form still works.
+- `assignUser()` and similar helpers on `projects()` as well.
+- Field-list, enum and strategy constants on every resource in the category
+  (`CREATE_FIELDS`, `UPDATE_FIELDS`, `BILLING_METHODS`, `STATUSES`,
+  `DELETE_STRATEGIES` and so on), each checked against the spec.
+
+### Changed
+
+- **Unknown write fields throw** on every create and update in the category.
+  The API ignores unknown fields and reports success. The check caught fields
+  that belong to other endpoints: `status` on materials.create, `group_id` on
+  tasks.update, `customers` on projects.update, and `milestones` on the legacy
+  projects.update.
+- **Unknown filter keys and options throw.** Before, groups, materials and
+  milestones dropped them without a word. The same goes for sort or include
+  options on endpoints that take none.
+- These are now validated:
+  - money objects (`{amount, currency}` with the 23 currencies)
+  - durations (`{value, unit}`)
+  - assignee lists, colours, and status and customer-type filters
+  - milestone lists and participant roles on legacy projects.create
+- Dates on groups are checked as `Y-m-d`. Before, anything `date_parse()`
+  accepted got through.
+- Projects, groups, tasks and materials extend a new abstract
+  `ProjectsV2Resource`, which holds their shared assign/unassign endpoints
+  and payload checks. Public methods and signatures are unchanged.
+
+### Tooling
+
+- **Fixture generator:** request bodies are resolved deep, so a oneOf beside
+  the top-level properties now counts. This fixed `milestones.create` in this
+  category. It also affects `products.add`, whose 13 fields were missing, and
+  `timeTracking.add`/`update` (`started_at`, `started_on`, `ended_at`,
+  `duration`). Those will be picked up in their own passes.
+- **Auditor:** a top-level request parameter may be advertised as a filter
+  even when the endpoint also has a filter object. projectLines.list's
+  `project_id` is one.
+- New tests: `ProjectsPayloadTest`, `ProjectsSpecContractTest` and
+  `ResourceMethodCallsTest`. Baseline 42 → 29.
 
 ---
 

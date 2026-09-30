@@ -4,7 +4,6 @@ namespace McoreServices\TeamleaderSDK\Resources\Projects;
 
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Other\Accounts;
-use McoreServices\TeamleaderSDK\Resources\Resource;
 
 /**
  * Projects — the current ("nextgen") project system in Teamleader Focus.
@@ -38,11 +37,55 @@ use McoreServices\TeamleaderSDK\Resources\Resource;
  * @see Accounts::getProjectsVersion()
  * @see https://developer.focus.teamleader.eu/docs/api/projects-v2-projects-list
  */
-class Projects extends Resource
+class Projects extends ProjectsV2Resource
 {
+    /** Body fields projects.create accepts */
+    public const CREATE_FIELDS = [
+        'title', 'description', 'owner_ids', 'time_budget', 'billing_method', 'external_budget',
+        'internal_budget', 'fixed_price', 'start_date', 'end_date', 'purchase_order_number',
+        'company_entity_id', 'color', 'customers', 'assignees', 'deal_ids', 'quotation_ids',
+        'initial_time_tracked', 'initial_price', 'initial_cost', 'initial_amount_billed',
+        'initial_amount_paid', 'custom_fields',
+    ];
+
+    /** Body fields projects.update accepts, besides `id` */
+    public const UPDATE_FIELDS = [
+        'title', 'description', 'time_budget', 'billing_method', 'external_budget', 'internal_budget',
+        'fixed_price', 'start_date', 'end_date', 'purchase_order_number', 'company_entity_id', 'color',
+        'initial_time_tracked', 'initial_price', 'initial_cost', 'initial_amount_billed',
+        'initial_amount_paid', 'custom_fields',
+    ];
+
+    public const BILLING_METHODS = ['time_and_materials', 'fixed_price', 'non_billable'];
+
+    /** `filter.status` on projects.list */
+    public const STATUSES = ['open', 'planned', 'running', 'overdue', 'over_budget', 'closed'];
+
+    public const CUSTOMER_TYPES = ['contact', 'company'];
+
+    public const DELETE_STRATEGIES = [
+        'unlink_tasks_and_time_trackings',
+        'delete_tasks_and_time_trackings',
+        'delete_tasks_unlink_time_trackings',
+    ];
+
+    public const CLOSING_STRATEGIES = ['mark_tasks_and_materials_as_done', 'none'];
+
+    /** Includes projects.list accepts (besides `pagination`, which is always requested) */
+    public const INCLUDES = ['custom_fields', 'legacy_project'];
+
+    /** Includes projects.info accepts */
+    public const INFO_INCLUDES = ['legacy_project'];
+
+    private const MONEY_FIELDS = [
+        'external_budget', 'internal_budget', 'fixed_price',
+        'initial_price', 'initial_cost', 'initial_amount_billed', 'initial_amount_paid',
+    ];
+
+    private const DURATION_FIELDS = ['time_budget', 'initial_time_tracked'];
+
     protected string $description = 'Manage projects in Teamleader Focus — the current "nextgen" project system (API path projects-v2/projects, webhook events nextgenProject.*)';
 
-    // Resource capabilities
     protected bool $supportsCreation = true;
 
     protected bool $supportsUpdate = true;
@@ -55,20 +98,26 @@ class Projects extends Resource
 
     protected bool $supportsSorting = true;
 
-    protected bool $supportsFiltering = true;
-
     protected bool $supportsSideloading = true;
 
-    // Available includes for sideloading
-    protected array $availableIncludes = [
-        'legacy_project',
-        'custom_fields',
-    ];
+    protected bool $supportsFiltering = true;
 
-    // Default includes
+    /**
+     * `includes=pagination` adds a meta block with the total match count —
+     * projects.list documents it, so it is requested on every call.
+     */
+    protected bool $requestsPaginationMeta = true;
+
+    protected array $availableIncludes = self::INCLUDES;
+
+    /**
+     * projects.info accepts `legacy_project` only; custom fields are always
+     * part of an info response.
+     */
+    protected array $infoIncludes = self::INFO_INCLUDES;
+
     protected array $defaultIncludes = [];
 
-    // Common filters based on API documentation
     protected array $commonFilters = [
         'ids' => 'Array of project UUIDs to filter by',
         'status' => 'Project status (open, planned, running, overdue, over_budget, closed)',
@@ -78,41 +127,35 @@ class Projects extends Resource
         'customers' => 'Array of customer objects [{type, id}]',
     ];
 
-    // Available sort fields
+    /**
+     * Sort fields projects.list accepts. A keyed map since v2.2.9, so the
+     * field is validated; before, a mistyped field was sent and ignored.
+     */
     protected array $availableSortFields = [
-        'amount_billed',
-        'amount_paid',
-        'amount_unbilled',
-        'cost',
-        'customer',
-        'end_date',
-        'external_budget_spent',
-        'external_budget',
-        'internal_budget',
-        'margin',
-        'price',
-        'project_key',
-        'start_date',
-        'status',
-        'time_budget',
-        'time_estimated',
-        'time_tracked',
-        'title',
+        'amount_billed' => 'Amount billed',
+        'amount_paid' => 'Amount paid',
+        'amount_unbilled' => 'Amount not yet billed',
+        'cost' => 'Cost',
+        'customer' => 'Customer name',
+        'end_date' => 'End date',
+        'external_budget' => 'External budget',
+        'external_budget_spent' => 'External budget spent',
+        'internal_budget' => 'Internal budget',
+        'margin' => 'Margin',
+        'price' => 'Price',
+        'project_key' => 'Project number',
+        'start_date' => 'Start date',
+        'status' => 'Status',
+        'time_budget' => 'Time budget',
+        'time_estimated' => 'Estimated time',
+        'time_tracked' => 'Tracked time',
+        'title' => 'Title',
     ];
 
-    // Available billing methods
-    protected array $billingMethods = [
-        'time_and_materials',
-        'fixed_price',
-        'non_billable',
-    ];
+    // Kept for backwards compatibility — see the constants above
+    protected array $billingMethods = self::BILLING_METHODS;
 
-    // Available project colors
-    protected array $availableColors = [
-        '#00B2B2', '#008A8C', '#992600', '#ED9E00', '#D157D3',
-        '#A400B2', '#0071F2', '#004DA6', '#64788F', '#C0C0C4',
-        '#82828C', '#1A1C20',
-    ];
+    protected array $availableColors = self::COLORS;
 
     // Usage examples
     protected array $usageExamples = [
@@ -146,72 +189,85 @@ class Projects extends Resource
         ],
     ];
 
-    /**
-     * Get the base path for the projects resource
-     */
     protected function getBasePath(): string
     {
         return 'projects-v2/projects';
     }
 
     /**
-     * Get detailed information about a specific project
+     * Get one project
      *
      * @param  string  $id  Project UUID
-     * @param  mixed  $includes  Optional includes (legacy_project, custom_fields)
+     * @param  mixed  $includes  legacy_project only — custom fields are always returned
+     *
+     * @throws InvalidArgumentException On an include projects.info does not accept
      */
     public function info($id, $includes = null): array
     {
         $params = ['id' => $id];
+        $includes = $this->assertIncludes($includes, self::INFO_INCLUDES, $this->getBasePath().'.info');
 
-        if (! empty($includes)) {
-            $params = $this->applyIncludes($params, $includes);
-        }
-
-        return $this->api->request('POST', $this->getBasePath().'.info', $params);
+        return $this->api->request('POST', $this->getBasePath().'.info', $this->applyIncludes($params, $includes));
     }
 
     /**
-     * List projects with filtering and sorting
+     * List projects
      *
-     * @param  array  $filters  Filters to apply
-     * @param  array  $options  Pagination and sorting options
+     * `includes=pagination` is always sent, so the response carries
+     * `meta.matches` with the total number of matching projects.
+     *
+     * @param  array  $filters  ids, status, quotation_ids, deal_ids, term, customers
+     * @param  array  $options  page_size, page_number, sort, sort_order, include(s)
+     *
+     * @throws InvalidArgumentException On an unknown filter key, option, sort field or include
      */
     public function list(array $filters = [], array $options = []): array
     {
+        $endpoint = $this->getBasePath().'.list';
+
+        $this->rejectUnknownOptions(
+            $options,
+            ['page_size', 'page_number', 'sort', 'sort_order', 'include', 'includes'],
+            $endpoint
+        );
+
         $params = [];
+        $filter = $this->buildFilters($filters);
 
-        // Build filter object
-        if (! empty($filters)) {
-            $params['filter'] = $this->buildFilters($filters);
+        if ($filter !== []) {
+            $params['filter'] = $filter;
         }
 
-        // Apply pagination
-        if (isset($options['page_size']) || isset($options['page_number'])) {
-            $params['page'] = [
-                'size' => $options['page_size'] ?? 20,
-                'number' => $options['page_number'] ?? 1,
-            ];
+        if (($page = $this->pageFromOptions($options)) !== null) {
+            $params['page'] = $page;
         }
 
-        // Apply sorting
         if (! empty($options['sort'])) {
             $params['sort'] = $this->buildSort($options['sort'], $options['sort_order'] ?? 'desc');
         }
 
-        // Apply includes — accepts both the `include` and `includes` option keys
-        $params = $this->applyIncludes($params, $this->resolveIncludesOption($options));
+        $pending = $this->getPendingIncludes();
+        $this->pendingIncludes = [];
 
-        // Apply any pending includes from the fluent interface
-        $params = $this->applyPendingIncludes($params);
+        $includes = $this->assertIncludes(
+            [...(array) ($this->resolveIncludesOption($options) ?? []), ...$pending],
+            [...self::INCLUDES, 'pagination'],
+            $endpoint
+        );
 
-        return $this->api->request('POST', $this->getBasePath().'.list', $params);
+        if (! in_array('pagination', $includes, true)) {
+            $includes[] = 'pagination';
+        }
+
+        return $this->api->request('POST', $this->getBasePath().'.list', $this->applyIncludes($params, $includes));
     }
 
     /**
-     * Create a new project
+     * Create a project
      *
-     * @param  array  $data  Project data
+     * Only title is required.
+     *
+     * @throws InvalidArgumentException When title is missing, or a field or value is not accepted
      */
     public function create(array $data): array
     {
@@ -221,22 +277,32 @@ class Projects extends Resource
     }
 
     /**
-     * Update an existing project
+     * Update a project
      *
-     * All fields are pass-through. Notable nullable fields, used mainly when
-     * seeding a project with data migrated from another system (2026-05-06):
-     * - initial_time_tracked (object|null): {value, unit: hours|minutes|seconds}
-     * - initial_price (object|null): {amount, currency}
-     * - initial_cost (object|null): {amount, currency}
-     * - initial_amount_billed (object|null): {amount, currency}
-     * - initial_amount_paid (object|null): {amount, currency}
+     * billing_method is sent as {value, update_strategy}. A plain method name
+     * is accepted and sent with update_strategy `none`.
+     *
+     * The initial_* fields (2026-05-06) seed a project with figures migrated
+     * from another system: initial_time_tracked {value, unit} and
+     * initial_price / initial_cost / initial_amount_billed /
+     * initial_amount_paid {amount, currency}. Null clears them.
+     *
+     * Customers, deals, quotations and owners are not update fields; use
+     * addCustomer(), addDeal(), addQuotation(), addOwner() and their remove*
+     * counterparts.
      *
      * @param  string  $id  Project UUID
-     * @param  array  $data  Data to update
+     *
+     * @throws InvalidArgumentException When a field or value is not accepted
      */
     public function update($id, array $data): array
     {
         $data['id'] = $id;
+        $endpoint = $this->getBasePath().'.update';
+
+        $this->rejectUnknownFields($data, [...self::UPDATE_FIELDS, 'id'], $endpoint);
+        $data = $this->normaliseBillingMethodUpdate($data, self::BILLING_METHODS, $endpoint);
+        $this->validateCommonFields($data, $endpoint);
 
         return $this->api->request('POST', $this->getBasePath().'.update', $data);
     }
@@ -245,32 +311,20 @@ class Projects extends Resource
      * Delete a project
      *
      * @param  string  $id  Project UUID
-     * @param  string  $deleteStrategy  Strategy for handling tasks and time trackings
-     */
-    /**
-     * Delete a project
+     * @param  mixed  ...$additionalParams  Delete strategy: unlink_tasks_and_time_trackings (default),
+     *                                      delete_tasks_and_time_trackings or
+     *                                      delete_tasks_unlink_time_trackings
      *
-     * @param  string  $id  Project UUID
-     * @param  mixed  ...$additionalParams  Additional parameters (deleteStrategy)
+     * @throws InvalidArgumentException
      */
     public function delete($id, ...$additionalParams): array
     {
-        // Get deleteStrategy from additional params or use default
-        $deleteStrategy = $additionalParams[0] ?? 'unlink_tasks_and_time_trackings';
-
-        $validStrategies = [
-            'unlink_tasks_and_time_trackings',
-            'delete_tasks_and_time_trackings',
-            'delete_tasks_unlink_time_trackings',
-        ];
-
-        if (! in_array($deleteStrategy, $validStrategies)) {
-            throw new InvalidArgumentException('Invalid delete strategy. Must be one of: '.implode(', ', $validStrategies));
-        }
+        $strategy = $additionalParams[0] ?? 'unlink_tasks_and_time_trackings';
+        $this->assertEnum($strategy, self::DELETE_STRATEGIES, 'delete_strategy', $this->getBasePath().'.delete');
 
         return $this->api->request('POST', $this->getBasePath().'.delete', [
             'id' => $id,
-            'delete_strategy' => $deleteStrategy,
+            'delete_strategy' => $strategy,
         ]);
     }
 
@@ -292,15 +346,13 @@ class Projects extends Resource
      * Close a project
      *
      * @param  string  $id  Project UUID
-     * @param  string  $closingStrategy  Strategy for closing (mark_tasks_and_materials_as_done, none)
+     * @param  string  $closingStrategy  none (default) or mark_tasks_and_materials_as_done
+     *
+     * @throws InvalidArgumentException
      */
     public function close(string $id, string $closingStrategy = 'none'): array
     {
-        $validStrategies = ['mark_tasks_and_materials_as_done', 'none'];
-
-        if (! in_array($closingStrategy, $validStrategies)) {
-            throw new InvalidArgumentException('Invalid closing strategy. Must be one of: '.implode(', ', $validStrategies));
-        }
+        $this->assertEnum($closingStrategy, self::CLOSING_STRATEGIES, 'closing_strategy', $this->getBasePath().'.close');
 
         return $this->api->request('POST', $this->getBasePath().'.close', [
             'id' => $id,
@@ -329,7 +381,7 @@ class Projects extends Resource
      */
     public function addCustomer(string $id, string $customerType, string $customerId): array
     {
-        $this->validateCustomerType($customerType);
+        $this->assertEnum($customerType, self::CUSTOMER_TYPES, 'customer.type', $this->getBasePath().'.addCustomer');
 
         return $this->api->request('POST', $this->getBasePath().'.addCustomer', [
             'id' => $id,
@@ -349,7 +401,7 @@ class Projects extends Resource
      */
     public function removeCustomer(string $id, string $customerType, string $customerId): array
     {
-        $this->validateCustomerType($customerType);
+        $this->assertEnum($customerType, self::CUSTOMER_TYPES, 'customer.type', $this->getBasePath().'.removeCustomer');
 
         return $this->api->request('POST', $this->getBasePath().'.removeCustomer', [
             'id' => $id,
@@ -441,46 +493,6 @@ class Projects extends Resource
         return $this->api->request('POST', $this->getBasePath().'.removeOwner', [
             'id' => $id,
             'user_id' => $userId,
-        ]);
-    }
-
-    /**
-     * Assign a user or team to a project
-     *
-     * @param  string  $id  Project UUID
-     * @param  string  $assigneeType  Assignee type (user, team)
-     * @param  string  $assigneeId  Assignee UUID
-     */
-    public function assign(string $id, string $assigneeType, string $assigneeId): array
-    {
-        $this->validateAssigneeType($assigneeType);
-
-        return $this->api->request('POST', $this->getBasePath().'.assign', [
-            'id' => $id,
-            'assignee' => [
-                'type' => $assigneeType,
-                'id' => $assigneeId,
-            ],
-        ]);
-    }
-
-    /**
-     * Unassign a user or team from a project
-     *
-     * @param  string  $id  Project UUID
-     * @param  string  $assigneeType  Assignee type (user, team)
-     * @param  string  $assigneeId  Assignee UUID
-     */
-    public function unassign(string $id, string $assigneeType, string $assigneeId): array
-    {
-        $this->validateAssigneeType($assigneeType);
-
-        return $this->api->request('POST', $this->getBasePath().'.unassign', [
-            'id' => $id,
-            'assignee' => [
-                'type' => $assigneeType,
-                'id' => $assigneeId,
-            ],
         ]);
     }
 
@@ -591,108 +603,76 @@ class Projects extends Resource
     // ===== Validation Methods =====
 
     /**
-     * Validate project creation data
-     *
      * @throws InvalidArgumentException
      */
     protected function validateCreateData(array $data): void
     {
+        $endpoint = $this->getBasePath().'.create';
+
         if (empty($data['title'])) {
             throw new InvalidArgumentException('Title is required for creating a project');
         }
 
-        if (isset($data['billing_method']) && ! in_array($data['billing_method'], $this->billingMethods)) {
-            throw new InvalidArgumentException(
-                'Invalid billing method. Must be one of: '.implode(', ', $this->billingMethods)
-            );
-        }
-
-        if (isset($data['color']) && ! in_array($data['color'], $this->availableColors)) {
-            throw new InvalidArgumentException(
-                'Invalid color. Must be one of the predefined colors.'
-            );
-        }
+        $this->rejectUnknownFields($data, self::CREATE_FIELDS, $endpoint);
+        $this->assertEnum($data['billing_method'] ?? null, self::BILLING_METHODS, 'billing_method', $endpoint);
+        $this->assertItemEnum($data, 'customers', 'type', self::CUSTOMER_TYPES, $endpoint);
+        $this->assertAssignees($data, $endpoint);
+        $this->validateCommonFields($data, $endpoint);
     }
 
     /**
-     * Validate customer type
+     * Checks create and update share
      *
+     * @throws InvalidArgumentException
+     */
+    private function validateCommonFields(array $data, string $endpoint): void
+    {
+        $this->assertEnum($data['color'] ?? null, self::COLORS, 'color', $endpoint);
+        $this->assertMoney($data, self::MONEY_FIELDS, $endpoint);
+        $this->assertDuration($data, self::DURATION_FIELDS, $endpoint);
+        $this->assertDates($data, ['start_date', 'end_date'], $endpoint);
+    }
+
+    /**
      * @throws InvalidArgumentException
      */
     protected function validateCustomerType(string $type): void
     {
-        $validTypes = ['contact', 'company'];
-        if (! in_array($type, $validTypes)) {
-            throw new InvalidArgumentException(
-                'Invalid customer type. Must be one of: '.implode(', ', $validTypes)
-            );
-        }
+        $this->assertEnum($type, self::CUSTOMER_TYPES, 'customer.type', $this->getBasePath());
     }
 
     /**
-     * Validate assignee type
-     *
      * @throws InvalidArgumentException
      */
     protected function validateAssigneeType(string $type): void
     {
-        $validTypes = ['user', 'team'];
-        if (! in_array($type, $validTypes)) {
-            throw new InvalidArgumentException(
-                'Invalid assignee type. Must be one of: '.implode(', ', $validTypes)
-            );
-        }
+        $this->assertEnum($type, self::ASSIGNEE_TYPES, 'assignee.type', $this->getBasePath().'.assign');
     }
 
     /**
-     * Build filters array for API request
+     * Build the filter object for projects.list
+     *
+     * @throws InvalidArgumentException On an unknown key or value
      */
     protected function buildFilters(array $filters): array
     {
-        $supported = array_keys($this->commonFilters);
+        $endpoint = $this->getBasePath().'.list';
 
-        $unknown = array_diff(array_keys($filters), $supported);
+        $this->rejectUnknownFilters($filters, $endpoint);
+        $this->assertEnum($filters['status'] ?? null, self::STATUSES, 'filter.status', $endpoint);
+        $this->assertItemEnum($filters, 'customers', 'type', self::CUSTOMER_TYPES, $endpoint);
 
-        if ($unknown !== []) {
-            throw new InvalidArgumentException(
-                'Unsupported filter '.(count($unknown) > 1 ? 'keys' : 'key')
-                .' for projects-v2/projects.list: '.implode(', ', $unknown)
-                .'. Supported: '.implode(', ', $supported).'.'
-            );
-        }
-
-        $formatted = [];
-
-        foreach ($filters as $key => $value) {
-            if ($value === null) {
-                continue;
-            }
-
-            // ids, deal_ids and quotation_ids are arrays; wrap a lone string
-            if (in_array($key, ['ids', 'deal_ids', 'quotation_ids'], true) && ! is_array($value)) {
-                $formatted[$key] = [$value];
-
-                continue;
-            }
-
-            $formatted[$key] = $value;
-        }
-
-        return $formatted;
+        // ids, deal_ids and quotation_ids are arrays; a lone string is wrapped
+        return $this->wrapArrayFilters($filters, ['ids', 'deal_ids', 'quotation_ids']);
     }
 
     /**
-     * Build sort array for API request
+     * Build the sort array for projects.list
+     *
+     * @throws InvalidArgumentException On an unknown field or order
      */
     protected function buildSort($sort, string $order = 'desc'): array
     {
-        // Delegates to FilterTrait::normaliseSort(), which handles a field name,
-        // a list of names, a single ['field' => ..., 'order' => ...] entry, or a
-        // list of those, and validates the field against $availableSortFields.
-        //
-        // Before v2.2.2 a plain string fell through to array_map() and raised
-        // "TypeError: array_map(): Argument #2 must be of type array, string
-        // given" — so list([], ['sort' => 'title']) was fatal.
         return $this->normaliseSort($sort, $order);
     }
 }

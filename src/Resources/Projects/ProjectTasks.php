@@ -3,13 +3,41 @@
 namespace McoreServices\TeamleaderSDK\Resources\Projects;
 
 use InvalidArgumentException;
-use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Resources\Tasks\Tasks;
 
-class ProjectTasks extends Resource
+/**
+ * Tasks in the current ("nextgen") project system — `projects-v2/tasks.*`.
+ *
+ * For the older task system, see {@see Tasks}.
+ */
+class ProjectTasks extends ProjectsV2Resource
 {
+    /** Body fields tasks.create accepts */
+    public const CREATE_FIELDS = [
+        'project_id', 'title', 'group_id', 'work_type_id', 'task_type_id', 'description',
+        'billing_method', 'fixed_price', 'external_budget', 'internal_budget', 'custom_rate',
+        'start_date', 'end_date', 'time_estimated', 'assignees',
+    ];
+
+    /** Body fields tasks.update accepts, besides `id` */
+    public const UPDATE_FIELDS = [
+        'work_type_id', 'task_type_id', 'status', 'title', 'description', 'billing_method',
+        'fixed_price', 'external_budget', 'internal_budget', 'custom_rate',
+        'start_date', 'end_date', 'time_estimated',
+    ];
+
+    public const BILLING_METHODS = [
+        'user_rate', 'work_type_rate', 'custom_rate', 'fixed_price', 'parent_fixed_price', 'non_billable',
+    ];
+
+    public const STATUSES = ['to_do', 'in_progress', 'on_hold', 'done'];
+
+    public const DELETE_STRATEGIES = ['unlink_time_tracking', 'delete_time_tracking'];
+
+    private const MONEY_FIELDS = ['fixed_price', 'external_budget', 'internal_budget', 'custom_rate'];
+
     protected string $description = 'Manage tasks in Teamleader Focus projects';
 
-    // Resource capabilities - Tasks support full CRUD operations plus special operations
     protected bool $supportsCreation = true;
 
     protected bool $supportsUpdate = true;
@@ -26,62 +54,27 @@ class ProjectTasks extends Resource
 
     protected bool $supportsSideloading = false;
 
-    // Available includes for sideloading (none based on API docs)
     protected array $availableIncludes = [];
 
-    // Default includes
     protected array $defaultIncludes = [];
 
-    // Common filters based on API documentation
     protected array $commonFilters = [
         'ids' => 'Array of task UUIDs',
     ];
 
-    // Valid billing methods
-    protected array $billingMethods = [
-        'user_rate',
-        'work_type_rate',
-        'custom_rate',
-        'fixed_price',
-        'parent_fixed_price',
-        'non_billable',
-    ];
+    // Kept for backwards compatibility — see the constants above
+    protected array $billingMethods = self::BILLING_METHODS;
 
-    // Valid status values
-    protected array $statusValues = [
-        'to_do',
-        'in_progress',
-        'on_hold',
-        'done',
-    ];
+    protected array $statusValues = self::STATUSES;
 
-    // Valid assignee types
-    protected array $assigneeTypes = [
-        'user',
-        'team',
-    ];
+    protected array $assigneeTypes = self::ASSIGNEE_TYPES;
 
-    // Valid time units
-    protected array $timeUnits = [
-        'hours',
-        'minutes',
-        'seconds',
-    ];
+    protected array $timeUnits = self::TIME_UNITS;
 
-    // Valid currency codes
-    protected array $currencyCodes = [
-        'BAM', 'CAD', 'CHF', 'CLP', 'CNY', 'COP', 'CZK', 'DKK',
-        'EUR', 'GBP', 'INR', 'ISK', 'JPY', 'MAD', 'MXN', 'NOK',
-        'PEN', 'PLN', 'RON', 'SEK', 'TRY', 'USD', 'ZAR',
-    ];
+    protected array $currencyCodes = self::CURRENCIES;
 
-    // Valid delete strategies
-    protected array $deleteStrategies = [
-        'unlink_time_tracking',
-        'delete_time_tracking',
-    ];
+    protected array $deleteStrategies = self::DELETE_STRATEGIES;
 
-    // Usage examples specific to tasks
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all tasks',
@@ -111,59 +104,63 @@ class ProjectTasks extends Resource
         ],
     ];
 
-    /**
-     * Get the base path for the tasks resource
-     */
     protected function getBasePath(): string
     {
         return 'projects-v2/tasks';
     }
 
     /**
-     * List tasks with filtering and pagination
+     * List tasks
      *
-     * @param  array  $filters  Filters to apply
-     * @param  array  $options  Additional options (pagination)
+     * Before v2.2.9 any filter was a fatal error: list() called a
+     * buildFilters() method the class did not define.
+     *
+     * @param  array  $filters  ids (a UUID or a list of UUIDs)
+     * @param  array  $options  page_size, page_number
+     *
+     * @throws InvalidArgumentException On an unknown filter key or option
      */
     public function list(array $filters = [], array $options = []): array
     {
-        $params = [];
+        $endpoint = $this->getBasePath().'.list';
 
-        // Build filter object
-        if (! empty($filters)) {
-            $params['filter'] = $this->buildFilters($filters);
+        $this->rejectUnknownFilters($filters, $endpoint);
+        $this->rejectUnknownOptions($options, ['page_size', 'page_number'], $endpoint);
+
+        $params = [];
+        $filter = $this->wrapArrayFilters($filters, ['ids']);
+
+        if ($filter !== []) {
+            $params['filter'] = $filter;
         }
 
-        // Apply pagination
-        if (isset($options['page_size']) || isset($options['page_number'])) {
-            $params['page'] = [
-                'size' => $options['page_size'] ?? 20,
-                'number' => $options['page_number'] ?? 1,
-            ];
+        if (($page = $this->pageFromOptions($options)) !== null) {
+            $params['page'] = $page;
         }
 
         return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
-     * Get detailed information about a specific task
+     * Get one task
      *
      * @param  string  $id  Task UUID
-     * @param  array|string|null  $includes  Not used for tasks (no sideloading support)
+     * @param  mixed  $includes  tasks.info takes no includes; passing any throws
      */
     public function info($id, $includes = null): array
     {
-        return $this->api->request('POST', $this->getBasePath().'.info', [
-            'id' => $id,
-        ]);
+        $this->assertIncludes($includes, [], $this->getBasePath().'.info');
+
+        return $this->api->request('POST', $this->getBasePath().'.info', ['id' => $id]);
     }
 
     /**
-     * Create a new task
+     * Create a task
      *
-     * @param  array  $data  Task data
+     * Requires project_id and title. With billing_method `work_type_rate`, a
+     * work_type_id is required as well.
      *
-     * @throws InvalidArgumentException
+     * @throws InvalidArgumentException When a required field is missing, or a field or value is not accepted
      */
     public function create(array $data): array
     {
@@ -173,12 +170,13 @@ class ProjectTasks extends Resource
     }
 
     /**
-     * Update an existing task
+     * Update a task
+     *
+     * Every field is optional; null clears a nullable field.
      *
      * @param  string  $id  Task UUID
-     * @param  array  $data  Data to update
      *
-     * @throws InvalidArgumentException
+     * @throws InvalidArgumentException When a field or value is not accepted
      */
     public function update($id, array $data): array
     {
@@ -192,83 +190,25 @@ class ProjectTasks extends Resource
      * Delete a task
      *
      * @param  string  $id  Task UUID
-     * @param  mixed  ...$additionalParams  Additional parameters (first param should be delete strategy)
+     * @param  mixed  ...$additionalParams  Delete strategy: unlink_time_tracking (default) or delete_time_tracking
      *
      * @throws InvalidArgumentException
      */
     public function delete($id, ...$additionalParams): array
     {
-        // Extract delete strategy from additional params, default to 'unlink_time_tracking'
-        $deleteStrategy = $additionalParams[0] ?? 'unlink_time_tracking';
-
-        if (! in_array($deleteStrategy, $this->deleteStrategies)) {
-            throw new InvalidArgumentException(
-                'Invalid delete_strategy. Must be one of: '.implode(', ', $this->deleteStrategies)
-            );
-        }
+        $strategy = $additionalParams[0] ?? 'unlink_time_tracking';
+        $this->assertEnum($strategy, self::DELETE_STRATEGIES, 'delete_strategy', $this->getBasePath().'.delete');
 
         return $this->api->request('POST', $this->getBasePath().'.delete', [
             'id' => $id,
-            'delete_strategy' => $deleteStrategy,
+            'delete_strategy' => $strategy,
         ]);
     }
 
     /**
-     * Assign a user or team to a task
+     * Duplicate a task (without its time trackings)
      *
-     * @param  string  $taskId  Task UUID
-     * @param  string  $assigneeType  Type of assignee ('user' or 'team')
-     * @param  string  $assigneeId  UUID of the user or team
-     *
-     * @throws InvalidArgumentException
-     */
-    public function assign(string $taskId, string $assigneeType, string $assigneeId): array
-    {
-        if (! in_array($assigneeType, $this->assigneeTypes)) {
-            throw new InvalidArgumentException(
-                'Invalid assignee type. Must be one of: '.implode(', ', $this->assigneeTypes)
-            );
-        }
-
-        return $this->api->request('POST', $this->getBasePath().'.assign', [
-            'id' => $taskId,
-            'assignee' => [
-                'type' => $assigneeType,
-                'id' => $assigneeId,
-            ],
-        ]);
-    }
-
-    /**
-     * Unassign a user or team from a task
-     *
-     * @param  string  $taskId  Task UUID
-     * @param  string  $assigneeType  Type of assignee ('user' or 'team')
-     * @param  string  $assigneeId  UUID of the user or team
-     *
-     * @throws InvalidArgumentException
-     */
-    public function unassign(string $taskId, string $assigneeType, string $assigneeId): array
-    {
-        if (! in_array($assigneeType, $this->assigneeTypes)) {
-            throw new InvalidArgumentException(
-                'Invalid assignee type. Must be one of: '.implode(', ', $this->assigneeTypes)
-            );
-        }
-
-        return $this->api->request('POST', $this->getBasePath().'.unassign', [
-            'id' => $taskId,
-            'assignee' => [
-                'type' => $assigneeType,
-                'id' => $assigneeId,
-            ],
-        ]);
-    }
-
-    /**
-     * Duplicate a task (without time trackings)
-     *
-     * @param  string  $originId  The UUID of the task to duplicate
+     * @param  string  $originId  UUID of the task to duplicate
      */
     public function duplicate(string $originId): array
     {
@@ -278,9 +218,9 @@ class ProjectTasks extends Resource
     }
 
     /**
-     * Get tasks by specific IDs
+     * Get tasks by ID
      *
-     * @param  array  $ids  Array of task UUIDs
+     * @param  array  $ids  Task UUIDs
      */
     public function byIds(array $ids): array
     {
@@ -288,54 +228,9 @@ class ProjectTasks extends Resource
     }
 
     /**
-     * Convenience method: Assign a user to a task
+     * Update a task's status
      *
-     * @param  string  $taskId  Task UUID
-     * @param  string  $userId  User UUID
-     */
-    public function assignUser(string $taskId, string $userId): array
-    {
-        return $this->assign($taskId, 'user', $userId);
-    }
-
-    /**
-     * Convenience method: Assign a team to a task
-     *
-     * @param  string  $taskId  Task UUID
-     * @param  string  $teamId  Team UUID
-     */
-    public function assignTeam(string $taskId, string $teamId): array
-    {
-        return $this->assign($taskId, 'team', $teamId);
-    }
-
-    /**
-     * Convenience method: Unassign a user from a task
-     *
-     * @param  string  $taskId  Task UUID
-     * @param  string  $userId  User UUID
-     */
-    public function unassignUser(string $taskId, string $userId): array
-    {
-        return $this->unassign($taskId, 'user', $userId);
-    }
-
-    /**
-     * Convenience method: Unassign a team from a task
-     *
-     * @param  string  $taskId  Task UUID
-     * @param  string  $teamId  Team UUID
-     */
-    public function unassignTeam(string $taskId, string $teamId): array
-    {
-        return $this->unassign($taskId, 'team', $teamId);
-    }
-
-    /**
-     * Convenience method: Update task status
-     *
-     * @param  string  $taskId  Task UUID
-     * @param  string  $status  New status
+     * @param  string  $status  to_do, in_progress, on_hold or done
      */
     public function updateStatus(string $taskId, string $status): array
     {
@@ -343,7 +238,7 @@ class ProjectTasks extends Resource
     }
 
     /**
-     * Validate task data for create/update operations
+     * Validate a create or update body against the specification
      *
      * @param  string  $operation  'create' or 'update'
      *
@@ -351,7 +246,8 @@ class ProjectTasks extends Resource
      */
     protected function validateTaskData(array $data, string $operation = 'create'): void
     {
-        // Required fields for create
+        $endpoint = $this->getBasePath().'.'.$operation;
+
         if ($operation === 'create') {
             if (empty($data['project_id'])) {
                 throw new InvalidArgumentException('project_id is required for creating a task');
@@ -359,92 +255,37 @@ class ProjectTasks extends Resource
             if (empty($data['title'])) {
                 throw new InvalidArgumentException('title is required for creating a task');
             }
-        }
 
-        // Required field for update
-        if ($operation === 'update') {
+            $this->rejectUnknownFields($data, self::CREATE_FIELDS, $endpoint);
+        } else {
             if (empty($data['id'])) {
                 throw new InvalidArgumentException('id is required for updating a task');
             }
+
+            $this->rejectUnknownFields($data, [...self::UPDATE_FIELDS, 'id'], $endpoint);
         }
 
-        // Validate billing_method if provided
-        if (isset($data['billing_method']) && ! in_array($data['billing_method'], $this->billingMethods)) {
-            throw new InvalidArgumentException(
-                'Invalid billing_method. Must be one of: '.implode(', ', $this->billingMethods)
-            );
-        }
+        $this->assertEnum($data['billing_method'] ?? null, self::BILLING_METHODS, 'billing_method', $endpoint);
+        $this->assertEnum($data['status'] ?? null, self::STATUSES, 'status', $endpoint);
 
-        // Validate work_type_id requirement for work_type_rate billing
-        if (isset($data['billing_method']) && $data['billing_method'] === 'work_type_rate') {
-            if (empty($data['work_type_id'])) {
-                throw new InvalidArgumentException(
-                    'work_type_id is required when billing_method is work_type_rate'
-                );
+        // "Cannot be null if billing_method is work_type_rate." On create that
+        // means one must be given (task_type_id is its deprecated name); on
+        // update it may be omitted — the task keeps its work type — but not
+        // cleared.
+        if (($data['billing_method'] ?? null) === 'work_type_rate') {
+            $missing = $operation === 'create'
+                ? empty($data['work_type_id']) && empty($data['task_type_id'])
+                : array_key_exists('work_type_id', $data) && $data['work_type_id'] === null;
+
+            if ($missing) {
+                throw new InvalidArgumentException('work_type_id is required when billing_method is work_type_rate');
             }
         }
 
-        // Validate status if provided
-        if (isset($data['status']) && ! in_array($data['status'], $this->statusValues)) {
-            throw new InvalidArgumentException(
-                'Invalid status. Must be one of: '.implode(', ', $this->statusValues)
-            );
-        }
-
-        // Validate time_estimated structure if provided
-        if (isset($data['time_estimated'])) {
-            if (! is_array($data['time_estimated'])) {
-                throw new InvalidArgumentException('time_estimated must be an object with value and unit');
-            }
-            if (! isset($data['time_estimated']['value']) || ! isset($data['time_estimated']['unit'])) {
-                throw new InvalidArgumentException('time_estimated requires both value and unit');
-            }
-            if (! in_array($data['time_estimated']['unit'], $this->timeUnits)) {
-                throw new InvalidArgumentException(
-                    'Invalid time unit. Must be one of: '.implode(', ', $this->timeUnits)
-                );
-            }
-        }
-
-        // Validate monetary amounts structure if provided
-        $monetaryFields = ['fixed_price', 'external_budget', 'internal_budget', 'custom_rate'];
-        foreach ($monetaryFields as $field) {
-            if (isset($data[$field])) {
-                if (! is_array($data[$field])) {
-                    throw new InvalidArgumentException("{$field} must be an object with amount and currency");
-                }
-                if (! isset($data[$field]['amount']) || ! isset($data[$field]['currency'])) {
-                    throw new InvalidArgumentException("{$field} requires both amount and currency");
-                }
-                if (! in_array($data[$field]['currency'], $this->currencyCodes)) {
-                    throw new InvalidArgumentException(
-                        'Invalid currency code. Must be one of: '.implode(', ', $this->currencyCodes)
-                    );
-                }
-            }
-        }
-
-        // Validate assignees structure if provided
-        if (isset($data['assignees']) && is_array($data['assignees'])) {
-            foreach ($data['assignees'] as $assignee) {
-                if (! isset($assignee['type']) || ! in_array($assignee['type'], $this->assigneeTypes)) {
-                    throw new InvalidArgumentException(
-                        'Invalid assignee type. Must be one of: '.implode(', ', $this->assigneeTypes)
-                    );
-                }
-                if (! isset($assignee['id'])) {
-                    throw new InvalidArgumentException('Each assignee must have an id');
-                }
-            }
-        }
-
-        // Validate date formats if provided
-        if (isset($data['start_date']) && ! $this->isValidDate($data['start_date'])) {
-            throw new InvalidArgumentException('start_date must be in Y-m-d format (e.g., 2023-01-18)');
-        }
-        if (isset($data['end_date']) && ! $this->isValidDate($data['end_date'])) {
-            throw new InvalidArgumentException('end_date must be in Y-m-d format (e.g., 2023-03-22)');
-        }
+        $this->assertMoney($data, self::MONEY_FIELDS, $endpoint);
+        $this->assertDuration($data, ['time_estimated'], $endpoint);
+        $this->assertAssignees($data, $endpoint);
+        $this->assertDates($data, ['start_date', 'end_date'], $endpoint);
     }
 
     /**
