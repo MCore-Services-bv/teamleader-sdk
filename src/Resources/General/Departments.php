@@ -2,10 +2,17 @@
 
 namespace McoreServices\TeamleaderSDK\Resources\General;
 
+use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class Departments extends Resource
 {
+    use ValidatesWritePayload;
+
+    /** `filter.status[]` on departments.list */
+    public const STATUSES = ['active', 'archived'];
+
     protected string $description = 'Manage departments in Teamleader Focus';
 
     // Resource capabilities
@@ -16,6 +23,26 @@ class Departments extends Resource
     protected bool $supportsDeletion = false;  // Based on API docs, no delete endpoint
 
     protected bool $supportsBatch = false;
+
+    // departments.list takes no page and neither endpoint takes includes;
+    // both flags defaulted to true until v2.2.14.
+    protected bool $supportsPagination = false;
+
+    protected bool $supportsSorting = true;
+
+    protected bool $supportsFiltering = true;
+
+    protected bool $supportsSideloading = false;
+
+    /**
+     * Sort fields departments.list accepts. Until v2.2.14 the sort was passed
+     * through unchecked.
+     */
+    protected array $availableSortFields = [
+        'default_department' => 'Ascending lists the default department first',
+        'name' => 'Department name',
+        'created_at' => 'Creation date',
+    ];
 
     // Available includes for sideloading
     protected array $availableIncludes = [
@@ -61,47 +88,47 @@ class Departments extends Resource
     }
 
     /**
-     * List departments with enhanced filtering and sorting
+     * List departments
      *
-     * @param  array  $filters  Filters to apply
-     * @param  array  $options  Additional options (sorting, pagination)
+     * @param  array  $filters  ids, status (active and/or archived)
+     * @param  array  $options  sort (default_department|name|created_at), sort_order
+     *
+     * @throws InvalidArgumentException On an unknown filter key, option, value or sort field
      */
     public function list(array $filters = [], array $options = []): array
     {
+        $unknown = array_diff(array_keys($options), ['sort', 'sort_order']);
+
+        if ($unknown !== []) {
+            throw new InvalidArgumentException(
+                'departments.list does not support: '.implode(', ', $unknown).'. Supported: sort, sort_order.'
+            );
+        }
+
         $params = [];
 
-        // Apply filters
-        if (! empty($filters)) {
+        if ($filters !== []) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
-        // Apply sorting - departments have specific sort fields
-        if (isset($options['sort'])) {
-            $params['sort'] = $this->buildSort($options['sort']);
+        if (! empty($options['sort'])) {
+            $params['sort'] = $this->buildSort($options['sort'], $options['sort_order'] ?? 'asc');
         }
 
         return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
-     * Get department information
+     * Get one department
      *
      * @param  string  $id  Department UUID
-     * @param  mixed  $includes  Includes (not used for departments)
+     * @param  mixed  $includes  departments.info takes no includes; passing any throws
      */
     public function info($id, $includes = null): array
     {
-        $params = ['id' => $id];
+        $this->assertIncludes($includes, [], 'departments.info');
 
-        // Departments don't support includes, but we maintain compatibility
-        if (! empty($includes)) {
-            $params = $this->applyIncludes($params, $includes);
-        }
-
-        // Apply any pending includes from fluent interface
-        $params = $this->applyPendingIncludes($params);
-
-        return $this->api->request('POST', $this->getBasePath().'.info', $params);
+        return $this->api->request('POST', $this->getBasePath().'.info', ['id' => $id]);
     }
 
     /**
@@ -131,23 +158,28 @@ class Departments extends Resource
     }
 
     /**
-     * Build filters array for the API request
+     * Build the filter object for departments.list
+     *
+     * Until v2.2.14 unknown keys and a string `ids` were dropped without a
+     * word, and status values were not checked.
+     *
+     * @throws InvalidArgumentException
      */
     protected function buildFilters(array $filters): array
     {
+        $this->rejectUnknownFilters($filters, 'departments.list');
+
         $apiFilters = [];
 
-        // Handle IDs filter
-        if (isset($filters['ids']) && is_array($filters['ids'])) {
-            $apiFilters['ids'] = $filters['ids'];
+        if (isset($filters['ids'])) {
+            $apiFilters['ids'] = is_array($filters['ids']) ? array_values($filters['ids']) : [$filters['ids']];
         }
 
-        // Handle status filter
         if (isset($filters['status'])) {
-            if (is_string($filters['status'])) {
-                $apiFilters['status'] = [$filters['status']];
-            } elseif (is_array($filters['status'])) {
-                $apiFilters['status'] = $filters['status'];
+            $apiFilters['status'] = is_array($filters['status']) ? array_values($filters['status']) : [$filters['status']];
+
+            foreach ($apiFilters['status'] as $index => $status) {
+                $this->assertEnum($status, self::STATUSES, "filter.status[{$index}]", 'departments.list');
             }
         }
 
@@ -155,58 +187,23 @@ class Departments extends Resource
     }
 
     /**
-     * Build sort array for the API request
+     * Build the sort array for departments.list
+     *
+     * Accepts a field name, ['field' => ..., 'order' => ...], a list of those
+     * or a field => order map.
      *
      * @param  array|string  $sort
+     *
+     * @throws InvalidArgumentException On an unknown field or order
      */
-    protected function buildSort($sort, string $order = 'desc'): array
+    protected function buildSort($sort, string $order = 'asc'): array
     {
-        // If already in correct format, return as-is
-        if (is_array($sort) && isset($sort[0]['field'])) {
-            return $sort;
-        }
-
-        // Handle simple string sort
-        if (is_string($sort)) {
-            return [
-                [
-                    'field' => $sort,
-                    'order' => 'asc',
-                ],
-            ];
-        }
-
-        // Handle associative array
-        if (is_array($sort)) {
-            $sortArray = [];
-            foreach ($sort as $field => $order) {
-                if (is_numeric($field) && is_array($order)) {
-                    // Already in correct format
-                    $sortArray[] = $order;
-                } else {
-                    $sortArray[] = [
-                        'field' => $field,
-                        'order' => $order,
-                    ];
-                }
-            }
-
-            return $sortArray;
-        }
-
-        return [];
+        return $this->normaliseSort($sort, $order);
     }
 
-    /**
-     * Get available sort fields for departments (based on API documentation)
-     */
     public function getAvailableSortFields(): array
     {
-        return [
-            'default_department' => 'When sorting ascending, default departments are listed first (sorting only)',
-            'name' => 'Sorts by department name',
-            'created_at' => 'Sorts by department creation date',
-        ];
+        return $this->availableSortFields;
     }
 
     /**
@@ -214,7 +211,7 @@ class Departments extends Resource
      */
     public function getAvailableStatuses(): array
     {
-        return ['active', 'archived'];
+        return self::STATUSES;
     }
 
     /**

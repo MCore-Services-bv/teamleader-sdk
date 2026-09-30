@@ -6,9 +6,20 @@ use BadMethodCallException;
 use Exception;
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class DocumentTemplates extends Resource
 {
+    use ValidatesWritePayload;
+
+    /** `filter.document_type` on documentTemplates.list */
+    public const DOCUMENT_TYPES = [
+        'delivery_note', 'invoice', 'order', 'order_confirmation', 'quotation', 'timetracking_report', 'workorder',
+    ];
+
+    /** `filter.status[]` on documentTemplates.list */
+    public const STATUSES = ['active', 'archived'];
+
     protected string $description = 'Manage document templates in Teamleader Focus';
 
     // Resource capabilities based on API documentation
@@ -20,7 +31,13 @@ class DocumentTemplates extends Resource
 
     protected bool $supportsBatch = false;
 
-    protected bool $supportsPagination = false; // No pagination mentioned in API docs
+    protected bool $supportsPagination = false;
+
+    // documentTemplates.list takes no sort and no includes; both flags
+    // defaulted to true until v2.2.14.
+    protected bool $supportsSorting = false;
+
+    protected bool $supportsSideloading = false; // No pagination mentioned in API docs
 
     // Available includes for sideloading
     protected array $availableIncludes = [
@@ -103,7 +120,12 @@ class DocumentTemplates extends Resource
      */
     public function list(array $filters = [], array $options = []): array
     {
-        // Validate required parameters
+        if ($options !== []) {
+            throw new InvalidArgumentException(
+                'documentTemplates.list takes no paging, sorting or includes; got: '.implode(', ', array_keys($options)).'.'
+            );
+        }
+
         if (empty($filters['department_id'])) {
             throw new InvalidArgumentException('department_id is required for document templates');
         }
@@ -112,43 +134,31 @@ class DocumentTemplates extends Resource
             throw new InvalidArgumentException('document_type is required for document templates');
         }
 
-        $params = [];
-
-        // Build filters
-        if (! empty($filters)) {
-            $params['filter'] = $this->buildFilters($filters);
-        }
-
-        return $this->api->request('POST', $this->getBasePath().'.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', ['filter' => $this->buildFilters($filters)]);
     }
 
     /**
-     * Build filters array for the API request
+     * Build the filter object for documentTemplates.list
+     *
+     * Until v2.2.14 unknown keys were dropped and neither the document type
+     * nor the status was checked.
+     *
+     * @throws InvalidArgumentException
      */
     protected function buildFilters(array $filters): array
     {
-        $apiFilters = [];
+        $this->rejectUnknownFilters($filters, 'documentTemplates.list');
+        $this->assertEnum($filters['document_type'] ?? null, self::DOCUMENT_TYPES, 'filter.document_type', 'documentTemplates.list');
 
-        // Handle department_id (required)
-        if (isset($filters['department_id'])) {
-            $apiFilters['department_id'] = $filters['department_id'];
-        }
-
-        // Handle document_type (required)
-        if (isset($filters['document_type'])) {
-            $apiFilters['document_type'] = $filters['document_type'];
-        }
-
-        // Handle status filter
         if (isset($filters['status'])) {
-            if (is_string($filters['status'])) {
-                $apiFilters['status'] = [$filters['status']];
-            } elseif (is_array($filters['status'])) {
-                $apiFilters['status'] = $filters['status'];
+            $filters['status'] = is_array($filters['status']) ? array_values($filters['status']) : [$filters['status']];
+
+            foreach ($filters['status'] as $index => $status) {
+                $this->assertEnum($status, self::STATUSES, "filter.status[{$index}]", 'documentTemplates.list');
             }
         }
 
-        return $apiFilters;
+        return array_filter($filters, fn ($value) => $value !== null);
     }
 
     /**
@@ -216,15 +226,7 @@ class DocumentTemplates extends Resource
      */
     public function getAvailableDocumentTypes(): array
     {
-        return [
-            'delivery_note',
-            'invoice',
-            'order',
-            'order_confirmation',
-            'quotation',
-            'timetracking_report',
-            'workorder',
-        ];
+        return self::DOCUMENT_TYPES;
     }
 
     /**
@@ -232,7 +234,7 @@ class DocumentTemplates extends Resource
      */
     public function getAvailableStatuses(): array
     {
-        return ['active', 'archived'];
+        return self::STATUSES;
     }
 
     /**

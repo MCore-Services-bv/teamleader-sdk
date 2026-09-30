@@ -4,10 +4,20 @@ namespace McoreServices\TeamleaderSDK\Resources\General;
 
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
-use stdClass;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class EmailTracking extends Resource
 {
+    use ValidatesWritePayload;
+
+    /** Body fields emailTracking.create accepts */
+    public const CREATE_FIELDS = ['subject', 'title', 'content', 'attachments'];
+
+    /** `subject.type` on create and `filter.subject.type` on list */
+    public const SUBJECT_TYPES = [
+        'contact', 'company', 'deal', 'invoice', 'creditNote', 'subscription', 'product', 'quotation', 'nextgenProject',
+    ];
+
     protected string $description = 'Manage email tracking in Teamleader Focus - track emails sent to various entities';
 
     // Resource capabilities
@@ -28,17 +38,7 @@ class EmailTracking extends Resource
     protected bool $supportsSideloading = false;
 
     // Available subject types for email tracking
-    protected array $availableSubjectTypes = [
-        'contact',
-        'company',
-        'deal',
-        'invoice',
-        'creditNote',
-        'subscription',
-        'product',
-        'quotation',
-        'nextgenProject',
-    ];
+    protected array $availableSubjectTypes = self::SUBJECT_TYPES;
 
     // Common filters based on API documentation
     protected array $commonFilters = [
@@ -91,21 +91,20 @@ class EmailTracking extends Resource
      */
     public function list(array $filters = [], array $options = []): array
     {
-        $params = [];
+        $unknown = array_diff(array_keys($options), ['page_size', 'page_number']);
 
-        // Build filter object (required by API)
-        if (! empty($filters)) {
-            $params['filter'] = $this->buildFilters($filters);
-        } else {
-            // API requires filter object, so provide empty one if none given
-            $params['filter'] = new stdClass;
+        if ($unknown !== []) {
+            throw new InvalidArgumentException(
+                'emailTracking.list does not support: '.implode(', ', $unknown).'. Supported: page_size, page_number.'
+            );
         }
 
-        // Apply pagination
+        $params = ['filter' => $this->buildFilters($filters)];
+
         if (isset($options['page_size']) || isset($options['page_number'])) {
             $params['page'] = [
-                'size' => $options['page_size'] ?? 20,
-                'number' => $options['page_number'] ?? 1,
+                'size' => (int) ($options['page_size'] ?? 20),
+                'number' => (int) ($options['page_number'] ?? 1),
             ];
         }
 
@@ -113,26 +112,37 @@ class EmailTracking extends Resource
     }
 
     /**
-     * Build filters array for the API request
+     * Build the filter object for emailTracking.list
+     *
+     * The subject is required. Until v2.2.14 a list without one was sent with
+     * an empty filter (which the API refuses), the advertised dotted keys
+     * `subject.type` / `subject.id` were ignored, and unknown keys were
+     * dropped without a word.
+     *
+     * Accepted forms: ['subject' => ['type' => ..., 'id' => ...]],
+     * ['subject.type' => ..., 'subject.id' => ...] and the older
+     * ['subject_type' => ..., 'subject_id' => ...].
+     *
+     * @throws InvalidArgumentException
      */
     protected function buildFilters(array $filters): array
     {
-        $apiFilters = [];
+        $this->rejectUnknownFilters($filters, 'emailTracking.list', ['subject', 'subject_type', 'subject_id']);
 
-        // Handle subject filter (most common)
-        if (isset($filters['subject'])) {
-            $apiFilters['subject'] = $filters['subject'];
+        $subject = $filters['subject'] ?? [
+            'type' => $filters['subject.type'] ?? $filters['subject_type'] ?? null,
+            'id' => $filters['subject.id'] ?? $filters['subject_id'] ?? null,
+        ];
+
+        if (! is_array($subject) || empty($subject['type']) || empty($subject['id'])) {
+            throw new InvalidArgumentException(
+                'emailTracking.list requires a subject: [\'subject\' => [\'type\' => ..., \'id\' => uuid]].'
+            );
         }
 
-        // Handle individual subject properties
-        if (isset($filters['subject_type']) && isset($filters['subject_id'])) {
-            $apiFilters['subject'] = [
-                'type' => $filters['subject_type'],
-                'id' => $filters['subject_id'],
-            ];
-        }
+        $this->assertEnum($subject['type'], self::SUBJECT_TYPES, 'filter.subject.type', 'emailTracking.list');
 
-        return $apiFilters;
+        return ['subject' => ['type' => $subject['type'], 'id' => $subject['id']]];
     }
 
     /**
@@ -184,6 +194,7 @@ class EmailTracking extends Resource
      */
     private function validateCreateData(array $data): void
     {
+        $this->rejectUnknownFields($data, self::CREATE_FIELDS, 'emailTracking.create');
         // Check required fields
         if (empty($data['subject'])) {
             throw new InvalidArgumentException('Subject is required for email tracking');
@@ -212,7 +223,7 @@ class EmailTracking extends Resource
         // Validate attachments if provided
         if (isset($data['attachments']) && is_array($data['attachments'])) {
             foreach ($data['attachments'] as $attachment) {
-                if (! $this->isValidUuid($attachment)) {
+                if (! is_string($attachment) || ! $this->isValidUuid($attachment)) {
                     throw new InvalidArgumentException('All attachment IDs must be valid UUIDs');
                 }
             }

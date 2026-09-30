@@ -5,9 +5,28 @@ namespace McoreServices\TeamleaderSDK\Resources\General;
 use BadMethodCallException;
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class Notes extends Resource
 {
+    use ValidatesWritePayload;
+
+    /** Body fields notes.create accepts */
+    public const CREATE_FIELDS = ['subject', 'content', 'notify'];
+
+    /** Body fields notes.update accepts, besides `id` — only the content can change */
+    public const UPDATE_FIELDS = ['content'];
+
+    /** `subject.type` on notes.create — no legacy `project` */
+    public const CREATE_SUBJECT_TYPES = [
+        'company', 'contact', 'creditNote', 'deal', 'invoice', 'meeting', 'nextgenProject', 'product', 'quotation', 'subscription',
+    ];
+
+    /** `filter.subject.type` on notes.list — includes legacy `project` */
+    public const LIST_SUBJECT_TYPES = [
+        'company', 'contact', 'creditNote', 'deal', 'invoice', 'meeting', 'nextgenProject', 'product', 'project', 'quotation', 'subscription',
+    ];
+
     protected string $description = 'Manage notes in Teamleader Focus - attach notes to various entities like companies, contacts, deals, etc.';
 
     // Resource capabilities - Notes support all major operations
@@ -28,19 +47,11 @@ class Notes extends Resource
     protected bool $supportsSideloading = false; // No includes mentioned
 
     // Available subject types for notes (from API docs)
-    protected array $availableSubjectTypes = [
-        'company',
-        'contact',
-        'creditNote',
-        'deal',
-        'invoice',
-        'meeting',
-        'nextgenProject',
-        'product',
-        'project',
-        'quotation',
-        'subscription',
-    ];
+    /**
+     * Every subject type notes can be listed for. Notes can be read on a
+     * legacy `project` but not created on one — see CREATE_SUBJECT_TYPES.
+     */
+    protected array $availableSubjectTypes = self::LIST_SUBJECT_TYPES;
 
     // Common filters based on API documentation
     protected array $commonFilters = [
@@ -96,6 +107,7 @@ class Notes extends Resource
      */
     private function validateUpdateData(array $data): void
     {
+        $this->rejectUnknownFields($data, [...self::UPDATE_FIELDS, 'id'], 'notes.update');
         // Required: id
         if (! isset($data['id']) || empty($data['id'])) {
             throw new InvalidArgumentException('Note ID is required for updates');
@@ -152,12 +164,12 @@ class Notes extends Resource
      *
      * @throws InvalidArgumentException
      */
-    private function validateSubjectType(string $type): void
+    private function validateSubjectType(string $type, array $allowed = self::LIST_SUBJECT_TYPES): void
     {
-        if (! in_array($type, $this->availableSubjectTypes)) {
+        if (! in_array($type, $allowed, true)) {
             throw new InvalidArgumentException(
                 "Invalid subject type '{$type}'. Available types: ".
-                implode(', ', $this->availableSubjectTypes)
+                implode(', ', $allowed)
             );
         }
     }
@@ -171,18 +183,20 @@ class Notes extends Resource
      */
     public function list(array $filters = [], array $options = [])
     {
-        $params = [];
+        $unknown = array_diff(array_keys($options), ['page_size', 'page_number']);
 
-        // Build filter object as required by API
-        if (! empty($filters)) {
-            $params['filter'] = $this->buildFilters($filters);
+        if ($unknown !== []) {
+            throw new InvalidArgumentException(
+                'notes.list does not support: '.implode(', ', $unknown).'. Supported: page_size, page_number.'
+            );
         }
 
-        // Apply pagination
+        $params = ['filter' => $this->buildFilters($filters)];
+
         if (isset($options['page_size']) || isset($options['page_number'])) {
             $params['page'] = [
-                'size' => $options['page_size'] ?? 20,
-                'number' => $options['page_number'] ?? 1,
+                'size' => (int) ($options['page_size'] ?? 20),
+                'number' => (int) ($options['page_number'] ?? 1),
             ];
         }
 
@@ -190,24 +204,32 @@ class Notes extends Resource
     }
 
     /**
-     * Build filters array for the API request
+     * Build the filter object for notes.list
+     *
+     * The subject is required. Until v2.2.14 a subject missing its type or id
+     * was dropped without a word, the advertised dotted keys `subject.type` /
+     * `subject.id` were ignored, and unknown keys were dropped.
+     *
+     * @throws InvalidArgumentException
      */
     protected function buildFilters(array $filters): array
     {
-        $apiFilters = [];
+        $this->rejectUnknownFilters($filters, 'notes.list', ['subject']);
 
-        // Handle subject filter
-        if (isset($filters['subject'])) {
-            if (is_array($filters['subject']) &&
-                isset($filters['subject']['type']) &&
-                isset($filters['subject']['id'])) {
+        $subject = $filters['subject'] ?? [
+            'type' => $filters['subject.type'] ?? null,
+            'id' => $filters['subject.id'] ?? null,
+        ];
 
-                $this->validateSubjectType($filters['subject']['type']);
-                $apiFilters['subject'] = $filters['subject'];
-            }
+        if (! is_array($subject) || empty($subject['type']) || empty($subject['id'])) {
+            throw new InvalidArgumentException(
+                'notes.list requires a subject: [\'subject\' => [\'type\' => ..., \'id\' => uuid]].'
+            );
         }
 
-        return $apiFilters;
+        $this->validateSubjectType($subject['type']);
+
+        return ['subject' => ['type' => $subject['type'], 'id' => $subject['id']]];
     }
 
     /**
@@ -234,7 +256,7 @@ class Notes extends Resource
      */
     public function createForSubject(string $subjectType, string $subjectId, string $content, array $notify = [])
     {
-        $this->validateSubjectType($subjectType);
+        $this->validateSubjectType($subjectType, self::CREATE_SUBJECT_TYPES);
 
         $data = [
             'subject' => [
@@ -281,7 +303,10 @@ class Notes extends Resource
             throw new InvalidArgumentException('Subject must contain both type and id');
         }
 
-        $this->validateSubjectType($data['subject']['type']);
+        $this->rejectUnknownFields($data, self::CREATE_FIELDS, 'notes.create');
+
+        // notes.create does not accept a legacy `project` subject (list does)
+        $this->validateSubjectType($data['subject']['type'], self::CREATE_SUBJECT_TYPES);
 
         // Required: content
         if (! isset($data['content']) || empty(trim($data['content']))) {

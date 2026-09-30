@@ -7,6 +7,9 @@ use McoreServices\TeamleaderSDK\Resources\Resource;
 
 class CustomFields extends Resource
 {
+    /** Body fields customFieldDefinitions.create accepts */
+    public const CREATE_FIELDS = ['label', 'type', 'context', 'required', 'configuration'];
+
     /**
      * Safety limit on the number of pages all() will fetch.
      */
@@ -342,6 +345,19 @@ class CustomFields extends Resource
      */
     protected function validateCreateData(array $data): array
     {
+        // customFieldDefinitions.create takes these five; anything else would be ignored.
+        $unknown = array_diff(array_keys($data), self::CREATE_FIELDS);
+
+        if ($unknown !== []) {
+            throw new InvalidArgumentException(
+                'customFieldDefinitions.create does not accept: '.implode(', ', $unknown)
+                .'. Accepted fields: '.implode(', ', self::CREATE_FIELDS).'.'
+            );
+        }
+
+        if (isset($data['required']) && ! is_bool($data['required'])) {
+            throw new InvalidArgumentException('required must be true or false.');
+        }
         // Validate required: label
         if (empty($data['label']) || ! is_string($data['label'])) {
             throw new InvalidArgumentException('Custom field label is required and must be a non-empty string.');

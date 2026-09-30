@@ -2,10 +2,23 @@
 
 namespace McoreServices\TeamleaderSDK\Resources\General;
 
+use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class Users extends Resource
 {
+    use ValidatesWritePayload;
+
+    /** `filter.status[]` on users.list */
+    public const STATUSES = ['active', 'deactivated'];
+
+    /** Includes users.info accepts; users.list takes none */
+    public const INFO_INCLUDES = ['external_rate'];
+
+    /** Filter keys users.listDaysOff accepts */
+    public const DAYS_OFF_FILTERS = ['starts_after', 'ends_before'];
+
     protected string $description = 'Manage users in Teamleader Focus';
 
     // Resource capabilities
@@ -18,8 +31,26 @@ class Users extends Resource
     protected bool $supportsBatch = false;
 
     // Available includes for sideloading
-    protected array $availableIncludes = [
-        'external_rate' => 'Include external hourly rates for the user',
+    /**
+     * A flat list since v2.2.14; it was a name => description map, the only
+     * resource that declared its includes that way.
+     */
+    protected array $availableIncludes = [];
+
+    /** users.info takes `external_rate`; users.list takes no includes */
+    protected array $infoIncludes = self::INFO_INCLUDES;
+
+    protected bool $supportsSideloading = true;
+
+    /**
+     * Sort fields users.list accepts. Until v2.2.14 the sort was passed
+     * through unchecked.
+     */
+    protected array $availableSortFields = [
+        'first_name' => 'First name',
+        'last_name' => 'Last name',
+        'email' => 'Email address',
+        'function' => 'Function',
     ];
 
     // Common filters based on API documentation
@@ -81,23 +112,29 @@ class Users extends Resource
      */
     public function list(array $filters = [], array $options = []): array
     {
+        $unknown = array_diff(array_keys($options), ['page_size', 'page_number', 'sort', 'sort_order']);
+
+        if ($unknown !== []) {
+            throw new InvalidArgumentException(
+                'users.list does not support: '.implode(', ', $unknown)
+                .'. Supported: page_size, page_number, sort, sort_order. Includes go on info().'
+            );
+        }
+
         $params = [];
 
-        // Apply filters
-        if (! empty($filters)) {
+        if ($filters !== []) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
-        // Apply sorting
-        if (isset($options['sort'])) {
-            $params['sort'] = $this->buildSort($options['sort']);
+        if (! empty($options['sort'])) {
+            $params['sort'] = $this->buildSort($options['sort'], $options['sort_order'] ?? 'asc');
         }
 
-        // Apply pagination
         if (isset($options['page_size']) || isset($options['page_number'])) {
             $params['page'] = [
-                'size' => $options['page_size'] ?? 20,
-                'number' => $options['page_number'] ?? 1,
+                'size' => (int) ($options['page_size'] ?? 20),
+                'number' => (int) ($options['page_number'] ?? 1),
             ];
         }
 
@@ -105,28 +142,21 @@ class Users extends Resource
     }
 
     /**
-     * Get user information
+     * Get one user
      *
      * @param  string  $id  User UUID
-     * @param  mixed  $includes  Includes (external_rate)
+     * @param  mixed  $includes  external_rate
+     *
+     * @throws InvalidArgumentException On an include users.info does not accept
      */
     public function info($id, $includes = null): array
     {
-        $params = ['id' => $id];
+        $pending = $this->getPendingIncludes();
+        $this->pendingIncludes = [];
 
-        // Handle includes
-        if (! empty($includes)) {
-            if (is_array($includes)) {
-                $params['includes'] = implode(',', $includes);
-            } else {
-                $params['includes'] = $includes;
-            }
-        }
+        $includes = $this->assertIncludes([...(array) ($includes ?? []), ...$pending], self::INFO_INCLUDES, 'users.info');
 
-        // Apply any pending includes from fluent interface
-        $params = $this->applyPendingIncludes($params);
-
-        return $this->api->request('POST', $this->getBasePath().'.info', $params);
+        return $this->api->request('POST', $this->getBasePath().'.info', $this->applyIncludes(['id' => $id], $includes));
     }
 
     /**
@@ -141,10 +171,25 @@ class Users extends Resource
      * Get user week schedule
      * Only available with the Weekly working schedule feature
      *
+     * @deprecated Teamleader marks users.getWeekSchedule deprecated. Use
+     *             userSchedules()->forUser($id, $from, $until) instead; this
+     *             raises E_USER_DEPRECATED once per process and goes in v3.0.
+     *
      * @param  string  $id  User UUID
      */
     public function getWeekSchedule(string $id): array
     {
+        static $warned = false;
+
+        if (! $warned) {
+            $warned = true;
+            trigger_error(
+                'users.getWeekSchedule is deprecated by Teamleader. Use userSchedules()->forUser($id, $from, $until), '
+                .'which returns per-day schedules for up to seven days.',
+                E_USER_DEPRECATED
+            );
+        }
+
         return $this->api->request('POST', $this->getBasePath().'.getWeekSchedule', [
             'id' => $id,
         ]);
@@ -159,28 +204,40 @@ class Users extends Resource
      */
     public function listDaysOff(string $id, array $filters = [], array $options = []): array
     {
-        $params = ['id' => $id];
+        $unknownOptions = array_diff(array_keys($options), ['page_size', 'page_number']);
 
-        // Apply filters
-        if (! empty($filters)) {
-            $params['filter'] = [];
-
-            if (isset($filters['starts_after'])) {
-                $params['filter']['starts_after'] = $filters['starts_after'];
-            }
-
-            if (isset($filters['ends_before'])) {
-                $params['filter']['ends_before'] = $filters['ends_before'];
-            }
+        if ($unknownOptions !== []) {
+            throw new InvalidArgumentException(
+                'users.listDaysOff does not support: '.implode(', ', $unknownOptions).'. Supported: page_size, page_number.'
+            );
         }
 
-        // Apply pagination
+        // Unknown keys were dropped without a word until v2.2.14.
+        $unknown = array_diff(array_keys($filters), self::DAYS_OFF_FILTERS);
+
+        if ($unknown !== []) {
+            throw new InvalidArgumentException(
+                'Unsupported filter key for users.listDaysOff: '.implode(', ', $unknown)
+                .'. Supported: '.implode(', ', self::DAYS_OFF_FILTERS).'.'
+            );
+        }
+
+        $params = ['id' => $id];
+        $filter = array_filter($filters, fn ($value) => $value !== null);
+
+        if ($filter !== []) {
+            $params['filter'] = $filter;
+        }
+
         if (isset($options['page_size']) || isset($options['page_number'])) {
             $params['page'] = [
-                'size' => $options['page_size'] ?? 20,
-                'number' => $options['page_number'] ?? 1,
+                'size' => (int) ($options['page_size'] ?? 20),
+                'number' => (int) ($options['page_number'] ?? 1),
             ];
         }
+
+        // listDaysOff documents a total count in `meta` with includes=pagination
+        $params['includes'] = 'pagination';
 
         return $this->api->request('POST', $this->getBasePath().'.listDaysOff', $params);
     }
@@ -232,28 +289,32 @@ class Users extends Resource
     }
 
     /**
-     * Build filters array for the API request
+     * Build the filter object for users.list
+     *
+     * Until v2.2.14 unknown keys and a string `ids` were dropped without a
+     * word, and status values were not checked.
+     *
+     * @throws InvalidArgumentException
      */
     protected function buildFilters(array $filters): array
     {
+        $this->rejectUnknownFilters($filters, 'users.list');
+
         $apiFilters = [];
 
-        // Handle IDs filter
-        if (isset($filters['ids']) && is_array($filters['ids'])) {
-            $apiFilters['ids'] = $filters['ids'];
+        if (isset($filters['ids'])) {
+            $apiFilters['ids'] = is_array($filters['ids']) ? array_values($filters['ids']) : [$filters['ids']];
         }
 
-        // Handle term filter
         if (isset($filters['term'])) {
             $apiFilters['term'] = $filters['term'];
         }
 
-        // Handle status filter
         if (isset($filters['status'])) {
-            if (is_string($filters['status'])) {
-                $apiFilters['status'] = [$filters['status']];
-            } elseif (is_array($filters['status'])) {
-                $apiFilters['status'] = $filters['status'];
+            $apiFilters['status'] = is_array($filters['status']) ? array_values($filters['status']) : [$filters['status']];
+
+            foreach ($apiFilters['status'] as $index => $status) {
+                $this->assertEnum($status, self::STATUSES, "filter.status[{$index}]", 'users.list');
             }
         }
 
@@ -261,46 +322,15 @@ class Users extends Resource
     }
 
     /**
-     * Build sort array for the API request
+     * Build the sort array for users.list
      *
      * @param  array|string  $sort
+     *
+     * @throws InvalidArgumentException On an unknown field or order
      */
-    protected function buildSort($sort, string $order = 'desc'): array
+    protected function buildSort($sort, string $order = 'asc'): array
     {
-        // If already in correct format, return as-is
-        if (is_array($sort) && isset($sort[0]['field'])) {
-            return $sort;
-        }
-
-        // Handle simple string sort
-        if (is_string($sort)) {
-            return [
-                [
-                    'field' => $sort,
-                    'order' => 'asc',
-                ],
-            ];
-        }
-
-        // Handle associative array
-        if (is_array($sort)) {
-            $sortArray = [];
-            foreach ($sort as $field => $order) {
-                if (is_numeric($field) && is_array($order)) {
-                    // Already in correct format
-                    $sortArray[] = $order;
-                } else {
-                    $sortArray[] = [
-                        'field' => $field,
-                        'order' => $order,
-                    ];
-                }
-            }
-
-            return $sortArray;
-        }
-
-        return [];
+        return $this->normaliseSort($sort, $order);
     }
 
     /**
@@ -308,12 +338,7 @@ class Users extends Resource
      */
     public function getAvailableSortFields(): array
     {
-        return [
-            'first_name' => 'Sort by first name',
-            'last_name' => 'Sort by last name',
-            'email' => 'Sort by email address',
-            'function' => 'Sort by user function/role',
-        ];
+        return $this->availableSortFields;
     }
 
     /**
@@ -321,7 +346,7 @@ class Users extends Resource
      */
     public function getAvailableStatuses(): array
     {
-        return ['active', 'deactivated'];
+        return self::STATUSES;
     }
 
     /**

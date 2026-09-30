@@ -8,6 +8,12 @@ use McoreServices\TeamleaderSDK\Resources\Resource;
 
 class Currencies extends Resource
 {
+    /** `base` on currencies.exchangeRates */
+    public const CURRENCIES = [
+        'BAM', 'CAD', 'CHF', 'CLP', 'CNY', 'COP', 'CZK', 'DKK', 'EUR', 'GBP', 'INR', 'ISK',
+        'JPY', 'MAD', 'MXN', 'NOK', 'PEN', 'PLN', 'RON', 'SEK', 'TRY', 'USD', 'ZAR',
+    ];
+
     protected string $description = 'Manage currency exchange rates in Teamleader Focus';
 
     // Resource capabilities - very limited for currencies

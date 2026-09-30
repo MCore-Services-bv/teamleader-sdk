@@ -249,7 +249,8 @@ trait FilterTrait
      * Normalise a sort option into the array-of-objects shape the API expects.
      *
      * Accepts a field name, a list of field names, a single
-     * ['field' => ..., 'order' => ...] entry, or a list of those.
+     * ['field' => ..., 'order' => ...] entry, a list of those, or a
+     * field => order map (['name' => 'desc']).
      *
      * Resources that declare $availableSortFields get their fields validated;
      * those that do not are passed through unchecked.
@@ -281,6 +282,20 @@ trait FilterTrait
                 'field' => $this->validateSortField($sort['field']),
                 'order' => $this->normaliseSortOrder($sort['order'] ?? $order),
             ]];
+        }
+
+        // A field => order map: ['name' => 'asc', 'created_at' => 'desc']
+        if (is_array($sort) && $sort !== [] && ! array_is_list($sort)) {
+            $normalised = [];
+
+            foreach ($sort as $field => $fieldOrder) {
+                $normalised[] = [
+                    'field' => $this->validateSortField((string) $field),
+                    'order' => $this->normaliseSortOrder($fieldOrder),
+                ];
+            }
+
+            return $normalised;
         }
 
         // A list of field names
