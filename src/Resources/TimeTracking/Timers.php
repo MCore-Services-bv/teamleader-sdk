@@ -4,9 +4,18 @@ namespace McoreServices\TeamleaderSDK\Resources\TimeTracking;
 
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class Timers extends Resource
 {
+    use ValidatesWritePayload;
+
+    /** Body fields timers.start and timers.update accept — none of them required */
+    public const WRITE_FIELDS = ['work_type_id', 'started_at', 'description', 'subject', 'invoiceable'];
+
+    /** `subject.type` on timers.start and timers.update */
+    public const SUBJECT_TYPES = ['company', 'contact', 'event', 'todo', 'milestone', 'ticket'];
+
     protected string $description = 'Manage time tracking timers in Teamleader Focus';
 
     // Resource capabilities - Timers support limited operations
@@ -33,14 +42,7 @@ class Timers extends Resource
     protected array $commonFilters = [];
 
     // Available subject types for timers
-    protected array $availableSubjectTypes = [
-        'company',
-        'contact',
-        'event',
-        'todo',
-        'milestone',
-        'ticket',
-    ];
+    protected array $availableSubjectTypes = self::SUBJECT_TYPES;
 
     // Usage examples specific to timers
     protected array $usageExamples = [
@@ -71,7 +73,7 @@ class Timers extends Resource
         ],
         'update_current' => [
             'description' => 'Update the current timer description',
-            'code' => '$result = $teamleader->timers()->update([\'description\' => \'Updated description\']);',
+            'code' => '$result = $teamleader->timers()->updateCurrent([\'description\' => \'Updated description\']);',
         ],
         'stop_timer' => [
             'description' => 'Stop the current timer',
@@ -157,6 +159,19 @@ class Timers extends Resource
     }
 
     /**
+     * Alias for updateCurrent()
+     *
+     * The usage examples called `timers()->update()` until v2.2.11, when no
+     * such method existed; it is kept so code written from them works.
+     *
+     * @param  array  $data  Fields to change on the running timer
+     */
+    public function update(array $data): array
+    {
+        return $this->updateCurrent($data);
+    }
+
+    /**
      * Check if there is a timer currently running
      */
     public function isRunning(): bool
@@ -173,63 +188,52 @@ class Timers extends Resource
     /**
      * Validate data for starting a timer
      *
+     * timers.start requires nothing: without a subject or work type the timer
+     * simply runs unlinked, and started_at defaults to now. Until v2.2.11 the
+     * SDK required both a subject and a work_type_id.
+     *
      * @throws InvalidArgumentException
      */
     private function validateStartData(array $data): void
     {
-        // Subject is required and must have type and id
-        if (! isset($data['subject']) || ! is_array($data['subject'])) {
-            throw new InvalidArgumentException('Subject is required and must be an array');
-        }
-
-        if (! isset($data['subject']['type']) || ! isset($data['subject']['id'])) {
-            throw new InvalidArgumentException('Subject must contain both type and id');
-        }
-
-        $this->validateSubjectType($data['subject']['type']);
-
-        // work_type_id is required
-        if (! isset($data['work_type_id']) || empty($data['work_type_id'])) {
-            throw new InvalidArgumentException('work_type_id is required');
-        }
-
-        // If started_at is provided, validate format
-        if (isset($data['started_at']) && ! $this->isValidDateTime($data['started_at'])) {
-            throw new InvalidArgumentException('started_at must be in ISO 8601 format');
-        }
-
-        // If invoiceable is provided, validate it's boolean
-        if (isset($data['invoiceable']) && ! is_bool($data['invoiceable'])) {
-            throw new InvalidArgumentException('invoiceable must be a boolean');
-        }
+        $this->rejectUnknownFields($data, self::WRITE_FIELDS, 'timers.start');
+        $this->validateCommonFields($data);
     }
 
     /**
-     * Validate data for updating a timer
+     * Validate data for updating the running timer
+     *
+     * work_type_id, description and subject take null to clear them.
      *
      * @throws InvalidArgumentException
      */
     private function validateUpdateData(array $data): void
     {
-        // At least one field must be provided for update
         if (empty($data)) {
             throw new InvalidArgumentException('At least one field must be provided for update');
         }
 
-        // If subject is provided, validate it
+        $this->rejectUnknownFields($data, self::WRITE_FIELDS, 'timers.update');
+        $this->validateCommonFields($data);
+    }
+
+    /**
+     * @throws InvalidArgumentException
+     */
+    private function validateCommonFields(array $data): void
+    {
         if (isset($data['subject'])) {
-            if (! is_array($data['subject']) || ! isset($data['subject']['type']) || ! isset($data['subject']['id'])) {
+            if (! is_array($data['subject']) || ! isset($data['subject']['type']) || empty($data['subject']['id'])) {
                 throw new InvalidArgumentException('Subject must be an array with type and id');
             }
+
             $this->validateSubjectType($data['subject']['type']);
         }
 
-        // If started_at is provided, validate format
         if (isset($data['started_at']) && ! $this->isValidDateTime($data['started_at'])) {
             throw new InvalidArgumentException('started_at must be in ISO 8601 format');
         }
 
-        // If invoiceable is provided, validate it's boolean
         if (isset($data['invoiceable']) && ! is_bool($data['invoiceable'])) {
             throw new InvalidArgumentException('invoiceable must be a boolean');
         }
