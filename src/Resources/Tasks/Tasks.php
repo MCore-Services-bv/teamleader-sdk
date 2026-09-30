@@ -3,13 +3,44 @@
 namespace McoreServices\TeamleaderSDK\Resources\Tasks;
 
 use InvalidArgumentException;
+use McoreServices\TeamleaderSDK\Resources\Projects\ProjectTasks;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
+/**
+ * Tasks — `tasks.*`, the stand-alone task list (with optional links to a
+ * customer, deal, ticket, legacy milestone or project).
+ *
+ * Tasks inside a project in the current project system are a different
+ * resource: {@see ProjectTasks}.
+ */
 class Tasks extends Resource
 {
+    use ValidatesWritePayload;
+
+    /** Body fields tasks.create accepts */
+    public const CREATE_FIELDS = [
+        'title', 'description', 'due_on', 'work_type_id', 'milestone_id', 'project_id',
+        'deal_id', 'ticket_id', 'estimated_duration', 'assignee', 'customer', 'custom_fields',
+    ];
+
+    /** Body fields tasks.update accepts, besides `id` — the same set as create */
+    public const UPDATE_FIELDS = self::CREATE_FIELDS;
+
+    public const REQUIRED_ON_CREATE = ['title', 'due_on', 'work_type_id'];
+
+    public const ASSIGNEE_TYPES = ['team', 'user'];
+
+    public const CUSTOMER_TYPES = ['contact', 'company'];
+
+    /** `estimated_duration.unit` — minutes only */
+    public const DURATION_UNITS = ['min'];
+
+    /** `priority` on info responses (read-only; not a create or update field) */
+    public const PRIORITIES = ['A', 'B', 'C', 'D'];
+
     protected string $description = 'Manage tasks in Teamleader Focus';
 
-    // Resource capabilities - Tasks support full CRUD operations plus special operations
     protected bool $supportsCreation = true;
 
     protected bool $supportsUpdate = true;
@@ -24,56 +55,43 @@ class Tasks extends Resource
 
     protected bool $supportsFiltering = true;
 
-    protected bool $supportsSideloading = false; // No includes mentioned in API docs
+    protected bool $supportsSideloading = false;
 
-    // Available includes for sideloading (none based on API docs)
     protected array $availableIncludes = [];
 
-    // Default includes
     protected array $defaultIncludes = [];
 
-    // Common filters based on API documentation
     protected array $commonFilters = [
         'ids' => 'Array of task UUIDs',
-        'user_id' => 'Filter by assigned user (or team member). Use null for unassigned tasks',
+        'user_id' => 'Tasks assigned to this user or to a team they belong to; null for unassigned tasks',
         'milestone_id' => 'Filter by milestone UUID (old projects module)',
         'completed' => 'Filter by completion status (boolean)',
         'scheduled' => 'Filter by scheduled status (boolean)',
-        'due_by' => 'Filter tasks due by this date (YYYY-MM-DD)',
-        'due_from' => 'Filter tasks due from this date (YYYY-MM-DD)',
-        'term' => 'Search term (searches in description)',
-        'customer' => 'Filter by customer (object with type and id)',
+        'due_by' => 'Tasks due on or before this date (YYYY-MM-DD)',
+        'due_from' => 'Tasks due on or after this date (YYYY-MM-DD)',
+        'term' => 'Search term (searches the description)',
+        'customer' => 'Filter by customer: [type => contact|company, id => uuid]',
     ];
 
-    // Available sort fields
+    /**
+     * Sort fields tasks.list accepts.
+     *
+     * Until v2.2.10 this advertised `name`, which the API does not accept,
+     * and left out both real fields.
+     */
     protected array $availableSortFields = [
-        'name' => 'Sort by task name',
+        'created_at' => 'Creation date',
+        'due_on' => 'Due date',
     ];
 
-    // Valid assignee types
-    protected array $assigneeTypes = [
-        'user',
-        'team',
-    ];
+    // Kept for backwards compatibility — see the constants above
+    protected array $assigneeTypes = self::ASSIGNEE_TYPES;
 
-    // Valid customer types
-    protected array $customerTypes = [
-        'contact',
-        'company',
-    ];
+    protected array $customerTypes = self::CUSTOMER_TYPES;
 
-    // Valid priority levels
-    protected array $priorityLevels = [
-        'A',
-        'B',
-        'C',
-        'D',
-    ];
+    protected array $priorityLevels = self::PRIORITIES;
 
-    // Valid time units
-    protected array $timeUnits = [
-        'min',
-    ];
+    protected array $timeUnits = self::DURATION_UNITS;
 
     // Usage examples specific to tasks
     protected array $usageExamples = [
@@ -121,56 +139,72 @@ class Tasks extends Resource
         ],
     ];
 
-    /**
-     * Get the base path for the tasks resource
-     */
     protected function getBasePath(): string
     {
         return 'tasks';
     }
 
     /**
-     * List tasks with filtering, sorting, and pagination
+     * List tasks
+     *
+     * @param  array  $filters  ids, user_id (null = unassigned), milestone_id, completed,
+     *                          scheduled, due_by, due_from, term, customer
+     * @param  array  $options  page_size, page_number, sort (created_at|due_on), sort_order
+     *
+     * @throws InvalidArgumentException On an unknown filter key, option, value or sort field
      */
     public function list(array $filters = [], array $options = []): array
     {
+        $unknown = array_diff(array_keys($options), ['page_size', 'page_number', 'sort', 'sort_order', 'filters']);
+
+        if ($unknown !== []) {
+            throw new InvalidArgumentException(
+                'tasks.list does not support: '.implode(', ', $unknown)
+                .'. Supported: page_size, page_number, sort, sort_order.'
+            );
+        }
+
         $params = [];
 
-        // Build filter object
-        if (! empty($filters)) {
+        if ($filters !== []) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
-        // Apply pagination
         if (isset($options['page_size']) || isset($options['page_number'])) {
             $params['page'] = [
-                'size' => $options['page_size'] ?? 20,
-                'number' => $options['page_number'] ?? 1,
+                'size' => (int) ($options['page_size'] ?? 20),
+                'number' => (int) ($options['page_number'] ?? 1),
             ];
         }
 
-        // Apply sorting
-        if (isset($options['sort'])) {
-            $params['sort'] = $this->buildSort($options['sort']);
+        if (! empty($options['sort'])) {
+            $params['sort'] = $this->buildSort($options['sort'], $options['sort_order'] ?? 'asc');
         }
 
         return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
-     * Get task information
+     * Get one task
+     *
+     * @param  string  $id  Task UUID
+     * @param  mixed  $includes  tasks.info takes no includes; passing any throws
      */
     public function info($id, $includes = null): array
     {
+        $this->assertIncludes($includes, [], 'tasks.info');
+
         return $this->api->request('POST', $this->getBasePath().'.info', [
             'id' => $id,
         ]);
     }
 
     /**
-     * Create a new task
+     * Create a task
      *
-     * Required fields: title, due_on, work_type_id
+     * Requires title, due_on and work_type_id.
+     *
+     * @throws InvalidArgumentException When a required field is missing, or a field or value is not accepted
      */
     public function create(array $data): array
     {
@@ -180,9 +214,12 @@ class Tasks extends Resource
     }
 
     /**
-     * Update an existing task
+     * Update a task
      *
-     * All fields except id are optional.
+     * Every field is optional. `assignee` null unassigns the task;
+     * milestone_id, project_id, deal_id and ticket_id take null to unlink.
+     *
+     * @throws InvalidArgumentException When a field or value is not accepted
      */
     public function update($id, array $data): array
     {
@@ -230,13 +267,19 @@ class Tasks extends Resource
      * Schedule a task in your calendar
      *
      * @param  string  $id  Task UUID
-     * @param  string  $startsAt  Start datetime in ISO 8601 format
-     * @param  string  $endsAt  End datetime in ISO 8601 format
+     * @param  string  $startsAt  ISO 8601 datetime, e.g. 2025-02-04T16:00:00+00:00
+     * @param  string  $endsAt  ISO 8601 datetime, after $startsAt
+     *
+     * @throws InvalidArgumentException On a malformed datetime, or an end before the start
      */
     public function schedule(string $id, string $startsAt, string $endsAt): array
     {
         $this->validateDateTimeFormat($startsAt, 'starts_at');
         $this->validateDateTimeFormat($endsAt, 'ends_at');
+
+        if (strtotime($endsAt) <= strtotime($startsAt)) {
+            throw new InvalidArgumentException('ends_at must be after starts_at');
+        }
 
         return $this->api->request('POST', $this->getBasePath().'.schedule', [
             'id' => $id,
@@ -397,7 +440,7 @@ class Tasks extends Resource
     }
 
     /**
-     * Validate task data for create/update operations
+     * Validate a create or update body against the specification
      *
      * @param  string  $operation  'create' or 'update'
      *
@@ -405,164 +448,163 @@ class Tasks extends Resource
      */
     protected function validateTaskData(array $data, string $operation = 'create'): void
     {
-        // Required fields for create
+        $endpoint = 'tasks.'.$operation;
+
         if ($operation === 'create') {
-            if (empty($data['title'])) {
-                throw new InvalidArgumentException('title is required for creating a task');
-            }
-            if (empty($data['due_on'])) {
-                throw new InvalidArgumentException('due_on is required for creating a task');
-            }
-            if (empty($data['work_type_id'])) {
-                throw new InvalidArgumentException('work_type_id is required for creating a task');
+            foreach (self::REQUIRED_ON_CREATE as $field) {
+                if (empty($data[$field])) {
+                    throw new InvalidArgumentException("{$field} is required for creating a task");
+                }
             }
 
-            // Validate date format
-            $this->validateDateFormat($data['due_on'], 'due_on');
-        }
-
-        // Required field for update
-        if ($operation === 'update') {
+            $this->rejectUnknownFields($data, self::CREATE_FIELDS, $endpoint);
+        } else {
             if (empty($data['id'])) {
                 throw new InvalidArgumentException('id is required for updating a task');
             }
 
-            // Validate date format if provided
-            if (isset($data['due_on'])) {
-                $this->validateDateFormat($data['due_on'], 'due_on');
-            }
+            $this->rejectUnknownFields($data, [...self::UPDATE_FIELDS, 'id'], $endpoint);
         }
 
-        // Validate assignee structure if provided
+        if (isset($data['due_on'])) {
+            $this->validateDateFormat($data['due_on'], 'due_on');
+        }
+
+        // null unassigns
         if (isset($data['assignee'])) {
-            if ($data['assignee'] !== null) {
-                if (! is_array($data['assignee'])) {
-                    throw new InvalidArgumentException('assignee must be an array or null');
-                }
-                if (! isset($data['assignee']['type']) || ! in_array($data['assignee']['type'], $this->assigneeTypes)) {
-                    throw new InvalidArgumentException(
-                        'Invalid assignee type. Must be one of: '.implode(', ', $this->assigneeTypes)
-                    );
-                }
-                if (! isset($data['assignee']['id']) || empty($data['assignee']['id'])) {
-                    throw new InvalidArgumentException('Assignee id is required');
-                }
+            if (! is_array($data['assignee']) || empty($data['assignee']['id']) || ! isset($data['assignee']['type'])) {
+                throw new InvalidArgumentException("assignee must be ['type' => user|team, 'id' => uuid], or null to unassign");
             }
+
+            $this->assertEnum($data['assignee']['type'], self::ASSIGNEE_TYPES, 'assignee.type', $endpoint);
         }
 
-        // Validate customer structure if provided
-        if (isset($data['customer']) && is_array($data['customer'])) {
-            if (! isset($data['customer']['type']) || ! in_array($data['customer']['type'], $this->customerTypes)) {
-                throw new InvalidArgumentException(
-                    'Invalid customer type. Must be one of: '.implode(', ', $this->customerTypes)
-                );
+        if (isset($data['customer'])) {
+            if (! is_array($data['customer']) || empty($data['customer']['id']) || ! isset($data['customer']['type'])) {
+                throw new InvalidArgumentException("customer must be ['type' => contact|company, 'id' => uuid]");
             }
-            if (! isset($data['customer']['id']) || empty($data['customer']['id'])) {
-                throw new InvalidArgumentException('Customer id is required');
-            }
+
+            $this->assertEnum($data['customer']['type'], self::CUSTOMER_TYPES, 'customer.type', $endpoint);
         }
 
-        // Validate estimated_duration structure if provided
-        if (isset($data['estimated_duration']) && is_array($data['estimated_duration'])) {
-            if (! isset($data['estimated_duration']['unit']) || ! in_array($data['estimated_duration']['unit'], $this->timeUnits)) {
-                throw new InvalidArgumentException(
-                    'Invalid estimated_duration unit. Must be one of: '.implode(', ', $this->timeUnits)
-                );
+        if (isset($data['estimated_duration'])) {
+            $duration = $data['estimated_duration'];
+
+            if (! is_array($duration) || ! isset($duration['value']) || ! is_numeric($duration['value'])) {
+                throw new InvalidArgumentException("estimated_duration must be ['value' => number, 'unit' => 'min']");
             }
-            if (! isset($data['estimated_duration']['value']) || ! is_numeric($data['estimated_duration']['value'])) {
-                throw new InvalidArgumentException('estimated_duration value is required and must be numeric');
+
+            $this->assertEnum($duration['unit'] ?? null, self::DURATION_UNITS, 'estimated_duration.unit', $endpoint);
+
+            if (! isset($duration['unit'])) {
+                throw new InvalidArgumentException("estimated_duration needs a unit: 'min'");
             }
         }
     }
 
     /**
-     * Validate date format (YYYY-MM-DD)
+     * Validate a Y-m-d date
+     *
+     * Checks the date exists, not just its shape: 2025-02-30 is rejected.
      *
      * @throws InvalidArgumentException
      */
     protected function validateDateFormat(string $date, string $fieldName): void
     {
-        $pattern = '/^\d{4}-\d{2}-\d{2}$/';
-        if (! preg_match($pattern, $date)) {
+        $parsed = \DateTime::createFromFormat('!Y-m-d', $date);
+
+        if ($parsed === false || $parsed->format('Y-m-d') !== $date) {
             throw new InvalidArgumentException(
-                "{$fieldName} must be in YYYY-MM-DD format (e.g., 2025-02-15)"
+                "{$fieldName} must be a date in YYYY-MM-DD format (e.g., 2025-02-15)"
             );
         }
     }
 
     /**
-     * Validate datetime format (ISO 8601)
+     * Validate an ISO 8601 datetime with a timezone
+     *
+     * Accepts an offset (+01:00) or Z, with optional fractional seconds.
+     * Before v2.2.10, Z was rejected.
      *
      * @throws InvalidArgumentException
      */
     protected function validateDateTimeFormat(string $datetime, string $fieldName): void
     {
-        $pattern = '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/';
-        if (! preg_match($pattern, $datetime)) {
+        $pattern = '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/';
+
+        if (! preg_match($pattern, $datetime) || strtotime($datetime) === false) {
             throw new InvalidArgumentException(
-                "{$fieldName} must be in ISO 8601 format (e.g., 2025-02-04T16:00:00+00:00)"
+                "{$fieldName} must be in ISO 8601 format with a timezone (e.g., 2025-02-04T16:00:00+00:00)"
             );
         }
     }
 
     /**
-     * Validate customer type
-     *
      * @throws InvalidArgumentException
      */
     protected function validateCustomerType(string $type): void
     {
-        if (! in_array($type, $this->customerTypes)) {
-            throw new InvalidArgumentException(
-                'Invalid customer type. Must be one of: '.implode(', ', $this->customerTypes)
-            );
-        }
+        $this->assertEnum($type, self::CUSTOMER_TYPES, 'customer.type', 'tasks.list');
     }
 
     /**
-     * Build filters array for the API request
+     * Build the filter object for tasks.list
+     *
+     * Until v2.2.10 every key was passed through unchecked, so a mistyped key
+     * (`assignee_id`, `status`) returned every task.
+     *
+     * @throws InvalidArgumentException On an unknown key or value
      */
     protected function buildFilters(array $filters): array
     {
-        $apiFilters = [];
+        $this->rejectUnknownFilters($filters, 'tasks.list');
 
-        foreach ($filters as $key => $value) {
-            // Pass through complex filter structures as-is
-            if (in_array($key, ['customer'])) {
-                $apiFilters[$key] = $value;
-            } elseif ($key === 'ids' && is_array($value)) {
-                $apiFilters[$key] = $value;
-            } elseif ($key === 'user_id' && $value === null) {
-                // Explicitly set null for unassigned tasks
-                $apiFilters[$key] = null;
-            } else {
-                $apiFilters[$key] = $value;
+        foreach (['completed', 'scheduled'] as $flag) {
+            if (isset($filters[$flag]) && ! is_bool($filters[$flag])) {
+                throw new InvalidArgumentException("{$flag} must be true or false.");
             }
         }
 
-        return $apiFilters;
+        foreach (['due_by', 'due_from'] as $field) {
+            if (isset($filters[$field])) {
+                $this->validateDateFormat($filters[$field], $field);
+            }
+        }
+
+        if (isset($filters['customer'])) {
+            if (! is_array($filters['customer']) || empty($filters['customer']['id']) || ! isset($filters['customer']['type'])) {
+                throw new InvalidArgumentException("The customer filter must be ['type' => contact|company, 'id' => uuid].");
+            }
+
+            $this->assertEnum($filters['customer']['type'], self::CUSTOMER_TYPES, 'filter.customer.type', 'tasks.list');
+        }
+
+        if (isset($filters['ids']) && ! is_array($filters['ids'])) {
+            $filters['ids'] = [$filters['ids']];
+        }
+
+        // user_id null means "unassigned" and is sent; any other null is dropped
+        return array_filter(
+            $filters,
+            fn ($value, $key) => $value !== null || $key === 'user_id',
+            ARRAY_FILTER_USE_BOTH
+        );
     }
 
     /**
-     * Build sort array for the API request
+     * Build the sort array for tasks.list
+     *
+     * Accepts a field name, a list of names, ['field' => ..., 'order' => ...]
+     * or a list of those. Before v2.2.10 a field name was a TypeError, and
+     * sort_order was ignored.
+     *
+     * @param  array|string  $sort
+     *
+     * @throws InvalidArgumentException On an unknown field or order
      */
-    protected function buildSort($sort, string $order = 'desc'): array
+    protected function buildSort($sort, string $order = 'asc'): array
     {
-        if (isset($sort['field'])) {
-            // Single sort field
-            return [[
-                'field' => $sort['field'],
-                'order' => $sort['order'] ?? 'asc',
-            ]];
-        }
-
-        // Multiple sort fields
-        return array_map(function ($item) {
-            return [
-                'field' => $item['field'],
-                'order' => $item['order'] ?? 'asc',
-            ];
-        }, $sort);
+        return $this->normaliseSort($sort, $order);
     }
 
     /**

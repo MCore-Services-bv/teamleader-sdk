@@ -8,12 +8,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Category-by-category spec audit: Tasks, TimeTracking, Calendar, Tickets,
-  General, Products, Planning, Files, Templates, Other — one patch release each, with the matching wiki pages
+- Category-by-category spec audit: TimeTracking, Calendar, Tickets, General,
+  Products, Planning, Files, Templates, Other — one patch release each, with the matching wiki pages
 - Bulk operations helper for processing large datasets
 - Enhanced caching strategies with tag-based invalidation
 - Laravel Pulse integration for monitoring
 - CLI tool for quick API exploration
+
+---
+
+## [2.2.10] - 2026-09-30
+
+The Tasks category (`tasks.*`) brought in line with
+`@teamleader/focus-api-specification` **1.221.0**.
+
+### Fixed
+
+- **Sorting didn't work.** The resource advertised `name`, which tasks.list
+  does not accept, and left out the two fields it does: `created_at` and
+  `due_on`. A field-name sort (`'sort' => 'due_on'`) was a `TypeError`, and
+  `sort_order` was ignored. Sorting now goes through `normaliseSort()`, which
+  validates the field and the order.
+- **Unknown filter keys passed straight through**, so a mistyped key such as
+  `status` or `assignee_id` returned every task. They now throw. These are
+  checked too:
+  - `completed` and `scheduled` must be booleans
+  - `due_by` and `due_from` must be real dates
+  - `customer.type` must be contact or company
+- `schedule()` rejected UTC datetimes written with `Z`. It accepts them now,
+  plus fractional seconds, and throws when `ends_at` is not after `starts_at`.
+- Dates are checked as real calendar dates, so `2026-02-30` is rejected.
+  Before, only the shape was checked.
+
+### Changed
+
+- **Unknown write fields throw** on create and update. `priority`, which
+  tasks.info returns but the API does not accept on writes, was the likeliest
+  one to be sent by mistake.
+- `estimated_duration.unit` must be `min`, the only unit the API accepts.
+- `info()` throws when given includes; tasks.info takes none. Unknown list
+  options also throw.
+- Constants `CREATE_FIELDS`, `UPDATE_FIELDS`, `REQUIRED_ON_CREATE`,
+  `ASSIGNEE_TYPES`, `CUSTOMER_TYPES`, `DURATION_UNITS` and `PRIORITIES`, each
+  checked against the spec.
+- New tests: `TasksPayloadTest` and `TasksSpecContractTest`. Baseline 29 → 26.
 
 ---
 
