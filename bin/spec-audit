@@ -1,0 +1,132 @@
+#!/usr/bin/env php
+<?php
+
+/*
+ * Audits every registered resource against @teamleader/focus-api-specification.
+ *
+ *   php bin/spec-audit                         Markdown report, all categories
+ *   php bin/spec-audit --category=CRM          One category (repeatable)
+ *   php bin/spec-audit --severity=error        Only errors (error|warning|info)
+ *   php bin/spec-audit --new                   Only findings not in the baseline
+ *   php bin/spec-audit --format=json           Machine-readable
+ *   php bin/spec-audit --summary               Counts per category only
+ *   php bin/spec-audit --write-baseline        Rewrite baseline.json from current findings
+ *
+ * Reads tests/Fixtures/specification/contract.json. Regenerate that first when
+ * the pinned specification version changes: npm install && npm run spec:fixtures
+ *
+ * Development tooling only — excluded from the Composer dist archive.
+ */
+
+declare(strict_types=1);
+
+use McoreServices\TeamleaderSDK\Tests\Support\Spec\Baseline;
+use McoreServices\TeamleaderSDK\Tests\Support\Spec\SdkInventory;
+use McoreServices\TeamleaderSDK\Tests\Support\Spec\SpecAuditor;
+use McoreServices\TeamleaderSDK\Tests\Support\Spec\SpecContract;
+
+$root = dirname(__DIR__);
+
+if (! is_file($root.'/vendor/autoload.php')) {
+    fwrite(STDERR, "Run composer install first.\n");
+    exit(2);
+}
+
+require $root.'/vendor/autoload.php';
+
+$options = getopt('', ['category:', 'severity:', 'format:', 'new', 'summary', 'write-baseline', 'help']);
+
+if (isset($options['help'])) {
+    echo preg_replace('/^ \* ?/m', '', explode('*/', explode('/*', file_get_contents(__FILE__), 2)[1], 2)[0]);
+    exit(0);
+}
+
+$categories = array_map('strtolower', (array) ($options['category'] ?? []));
+$severity = $options['severity'] ?? null;
+$format = $options['format'] ?? 'md';
+
+$auditor = new SpecAuditor(new SpecContract, new SdkInventory);
+$baseline = new Baseline(Baseline::defaultPath());
+$findings = $auditor->findings();
+$version = $auditor->specificationVersion();
+
+if (isset($options['write-baseline'])) {
+    $baseline->write($findings, $version);
+    $gated = count(array_filter($findings, fn ($f) => $f['severity'] !== 'info'));
+    fwrite(STDERR, "baseline.json written: {$gated} entries against specification {$version}.\n");
+    exit(0);
+}
+
+$selected = array_filter($findings, function (array $finding) use ($categories, $severity, $options, $baseline) {
+    if ($categories !== [] && ! in_array(strtolower($finding['category']), $categories, true)) {
+        return false;
+    }
+    if ($severity !== null && $finding['severity'] !== $severity) {
+        return false;
+    }
+    if (isset($options['new']) && $baseline->isKnown($finding['id'])) {
+        return false;
+    }
+
+    return true;
+});
+
+if ($format === 'json') {
+    echo json_encode([
+        'specification_version' => $version,
+        'count' => count($selected),
+        'findings' => array_values($selected),
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)."\n";
+    exit(0);
+}
+
+// -- markdown -----------------------------------------------------------------
+
+$byCategory = [];
+foreach ($selected as $finding) {
+    $byCategory[$finding['category']][$finding['resource']][] = $finding;
+}
+ksort($byCategory);
+
+$count = fn (array $items, string $level) => count(array_filter($items, fn ($f) => $f['severity'] === $level));
+
+echo "# Specification audit\n\n";
+echo "Specification **{$version}** · generated ".date('Y-m-d')."\n\n";
+echo "| Category | Errors | Warnings | Info | Accepted |\n|---|---:|---:|---:|---:|\n";
+
+$totals = ['error' => 0, 'warning' => 0, 'info' => 0, 'accepted' => 0];
+foreach ($byCategory as $category => $resources) {
+    $items = array_merge(...array_values($resources));
+    $accepted = count(array_filter($items, fn ($f) => $baseline->isAccepted($f['id'])));
+    printf("| %s | %d | %d | %d | %d |\n", $category, $count($items, 'error'), $count($items, 'warning'), $count($items, 'info'), $accepted);
+    foreach (['error', 'warning', 'info'] as $level) {
+        $totals[$level] += $count($items, $level);
+    }
+    $totals['accepted'] += $accepted;
+}
+printf("| **Total** | **%d** | **%d** | **%d** | **%d** |\n\n", $totals['error'], $totals['warning'], $totals['info'], $totals['accepted']);
+
+if (isset($options['summary'])) {
+    exit(0);
+}
+
+$icon = ['error' => '🔴', 'warning' => '🟡', 'info' => '⚪'];
+
+foreach ($byCategory as $category => $resources) {
+    echo "## {$category}\n\n";
+    ksort($resources);
+
+    foreach ($resources as $key => $items) {
+        $class = $items[0]['class'] ?? null;
+        echo $class ? "### `{$key}` — {$class}\n\n" : "### {$key}\n\n";
+
+        usort($items, fn ($a, $b) => [array_search($a['severity'], SpecAuditor::SEVERITIES), $a['check'], $a['subject']]
+            <=> [array_search($b['severity'], SpecAuditor::SEVERITIES), $b['check'], $b['subject']]);
+
+        foreach ($items as $finding) {
+            $tag = $baseline->isAccepted($finding['id']) ? ' _(accepted)_' : '';
+            echo "- {$icon[$finding['severity']]} **{$finding['check']}** — {$finding['message']}{$tag}\n";
+        }
+        echo "\n";
+    }
+}

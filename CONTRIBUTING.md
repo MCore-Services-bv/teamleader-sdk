@@ -256,11 +256,31 @@ So: verify against
 which is machine-readable and authoritative, rather than against the docs pages
 or the existing code.
 
+The version is pinned in `package.json`. Everything below reads from
+`tests/Fixtures/specification/contract.json`, a mechanical extract of it:
+
 ```bash
-npm pack @teamleader/focus-api-specification
-tar xzf teamleader-focus-api-specification-*.tgz
-# package/dist/api.focus.teamleader.eu.yaml
+npm install                 # installs the pinned specification
+npm run spec:fixtures       # regenerates contract.json, orders.json, API-list-endpoint-contract.md
+composer spec:audit         # Markdown report of every divergence, by category
+composer spec:audit -- --category=CRM --severity=error
+composer spec:audit -- --new  # only what is not in the baseline yet
 ```
+
+`SpecParityTest` gates the audit against
+`tests/Fixtures/specification/baseline.json`:
+
+- a divergence **not** in the baseline fails the suite — a regression, or a
+  specification change that needs a decision
+- a baseline entry that is **no longer found** fails too — it was fixed, so
+  delete the entry, or the defect could return unnoticed
+
+Divergences that are deliberate (an undeclared filter the API honours, verified
+against a live account) move from `open` to `accepted` with a one-line reason.
+After a specification bump: regenerate, read `composer spec:audit -- --new`,
+fix or accept, then `composer spec:baseline`.
+
+The raw YAML is at `node_modules/@teamleader/focus-api-specification/dist/`.
 
 When a test fails after you change something, the question to ask is: *which one
 did I check against the API?*

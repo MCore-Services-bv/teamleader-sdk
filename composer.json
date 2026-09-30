@@ -23,7 +23,9 @@
     },
     "scripts": {
         "test": "vendor/bin/phpunit",
-        "format": "vendor/bin/pint"
+        "format": "vendor/bin/pint",
+        "spec:audit": "@php bin/spec-audit",
+        "spec:baseline": "@php bin/spec-audit --write-baseline"
     },
     "autoload": {
         "psr-4": {

@@ -10,6 +10,9 @@ phpunit.xml.dist export-ignore
 .editorconfig export-ignore
 CONTRIBUTING.md export-ignore
 .env.example export-ignore
+/bin/spec-audit export-ignore
+/package.json export-ignore
+/API-list-endpoint-contract.md export-ignore
 
 # Normalize line endings for all text files
 * text=auto
