@@ -21,16 +21,18 @@ class BusinessTypes extends Resource
 
     protected bool $supportsSorting = false;
 
-    protected bool $supportsFiltering = true; // Only country filtering
+    // businessTypes.list takes `country` as a top-level parameter, not inside
+    // a filter object. It is passed through list()'s $filters argument.
+    protected bool $supportsFiltering = true;
 
     protected bool $supportsSideloading = false;
 
     // Available includes (none for business types)
     protected array $availableIncludes = [];
 
-    // Common filters based on API documentation
+    // Top-level request parameter of businessTypes.list — see above
     protected array $commonFilters = [
-        'country' => 'ISO country code (required) - e.g., BE, NL, FR',
+        'country' => 'ISO country code - e.g., BE, NL, FR',
     ];
 
     // Usage examples specific to business types
@@ -72,24 +74,36 @@ $nlTypes = $teamleader->businessTypes()->forCountry("NL");',
     }
 
     /**
-     * Override list method to require country parameter
+     * List business types for a country
      *
-     * @param  array  $filters  Must contain 'country' key
-     * @param  array  $options  Not used for business types
+     * The specification does not mark `country` as required, but business
+     * types are country-specific legal forms, so the SDK asks for one rather
+     * than guess what the API does without it.
      *
-     * @throws \InvalidArgumentException
+     * @param  array  $filters  `country`
+     * @param  array  $options  Not supported — the endpoint has no paging or sorting
+     *
+     * @throws \InvalidArgumentException When country is missing, or another key or option is passed
      */
     public function list(array $filters = [], array $options = []): array
     {
+        $this->rejectUnsupportedListArguments([], $options);
+
+        $unknown = array_diff(array_keys($filters), ['country']);
+
+        if ($unknown !== []) {
+            throw new \InvalidArgumentException(
+                'businessTypes.list accepts only country. Passed: '.implode(', ', $unknown).'.'
+            );
+        }
+
         if (empty($filters['country'])) {
             throw new \InvalidArgumentException(
                 'Business types require a country parameter. Use forCountry() method or provide country in filters.'
             );
         }
 
-        $params = ['country' => strtoupper($filters['country'])];
-
-        return $this->api->request('POST', $this->getBasePath().'.list', $params);
+        return $this->forCountry($filters['country']);
     }
 
     /**
@@ -174,7 +188,7 @@ $nlTypes = $teamleader->businessTypes()->forCountry("NL");',
      */
     public function isValidCountryCode(string $countryCode): bool
     {
-        return preg_match('/^[A-Z]{2}$/', strtoupper($countryCode));
+        return preg_match('/^[A-Z]{2}$/', strtoupper($countryCode)) === 1;
     }
 
     /**

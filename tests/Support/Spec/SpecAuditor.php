@@ -168,6 +168,26 @@ final class SpecAuditor
         $declaredFilters = $request['filter_keys'];
         $declaresFilter = in_array('filter', $request['properties'], true);
 
+        // Some endpoints take their criteria as top-level request properties
+        // rather than inside a `filter` object — levelTwoAreas.list takes
+        // `country` and `language`. Resources expose those through list()'s
+        // $filters argument and send them top-level, which is correct. Treat
+        // them as declared, but only when the endpoint has no filter object,
+        // so a real filter can never be satisfied by a same-named parameter.
+        if (! $declaresFilter) {
+            $parameters = array_values(array_diff(
+                $request['properties'],
+                ['filter', 'page', 'sort', 'includes']
+            ));
+
+            foreach ($parameters as $parameter) {
+                $request['filters'][$parameter] = ['type' => 'parameter'];
+            }
+
+            $declaredFilters = $parameters;
+            $declaresFilter = $parameters !== [];
+        }
+
         // Nested filters are advertised in dot notation (`subject.type`). One is
         // valid when its root is declared as an object carrying that property,
         // and advertising any child counts as advertising the root.
@@ -270,6 +290,7 @@ final class SpecAuditor
 
         $declares = false;
         $vocabulary = [];
+        $perEndpoint = [];
 
         foreach (['.list', '.info'] as $suffix) {
             $endpoint = $resource['base_path'].$suffix;
@@ -281,6 +302,7 @@ final class SpecAuditor
 
             if ($contract['request']['declares_includes']) {
                 $declares = true;
+                $perEndpoint[$suffix] = $contract['request']['includes'];
                 array_push($vocabulary, ...$contract['request']['includes']);
             }
         }
@@ -289,6 +311,15 @@ final class SpecAuditor
         $advertised = $resource['includes_is_list']
             ? array_map('strval', $resource['includes'])
             : array_map('strval', array_keys($resource['includes']));
+
+        // A resource that declares $infoIncludes separately is checked per
+        // endpoint: $availableIncludes against .list, $infoIncludes against .info.
+        if (is_array($resource['info_includes'])) {
+            $this->auditIncludeSet($findings, $resource, $advertised, $perEndpoint['.list'] ?? [], $resource['base_path'].'.list');
+            $this->auditIncludeSet($findings, $resource, array_map('strval', $resource['info_includes']), $perEndpoint['.info'] ?? [], $resource['base_path'].'.info');
+
+            $advertised = array_merge($advertised, $resource['info_includes']);
+        }
 
         if ($resource['supports']['sideloading'] !== $declares) {
             $this->add($findings, $resource, 'include.flag', 'supportsSideloading', 'warning', $declares
@@ -305,6 +336,10 @@ final class SpecAuditor
             return;
         }
 
+        if (is_array($resource['info_includes'])) {
+            return;
+        }
+
         foreach (array_diff($advertised, $vocabulary) as $include) {
             $this->add($findings, $resource, 'include.phantom', $include, 'warning',
                 "Advertises include `{$include}`; the specification names only: ".implode(', ', $vocabulary).'. Verify before removing.');
@@ -313,6 +348,24 @@ final class SpecAuditor
         foreach (array_diff($vocabulary, $advertised) as $include) {
             $this->add($findings, $resource, 'include.missing', $include, 'warning',
                 "The specification names include `{$include}`; the resource does not advertise it.");
+        }
+    }
+
+    /**
+     * @param  list<string>  $advertised
+     * @param  list<string>  $declared
+     */
+    private function auditIncludeSet(array &$findings, array $resource, array $advertised, array $declared, string $endpoint): void
+    {
+        foreach (array_diff($advertised, $declared) as $include) {
+            $this->add($findings, $resource, 'include.phantom', $include, 'warning', $declared === []
+                ? "Advertises include `{$include}` for `{$endpoint}`, which declares no includes."
+                : "Advertises include `{$include}` for `{$endpoint}`; the specification names only: ".implode(', ', $declared).'. Verify before removing.');
+        }
+
+        foreach (array_diff($declared, $advertised) as $include) {
+            $this->add($findings, $resource, 'include.missing', $include, 'warning',
+                "`{$endpoint}` names include `{$include}`; the resource does not advertise it.");
         }
     }
 

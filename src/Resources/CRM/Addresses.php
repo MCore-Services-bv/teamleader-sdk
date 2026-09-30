@@ -21,17 +21,20 @@ class Addresses extends Resource
 
     protected bool $supportsSorting = false;
 
-    protected bool $supportsFiltering = true; // Only country filtering
+    // levelTwoAreas.list takes `country` (required) and `language` as
+    // top-level parameters, not inside a filter object. They are passed
+    // through list()'s $filters argument and sent top-level.
+    protected bool $supportsFiltering = true;
 
     protected bool $supportsSideloading = false;
 
     // Available includes (none for level two areas)
     protected array $availableIncludes = [];
 
-    // Common filters based on API documentation
+    // Top-level request parameters of levelTwoAreas.list — see above
     protected array $commonFilters = [
         'country' => 'ISO country code (required) - e.g., BE, NL, FR',
-        'language' => 'Language code for area names (optional) - e.g., nl, fr, en',
+        'language' => 'Language for area names (optional) - defaults to the primary language of the country',
     ];
 
     // Usage examples specific to level two areas
@@ -82,28 +85,32 @@ $dutchProvinces = $teamleader->addresses()->levelTwoAreas("NL");',
     }
 
     /**
-     * Override list method to work with level two areas
+     * List level two areas for a country
      *
-     * @param  array  $filters  Must contain 'country' key, optionally 'language'
-     * @param  array  $options  Not used for level two areas
+     * @param  array  $filters  `country` (required) and optionally `language`
+     * @param  array  $options  Not supported — the endpoint has no paging or sorting
      *
-     * @throws \InvalidArgumentException
+     * @throws \InvalidArgumentException When country is missing, or another key or option is passed
      */
     public function list(array $filters = [], array $options = []): array
     {
+        $this->rejectUnsupportedListArguments([], $options);
+
+        $unknown = array_diff(array_keys($filters), ['country', 'language']);
+
+        if ($unknown !== []) {
+            throw new \InvalidArgumentException(
+                'levelTwoAreas.list accepts only country and language. Passed: '.implode(', ', $unknown).'.'
+            );
+        }
+
         if (empty($filters['country'])) {
             throw new \InvalidArgumentException(
                 'Level two areas require a country parameter. Use levelTwoAreas() method or provide country in filters.'
             );
         }
 
-        $params = ['country' => strtoupper($filters['country'])];
-
-        if (! empty($filters['language'])) {
-            $params['language'] = strtolower($filters['language']);
-        }
-
-        return $this->api->request('POST', $this->getBasePath().'.list', $params);
+        return $this->levelTwoAreas($filters['country'], $filters['language'] ?? null);
     }
 
     /**
@@ -311,7 +318,7 @@ $dutchProvinces = $teamleader->addresses()->levelTwoAreas("NL");',
      */
     public function isValidCountryCode(string $countryCode): bool
     {
-        return preg_match('/^[A-Z]{2}$/', strtoupper($countryCode));
+        return preg_match('/^[A-Z]{2}$/', strtoupper($countryCode)) === 1;
     }
 
     /**
@@ -319,7 +326,7 @@ $dutchProvinces = $teamleader->addresses()->levelTwoAreas("NL");',
      */
     public function isValidLanguageCode(string $languageCode): bool
     {
-        return preg_match('/^[a-z]{2}$/', strtolower($languageCode));
+        return preg_match('/^[a-z]{2}$/', strtolower($languageCode)) === 1;
     }
 
     /**

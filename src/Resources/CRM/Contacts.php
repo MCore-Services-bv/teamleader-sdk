@@ -4,9 +4,40 @@ namespace McoreServices\TeamleaderSDK\Resources\CRM;
 
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class Contacts extends Resource
 {
+    use ValidatesWritePayload;
+
+    /**
+     * Body fields contacts.add accepts. contacts.update accepts the same set
+     * plus `id`. From @teamleader/focus-api-specification v1.221.0.
+     */
+    public const WRITE_FIELDS = [
+        'first_name', 'last_name', 'salutation', 'emails', 'telephones', 'website',
+        'addresses', 'gender', 'birthdate', 'iban', 'bic', 'national_identification_number',
+        'language', 'price_list_id', 'remarks', 'tags', 'custom_fields', 'marketing_mails_consent',
+    ];
+
+    /** `emails[].type` on contacts.add / contacts.update — contacts have no invoicing email */
+    public const EMAIL_TYPES = ['primary'];
+
+    /** `telephones[].type` on contacts.add / contacts.update */
+    public const TELEPHONE_TYPES = ['phone', 'mobile', 'fax'];
+
+    /** `addresses[].type` on contacts.add / contacts.update */
+    public const ADDRESS_TYPES = ['primary', 'invoicing', 'delivery', 'visiting'];
+
+    /** `gender` on contacts.add / contacts.update */
+    public const GENDERS = ['female', 'male', 'non_binary', 'prefers_not_to_say', 'unknown'];
+
+    /** `filter.email.type` on contacts.list */
+    public const FILTER_EMAIL_TYPES = ['primary'];
+
+    /** `filter.status` on contacts.list */
+    public const STATUSES = ['active', 'deactivated'];
+
     protected string $description = 'Manage contacts in Teamleader Focus CRM';
 
     // Resource capabilities - Contacts support full CRUD operations
@@ -29,7 +60,7 @@ class Contacts extends Resource
     /**
      * Includes accepted by contacts.list.
      *
-     * Verified against @teamleader/focus-api-specification v1.197.0. Only
+     * Verified against @teamleader/focus-api-specification v1.221.0. Only
      * `custom_fields` exists.
      *
      * `price_list` was listed here until v2.1.2 and is not an include: Teamleader
@@ -48,16 +79,33 @@ class Contacts extends Resource
     // Default includes
     protected array $defaultIncludes = [];
 
-    // Common filters based on API documentation
+    /**
+     * Filters accepted by contacts.list — the complete set the specification
+     * declares. Any other key throws; the API would ignore it and return every
+     * contact.
+     */
     protected array $commonFilters = [
-        'ids' => 'Array of contact UUIDs',
-        'email' => 'Email address (requires type and email fields)',
-        'company_id' => 'Filter by company UUID',
+        'ids' => 'Array of contact UUIDs (a single UUID string is wrapped)',
+        'email' => 'Email address — a string, or ["type" => "primary", "email" => ...]',
+        'company_id' => 'Company UUID, or null for contacts linked to no company',
         'term' => 'Search term (searches first_name, last_name, email and telephone)',
         'updated_since' => 'ISO 8601 datetime',
         'tags' => 'Array of tag names (filters on contacts coupled to all given tags)',
-        'status' => 'Contact status (active, deactivated)',
+        'status' => 'active or deactivated',
         'marketing_mails_consent' => 'Marketing mails consent (boolean)',
+    ];
+
+    /**
+     * Sort fields accepted by contacts.list. Order may be asc or desc.
+     *
+     * This is the map normaliseSort() validates against. Before v2.2.4 no sort
+     * field was validated: an unsupported one was ignored by the API and the
+     * list came back in default order.
+     */
+    protected array $availableSortFields = [
+        'added_at' => 'Date the contact was added',
+        'name' => 'Contact name',
+        'updated_at' => 'Date the contact was last updated',
     ];
 
     // Usage examples specific to contacts
@@ -73,6 +121,10 @@ class Contacts extends Resource
         'filter_by_company' => [
             'description' => 'Get contacts for specific company',
             'code' => '$contacts = $teamleader->contacts()->forCompany("company-uuid");',
+        ],
+        'without_company' => [
+            'description' => 'Get contacts linked to no company',
+            'code' => '$contacts = $teamleader->contacts()->withoutCompany();',
         ],
         'filter_by_email' => [
             'description' => 'Find contact by email',
@@ -144,14 +196,34 @@ class Contacts extends Resource
 
     /**
      * Validate contact data before sending to API
+     *
+     * Checked against contacts.add / contacts.update in the specification:
+     * `last_name` is required on create; unknown top-level fields throw (the
+     * API would drop them and report success); enum values are checked for
+     * email, telephone and address types and gender.
+     *
+     * Null is preserved — it tells the API to clear the field, e.g.
+     * `price_list_id => null`. Empty strings and empty arrays are stripped.
+     *
+     * @throws InvalidArgumentException
      */
     protected function validateContactData(array $data, string $operation = 'create'): array
     {
-        if ($operation === 'create') {
-            if (empty($data['first_name']) && empty($data['last_name'])) {
-                throw new InvalidArgumentException('Contact must have at least a first_name or last_name');
-            }
+        $endpoint = $operation === 'create' ? 'contacts.add' : 'contacts.update';
+
+        // contacts.add requires last_name. Before v2.2.4 a first_name alone
+        // passed this check and was then rejected by the API.
+        if ($operation === 'create' && empty($data['last_name'])) {
+            throw new InvalidArgumentException(
+                'contacts.add requires last_name. first_name is optional.'
+            );
         }
+
+        $this->rejectUnknownFields(
+            $data,
+            $operation === 'create' ? self::WRITE_FIELDS : [...self::WRITE_FIELDS, 'id'],
+            $endpoint
+        );
 
         // Strip empty strings and empty arrays, but preserve null — null signals a field clear to the API
         $data = array_filter($data, function ($value, $key) {
@@ -165,6 +237,11 @@ class Contacts extends Resource
             return $value !== '' && $value !== [];
         }, ARRAY_FILTER_USE_BOTH);
 
+        $this->assertItemEnum($data, 'emails', 'type', self::EMAIL_TYPES, $endpoint);
+        $this->assertItemEnum($data, 'telephones', 'type', self::TELEPHONE_TYPES, $endpoint);
+        $this->assertItemEnum($data, 'addresses', 'type', self::ADDRESS_TYPES, $endpoint);
+        $this->assertEnum($data['gender'] ?? null, self::GENDERS, 'gender', $endpoint);
+
         if (isset($data['emails']) && is_array($data['emails'])) {
             foreach ($data['emails'] as $email) {
                 if (isset($email['email']) && ! filter_var($email['email'], FILTER_VALIDATE_EMAIL)) {
@@ -176,13 +253,6 @@ class Contacts extends Resource
         if (isset($data['website']) && ! empty($data['website'])) {
             if (! filter_var($data['website'], FILTER_VALIDATE_URL)) {
                 throw new InvalidArgumentException('Invalid website URL format: '.$data['website']);
-            }
-        }
-
-        if (isset($data['gender'])) {
-            $validGenders = ['female', 'male', 'non_binary', 'prefers_not_to_say', 'unknown'];
-            if (! in_array($data['gender'], $validGenders)) {
-                throw new InvalidArgumentException('Invalid gender. Must be one of: '.implode(', ', $validGenders));
             }
         }
 
@@ -241,19 +311,34 @@ class Contacts extends Resource
     }
 
     /**
-     * List contacts with enhanced filtering and sorting
+     * List contacts
+     *
+     * @param  array  $filters  See $commonFilters; unknown keys throw
+     * @param  array  $options  page_size, page_number, sort, sort_order, include
+     *
+     * @throws InvalidArgumentException On an unknown filter, sort field or include
      */
     public function list(array $filters = [], array $options = []): array
     {
-        $params = $this->buildQueryParams(
-            [],
-            $filters,
-            $options['sort'] ?? null,
-            $options['sort_order'] ?? 'asc',
-            $options['page_size'] ?? 20,
-            $options['page_number'] ?? 1,
-            $options['include'] ?? null
+        // Fluent includes are consumed before validating, so a rejected call
+        // cannot leak them into the next one.
+        $pending = $this->getPendingIncludes();
+        $this->applyPendingIncludes([]);
+
+        $includes = $this->assertIncludes(
+            [...(array) ($this->resolveIncludesOption($options) ?? []), ...$pending],
+            $this->availableIncludes,
+            'contacts.list'
         );
+
+        $params = $this->applyFilters([], $filters);
+
+        if (! empty($options['sort'])) {
+            $params['sort'] = $this->normaliseSort($options['sort'], $options['sort_order'] ?? 'asc');
+        }
+
+        $params = $this->applyPagination($params, $options['page_size'] ?? 20, $options['page_number'] ?? 1);
+        $params = $this->applyIncludes($params, $includes);
 
         return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
@@ -281,6 +366,21 @@ class Contacts extends Resource
     {
         return $this->list(
             array_merge(['company_id' => $companyId], $options['filters'] ?? []),
+            $options
+        );
+    }
+
+    /**
+     * Get contacts linked to no company at all
+     *
+     * Sends `filter.company_id: null`, which the API has accepted since
+     * specification 1.221.0. A contact whose only linked company has been
+     * deleted is part of this set.
+     */
+    public function withoutCompany(array $options = []): array
+    {
+        return $this->list(
+            array_merge(['company_id' => null], $options['filters'] ?? []),
             $options
         );
     }
@@ -450,15 +550,18 @@ class Contacts extends Resource
      */
     public function getAvailableSortFields(): array
     {
-        return [
-            'added_at' => 'Date contact was added',
-            'name' => 'Contact name (first_name + last_name)',
-            'updated_at' => 'Date contact was last updated',
-        ];
+        return $this->availableSortFields;
     }
 
     /**
-     * Build filters array for the API request with correct structure
+     * Build the `filter` object for contacts.list
+     *
+     * Empty values are skipped, except `company_id => null`, which is a real
+     * filter: contacts linked to no company. Unknown keys throw — before
+     * v2.2.4 they were dropped here without a word, so the call returned
+     * every contact.
+     *
+     * @throws InvalidArgumentException
      */
     protected function applyFilters(array $params = [], array $filters = [])
     {
@@ -469,29 +572,37 @@ class Contacts extends Resource
         $apiFilters = [];
 
         foreach ($filters as $key => $value) {
+            if ($key === 'company_id' && $value === null) {
+                $apiFilters['company_id'] = null;
+
+                continue;
+            }
+
             if ($value === null || $value === '' || (is_array($value) && empty($value))) {
                 continue;
             }
 
             switch ($key) {
                 case 'ids':
-                    if (is_array($value)) {
-                        $apiFilters['ids'] = $value;
-                    }
+                    $apiFilters['ids'] = is_array($value) ? array_values($value) : [$value];
                     break;
 
                 case 'email':
-                    if (is_string($value)) {
-                        $apiFilters['email'] = [
-                            'type' => 'primary',
-                            'email' => $value,
-                        ];
-                    } elseif (is_array($value) && isset($value['email'])) {
-                        $apiFilters['email'] = [
-                            'type' => $value['type'] ?? 'primary',
-                            'email' => $value['email'],
-                        ];
+                    $email = is_array($value) ? $value : ['email' => $value];
+
+                    if (! isset($email['email']) || ! is_string($email['email'])) {
+                        throw new InvalidArgumentException(
+                            'The email filter takes an address string, or ["type" => "primary", "email" => "..."].'
+                        );
                     }
+
+                    $type = $email['type'] ?? 'primary';
+                    $this->assertEnum($type, self::FILTER_EMAIL_TYPES, 'filter.email.type', 'contacts.list');
+
+                    $apiFilters['email'] = [
+                        'type' => $type,
+                        'email' => $email['email'],
+                    ];
                     break;
 
                 case 'company_id':
@@ -508,13 +619,14 @@ class Contacts extends Resource
 
                 case 'tags':
                     if (is_array($value)) {
-                        $apiFilters['tags'] = $value;
+                        $apiFilters['tags'] = array_values($value);
                     } elseif (is_string($value)) {
                         $apiFilters['tags'] = array_map('trim', explode(',', $value));
                     }
                     break;
 
                 case 'status':
+                    $this->assertEnum($value, self::STATUSES, 'filter.status', 'contacts.list');
                     $apiFilters['status'] = $value;
                     break;
 
@@ -526,10 +638,17 @@ class Contacts extends Resource
                 case 'general_search':
                     $apiFilters['term'] = $value;
                     break;
+
+                default:
+                    throw new InvalidArgumentException(
+                        "Invalid filter key '{$key}' for contacts.list. Supported filters: "
+                        .implode(', ', array_keys($this->commonFilters))
+                        .". 'search' and 'general_search' are accepted as aliases for 'term'."
+                    );
             }
         }
 
-        if (! empty($apiFilters)) {
+        if ($apiFilters !== []) {
             $params['filter'] = $apiFilters;
         }
 

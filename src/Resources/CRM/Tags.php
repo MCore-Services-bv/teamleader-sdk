@@ -8,12 +8,13 @@ class Tags extends Resource
 {
     protected string $description = 'Manage tags in Teamleader Focus';
 
-    // Resource capabilities - Tags appear to be read-only based on API docs
-    protected bool $supportsCreation = false;  // No create endpoint shown
+    // Read-only: the specification has tags.list and nothing else. Tags are
+    // added and removed through the tag/untag endpoints of the tagged record.
+    protected bool $supportsCreation = false;
 
-    protected bool $supportsUpdate = false;    // No update endpoint shown
+    protected bool $supportsUpdate = false;
 
-    protected bool $supportsDeletion = false;  // No delete endpoint shown
+    protected bool $supportsDeletion = false;
 
     protected bool $supportsBatch = false;
 
@@ -21,15 +22,22 @@ class Tags extends Resource
 
     protected bool $supportsSorting = true;
 
-    protected bool $supportsFiltering = false; // No filters shown in API docs
+    protected bool $supportsFiltering = false;
 
     protected bool $supportsSideloading = false;
 
     // Available includes (none for tags)
     protected array $availableIncludes = [];
 
-    // Common filters - none based on API documentation
+    // tags.list declares no filter object
     protected array $commonFilters = [];
+
+    /**
+     * The one sort field tags.list declares. Order is asc only.
+     */
+    protected array $availableSortFields = [
+        'tag' => 'Tag name (the only sort field; ascending only)',
+    ];
 
     // Usage examples specific to tags
     protected array $usageExamples = [
@@ -310,9 +318,7 @@ class Tags extends Resource
      */
     public function getAvailableSortFields(): array
     {
-        return [
-            'tag' => 'Sort by tag name (only option available)',
-        ];
+        return $this->availableSortFields;
     }
 
     /**
