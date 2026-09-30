@@ -8,12 +8,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Category-by-category spec audit: Products, Planning, Files, Templates,
-  Other — one patch release each, with the matching wiki pages
+- Category-by-category spec audit: Planning, Files, Templates, Other — one patch release each, with the matching wiki pages
 - Bulk operations helper for processing large datasets
 - Enhanced caching strategies with tag-based invalidation
 - Laravel Pulse integration for monitoring
 - CLI tool for quick API exploration
+
+---
+
+## [2.2.15] - 2026-09-30
+
+The Products category — Products, Product Categories, Price Lists and Units
+of Measure — brought in line with `@teamleader/focus-api-specification`
+**1.221.0**.
+
+### Fixed
+
+- **Product validation never ran.** `validateProductData()` built a table of
+  rules and then checked none of them, so every field, currency and shape
+  was sent as given. It now checks:
+  - unknown fields
+  - the name-or-code requirement
+  - price and currency shape on `purchase_price`, `selling_price` and
+    `price_list_prices[]`
+  - the stock threshold, which cannot be negative and has action `notify`
+- **`custom_fields` is not a products include.** products.info returns custom
+  fields on every call, and products.list takes no includes. Asking for it was
+  a no-op; `withCustomFields()` is now documented as one (deprecated, removed
+  in v3.0), and `info(…, 'custom_fields')` throws.
+- **`withSuppliers()->list()` did nothing.** `suppliers` is an info-only
+  include; list() now throws when given one, and the usage example uses
+  `info()`.
+- **Unknown filter keys were passed through** on products.list and dropped
+  silently on productCategories.list and priceLists.list, so a mistyped key
+  returned everything. They now throw. A string `ids` on priceLists.list was
+  dropped; it is wrapped now. `search` / `general_search` keep working as
+  aliases for `term`.
+
+### Changed
+
+- Includes are validated on products.info (`suppliers`). Unknown list options
+  throw.
+- Constants `ADD_FIELDS`, `UPDATE_FIELDS`, `INFO_INCLUDES`, `CURRENCIES` and
+  `STOCK_THRESHOLD_ACTIONS` on Products, each checked against the spec.
+- `bin/spec-audit --summary` no longer counts accepted findings under their
+  severity as well, so a category with only accepted divergences reads
+  0 | 0 | 0 | n.
+- New tests: `ProductsPayloadTest` and `ProductsSpecContractTest`. Baseline
+  7 → 6 (5 open, 1 accepted).
 
 ---
 
