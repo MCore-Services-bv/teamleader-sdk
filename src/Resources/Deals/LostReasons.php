@@ -58,10 +58,12 @@ class LostReasons extends Resource
     }
 
     /**
-     * List lost reasons with enhanced filtering and sorting
+     * List lost reasons with filtering, sorting and pagination
      *
-     * @param  array  $filters  Filters to apply
-     * @param  array  $options  Additional options (sorting, pagination)
+     * @param  array  $filters  `ids` only
+     * @param  array  $options  page_size, page_number, sort (name), sort_order (asc)
+     *
+     * @throws \InvalidArgumentException On an unknown filter, or a sort other than name/asc
      */
     public function list(array $filters = [], array $options = []): array
     {
@@ -72,14 +74,13 @@ class LostReasons extends Resource
             $params['filter'] = $this->buildFilters($filters);
         }
 
-        // Apply sorting
-        if (isset($options['sort'])) {
-            $params['sort'] = $this->buildSort($options['sort']);
-        } elseif (isset($options['sort_field']) || isset($options['sort_order'])) {
-            // Handle legacy sort parameters
-            $sortField = $options['sort_field'] ?? 'name';
-            $sortOrder = $options['sort_order'] ?? 'asc';
-            $params['sort'] = $this->buildSort($sortField, $sortOrder);
+        // Apply sorting — `name`, ascending, is the only sort the endpoint
+        // accepts. `sort_field` is the legacy spelling of `sort`.
+        if (isset($options['sort']) || isset($options['sort_field']) || isset($options['sort_order'])) {
+            $params['sort'] = $this->buildSort(
+                $options['sort'] ?? $options['sort_field'] ?? 'name',
+                $options['sort_order'] ?? 'asc'
+            );
         }
 
         // Apply pagination
@@ -104,28 +105,53 @@ class LostReasons extends Resource
     }
 
     /**
-     * Get all lost reasons (convenience method)
+     * Get every lost reason, walking all pages
      *
-     * @param  string  $sortOrder  Sort order (asc or desc)
+     * lostReasons.list sorts by name ascending only. Before v2.2.5 this took a
+     * $sortOrder and passed 'desc' straight through; the argument is kept for
+     * compatibility and must be 'asc'. It also returned only the first page
+     * of 100.
+     *
+     * @param  string  $sortOrder  Must be 'asc'
+     * @param  int  $maxPages  Runaway guard: 50 pages of 100
+     *
+     * @throws \InvalidArgumentException On a sort order other than asc, or when $maxPages is reached
      */
-    public function all(string $sortOrder = 'asc'): array
+    public function all(string $sortOrder = 'asc', int $maxPages = 50): array
     {
-        return $this->list([], [
-            'sort' => [
-                [
-                    'field' => 'name',
-                    'order' => $sortOrder,
-                ],
-            ],
-            'page_size' => 100, // Get more results in one go
-        ]);
+        $reasons = [];
+        $page = 1;
+
+        do {
+            $batch = $this->list([], [
+                'sort' => 'name',
+                'sort_order' => $sortOrder,
+                'page_size' => 100,
+                'page_number' => $page,
+            ])['data'] ?? [];
+
+            $reasons = array_merge($reasons, $batch);
+            $hasMore = count($batch) === 100;
+            $page++;
+        } while ($hasMore && $page <= $maxPages);
+
+        if ($hasMore) {
+            throw new \InvalidArgumentException(
+                "lostReasons.list still had records after {$maxPages} pages of 100. Raise \$maxPages."
+            );
+        }
+
+        return ['data' => $reasons];
     }
 
     /**
-     * Search lost reasons by name (using existing filters)
+     * Get lost reasons by ID
      *
-     * @param  string  $query  Search query (note: actual text search not supported, this gets specific IDs)
-     * @param  array  $ids  Array of IDs to search within
+     * @deprecated since v2.2.5 — the name suggested a text search, which
+     * lostReasons.list does not offer. Use byIds(), or all() and filter
+     * client-side. Removed in v3.0.
+     *
+     * @param  array  $ids  Array of IDs to fetch; empty returns all()
      */
     public function search(array $ids = []): array
     {
@@ -138,70 +164,50 @@ class LostReasons extends Resource
 
     /**
      * Build filters array for the API request
+     *
+     * @throws \InvalidArgumentException When an unsupported filter key is passed
      */
     protected function buildFilters(array $filters): array
     {
-        $apiFilters = [];
+        $unknown = array_diff(array_keys($filters), array_keys($this->commonFilters));
 
-        // Handle IDs filter
-        if (isset($filters['ids']) && is_array($filters['ids'])) {
-            $apiFilters['ids'] = array_values($filters['ids']); // Ensure indexed array
+        if ($unknown !== []) {
+            throw new \InvalidArgumentException(
+                'Unsupported filter '.(count($unknown) > 1 ? 'keys' : 'key').' for lostReasons.list: '
+                .implode(', ', $unknown).'. Supported: ids.'
+            );
         }
 
-        // Remove empty filters
-        return array_filter($apiFilters, function ($value) {
-            return ! empty($value);
-        });
+        if (! isset($filters['ids'])) {
+            return [];
+        }
+
+        return ['ids' => is_array($filters['ids']) ? array_values($filters['ids']) : [$filters['ids']]];
     }
 
     /**
-     * Build sort array for the API request
+     * Build the sort array — `name`, ascending, is the only sort accepted
      *
-     * @param  mixed  $sort  Sort field or array
-     * @param  string  $order  Sort order (when $sort is string)
+     * Before v2.2.5 any field was rewritten to `name` without a word, and
+     * `desc` was sent although the endpoint declares `asc` only.
+     *
+     * @param  mixed  $sort  A field name, list of names, or sort objects
+     *
+     * @throws \InvalidArgumentException When another field or order is requested
      */
     protected function buildSort($sort, string $order = 'asc'): array
     {
-        // If already in correct format, return as-is
-        if (is_array($sort) && isset($sort[0]) && is_array($sort[0]) && isset($sort[0]['field'])) {
-            return $sort;
-        }
+        $sort = $this->normaliseSort($sort, $order);
 
-        // Handle simple string sort
-        if (is_string($sort)) {
-            return [
-                [
-                    'field' => $sort === 'name' ? 'name' : 'name', // Only 'name' is supported
-                    'order' => in_array($order, ['asc', 'desc']) ? $order : 'asc',
-                ],
-            ];
-        }
-
-        // Handle associative array
-        if (is_array($sort)) {
-            $sortArray = [];
-            foreach ($sort as $field => $sortOrder) {
-                if (is_numeric($field) && is_array($sortOrder)) {
-                    // Already in correct format
-                    $sortArray[] = $sortOrder;
-                } else {
-                    $sortArray[] = [
-                        'field' => 'name', // Only name field is supported
-                        'order' => in_array($sortOrder, ['asc', 'desc']) ? $sortOrder : 'asc',
-                    ];
-                }
+        foreach ($sort as $entry) {
+            if ($entry['order'] !== 'asc') {
+                throw new \InvalidArgumentException(
+                    "Invalid sort order: {$entry['order']}. lostReasons.list accepts only 'asc'."
+                );
             }
-
-            return $sortArray;
         }
 
-        // Default sort
-        return [
-            [
-                'field' => 'name',
-                'order' => 'asc',
-            ],
-        ];
+        return $sort;
     }
 
     /**
@@ -231,10 +237,7 @@ class LostReasons extends Resource
         $result = $this->list(['ids' => [$id]]);
 
         if (isset($result['data']) && ! empty($result['data'])) {
-            return [
-                'data' => $result['data'][0],
-                'included' => $result['included'] ?? [],
-            ];
+            return ['data' => $result['data'][0]];
         }
 
         return [

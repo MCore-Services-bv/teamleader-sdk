@@ -300,10 +300,19 @@ final class SpecAuditor
                 continue;
             }
 
-            if ($contract['request']['declares_includes']) {
+            // The vocabulary is the request's own declaration plus includes
+            // named in response field descriptions ("only included with
+            // `includes=expiry`"). The second source is the only one on
+            // quotations.list/info, which declare no includes property.
+            $named = array_values(array_unique(array_merge(
+                $contract['request']['includes'],
+                $contract['request']['response_includes'] ?? []
+            )));
+
+            if ($contract['request']['declares_includes'] || $named !== []) {
                 $declares = true;
-                $perEndpoint[$suffix] = $contract['request']['includes'];
-                array_push($vocabulary, ...$contract['request']['includes']);
+                $perEndpoint[$suffix] = $named;
+                array_push($vocabulary, ...$named);
             }
         }
 

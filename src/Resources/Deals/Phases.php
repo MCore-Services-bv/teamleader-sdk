@@ -4,9 +4,24 @@ namespace McoreServices\TeamleaderSDK\Resources\Deals;
 
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class Phases extends Resource
 {
+    use ValidatesWritePayload;
+
+    /** Body fields dealPhases.create accepts. From specification v1.221.0. */
+    public const CREATE_FIELDS = ['name', 'deal_pipeline_id', 'estimated_probability', 'follow_up_actions', 'requires_attention_after'];
+
+    /** Body fields dealPhases.update accepts — `deal_pipeline_id` cannot change */
+    public const UPDATE_FIELDS = ['id', 'name', 'estimated_probability', 'follow_up_actions', 'requires_attention_after'];
+
+    /** `follow_up_actions[]` on dealPhases.create / dealPhases.update */
+    public const FOLLOW_UP_ACTIONS = ['create_event', 'create_call', 'create_task'];
+
+    /** `requires_attention_after.unit` on dealPhases.create / dealPhases.update */
+    public const ATTENTION_UNITS = ['days', 'weeks'];
+
     protected string $description = 'Manage deal phases in Teamleader Focus';
 
     // Resource capabilities
@@ -45,6 +60,10 @@ class Phases extends Resource
             'description' => 'Get phases for specific pipeline',
             'code' => '$phases = $teamleader->dealPhases()->list([\'deal_pipeline_id\' => \'pipeline-uuid\']);',
         ],
+        'delete_phase' => [
+            'description' => 'Delete a phase, moving its deals to another phase',
+            'code' => '$teamleader->dealPhases()->delete(\'phase-uuid\', \'new-phase-uuid\');',
+        ],
         'create_phase' => [
             'description' => 'Create a new phase',
             'code' => '$phase = $teamleader->dealPhases()->create([\'name\' => \'New Phase\', \'deal_pipeline_id\' => \'uuid\', \'requires_attention_after\' => [\'amount\' => 7, \'unit\' => \'days\']]);',
@@ -75,6 +94,8 @@ class Phases extends Resource
      */
     public function list(array $filters = [], array $options = []): array
     {
+        $this->rejectUnsupportedListArguments($filters, $options);
+
         $params = [];
 
         // Apply filters
@@ -96,17 +117,17 @@ class Phases extends Resource
     /**
      * Create a new deal phase
      *
+     * dealPhases.create requires name, deal_pipeline_id and
+     * requires_attention_after.
+     *
      * @param  array  $data  Phase data
+     *
+     * @throws InvalidArgumentException
      */
     public function create(array $data): array
     {
-        if (! $this->supportsCreation) {
-            throw new InvalidArgumentException(
-                "The {$this->getBasePath()} resource does not support creation"
-            );
-        }
+        $this->rejectUnknownFields($data, self::CREATE_FIELDS, 'dealPhases.create');
 
-        // Validate required fields
         if (empty($data['name'])) {
             throw new InvalidArgumentException('Phase name is required');
         }
@@ -115,29 +136,7 @@ class Phases extends Resource
             throw new InvalidArgumentException('Deal pipeline ID is required');
         }
 
-        if (empty($data['requires_attention_after'])) {
-            throw new InvalidArgumentException('Requires attention after configuration is required');
-        }
-
-        // Validate requires_attention_after structure
-        $attentionAfter = $data['requires_attention_after'];
-        if (! isset($attentionAfter['amount']) || ! isset($attentionAfter['unit'])) {
-            throw new InvalidArgumentException('requires_attention_after must include amount and unit');
-        }
-
-        if (! in_array($attentionAfter['unit'], ['days', 'weeks'])) {
-            throw new InvalidArgumentException('requires_attention_after unit must be "days" or "weeks"');
-        }
-
-        // Validate follow_up_actions if provided
-        if (isset($data['follow_up_actions']) && is_array($data['follow_up_actions'])) {
-            $validActions = ['create_event', 'create_call', 'create_task'];
-            foreach ($data['follow_up_actions'] as $action) {
-                if (! in_array($action, $validActions)) {
-                    throw new InvalidArgumentException("Invalid follow_up_action: {$action}");
-                }
-            }
-        }
+        $this->validatePhaseSettings($data, 'dealPhases.create');
 
         return $this->api->request('POST', $this->getBasePath().'.create', $data);
     }
@@ -145,73 +144,81 @@ class Phases extends Resource
     /**
      * Update a deal phase
      *
+     * dealPhases.update requires requires_attention_after on every call, not
+     * only when it changes. Before v2.2.5 the SDK treated it as optional, so an
+     * update without it passed client-side and was rejected by the API.
+     *
      * @param  string  $id  Phase UUID
      * @param  array  $data  Update data
+     *
+     * @throws InvalidArgumentException
      */
     public function update($id, array $data): array
     {
-        if (! $this->supportsUpdate) {
-            throw new InvalidArgumentException(
-                "The {$this->getBasePath()} resource does not support updates"
-            );
-        }
-
         $data['id'] = $id;
 
-        // Validate requires_attention_after if provided
-        if (isset($data['requires_attention_after'])) {
-            $attentionAfter = $data['requires_attention_after'];
-            if (! isset($attentionAfter['amount']) || ! isset($attentionAfter['unit'])) {
-                throw new InvalidArgumentException('requires_attention_after must include amount and unit');
-            }
-
-            if (! in_array($attentionAfter['unit'], ['days', 'weeks'])) {
-                throw new InvalidArgumentException('requires_attention_after unit must be "days" or "weeks"');
-            }
-        }
-
-        // Validate follow_up_actions if provided
-        if (isset($data['follow_up_actions']) && is_array($data['follow_up_actions'])) {
-            $validActions = ['create_event', 'create_call', 'create_task'];
-            foreach ($data['follow_up_actions'] as $action) {
-                if (! in_array($action, $validActions)) {
-                    throw new InvalidArgumentException("Invalid follow_up_action: {$action}");
-                }
-            }
-        }
+        $this->rejectUnknownFields($data, self::UPDATE_FIELDS, 'dealPhases.update');
+        $this->validatePhaseSettings($data, 'dealPhases.update');
 
         return $this->api->request('POST', $this->getBasePath().'.update', $data);
     }
 
     /**
-     * Delete a deal phase with migration to another phase
+     * Check requires_attention_after (required on create and update) and
+     * follow_up_actions against the specification.
      *
-     * @param  string  $id  Phase UUID to delete
-     * @param  mixed  ...$additionalParams  Additional parameters (expects newPhaseId as first param)
+     * @throws InvalidArgumentException
      */
-    public function delete($id, ...$additionalParams): array
+    protected function validatePhaseSettings(array $data, string $endpoint): void
     {
-        if (empty($additionalParams) || empty($additionalParams[0])) {
+        if (empty($data['requires_attention_after'])) {
             throw new InvalidArgumentException(
-                'Deal phase deletion requires a target phase for deal migration. Usage: delete($phaseId, $newPhaseId)'
+                "{$endpoint} requires requires_attention_after, e.g. ['amount' => 7, 'unit' => 'days']."
             );
         }
 
-        return parent::delete($id, $additionalParams[0]);
+        $attentionAfter = $data['requires_attention_after'];
+
+        if (! is_array($attentionAfter) || ! isset($attentionAfter['amount'], $attentionAfter['unit'])) {
+            throw new InvalidArgumentException('requires_attention_after must include amount and unit');
+        }
+
+        $this->assertEnum($attentionAfter['unit'], self::ATTENTION_UNITS, 'requires_attention_after.unit', $endpoint);
+
+        if (isset($data['follow_up_actions']) && is_array($data['follow_up_actions'])) {
+            foreach ($data['follow_up_actions'] as $action) {
+                $this->assertEnum($action, self::FOLLOW_UP_ACTIONS, 'follow_up_actions[]', $endpoint);
+            }
+        }
     }
 
     /**
-     * Prepare additional data for delete operation
+     * Delete a deal phase, moving its deals to another phase
+     *
+     * `new_phase_id` is optional in the specification. Before v2.2.5 this
+     * method required it and then called parent::delete(), which does not
+     * exist — so every call was a fatal "Call to undefined method", and
+     * dealPhases.delete could not be reached at all. The same defect was fixed
+     * on Pipelines in v2.2.2.
+     *
+     * @param  string  $id  Phase UUID to delete
+     * @param  mixed  ...$additionalParams  Optional UUID of the phase that takes over the deals
      */
-    protected function prepareDeleteData($id, ...$additionalParams): array
+    public function delete($id, ...$additionalParams): array
     {
-        if (empty($additionalParams) || empty($additionalParams[0])) {
-            throw new InvalidArgumentException(
-                'Deal phase deletion requires a target phase for deal migration'
-            );
+        $newPhaseId = $additionalParams[0] ?? null;
+
+        if ($newPhaseId !== null && (! is_string($newPhaseId) || $newPhaseId === '')) {
+            throw new InvalidArgumentException('The new phase for the deals must be a phase UUID string.');
         }
 
-        return ['new_phase_id' => $additionalParams[0]];
+        $params = ['id' => $id];
+
+        if ($newPhaseId !== null) {
+            $params['new_phase_id'] = $newPhaseId;
+        }
+
+        return $this->api->request('POST', $this->getBasePath().'.delete', $params);
     }
 
     /**
@@ -262,17 +269,30 @@ class Phases extends Resource
 
     /**
      * Build filters array for the API request
+     *
+     * dealPhases.list accepts `ids` and `deal_pipeline_id`. Before v2.2.5 any
+     * other key was dropped here without a word, and a string `ids` was
+     * dropped too.
+     *
+     * @throws InvalidArgumentException When an unsupported filter key is passed
      */
     protected function buildFilters(array $filters): array
     {
-        $apiFilters = [];
+        $unknown = array_diff(array_keys($filters), array_keys($this->commonFilters));
 
-        // Handle IDs filter
-        if (isset($filters['ids']) && is_array($filters['ids'])) {
-            $apiFilters['ids'] = $filters['ids'];
+        if ($unknown !== []) {
+            throw new InvalidArgumentException(
+                'Unsupported filter '.(count($unknown) > 1 ? 'keys' : 'key').' for dealPhases.list: '
+                .implode(', ', $unknown).'. Supported: '.implode(', ', array_keys($this->commonFilters)).'.'
+            );
         }
 
-        // Handle pipeline ID filter
+        $apiFilters = [];
+
+        if (isset($filters['ids'])) {
+            $apiFilters['ids'] = is_array($filters['ids']) ? array_values($filters['ids']) : [$filters['ids']];
+        }
+
         if (isset($filters['deal_pipeline_id'])) {
             $apiFilters['deal_pipeline_id'] = $filters['deal_pipeline_id'];
         }
@@ -285,7 +305,7 @@ class Phases extends Resource
      */
     public function getAvailableFollowUpActions(): array
     {
-        return ['create_event', 'create_call', 'create_task'];
+        return self::FOLLOW_UP_ACTIONS;
     }
 
     /**
@@ -293,24 +313,7 @@ class Phases extends Resource
      */
     public function getAvailableAttentionAfterUnits(): array
     {
-        return ['days', 'weeks'];
-    }
-
-    /**
-     * Validate phase data
-     */
-    protected function validateData(array $data, string $operation = 'create'): array
-    {
-        // Remove empty values but keep required fields
-        $data = array_filter($data, function ($value, $key) {
-            if (in_array($key, ['name', 'deal_pipeline_id', 'requires_attention_after', 'id'])) {
-                return true; // Keep required fields even if empty for validation
-            }
-
-            return $value !== '' && $value !== null && $value !== [];
-        }, ARRAY_FILTER_USE_BOTH);
-
-        return $data;
+        return self::ATTENTION_UNITS;
     }
 
     /**

@@ -5,9 +5,12 @@ namespace McoreServices\TeamleaderSDK\Resources\Deals;
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class Orders extends Resource
 {
+    use ValidatesWritePayload;
+
     protected string $description = 'Retrieve and view orders in Teamleader Focus';
 
     // Resource capabilities - Orders are read-only
@@ -19,16 +22,9 @@ class Orders extends Resource
 
     protected bool $supportsBatch = false;
 
-    // Pagination is not declared for orders.list in
-    // @teamleader/focus-api-specification — v1.198.0 declares `filter` and
-    // `includes` only, where 40 of the 58 `.list` endpoints declare `page`.
-    // The endpoint honours it regardless. Verified live on 2026-08-20 against
-    // an account holding 30 orders: no page parameter returned 20, size 100
-    // returned all 30, size 100 number 2 returned 0, and size 5 returned five
-    // records on page 1 and five different records on page 2. An ignored
-    // parameter cannot produce that — the API's usual response to a key it does
-    // not recognise is to answer 200 and carry on as though it were absent — so
-    // this is an undocumented capability rather than an absent one.
+    // orders.list declares `page` since specification 1.221.0 (changelog
+    // 2026-08-25). The SDK supported it from v2.2.3, after a live check
+    // showed the endpoint honoured it before it was documented.
     protected bool $supportsPagination = true;
 
     // orders.list declares no `meta` in its response and takes no `pagination`
@@ -109,10 +105,8 @@ class Orders extends Resource
     /**
      * List orders with optional filtering and pagination
      *
-     * Pagination is undocumented on this endpoint but functional — see the note
-     * on $supportsPagination. Passing neither page option sends no `page` key
-     * and returns the API default of 20 records, which is the pre-v2.2.3
-     * behaviour unchanged.
+     * Passing neither page option sends no `page` key and returns the API
+     * default of 20 records. all() walks every page.
      *
      * Filtering is `ids` only. The API accepts any other filter key, ignores it,
      * and answers 200 with the full unfiltered first page — `department_id`,
@@ -148,11 +142,17 @@ class Orders extends Resource
             ];
         }
 
-        // Apply includes — accepts both the `include` and `includes` option keys
-        $params = $this->applyIncludes($params, $this->resolveIncludesOption($options));
+        // Apply includes — both option spellings plus fluent ones, checked
+        // against the endpoint's set. Pending includes are consumed first, so
+        // a rejected call cannot leak them into the next one.
+        $pending = $this->getPendingIncludes();
+        $this->applyPendingIncludes([]);
 
-        // Apply any pending includes from fluent interface
-        $params = $this->applyPendingIncludes($params);
+        $params = $this->applyIncludes($params, $this->assertIncludes(
+            [...(array) ($this->resolveIncludesOption($options) ?? []), ...$pending],
+            $this->availableIncludes,
+            'orders.list'
+        ));
 
         return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
@@ -165,17 +165,16 @@ class Orders extends Resource
      */
     public function info($id, $includes = null): array
     {
-        $params = ['id' => $id];
+        $pending = $this->getPendingIncludes();
+        $this->applyPendingIncludes([]);
 
-        // Apply includes
-        if (! empty($includes)) {
-            $params = $this->applyIncludes($params, $includes);
-        }
+        $requested = $this->assertIncludes(
+            [...(array) ($includes ?? []), ...$pending],
+            $this->availableIncludes,
+            'orders.info'
+        );
 
-        // Apply any pending includes from fluent interface
-        $params = $this->applyPendingIncludes($params);
-
-        return $this->api->request('POST', $this->getBasePath().'.info', $params);
+        return $this->api->request('POST', $this->getBasePath().'.info', $this->applyIncludes(['id' => $id], $requested));
     }
 
     /**

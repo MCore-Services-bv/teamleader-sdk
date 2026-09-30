@@ -29,9 +29,17 @@ class Sources extends Resource
     // Available includes for sideloading (none for deal sources)
     protected array $availableIncludes = [];
 
-    // Common filters based on API documentation
+    // Filters accepted by dealSources.list
     protected array $commonFilters = [
         'ids' => 'Array of deal source UUIDs to filter by',
+        'term' => 'Search the deal source name',
+    ];
+
+    /**
+     * The one sort field dealSources.list documents. Order is asc only.
+     */
+    protected array $availableSortFields = [
+        'name' => 'Deal source name (ascending only)',
     ];
 
     // Usage examples specific to deal sources
@@ -55,43 +63,57 @@ class Sources extends Resource
     ];
 
     /**
-     * Search deal sources by name (client-side filtering)
-     * Note: The API doesn't support text search, so we fetch all and filter
+     * Search deal sources by name
+     *
+     * Uses the `term` filter, which dealSources.list has declared since
+     * specification 1.221.0. Before v2.2.5 this fetched the first page and
+     * filtered it in PHP, so a source past the first 20 was never found.
      *
      * @param  string  $query  Search query
      */
-    public function search(string $query): array
+    public function search(string $query, array $options = []): array
     {
-        $response = $this->all();
+        return $this->list(['term' => $query], $options);
+    }
 
-        if (isset($response['error']) || ! isset($response['data'])) {
-            return $response;
+    /**
+     * Get every deal source, walking all pages
+     *
+     * Before v2.2.5 this was list() with no options — the first 20 sources
+     * only — so selectOptions() and getStatistics() silently dropped the rest.
+     *
+     * @param  int  $maxPages  Runaway guard: 50 pages of 100
+     *
+     * @throws InvalidArgumentException When $maxPages is reached with sources still pending
+     */
+    public function all(int $maxPages = 50): array
+    {
+        $sources = [];
+        $page = 1;
+
+        do {
+            $batch = $this->list([], ['page_size' => 100, 'page_number' => $page])['data'] ?? [];
+            $sources = array_merge($sources, $batch);
+            $hasMore = count($batch) === 100;
+            $page++;
+        } while ($hasMore && $page <= $maxPages);
+
+        if ($hasMore) {
+            throw new InvalidArgumentException(
+                "dealSources.list still had records after {$maxPages} pages of 100. Raise \$maxPages."
+            );
         }
 
-        // Filter results by name containing the query
-        $filteredData = array_filter($response['data'], function ($source) use ($query) {
-            return stripos($source['name'] ?? '', $query) !== false;
-        });
-
-        // Re-index array and maintain response structure
-        $response['data'] = array_values($filteredData);
-
-        return $response;
+        return ['data' => $sources];
     }
 
     /**
-     * Get all deal sources (convenience method)
-     */
-    public function all(): array
-    {
-        return $this->list();
-    }
-
-    /**
-     * List deal sources with enhanced filtering and sorting
+     * List deal sources with filtering, pagination and sorting
      *
-     * @param  array  $filters  Filters to apply
-     * @param  array  $options  Additional options (sorting, pagination)
+     * @param  array  $filters  `ids`, `term`
+     * @param  array  $options  page_size, page_number, sort (name), sort_order (asc)
+     *
+     * @throws InvalidArgumentException On an unknown filter, or a sort other than name/asc
      */
     public function list(array $filters = [], array $options = []): array
     {
@@ -110,84 +132,65 @@ class Sources extends Resource
             ];
         }
 
-        // Apply sorting - deal sources only support name field
-        if (isset($options['sort'])) {
-            $params['sort'] = $this->buildSort($options['sort']);
-        } else {
-            // Default sort by name ascending
-            $params['sort'] = [
-                [
-                    'field' => 'name',
-                    'order' => 'asc',
-                ],
-            ];
-        }
+        // name / asc is the only sort the endpoint documents, and the default
+        $params['sort'] = $this->buildSort($options['sort'] ?? 'name', $options['sort_order'] ?? 'asc');
 
         return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
      * Build filters array for the API request
+     *
+     * @throws InvalidArgumentException When an unsupported filter key is passed
      */
     protected function buildFilters(array $filters): array
     {
+        $unknown = array_diff(array_keys($filters), array_keys($this->commonFilters));
+
+        if ($unknown !== []) {
+            throw new InvalidArgumentException(
+                'Unsupported filter '.(count($unknown) > 1 ? 'keys' : 'key').' for dealSources.list: '
+                .implode(', ', $unknown).'. Supported: '.implode(', ', array_keys($this->commonFilters)).'.'
+            );
+        }
+
         $apiFilters = [];
 
-        // Handle IDs filter
-        if (isset($filters['ids']) && is_array($filters['ids'])) {
-            $apiFilters['ids'] = array_values($filters['ids']); // Ensure indexed array
+        if (isset($filters['ids'])) {
+            $apiFilters['ids'] = is_array($filters['ids']) ? array_values($filters['ids']) : [$filters['ids']];
+        }
+
+        if (isset($filters['term']) && $filters['term'] !== '') {
+            $apiFilters['term'] = $filters['term'];
         }
 
         return $apiFilters;
     }
 
     /**
-     * Build sort array for the API request
+     * Build the sort array — `name`, ascending, is the only sort accepted
+     *
+     * Before v2.2.5 anything else was silently rewritten to name/asc, so a
+     * caller asking for descending order got ascending back with no
+     * indication. The same defect was fixed on Tags in v2.1.2.
      *
      * @param  array|string  $sort
+     *
+     * @throws InvalidArgumentException When another field or order is requested
      */
-    protected function buildSort($sort, string $order = 'desc'): array
+    protected function buildSort($sort, string $order = 'asc'): array
     {
-        // If already in correct format, return as-is
-        if (is_array($sort) && isset($sort[0]['field'])) {
-            return $sort;
-        }
+        $sort = $this->normaliseSort($sort, $order);
 
-        // Handle simple string sort (only 'name' is supported)
-        if (is_string($sort) && $sort === 'name') {
-            return [
-                [
-                    'field' => 'name',
-                    'order' => 'asc',
-                ],
-            ];
-        }
-
-        // Handle associative array
-        if (is_array($sort)) {
-            $sortArray = [];
-            foreach ($sort as $field => $order) {
-                if (is_numeric($field) && is_array($order)) {
-                    // Already in correct format
-                    $sortArray[] = $order;
-                } elseif ($field === 'name') {
-                    $sortArray[] = [
-                        'field' => 'name',
-                        'order' => strtolower($order) === 'desc' ? 'asc' : 'asc', // API only supports asc
-                    ];
-                }
+        foreach ($sort as $entry) {
+            if ($entry['order'] !== 'asc') {
+                throw new InvalidArgumentException(
+                    "Invalid sort order: {$entry['order']}. dealSources.list accepts only 'asc'."
+                );
             }
-
-            return $sortArray;
         }
 
-        // Default fallback
-        return [
-            [
-                'field' => 'name',
-                'order' => 'asc',
-            ],
-        ];
+        return $sort;
     }
 
     /**
@@ -222,9 +225,7 @@ class Sources extends Resource
      */
     public function getAvailableSortFields(): array
     {
-        return [
-            'name' => 'Sorts by deal source name (ascending only)',
-        ];
+        return $this->availableSortFields;
     }
 
     /**

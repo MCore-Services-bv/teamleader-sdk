@@ -233,6 +233,45 @@ function declaredIncludes(schema) {
     return [...values].sort();
 }
 
+// Response field descriptions name includes too — "Only included with
+// request parameter `includes=custom_fields`". On a few endpoints this is the
+// only place an include is documented (quotations.list/info name `expiry`
+// while declaring no includes request property at all), so both sources are
+// extracted and kept apart: the auditor treats their union as the vocabulary.
+function responseIncludes(operation) {
+    const found = new Set();
+
+    const visit = (node) => {
+        if (Array.isArray(node)) {
+            node.forEach(visit);
+        } else if (node && typeof node === 'object') {
+            for (const [key, value] of Object.entries(node)) {
+                if (key === 'description' && typeof value === 'string') {
+                    for (const match of value.matchAll(/includes=([a-z0-9_.]+)/g)) {
+                        found.add(match[1]);
+                    }
+                } else {
+                    visit(value);
+                }
+            }
+        }
+    };
+
+    visit(operation.responses ?? {});
+
+    return [...found].sort();
+}
+
+// The sort field enum. A few endpoints (dealSources.list) declare no enum but
+// a `default`, which is then the one documented field.
+function sortFields(field) {
+    if (Array.isArray(field.enum)) {
+        return field.enum.slice().sort();
+    }
+
+    return typeof field.default === 'string' ? [field.default] : [];
+}
+
 function describeFilter(schema) {
     const node = branches(schema);
     const out = { type: node.type ?? 'unknown' };
@@ -282,6 +321,7 @@ function extract(endpoint) {
     const sort = flatten(requestProperties.sort ?? {});
     const sortItems = flatten(sort.items ?? {});
     const sortField = flatten(sortItems.properties?.field ?? {});
+    const mentioned = responseIncludes(operation);
     const sortOrder = flatten(sortItems.properties?.order ?? {});
     const includes = flatten(requestProperties.includes ?? {});
 
@@ -304,12 +344,16 @@ function extract(endpoint) {
             filters,
             filter_keys: Object.keys(filters).sort(),
             filter_required: (filter.required ?? []).slice().sort(),
-            sort_fields: (sortField.enum ?? []).slice().sort(),
+            sort_fields: sortFields(sortField),
             sort_orders: (sortOrder.enum ?? []).slice().sort(),
             declares_pagination: 'page' in requestProperties,
             declares_sort: 'sort' in requestProperties,
             declares_includes: 'includes' in requestProperties,
             includes: declaredIncludes(requestProperties.includes ?? {}),
+            // Includes named only in response field descriptions; `pagination`
+            // (which adds a meta block) is reported separately below.
+            response_includes: mentioned.filter((include) => include !== 'pagination'),
+            declares_pagination_meta: mentioned.includes('pagination'),
             includes_example: includes.example ?? null,
             enums: requestEnums(request),
         },
@@ -391,9 +435,12 @@ const listRows = Object.entries(contract.endpoints)
         const filters = request.properties.includes('filter')
             ? code(request.filter_keys)
             : '**none**';
-        const includes = request.declares_includes ? code(request.includes) : '—';
+        const vocabulary = [...new Set([...request.includes, ...request.response_includes])].sort();
+        const includes = vocabulary.length ? code(vocabulary) : '—';
         const flags = [
             request.declares_pagination ? 'page' : null,
+            request.declares_pagination_meta ? 'meta via `includes=pagination`' : null,
+            !request.declares_includes && request.response_includes.length ? 'includes named in response only' : null,
             contractRow.deprecated ? 'deprecated' : null,
         ].filter(Boolean).join(', ') || '—';
 
@@ -408,9 +455,9 @@ fs.writeFileSync(
         `Generated from \`@teamleader/focus-api-specification\` v${pkg.version} by`,
         '`tests/Fixtures/specification/generate-spec-fixtures.mjs`. Do not edit by hand.',
         '',
-        `${listRows.length} \`.list\` endpoints. Includes are derived from the example and`,
-        'description in the specification, which types `includes` as a free-form string —',
-        'treat them as the documented minimum, not an exhaustive list.',
+        `${listRows.length} \`.list\` endpoints. The specification types \`includes\` as a free-form`,
+        'string, so the values are collected from the request example and description and',
+        'from response fields documented as "only included with `includes=...`".',
         '',
         '| Endpoint | Filters | Sort fields | Includes | Notes |',
         '|---|---|---|---|---|',
