@@ -7,45 +7,12 @@ use McoreServices\TeamleaderSDK\Resources\Resource;
 
 class Webhooks extends Resource
 {
-    protected string $description = 'Manage webhooks for real-time event notifications in Teamleader Focus';
-
-    // Resource capabilities - Webhooks support list, register, and unregister operations
-    protected bool $supportsCreation = false;  // Uses custom register() method instead
-
-    protected bool $supportsUpdate = false;
-
-    protected bool $supportsDeletion = false;  // Uses custom unregister() method instead
-
-    protected bool $supportsBatch = false;
-
-    protected bool $supportsPagination = false;
-
-    protected bool $supportsSorting = false;
-
-    protected bool $supportsFiltering = false;
-
-    protected bool $supportsSideloading = false;
-
-    // Available includes for sideloading (none for webhooks)
-    protected array $availableIncludes = [];
-
-    // Default includes
-    protected array $defaultIncludes = [];
-
-    // Common filters (none for webhooks)
-    protected array $commonFilters = [];
-
     /**
-     * Webhook event types accepted by webhooks.register and webhooks.unregister.
-     *
-     * Verified complete against @teamleader/focus-api-specification v1.197.0 on
-     * 2026-08-17: 95 types, exact match in both directions.
-     *
-     * Note the two project families — `project.*` for the legacy project system
-     * and `nextgenProject.*` for the current one. See the Projects and
-     * LegacyProjects resources for which SDK method corresponds to which.
+     * `types[]` on webhooks.register and webhooks.unregister. Checked against
+     * the specification by OtherSpecContractTest, so a new event type in the
+     * spec fails the suite until it is added here.
      */
-    protected array $eventTypes = [
+    public const EVENT_TYPES = [
         'account.deactivated',
         'account.deleted',
         'call.added',
@@ -142,6 +109,49 @@ class Webhooks extends Resource
         'timeTracking.updated',
         'user.deactivated',
     ];
+
+    protected string $description = 'Manage webhooks for real-time event notifications in Teamleader Focus';
+
+    // Resource capabilities - Webhooks support list, register, and unregister operations
+    protected bool $supportsCreation = false;  // Uses custom register() method instead
+
+    protected bool $supportsUpdate = false;
+
+    protected bool $supportsDeletion = false;  // Uses custom unregister() method instead
+
+    protected bool $supportsBatch = false;
+
+    protected bool $supportsPagination = false;
+
+    protected bool $supportsSorting = false;
+
+    protected bool $supportsFiltering = false;
+
+    protected bool $supportsSideloading = false;
+
+    // Available includes for sideloading (none for webhooks)
+    protected array $availableIncludes = [];
+
+    // Default includes
+    protected array $defaultIncludes = [];
+
+    // Common filters (none for webhooks)
+    protected array $commonFilters = [];
+
+    /**
+     * Webhook event types accepted by webhooks.register and webhooks.unregister.
+     *
+     * Verified complete against @teamleader/focus-api-specification v1.197.0 on
+     * 2026-08-17: 95 types, exact match in both directions.
+     *
+     * Note the two project families — `project.*` for the legacy project system
+     * and `nextgenProject.*` for the current one. See the Projects and
+     * LegacyProjects resources for which SDK method corresponds to which.
+     */
+    /**
+     * Kept for backwards compatibility — see EVENT_TYPES.
+     */
+    protected array $eventTypes = self::EVENT_TYPES;
 
     // Usage examples specific to webhooks
     protected array $usageExamples = [
@@ -291,7 +301,7 @@ class Webhooks extends Resource
         }
 
         foreach ($types as $type) {
-            if (! in_array($type, $this->eventTypes)) {
+            if (! in_array($type, self::EVENT_TYPES, true)) {
                 throw new InvalidArgumentException(
                     "Invalid event type: {$type}. Use getAvailableEventTypes() to see all valid types."
                 );

@@ -3,6 +3,7 @@
 namespace McoreServices\TeamleaderSDK\Resources\Other;
 
 use InvalidArgumentException;
+use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
 
 class Accounts extends Resource
@@ -105,9 +106,39 @@ class Accounts extends Resource
      */
     public function isUsingProjectsV2(): bool
     {
-        $status = $this->projectsV2Status();
+        return $this->statusData()['status'] === 'projects-v2';
+    }
 
-        return $status['data']['status'] === 'projects-v2';
+    /**
+     * The status block, or an exception when the call did not return one.
+     *
+     * Until v2.2.17 the helpers read `data.status` straight from whatever
+     * came back. With error responses returned as arrays (throw_exceptions
+     * off), a failed call raised an "undefined array key" warning, and
+     * isUsingProjectsV2() then answered false — reporting a projects-v2
+     * account as legacy.
+     *
+     * @return array{status: string, will_be_automatically_switched_on?: string}
+     *
+     * @throws TeamleaderException
+     */
+    private function statusData(): array
+    {
+        $response = $this->projectsV2Status();
+        $status = $response['data']['status'] ?? null;
+
+        if (! in_array($status, $this->projectVersions, true)) {
+            throw new TeamleaderException(
+                'accounts.projects-v2-status did not return a project version'
+                .(isset($response['message']) ? ': '.$response['message'] : '.'),
+                0,
+                null,
+                ['response' => $response],
+                $response['status_code'] ?? null
+            );
+        }
+
+        return $response['data'];
     }
 
     /**
@@ -127,9 +158,7 @@ class Accounts extends Resource
      */
     public function getProjectsVersion(): string
     {
-        $status = $this->projectsV2Status();
-
-        return $status['data']['status'];
+        return $this->statusData()['status'];
     }
 
     /**
@@ -139,9 +168,7 @@ class Accounts extends Resource
      */
     public function getAutoSwitchDate(): ?string
     {
-        $status = $this->projectsV2Status();
-
-        return $status['data']['will_be_automatically_switched_on'] ?? null;
+        return $this->statusData()['will_be_automatically_switched_on'] ?? null;
     }
 
     /**
@@ -161,8 +188,7 @@ class Accounts extends Resource
      */
     public function getAccountStatus(): array
     {
-        $status = $this->projectsV2Status();
-        $data = $status['data'];
+        $data = $this->statusData();
 
         return [
             'version' => $data['status'],

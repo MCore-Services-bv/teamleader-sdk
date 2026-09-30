@@ -3,11 +3,15 @@
 namespace McoreServices\TeamleaderSDK\Resources\Other;
 
 use InvalidArgumentException;
+use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
 
 class CloudPlatforms extends Resource
 {
-    protected string $description = 'Fetch cloud platform URLs for invoices, quotations, and tickets';
+    /** `type` on cloudPlatforms.url */
+    public const TYPES = ['deal', 'invoice', 'quotation', 'ticket'];
+
+    protected string $description = 'Fetch cloud platform URLs for deals, invoices, quotations and tickets';
 
     // Resource capabilities - CloudPlatforms only supports URL fetching
     protected bool $supportsCreation = false;
@@ -36,11 +40,11 @@ class CloudPlatforms extends Resource
     protected array $commonFilters = [];
 
     // Valid resource types that support cloud platform URLs
-    protected array $supportedTypes = [
-        'invoice',
-        'quotation',
-        'ticket',
-    ];
+    /**
+     * `deal` was missing until v2.2.17: cloudPlatforms.url returns the
+     * customer-facing link for deals as well.
+     */
+    protected array $supportedTypes = self::TYPES;
 
     // Usage examples specific to cloud platforms
     protected array $usageExamples = [
@@ -112,6 +116,11 @@ foreach ($invoiceIds as $id) {
      * @param  string  $invoiceId  Invoice UUID
      * @return array Response containing the cloud platform URL
      */
+    public function dealUrl(string $dealId): array
+    {
+        return $this->url('deal', $dealId);
+    }
+
     public function invoiceUrl(string $invoiceId): array
     {
         return $this->url('invoice', $invoiceId);
@@ -166,8 +175,7 @@ foreach ($invoiceIds as $id) {
         $urls = [];
 
         foreach ($ids as $id) {
-            $result = $this->url($type, $id);
-            $urls[$id] = $result['data']['url'];
+            $urls[$id] = $this->getUrl($type, $id);
         }
 
         return $urls;
@@ -180,11 +188,32 @@ foreach ($invoiceIds as $id) {
      * @param  string  $id  Resource UUID
      * @return string The cloud platform URL
      */
+    /**
+     * @throws TeamleaderException When the call returns no URL — an error
+     *                             response used to raise an "undefined array
+     *                             key" warning and a TypeError instead
+     */
     public function getUrl(string $type, string $id): string
     {
         $result = $this->url($type, $id);
 
+        if (! isset($result['data']['url']) || ! is_string($result['data']['url'])) {
+            throw new TeamleaderException(
+                "cloudPlatforms.url returned no URL for {$type} {$id}"
+                .(isset($result['message']) ? ': '.$result['message'] : '.'),
+                0,
+                null,
+                ['response' => $result],
+                $result['status_code'] ?? null
+            );
+        }
+
         return $result['data']['url'];
+    }
+
+    public function getDealUrl(string $dealId): string
+    {
+        return $this->getUrl('deal', $dealId);
     }
 
     /**

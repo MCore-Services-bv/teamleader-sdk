@@ -8,11 +8,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Category-by-category spec audit: Files, Templates, Other — one patch release each, with the matching wiki pages
-- Bulk operations helper for processing large datasets
+- v2.3.0: audit milestone — spec-audit in CI, README spec note, a summary of
+  the v2.2.4–v2.2.17 audit
+- v3.0: bulk operations helper for processing large datasets, CLI tool, and
+  the removals deprecated during the audit
 - Enhanced caching strategies with tag-based invalidation
 - Laravel Pulse integration for monitoring
-- CLI tool for quick API exploration
+
+---
+
+## [2.2.17] - 2026-09-30
+
+The last three categories — Files, Templates (Mail Templates) and Other
+(Accounts, Cloud Platforms, Migrate, Webhooks) — brought in line with
+`@teamleader/focus-api-specification` **1.221.0**. The audit reported nothing
+for them; reading them against the spec found the following.
+
+### Fixed
+
+- **Files: an ascending sort was sent, and array sorts crashed.**
+  files.list sorts `updated_at` in descending order only, but
+  `sort_order => 'asc'` was sent anyway. A sort passed as
+  `['field' => …, 'order' => …]` was a `TypeError`. Sorting now goes through
+  `normaliseSort()`, and `asc` throws. Filter keys other than `subject` were
+  dropped without a word; they now throw.
+- **Accounts: a failed call reported the account as legacy.** When error
+  responses are returned as arrays, `isUsingProjectsV2()` read a missing
+  `data.status` and answered false. This affected every helper built on it
+  (`getProjectsVersion()`, `getAutoSwitchDate()`, `getAccountStatus()` and
+  the rest), and a projects-v2 account came back as legacy. They now throw a
+  `TeamleaderException` carrying the API's message.
+- **Cloud platforms: `deal` was missing.** cloudPlatforms.url returns the
+  customer-facing link for deals too. `dealUrl()` and `getDealUrl()` are
+  added. `getUrl()` and `batchUrls()` threw a `TypeError` on an error
+  response; they now throw a `TeamleaderException`.
+- **Migrate: the 0% tax rate could not be looked up.** `taxRate($dept, '0')`
+  was rejected as empty. 0% is the rate for exports and reverse charge.
+  `batchIds()` now throws with the mapping built so far when a lookup
+  returns no UUID, instead of a `TypeError`.
+- **Mail templates:** unknown filter keys were dropped without a word, and the
+  `findBy*` / `asOptions()` / `groupedByLanguage()` helpers crashed on an
+  error response. Unknown keys now throw, and the helpers return nothing
+  found.
+
+### Changed
+
+- Constants `Webhooks::EVENT_TYPES` (all 95), `CloudPlatforms::TYPES`,
+  `Migrate::RESOURCE_TYPES` / `ACTIVITY_TYPES`, `MailTemplates::TYPES` and
+  `Files::SORT_ORDERS`, each checked against the spec. The webhook list is the
+  one most likely to drift, and a new event type in the spec now fails the
+  suite until it is added.
+- New tests: `OtherPayloadTest` and `OtherSpecContractTest`. Baseline
+  unchanged at 1 (accepted).
+
+This completes the category-by-category audit. Every resource in the SDK has
+now been read against spec 1.221.0.
 
 ---
 

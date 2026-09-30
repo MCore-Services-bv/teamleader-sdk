@@ -4,9 +4,15 @@ namespace McoreServices\TeamleaderSDK\Resources\Templates;
 
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class MailTemplates extends Resource
 {
+    use ValidatesWritePayload;
+
+    /** `filter.type` on mailTemplates.list — required */
+    public const TYPES = ['invoice', 'quotation', 'work_order', 'credit_note'];
+
     protected string $description = 'Manage mail templates in Teamleader Focus';
 
     // Resource capabilities - Mail templates are read-only
@@ -39,12 +45,7 @@ class MailTemplates extends Resource
     ];
 
     // Valid template types
-    protected array $validTypes = [
-        'invoice',
-        'quotation',
-        'work_order',
-        'credit_note',
-    ];
+    protected array $validTypes = self::TYPES;
 
     // Usage examples specific to mail templates
     protected array $usageExamples = [
@@ -86,6 +87,14 @@ class MailTemplates extends Resource
      */
     public function list(array $filters = [], array $options = []): array
     {
+        if ($options !== []) {
+            throw new InvalidArgumentException(
+                'mailTemplates.list takes no paging, sorting or includes; got: '.implode(', ', array_keys($options)).'.'
+            );
+        }
+
+        // Unknown keys were dropped without a word until v2.2.17.
+        $this->rejectUnknownFilters($filters, 'mailTemplates.list');
         // Validate required type parameter
         if (empty($filters['type'])) {
             throw new InvalidArgumentException(
@@ -186,8 +195,8 @@ class MailTemplates extends Resource
 
         $result = $this->forType($type, $departmentId);
 
-        foreach ($result['data'] as $template) {
-            if (strcasecmp($template['name'], $name) === 0) {
+        foreach ($result['data'] ?? [] as $template) {
+            if (isset($template['name']) && strcasecmp($template['name'], $name) === 0) {
                 return $template;
             }
         }
@@ -213,7 +222,7 @@ class MailTemplates extends Resource
 
         $result = $this->forType($type, $departmentId);
 
-        foreach ($result['data'] as $template) {
+        foreach ($result['data'] ?? [] as $template) {
             if (isset($template['language']) && strcasecmp($template['language'], $language) === 0) {
                 return $template;
             }
@@ -237,7 +246,7 @@ class MailTemplates extends Resource
         $result = $this->forType($type, $departmentId);
         $options = [];
 
-        foreach ($result['data'] as $template) {
+        foreach ($result['data'] ?? [] as $template) {
             $options[$template['id']] = $template[$labelField] ?? $template['name'];
         }
 
@@ -258,7 +267,7 @@ class MailTemplates extends Resource
         $result = $this->forType($type, $departmentId);
         $grouped = [];
 
-        foreach ($result['data'] as $template) {
+        foreach ($result['data'] ?? [] as $template) {
             $language = $template['language'] ?? 'unknown';
             if (! isset($grouped[$language])) {
                 $grouped[$language] = [];
