@@ -129,24 +129,6 @@ final class InvoicingPayloadTest extends ResourceTestCase
         }
     }
 
-    /**
-     * paid() and unpaid() set a `_paid` flag that buildFilters() stripped, so
-     * both returned every credit note.
-     */
-    public function test_paid_and_unpaid_throw(): void
-    {
-        foreach (['paid', 'unpaid'] as $method) {
-            try {
-                $this->resource(Creditnotes::class)->{$method}();
-                $this->fail("{$method}() must throw.");
-            } catch (InvalidArgumentException $e) {
-                $this->assertStringContainsString('data[].paid', $e->getMessage());
-            }
-        }
-
-        $this->assertNoRequestMade();
-    }
-
     public function test_credit_note_unknown_filter_throws(): void
     {
         $this->expectException(InvalidArgumentException::class);

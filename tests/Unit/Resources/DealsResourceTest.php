@@ -159,14 +159,6 @@ final class DealsResourceTest extends ResourceTestCase
         $this->assertNoRequestMade();
     }
 
-    public function test_deprecated_fluent_include_methods_add_nothing(): void
-    {
-        $this->deals->withCustomer()->withResponsibleUser()->withDepartment()
-            ->withCurrentPhase()->withSource()->withAll()->list();
-
-        $this->assertLastBodyMissing('includes');
-    }
-
     public function test_fluent_and_options_forms_produce_the_same_body(): void
     {
         $this->deals->list([], ['include' => 'custom_fields']);

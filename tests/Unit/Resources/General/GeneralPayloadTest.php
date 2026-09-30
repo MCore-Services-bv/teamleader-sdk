@@ -102,25 +102,6 @@ final class GeneralPayloadTest extends ResourceTestCase
         $this->assertLastBody(['id' => 'user-uuid', 'filter' => ['starts_after' => '2026-01-01'], 'includes' => 'pagination']);
     }
 
-    public function test_get_week_schedule_is_deprecated(): void
-    {
-        $raised = [];
-        set_error_handler(function (int $level, string $message) use (&$raised) {
-            $raised[] = $message;
-
-            return true;
-        }, E_USER_DEPRECATED);
-
-        try {
-            $this->resource(Users::class)->getWeekSchedule('user-uuid');
-        } finally {
-            restore_error_handler();
-        }
-
-        $this->assertLastEndpoint('users.getWeekSchedule');
-        $this->assertLessThanOrEqual(1, count($raised));
-    }
-
     // -- work types ------------------------------------------------------------
 
     /**

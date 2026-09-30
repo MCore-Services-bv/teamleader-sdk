@@ -14,8 +14,9 @@ use McoreServices\TeamleaderSDK\Resources\Resource;
  * 2026-06-19 changelog). Returns the working schedules of one or more users,
  * expanded per day over a date range of at most 7 days.
  *
- * This is the successor to `users.getWeekSchedule` (still available on the
- * Users resource, but deprecated in favour of this endpoint).
+ * This is the successor to `users.getWeekSchedule`, which Teamleader
+ * deprecated. The SDK's wrapper for it, users()->getWeekSchedule(), was
+ * removed in v3.0.
  *
  * Only available on accounts with the *Weekly working schedule* feature.
  */

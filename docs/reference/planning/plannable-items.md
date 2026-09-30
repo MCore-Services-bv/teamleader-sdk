@@ -11,7 +11,6 @@ Teamleader::plannableItems()
 | | |
 |---|---|
 | Class | `McoreServices\TeamleaderSDK\Resources\Planning\PlannableItems` |
-| Also available as | `plannable_items()` |
 | Create / update / delete | — / — / — |
 | Pagination | `page_size` / `page_number`; no totals — a short page is the last one |
 
@@ -104,14 +103,6 @@ underlying source entity (e.g. a task UUID).
 - `$sourceId` — UUID of the source entity
 
 **Throws** `InvalidArgumentException`
-
-### `active()`
-
-> **Deprecated** since v2.2.16 — plannableItems.list has no status filter. Until now this sent `status: [active]`, which the API ignored, so it returned every item; it still does, without the ignored filter, and raises E_USER_DEPRECATED once. Removed in v3.0.
-
-```php
-active(array $filters = [], array $options = []): array
-```
 
 ### `ofTypes()`
 

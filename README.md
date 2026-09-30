@@ -467,8 +467,8 @@ How that is kept true:
 - **Spec audit.** `composer spec:audit` compares every resource's filters,
   sort fields, includes, pagination and endpoints with the specification;
   `php bin/spec-audit --check` fails CI on anything not recorded in the
-  baseline. The one recorded divergence is the deprecated
-  `users.getWeekSchedule` wrapper, kept until v3.0.
+  baseline. The one recorded divergence is `users.getWeekSchedule`, which
+  Teamleader deprecated and the SDK deliberately does not wrap.
 - **Weekly watch.** A scheduled workflow audits the SDK against the newest
   published specification and opens an issue when it finds a difference, so
   API changes surface before they surface as bug reports.

@@ -30,6 +30,36 @@ No code changes are needed. Two small differences:
 - `timeTracking()->list()` now also accepts a list of field names and a
   `['starts_on' => 'desc']` map, like every other resource.
 
+### Removed methods and resource keys
+
+Everything deprecated during the 2.2.x audit is gone. Each of these now fails
+with "Call to undefined method" (or, for a resource key, an exception naming
+the new key). Search your code for the left-hand column:
+
+| Removed | Use instead |
+|---|---|
+| `users()->getWeekSchedule($id)` | `userSchedules()->forUser($id, $from, $until)` — at most seven days |
+| `plannableItems()->active()` | `plannableItems()->list()`; filter on `completion_statuses` / `planned_time_statuses` |
+| `invoices()->draft()` | `invoices()->listDrafts()` |
+| `lostReasons()->search($ids)` | `lostReasons()->byIds($ids)`, or `all()` without ids |
+| `companies()->byName($name)` | `companies()->search($name)` — the `term` filter |
+| `quotations()->byStatus($status)` | `quotations()->list()`, filtered client-side on `data[].status` |
+| `creditNotes()->paid()`, `unpaid()` | `creditNotes()->list()`, filtered client-side on `data[].paid` |
+| `products()->withCustomFields()` | nothing — `info()` always returns custom fields |
+| `deals()->withCustomer()`, `withResponsibleUser()`, `withDepartment()`, `withCurrentPhase()`, `withSource()`, `withAll()` | nothing — the data is returned on every deal |
+| `calenderEvents()` | `calendarEvents()` |
+| `creditnotes()` | `creditNotes()` |
+| `payment_methods()` | `paymentMethods()` |
+| `payment_terms()` | `paymentTerms()` |
+| `external_parties()` | `externalParties()` |
+| `plannable_items()` | `plannableItems()` |
+| `user_availability()` | `userAvailability()` |
+| `$sdk->getDeprecatedResourceAliases()` | nothing — there are no aliases left |
+
+In 2.3 all of these still ran, most of them with an `E_USER_DEPRECATED`
+notice in your log. If you upgrade to 2.3 first and clear those notices, this
+step is a no-op.
+
 ## From 2.2 to 2.3
 
 There are no breaking API changes in the SDK itself, and 2.3 runs on the same
@@ -62,27 +92,6 @@ simplified.
 
 The full list, release by release, is in the
 [changelog](https://github.com/MCore-Services-bv/teamleader-sdk/blob/main/CHANGELOG.md).
-
-## Deprecated — removed in v3.0
-
-These are still present in 2.3. Where a method used to return wrong results
-it now throws or has become a no-op, so it cannot mislead; the rest work as
-before, some with an `E_USER_DEPRECATED` notice once per process.
-
-| Deprecated | In 2.3 | Use instead |
-|---|---|---|
-| `users()->getWeekSchedule()` | works, with a notice | `userSchedules()->forUser()` |
-| `plannableItems()->active()` | lists everything, with a notice — the endpoint has no status filter | `list()`, filtering on `completion_statuses` / `planned_time_statuses` |
-| `invoices()->draft()` | works | `listDrafts()` |
-| `lostReasons()->search()` | works — it fetches by id, despite the name | `byIds()` |
-| `companies()->byName()` | throws — `companies.list` has no name filter | `search()` / the `term` filter |
-| `quotations()->byStatus()` | throws — `quotations.list` has no status filter | `list()`, filtered client-side |
-| `creditNotes()->paid()`, `unpaid()` | throw — `creditNotes.list` has no payment filter | `list()`, filtered client-side |
-| `products()->withCustomFields()` | no-op — `info()` always returns custom fields | nothing |
-| `deals()->withCustomer()`, `withResponsibleUser()`, `withDepartment()`, `withCurrentPhase()`, `withSource()`, `withAll()` | no-ops — the data is returned by default | nothing |
-| `calenderEvents()`, `creditnotes()`, `payment_methods()`, `payment_terms()`, `external_parties()`, `plannable_items()`, `user_availability()` | work, with a notice | the camelCase names |
-
-Deprecated methods are marked on their reference page.
 
 ## From 1.x to 2.0
 

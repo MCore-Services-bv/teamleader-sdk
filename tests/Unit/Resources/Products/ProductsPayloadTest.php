@@ -78,13 +78,6 @@ final class ProductsPayloadTest extends ResourceTestCase
         $this->expectRejected(fn () => $this->resource(Products::class)->info('product-uuid', 'custom_fields'), 'suppliers');
     }
 
-    public function test_with_custom_fields_is_a_no_op(): void
-    {
-        $this->resource(Products::class)->withCustomFields()->info('product-uuid');
-
-        $this->assertLastBody(['id' => 'product-uuid']);
-    }
-
     // -- write -----------------------------------------------------------------
 
     public function test_create_by_code(): void

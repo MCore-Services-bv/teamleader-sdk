@@ -11,7 +11,6 @@ Teamleader::paymentMethods()
 | | |
 |---|---|
 | Class | `McoreServices\TeamleaderSDK\Resources\Invoicing\PaymentMethods` |
-| Also available as | `payment_methods()` |
 | Create / update / delete | — / — / — |
 | Pagination | `page_size` / `page_number`; no totals — a short page is the last one |
 

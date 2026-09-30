@@ -77,18 +77,6 @@ of 100.
 
 **Throws** `\InvalidArgumentException` On a sort order other than asc, or when $maxPages is reached
 
-### `search()`
-
-> **Deprecated** since v2.2.5 — the name suggested a text search, which lostReasons.list does not offer. Use byIds(), or all() and filter client-side. Removed in v3.0.
-
-```php
-search(array $ids = []): array
-```
-
-Get lost reasons by ID
-
-- `$ids` — Array of IDs to fetch; empty returns all()
-
 ### `isValidSortField()`
 
 ```php

@@ -86,10 +86,6 @@ class Users extends Resource
             'description' => 'Get current authenticated user',
             'code' => '$currentUser = $teamleader->users()->me();',
         ],
-        'get_user_schedule' => [
-            'description' => 'Get user week schedule',
-            'code' => '$schedule = $teamleader->users()->getWeekSchedule(\'user-uuid-here\');',
-        ],
         'get_user_days_off' => [
             'description' => 'Get user days off',
             'code' => '$daysOff = $teamleader->users()->listDaysOff(\'user-uuid-here\', [\'starts_after\' => \'2023-10-01\']);',
@@ -165,34 +161,6 @@ class Users extends Resource
     public function me(): array
     {
         return $this->api->request('POST', $this->getBasePath().'.me');
-    }
-
-    /**
-     * Get user week schedule
-     * Only available with the Weekly working schedule feature
-     *
-     * @deprecated Teamleader marks users.getWeekSchedule deprecated. Use
-     *             userSchedules()->forUser($id, $from, $until) instead; this
-     *             raises E_USER_DEPRECATED once per process and goes in v3.0.
-     *
-     * @param  string  $id  User UUID
-     */
-    public function getWeekSchedule(string $id): array
-    {
-        static $warned = false;
-
-        if (! $warned) {
-            $warned = true;
-            trigger_error(
-                'users.getWeekSchedule is deprecated by Teamleader. Use userSchedules()->forUser($id, $from, $until), '
-                .'which returns per-day schedules for up to seven days.',
-                E_USER_DEPRECATED
-            );
-        }
-
-        return $this->api->request('POST', $this->getBasePath().'.getWeekSchedule', [
-            'id' => $id,
-        ]);
     }
 
     /**

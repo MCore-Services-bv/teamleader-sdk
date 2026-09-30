@@ -305,19 +305,6 @@ Remove all payments from an invoice (marks as unpaid)
 
 - `$id` — Invoice UUID
 
-### `draft()`
-
-> **Deprecated** Use listDrafts() — draft() is easily confused with create(), which is what actually creates a draft (POST invoices.draft).
-
-```php
-draft(array $additionalFilters = [], array $options = []): array
-```
-
-List draft invoices.
-
-- `$additionalFilters` — Additional filters to apply
-- `$options` — Pagination and sorting options
-
 ### `listDrafts()`
 
 ```php

@@ -142,18 +142,14 @@ use Psr\Log\LoggerInterface;
  * @method static CallOutcomes callOutcomes()
  * @method static Calls calls()
  * @method static Events calendarEvents()
- * @method static Events calenderEvents() Deprecated since v2.2.6 — use calendarEvents(). Removed in v3.0.
  * @method static Meetings meetings()
  *
  * Invoicing
  * @method static CommercialDiscounts commercialDiscounts()
  * @method static Creditnotes creditNotes()
- * @method static Creditnotes creditnotes() Deprecated since v2.2.6 — use creditNotes(). Removed in v3.0.
  * @method static Invoices invoices()
  * @method static PaymentMethods paymentMethods()
- * @method static PaymentMethods payment_methods() Deprecated since v2.2.6 — use paymentMethods(). Removed in v3.0.
  * @method static PaymentTerms paymentTerms()
- * @method static PaymentTerms payment_terms() Deprecated since v2.2.6 — use paymentTerms(). Removed in v3.0.
  * @method static Subscriptions subscriptions()
  * @method static TaxRates taxRates()
  * @method static WithholdingTaxRates withholdingTaxRates()
@@ -173,7 +169,6 @@ use Psr\Log\LoggerInterface;
  *
  * Projects
  * @method static ExternalParties externalParties()
- * @method static ExternalParties external_parties() Deprecated since v2.2.6 — use externalParties(). Removed in v3.0.
  * @method static Groups groups()
  * @method static LegacyMilestones legacyMilestones()
  * @method static LegacyProjects legacyProjects()
@@ -185,10 +180,8 @@ use Psr\Log\LoggerInterface;
  *
  * Planning
  * @method static PlannableItems plannableItems()
- * @method static PlannableItems plannable_items() Deprecated since v2.2.6 — use plannableItems(). Removed in v3.0.
  * @method static Reservations reservations()
  * @method static UserAvailability userAvailability()
- * @method static UserAvailability user_availability() Deprecated since v2.2.6 — use userAvailability(). Removed in v3.0.
  *
  * Tasks & time tracking
  * @method static Tasks tasks()

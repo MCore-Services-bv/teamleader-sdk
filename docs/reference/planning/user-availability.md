@@ -11,7 +11,6 @@ Teamleader::userAvailability()
 | | |
 |---|---|
 | Class | `McoreServices\TeamleaderSDK\Resources\Planning\UserAvailability` |
-| Also available as | `user_availability()` |
 | Create / update / delete | — / — / — |
 | Pagination | `page_size` / `page_number`; no totals — a short page is the last one |
 

@@ -893,20 +893,6 @@ class Invoices extends Resource
      *
      * @param  array  $additionalFilters  Additional filters to apply
      * @param  array  $options  Pagination and sorting options
-     *
-     * @deprecated Use listDrafts() — draft() is easily confused with create(),
-     *             which is what actually creates a draft (POST invoices.draft).
-     */
-    public function draft(array $additionalFilters = [], array $options = []): array
-    {
-        return $this->listDrafts($additionalFilters, $options);
-    }
-
-    /**
-     * List draft invoices.
-     *
-     * @param  array  $additionalFilters  Additional filters to apply
-     * @param  array  $options  Pagination and sorting options
      */
     public function listDrafts(array $additionalFilters = [], array $options = []): array
     {

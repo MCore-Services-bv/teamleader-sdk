@@ -11,7 +11,6 @@ Teamleader::paymentTerms()
 | | |
 |---|---|
 | Class | `McoreServices\TeamleaderSDK\Resources\Invoicing\PaymentTerms` |
-| Also available as | `payment_terms()` |
 | Create / update / delete | — / — / — |
 | Pagination | No |
 

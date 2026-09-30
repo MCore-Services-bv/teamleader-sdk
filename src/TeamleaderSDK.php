@@ -144,18 +144,15 @@ class TeamleaderSDK
     protected $resourceInstances = [];
 
     /**
-     * Resource keys renamed in v2.2.6, mapped to their canonical name.
+     * Resource keys removed in v3.0, mapped to the name that replaced them.
      *
-     * One misspelling and six snake_case outliers in an otherwise camelCase
-     * map. The SDK's own usage examples already used the camelCase names — so
-     * `$teamleader->paymentMethods()` threw "resource not found" while
-     * `payment_methods()` worked. Both spellings resolve to the same instance
-     * now; the old ones raise an E_USER_DEPRECATED notice (logged by Laravel,
-     * never thrown) and are removed in v3.0.
+     * v2.2.6 renamed one misspelling and six snake_case outliers to camelCase
+     * and kept the old keys as deprecated aliases. v3.0 removed the aliases;
+     * this map only makes the "not found" error name the replacement.
      *
      * @var array<string, string>
      */
-    protected array $deprecatedResourceAliases = [
+    protected array $removedResourceKeys = [
         'calenderEvents' => 'calendarEvents',
         'creditnotes' => 'creditNotes',
         'payment_methods' => 'paymentMethods',
@@ -164,14 +161,6 @@ class TeamleaderSDK
         'plannable_items' => 'plannableItems',
         'user_availability' => 'userAvailability',
     ];
-
-    /**
-     * Deprecated keys already reported in this process, so a loop does not
-     * raise one notice per iteration.
-     *
-     * @var array<string, true>
-     */
-    protected static array $reportedDeprecatedAliases = [];
 
     private TokenService $tokenService;
 
@@ -679,8 +668,6 @@ class TeamleaderSDK
 
     public function __call($name, $arguments)
     {
-        $name = $this->resolveResourceAlias($name);
-
         if (isset($this->resources[$name])) {
             if (! isset($this->resourceInstances[$name])) {
                 $class = $this->resources[$name];
@@ -689,43 +676,17 @@ class TeamleaderSDK
 
             return $this->resourceInstances[$name];
         }
-        throw new Exception("Method or resource '{$name}' not found");
-    }
 
-    /**
-     * Map a deprecated resource key to its canonical name.
-     *
-     * A key registered through addResource() wins over the alias, so an
-     * application that registered its own `payment_terms` resource keeps it.
-     */
-    protected function resolveResourceAlias(string $name): string
-    {
-        if (isset($this->resources[$name]) || ! isset($this->deprecatedResourceAliases[$name])) {
-            return $name;
-        }
+        if (isset($this->removedResourceKeys[$name])) {
+            $replacement = $this->removedResourceKeys[$name];
 
-        $canonical = $this->deprecatedResourceAliases[$name];
-
-        if (! isset(self::$reportedDeprecatedAliases[$name])) {
-            self::$reportedDeprecatedAliases[$name] = true;
-
-            trigger_error(
-                "Teamleader resource '{$name}()' is deprecated since v2.2.6 and will be removed in v3.0. Use '{$canonical}()'.",
-                E_USER_DEPRECATED
+            throw new Exception(
+                "Method or resource '{$name}' not found. It was renamed to '{$replacement}' in v2.2.6 "
+                ."and the old name was removed in v3.0. Use {$replacement}()."
             );
         }
 
-        return $canonical;
-    }
-
-    /**
-     * Deprecated resource keys and the canonical name each resolves to
-     *
-     * @return array<string, string>
-     */
-    public function getDeprecatedResourceAliases(): array
-    {
-        return $this->deprecatedResourceAliases;
+        throw new Exception("Method or resource '{$name}' not found");
     }
 
     public function addResource($name, $class)

@@ -169,20 +169,6 @@ List quotations with enhanced filtering and pagination
 - `$filters` — Filters to apply
 - `$options` — Additional options (pagination via page.size / page.number)
 
-### `byStatus()`
-
-> **Deprecated** since v2.2.2 — quotations.list has no `status` filter. The API ignored it and returned every quotation, so this method never filtered anything. Fetch and filter client-side on `data[].status`. Removed in v3.0.
-
-```php
-byStatus($status): array
-```
-
-Get quotations by status
-
-- `$status` — Single status or array of statuses
-
-**Throws** `InvalidArgumentException` Always
-
 ### `getResponseStructure()`
 
 ```php

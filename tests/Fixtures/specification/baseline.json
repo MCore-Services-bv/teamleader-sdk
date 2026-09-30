@@ -3,6 +3,6 @@
     "specification_version": "1.221.0",
     "open": {},
     "accepted": {
-        "users:endpoint.deprecated:users.getWeekSchedule": "Kept for backwards compatibility until v3.0. Users::getWeekSchedule() raises E_USER_DEPRECATED once per process and points to userSchedules()->forUser(), the successor endpoint."
+        "users:endpoint.unwrapped:users.getWeekSchedule": "Deliberately not wrapped since v3.0: Teamleader deprecated the endpoint. userSchedules()->forUser() wraps its successor, userSchedules.list."
     }
 }

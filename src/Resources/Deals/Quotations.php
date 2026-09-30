@@ -78,7 +78,8 @@ class Quotations extends Resource
      *
      * Verified against @teamleader/focus-api-specification: `ids` is the only
      * one. `status` was declared here until v2.2.2 and is not a filter — the API
-     * ignored it and returned every quotation. See byStatus().
+     * ignored it and returned every quotation. Filter client-side on
+     * `data[].status` instead.
      */
     protected array $commonFilters = [
         'ids' => 'Array of quotation UUIDs to filter by',
@@ -432,26 +433,6 @@ class Quotations extends Resource
         }
 
         return $page;
-    }
-
-    /**
-     * Get quotations by status
-     *
-     * @deprecated since v2.2.2 — quotations.list has no `status` filter. The API
-     * ignored it and returned every quotation, so this method never filtered
-     * anything. Fetch and filter client-side on `data[].status`. Removed in v3.0.
-     *
-     * @param  string|array  $status  Single status or array of statuses
-     *
-     * @throws InvalidArgumentException Always
-     */
-    public function byStatus($status): array
-    {
-        throw new InvalidArgumentException(
-            'quotations.list has no `status` filter — this method silently returned every '
-            .'quotation. Fetch with list() and filter client-side on data[].status, '
-            .'e.g. array_filter($result[\'data\'], fn ($q) => $q[\'status\'] === \'open\').'
-        );
     }
 
     /**

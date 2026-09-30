@@ -11,7 +11,6 @@ Teamleader::externalParties()
 | | |
 |---|---|
 | Class | `McoreServices\TeamleaderSDK\Resources\Projects\ExternalParties` |
-| Also available as | `external_parties()` |
 | Create / update / delete | — / — / — |
 | Pagination | No |
 

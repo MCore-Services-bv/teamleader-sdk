@@ -11,7 +11,6 @@ Teamleader::creditNotes()
 | | |
 |---|---|
 | Class | `McoreServices\TeamleaderSDK\Resources\Invoicing\Creditnotes` |
-| Also available as | `creditnotes()` |
 | Create / update / delete | — / — / — |
 | Pagination | `page_size` / `page_number`; no totals — a short page is the last one |
 
@@ -106,30 +105,6 @@ Get booked credit notes (convenience method)
 
 - `$additionalFilters` — Additional filters to apply
 - `$options` — Pagination options
-
-### `paid()`
-
-> **Deprecated** since v2.2.7 — creditNotes.list has no paid filter. This method set an internal `_paid` flag that buildFilters() then stripped, so it returned every credit note, paid or not. Filter client-side on `data[].paid`. Removed in v3.0.
-
-```php
-paid(array $additionalFilters = [], array $options = []): array
-```
-
-Get paid credit notes
-
-**Throws** `InvalidArgumentException` Always
-
-### `unpaid()`
-
-> **Deprecated** since v2.2.7 — see paid(). Removed in v3.0.
-
-```php
-unpaid(array $additionalFilters = [], array $options = []): array
-```
-
-Get unpaid credit notes
-
-**Throws** `InvalidArgumentException` Always
 
 ### `forInvoice()`
 

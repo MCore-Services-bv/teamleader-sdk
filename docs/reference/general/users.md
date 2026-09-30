@@ -16,7 +16,6 @@ Teamleader::users()
 
 ## Endpoints
 
-- `users.getWeekSchedule` — deprecated by Teamleader
 - `users.info`
 - `users.list`
 - `users.listDaysOff`
@@ -94,19 +93,6 @@ me(): array
 ```
 
 Get current authenticated user
-
-### `getWeekSchedule()`
-
-> **Deprecated** Teamleader marks users.getWeekSchedule deprecated. Use userSchedules()->forUser($id, $from, $until) instead; this raises E_USER_DEPRECATED once per process and goes in v3.0.
-
-```php
-getWeekSchedule(string $id): array
-```
-
-Get user week schedule
-Only available with the Weekly working schedule feature
-
-- `$id` — User UUID
 
 ### `listDaysOff()`
 
@@ -208,12 +194,6 @@ Get current authenticated user:
 
 ```php
 $currentUser = Teamleader::users()->me();
-```
-
-Get user week schedule:
-
-```php
-$schedule = Teamleader::users()->getWeekSchedule('user-uuid-here');
 ```
 
 Get user days off:

@@ -27,7 +27,8 @@ values** in the [API reference](../reference/README.md).
 fields, includes and pagination are compared with the specification.
 Differences are recorded in a baseline; CI fails on anything not in it, and on
 any baseline entry that no longer applies. One difference is recorded as
-accepted: the deprecated `users()->getWeekSchedule()` wrapper, kept until v3.0.
+accepted: `users.getWeekSchedule` is not wrapped, because Teamleader deprecated
+it — `userSchedules()->forUser()` wraps its successor.
 
 **Fixture freshness.** CI regenerates the fixtures from the pinned
 specification and fails if they differ from what is committed.

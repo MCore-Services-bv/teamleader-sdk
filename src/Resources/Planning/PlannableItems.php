@@ -231,28 +231,6 @@ class PlannableItems extends Resource
     }
 
     /**
-     * @deprecated since v2.2.16 — plannableItems.list has no status filter.
-     * Until now this sent `status: [active]`, which the API ignored, so it
-     * returned every item; it still does, without the ignored filter, and
-     * raises E_USER_DEPRECATED once. Removed in v3.0.
-     */
-    public function active(array $filters = [], array $options = []): array
-    {
-        static $warned = false;
-
-        if (! $warned) {
-            $warned = true;
-            trigger_error(
-                'plannableItems()->active() is deprecated: plannableItems.list has no status filter, so it never filtered. '
-                .'Use list(), or filter on completion_statuses / planned_time_statuses.',
-                E_USER_DEPRECATED
-            );
-        }
-
-        return $this->list($filters, $options);
-    }
-
-    /**
      * Get plannable items of the given types
      *
      * @param  list<string>  $types  closingDay, dayOffType, meeting, task, call, externalEvent

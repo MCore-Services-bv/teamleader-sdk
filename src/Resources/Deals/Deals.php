@@ -690,56 +690,6 @@ class Deals extends Resource
     }
 
     /**
-     * @deprecated since v2.2.5 — `lead.customer` is not an include. The lead
-     * is returned on every deal as a {type, id} reference; this method now
-     * adds nothing to the request. Removed in v3.0.
-     */
-    public function withCustomer(): self
-    {
-        return $this;
-    }
-
-    /**
-     * @deprecated since v2.2.5 — `responsible_user` is not an include. It is
-     * returned on every deal as a {type, id} reference; this method now adds
-     * nothing to the request. Removed in v3.0.
-     */
-    public function withResponsibleUser(): self
-    {
-        return $this;
-    }
-
-    /**
-     * @deprecated since v2.2.5 — `department` is not an include. It is
-     * returned on every deal as a {type, id} reference; this method now adds
-     * nothing to the request. Removed in v3.0.
-     */
-    public function withDepartment(): self
-    {
-        return $this;
-    }
-
-    /**
-     * @deprecated since v2.2.5 — `current_phase` is not an include. It is
-     * returned on every deal as a {type, id} reference; this method now adds
-     * nothing to the request. Removed in v3.0.
-     */
-    public function withCurrentPhase(): self
-    {
-        return $this;
-    }
-
-    /**
-     * @deprecated since v2.2.5 — `source` is not an include. It is returned
-     * on every deal as a {type, id} reference; this method now adds nothing to
-     * the request. Removed in v3.0.
-     */
-    public function withSource(): self
-    {
-        return $this;
-    }
-
-    /**
      * Fluent method to include custom fields — deals.list only; deals.info
      * returns them without being asked
      */
@@ -755,16 +705,6 @@ class Deals extends Resource
     public function withSecondResponsibleUser(): self
     {
         return $this->with('second_responsible_user');
-    }
-
-    /**
-     * @deprecated since v2.2.5 — every relation it requested is returned by
-     * default, and none of them is an include. Now adds nothing to the
-     * request. Removed in v3.0.
-     */
-    public function withAll(): self
-    {
-        return $this;
     }
 
     /**

@@ -192,7 +192,7 @@ trait FilterTrait
     /**
      * Queue one or more includes for the next request (fluent interface).
      *
-     * Resources expose typed wrappers around this — Deals::withCustomer(),
+     * Resources expose typed wrappers around this — Deals::withCustomFields(),
      * TimeTracking::withMaterials() and so on. The queued includes are consumed
      * and cleared by applyPendingIncludes() when the request is built, so the
      * fluent state does not leak into a subsequent call on the same instance.

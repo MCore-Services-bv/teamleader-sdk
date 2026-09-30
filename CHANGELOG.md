@@ -13,6 +13,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced caching strategies with tag-based invalidation
 - Laravel Pulse integration for monitoring
 
+### Removed (3.x branch)
+
+- **Everything deprecated during the 2.2.x audit.** 15 methods —
+  `users()->getWeekSchedule()`, `plannableItems()->active()`,
+  `invoices()->draft()`, `lostReasons()->search()`, `companies()->byName()`,
+  `quotations()->byStatus()`, `creditNotes()->paid()` / `unpaid()`,
+  `products()->withCustomFields()` and six no-op `deals()->with…()` methods —
+  and the seven resource keys renamed in v2.2.6 (`calenderEvents`,
+  `creditnotes`, `payment_methods`, `payment_terms`, `external_parties`,
+  `plannable_items`, `user_availability`). An old key throws an exception
+  naming its replacement. `TeamleaderSDK::getDeprecatedResourceAliases()` is
+  removed with them. See *From 2.3 to 3.0* in the upgrade guide.
+- `users.getWeekSchedule` is no longer wrapped. Teamleader deprecated it;
+  `userSchedules()->forUser()` wraps its successor. The spec-audit baseline
+  records this as an accepted `endpoint.unwrapped`.
+
 ### Changed (3.x branch)
 
 - **Requires PHP 8.4 or higher.** PHP 8.2 and 8.3 are dropped; CI tests

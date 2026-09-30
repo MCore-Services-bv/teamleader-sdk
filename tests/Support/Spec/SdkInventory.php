@@ -37,6 +37,10 @@ final class SdkInventory
     /**
      * Deprecated resource key => canonical key, as declared on TeamleaderSDK.
      *
+     * Empty since v3.0 removed the v2.2.6 aliases. Kept so a future rename can
+     * declare deprecated keys again and have the audit and reference pick them
+     * up without further changes.
+     *
      * @return array<string, string>
      */
     public function deprecatedAliases(): array

@@ -295,46 +295,6 @@ Get deals closing in a date range
 - `$until` — End date (inclusive)
 - `$additionalFilters` — Additional filters to apply
 
-### `withCustomer()`
-
-> **Deprecated** since v2.2.5 — `lead.customer` is not an include. The lead is returned on every deal as a {type, id} reference; this method now adds nothing to the request. Removed in v3.0.
-
-```php
-withCustomer(): self
-```
-
-### `withResponsibleUser()`
-
-> **Deprecated** since v2.2.5 — `responsible_user` is not an include. It is returned on every deal as a {type, id} reference; this method now adds nothing to the request. Removed in v3.0.
-
-```php
-withResponsibleUser(): self
-```
-
-### `withDepartment()`
-
-> **Deprecated** since v2.2.5 — `department` is not an include. It is returned on every deal as a {type, id} reference; this method now adds nothing to the request. Removed in v3.0.
-
-```php
-withDepartment(): self
-```
-
-### `withCurrentPhase()`
-
-> **Deprecated** since v2.2.5 — `current_phase` is not an include. It is returned on every deal as a {type, id} reference; this method now adds nothing to the request. Removed in v3.0.
-
-```php
-withCurrentPhase(): self
-```
-
-### `withSource()`
-
-> **Deprecated** since v2.2.5 — `source` is not an include. It is returned on every deal as a {type, id} reference; this method now adds nothing to the request. Removed in v3.0.
-
-```php
-withSource(): self
-```
-
 ### `withCustomFields()`
 
 ```php
@@ -352,14 +312,6 @@ withSecondResponsibleUser(): self
 
 Fluent method to include the second responsible user, on list() or
 info(). Requires the second deal responsible feature on the account.
-
-### `withAll()`
-
-> **Deprecated** since v2.2.5 — every relation it requested is returned by default, and none of them is an include. Now adds nothing to the request. Removed in v3.0.
-
-```php
-withAll(): self
-```
 
 ## Examples
 

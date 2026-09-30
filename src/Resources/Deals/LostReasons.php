@@ -145,24 +145,6 @@ class LostReasons extends Resource
     }
 
     /**
-     * Get lost reasons by ID
-     *
-     * @deprecated since v2.2.5 — the name suggested a text search, which
-     * lostReasons.list does not offer. Use byIds(), or all() and filter
-     * client-side. Removed in v3.0.
-     *
-     * @param  array  $ids  Array of IDs to fetch; empty returns all()
-     */
-    public function search(array $ids = []): array
-    {
-        if (empty($ids)) {
-            return $this->all();
-        }
-
-        return $this->byIds($ids);
-    }
-
-    /**
      * Build filters array for the API request
      *
      * @throws \InvalidArgumentException When an unsupported filter key is passed

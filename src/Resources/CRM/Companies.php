@@ -224,25 +224,6 @@ class Companies extends Resource
     }
 
     /**
-     * Fuzzy search by company name
-     *
-     * @deprecated since v2.2.1 — companies.list has no `name` filter. The API
-     * ignored it and returned every company, unfiltered, with HTTP 200. Use
-     * search() / the `term` filter, which searches name as well as VAT number,
-     * emails and telephones. This method will be removed in v3.0.
-     *
-     * @throws InvalidArgumentException Always
-     */
-    public function byName(string $name, array $options = []): array
-    {
-        throw new InvalidArgumentException(
-            'companies.list has no `name` filter — this method silently returned every '
-            ."company. Use search('{$name}') instead, which filters on name, VAT number, "
-            .'emails and telephones via the `term` filter.'
-        );
-    }
-
-    /**
      * General search across multiple fields (name, VAT, email, phone)
      */
     public function searchAll(string $query, array $options = []): array

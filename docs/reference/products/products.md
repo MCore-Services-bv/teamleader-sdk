@@ -138,14 +138,6 @@ Get products updated since a datetime
 withSuppliers(): self
 ```
 
-### `withCustomFields()`
-
-> **Deprecated** since v2.2.15 — `custom_fields` is not an include. products.info returns custom fields on every call and products.list returns none. This method now adds nothing to the request. Removed in v3.0.
-
-```php
-withCustomFields(): self
-```
-
 ## Examples
 
 Get all products:

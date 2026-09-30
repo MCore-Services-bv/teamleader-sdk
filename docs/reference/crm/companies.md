@@ -120,18 +120,6 @@ byNationalIdentificationNumber(string $number, array $options = []): array
 
 Search by national identification number
 
-### `byName()`
-
-> **Deprecated** since v2.2.1 — companies.list has no `name` filter. The API ignored it and returned every company, unfiltered, with HTTP 200. Use search() / the `term` filter, which searches name as well as VAT number, emails and telephones. This method will be removed in v3.0.
-
-```php
-byName(string $name, array $options = []): array
-```
-
-Fuzzy search by company name
-
-**Throws** `InvalidArgumentException` Always
-
 ### `searchAll()`
 
 ```php

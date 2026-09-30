@@ -338,14 +338,4 @@ class Products extends Resource
     {
         return $this->with('suppliers');
     }
-
-    /**
-     * @deprecated since v2.2.15 — `custom_fields` is not an include.
-     * products.info returns custom fields on every call and products.list
-     * returns none. This method now adds nothing to the request. Removed in v3.0.
-     */
-    public function withCustomFields(): self
-    {
-        return $this;
-    }
 }

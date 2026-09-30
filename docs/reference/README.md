@@ -174,17 +174,3 @@ Every resource that accepts sideloaded includes. No other resource takes any; se
 | [Time Tracking](time-tracking/time-tracking.md) | `materials`, `relates_to` | `materials`, `relates_to` |
 | [Meetings](calendar/meetings.md) | `estimated_time`, `tracked_time` | `estimated_time`, `tracked_time` |
 | [Users](general/users.md) | — | `external_rate` |
-
-## Deprecated resource keys
-
-These keys still resolve, with an `E_USER_DEPRECATED` notice, and are removed in v3.0.
-
-| Deprecated | Use |
-|---|---|
-| `calenderEvents()` | `calendarEvents()` |
-| `creditnotes()` | `creditNotes()` |
-| `external_parties()` | `externalParties()` |
-| `payment_methods()` | `paymentMethods()` |
-| `payment_terms()` | `paymentTerms()` |
-| `plannable_items()` | `plannableItems()` |
-| `user_availability()` | `userAvailability()` |

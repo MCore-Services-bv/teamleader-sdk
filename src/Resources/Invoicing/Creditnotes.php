@@ -252,39 +252,6 @@ PHP,
     }
 
     /**
-     * Get paid credit notes
-     *
-     * @deprecated since v2.2.7 — creditNotes.list has no paid filter. This
-     * method set an internal `_paid` flag that buildFilters() then stripped, so
-     * it returned every credit note, paid or not. Filter client-side on
-     * `data[].paid`. Removed in v3.0.
-     *
-     * @throws InvalidArgumentException Always
-     */
-    public function paid(array $additionalFilters = [], array $options = []): array
-    {
-        throw new InvalidArgumentException(
-            'creditNotes.list has no paid filter — paid() returned every credit note. '
-            .'Fetch with list() and filter client-side on data[].paid.'
-        );
-    }
-
-    /**
-     * Get unpaid credit notes
-     *
-     * @deprecated since v2.2.7 — see paid(). Removed in v3.0.
-     *
-     * @throws InvalidArgumentException Always
-     */
-    public function unpaid(array $additionalFilters = [], array $options = []): array
-    {
-        throw new InvalidArgumentException(
-            'creditNotes.list has no paid filter — unpaid() returned every credit note. '
-            .'Fetch with list() and filter client-side on data[].paid === false.'
-        );
-    }
-
-    /**
      * Get credit notes for a specific invoice
      *
      * @param  string  $invoiceId  Invoice UUID

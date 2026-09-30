@@ -40,20 +40,6 @@ final class PlanningPayloadTest extends ResourceTestCase
         $this->expectRejected(fn () => $this->resource(PlannableItems::class)->list(['status' => ['active']]), 'no status filter');
     }
 
-    public function test_active_is_deprecated_and_sends_no_status(): void
-    {
-        set_error_handler(fn () => true, E_USER_DEPRECATED);
-
-        try {
-            $this->resource(PlannableItems::class)->active();
-        } finally {
-            restore_error_handler();
-        }
-
-        $this->assertLastEndpoint('plannableItems.list');
-        $this->assertLastBodyMissing('filter.status');
-    }
-
     public function test_types_filter_and_field_order_sort(): void
     {
         $this->resource(PlannableItems::class)->ofTypes(['task', 'meeting'], [], ['sort' => 'end_date:desc']);

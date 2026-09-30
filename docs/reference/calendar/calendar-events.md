@@ -11,7 +11,6 @@ Teamleader::calendarEvents()
 | | |
 |---|---|
 | Class | `McoreServices\TeamleaderSDK\Resources\Calendar\Events` |
-| Also available as | `calenderEvents()` |
 | Create / update / delete | ✓ / ✓ / ✓ |
 | Pagination | `page_size` / `page_number`; no totals — a short page is the last one |
 
