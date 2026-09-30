@@ -1,5 +1,35 @@
 # Upgrading
 
+## From 2.3 to 3.0
+
+> 3.0 is in development on the `3.x` branch. This section grows as the
+> breaking changes land.
+
+### Requirements
+
+**PHP 8.4 or higher.** 3.0 drops PHP 8.2 and 8.3. Laravel 12 and 13 are both
+still supported.
+
+| | 2.3 | 3.0 |
+|---|---|---|
+| PHP | 8.2 – 8.5 | 8.4 – 8.5 |
+| Laravel | 12, 13 | 12, 13 |
+
+Check your version with `php -v`. If you are on 8.2 or 8.3, stay on
+`^2.3` until you have upgraded PHP; 2.x receives security fixes for three
+months after 3.0 is released.
+
+### Sorting
+
+No code changes are needed. Two small differences:
+
+- Sort validation messages name the endpoint:
+  `Invalid sort field: title. deals.list accepts: created_at, weighted_value.`
+  If you match on the old `Accepted:` wording, match on `Invalid sort field`
+  instead.
+- `timeTracking()->list()` now also accepts a list of field names and a
+  `['starts_on' => 'desc']` map, like every other resource.
+
 ## From 2.2 to 2.3
 
 There are no breaking API changes in the SDK itself, and 2.3 runs on the same

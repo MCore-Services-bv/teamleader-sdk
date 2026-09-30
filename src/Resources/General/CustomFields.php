@@ -653,6 +653,9 @@ class CustomFields extends Resource
      *
      * The API expects an array of objects — [['field' => ..., 'order' => ...]].
      *
+     * Delegates to FilterTrait::normaliseSort(), which validates each field
+     * against $availableSortFields.
+     *
      * @param  array|string  $sort  A field name, an array of field names, or an
      *                              array of ['field' => ..., 'order' => ...] entries
      * @param  string  $order  Default order applied to entries that do not carry one
@@ -661,77 +664,7 @@ class CustomFields extends Resource
      */
     protected function buildSort($sort, string $order = 'asc'): array
     {
-        $order = $this->normaliseSortOrder($order);
-
-        // Already a list of sort objects
-        if (is_array($sort) && isset($sort[0]) && is_array($sort[0])) {
-            return array_map(function (array $entry) use ($order) {
-                return [
-                    'field' => $this->validateSortField($entry['field'] ?? null),
-                    'order' => $this->normaliseSortOrder($entry['order'] ?? $order),
-                ];
-            }, $sort);
-        }
-
-        // A single ['field' => ..., 'order' => ...] entry
-        if (is_array($sort) && isset($sort['field'])) {
-            return [[
-                'field' => $this->validateSortField($sort['field']),
-                'order' => $this->normaliseSortOrder($sort['order'] ?? $order),
-            ]];
-        }
-
-        // A list of field names
-        if (is_array($sort)) {
-            return array_map(fn ($field) => [
-                'field' => $this->validateSortField($field),
-                'order' => $order,
-            ], array_values($sort));
-        }
-
-        // A single field name
-        return [[
-            'field' => $this->validateSortField($sort),
-            'order' => $order,
-        ]];
-    }
-
-    /**
-     * Ensure a sort field is one the API accepts
-     *
-     * @throws InvalidArgumentException
-     */
-    protected function validateSortField(mixed $field): string
-    {
-        if (! is_string($field) || ! array_key_exists($field, $this->availableSortFields)) {
-            throw new InvalidArgumentException(
-                'Invalid sort field: '.(is_string($field) ? $field : gettype($field))
-                .'. customFieldDefinitions.list accepts: '
-                .implode(', ', array_keys($this->availableSortFields)).'.'
-            );
-        }
-
-        return $field;
-    }
-
-    /**
-     * Ensure a sort order is asc or desc
-     *
-     * @throws InvalidArgumentException
-     */
-    protected function normaliseSortOrder(mixed $order): string
-    {
-        if (! is_string($order)) {
-            throw new InvalidArgumentException('Sort order must be a string: asc or desc.');
-        }
-
-        $normalised = strtolower($order);
-
-        if (! in_array($normalised, ['asc', 'desc'], true)) {
-            throw new InvalidArgumentException("Invalid sort order: {$order}. Must be asc or desc.");
-        }
-
-        return $normalised;
+        return $this->normaliseSort($sort, $order);
     }
 
     /**

@@ -4,7 +4,7 @@
 
 | Requirement | Version |
 |---|---|
-| PHP | 8.2 or higher (tested on 8.2 – 8.5) |
+| PHP | 8.4 or higher (tested on 8.4 – 8.5) |
 | Laravel | 12.x or 13.x |
 | Database | MySQL 5.7+, PostgreSQL 10+ or SQLite 3.8+ |
 | Cache | Any Laravel store; Redis for production |

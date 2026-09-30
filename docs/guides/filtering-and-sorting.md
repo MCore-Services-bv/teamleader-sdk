@@ -98,7 +98,7 @@ or `desc`:
 ```php
 Teamleader::companies()->list([], ['sort' => 'created_at']);
 // InvalidArgumentException: Invalid sort field: created_at.
-// Accepted: name, added_at, updated_at.
+// companies.list accepts: name, added_at, updated_at.
 ```
 
 The API would have ignored it and returned its default order.

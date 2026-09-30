@@ -198,7 +198,7 @@ installation — so they must not appear here.
 ```yaml
 strategy:
   matrix:
-    php: ['8.2', '8.3']
+    php: ['8.4', '8.5']
     laravel: ['12.*', '13.*']
 ```
 

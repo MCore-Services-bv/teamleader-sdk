@@ -255,10 +255,12 @@ trait FilterTrait
      * Resources that declare $availableSortFields get their fields validated;
      * those that do not are passed through unchecked.
      *
-     * Note that several resources define their own copies of this method and of
-     * validateSortField()/normaliseSortOrder(). A class method takes precedence
-     * over a trait method, so those keep their own behaviour. Consolidating them
-     * onto this trait is a v3.0 item.
+     * This is the single implementation of the sort rule. Until v3.0 Deals,
+     * TimeTracking and CustomFields each carried their own copy of this method
+     * and of validateSortField()/normaliseSortOrder(); they now delegate here.
+     * Resources adapt it through a thin buildSort() wrapper — for an endpoint
+     * that only sorts ascending, or accepts a `field:order` shorthand — never
+     * by redefining the validation.
      *
      * @param  array|string  $sort
      *
@@ -336,11 +338,23 @@ trait FilterTrait
         // and predates the convention.
         if ($available !== [] && ! array_is_list($available) && ! array_key_exists($field, $available)) {
             throw new \InvalidArgumentException(
-                "Invalid sort field: {$field}. Accepted: ".implode(', ', array_keys($available)).'.'
+                "Invalid sort field: {$field}. {$this->sortEndpoint()} accepts: "
+                .implode(', ', array_keys($available)).'.'
             );
         }
 
         return $field;
+    }
+
+    /**
+     * The endpoint named in sort validation messages.
+     *
+     * Every sortable endpoint is a `.list`, so the default is the resource's
+     * base path plus `.list`. Override when a resource sorts on another endpoint.
+     */
+    protected function sortEndpoint(): string
+    {
+        return method_exists($this, 'getBasePath') ? $this->getBasePath().'.list' : 'This endpoint';
     }
 
     /**

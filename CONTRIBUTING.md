@@ -36,7 +36,7 @@ What you expected to happen
 What actually happened
 
 **Environment:**
-- PHP Version: 8.3.x
+- PHP Version: 8.4.x
 - Laravel Version: 12.x / 13.x
 - Package Version: 2.2.x
 - Teamleader Account Type: Focus (projects-v2 / legacy)
@@ -73,7 +73,7 @@ Feature suggestions are welcome. Please:
 
 ### Prerequisites
 
-- PHP 8.2 or higher (CI tests 8.2 – 8.5)
+- PHP 8.4 or higher (CI tests 8.4 – 8.5)
 - Composer
 - Laravel 12 or 13
 - Redis, for the rate limiter tests
@@ -124,9 +124,9 @@ composer format
 vendor/bin/pint --test
 ```
 
-CI gates style on **PHP 8.3**. If you have a different version as your default,
+CI gates style on **PHP 8.4**. If you have a different version as your default,
 Pint output can differ on edge cases, so a locally clean commit can still fail
-CI. The repository's `pre-commit` hook looks for an 8.3 binary and warns if it
+CI. The repository's `pre-commit` hook looks for an 8.4 binary and warns if it
 cannot find one.
 
 ## 📝 Coding Guidelines

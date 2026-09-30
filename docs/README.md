@@ -43,7 +43,7 @@ lock, the rate limiter waits for a free slot instead of spending requests on
 
 ## Requirements
 
-- PHP 8.2 or higher (tested on 8.2 – 8.5)
+- PHP 8.4 or higher (tested on 8.4 – 8.5)
 - Laravel 12.x or 13.x
 - A database for the token table (MySQL, PostgreSQL or SQLite)
 - Redis, when rate limiting is enabled — it is by default

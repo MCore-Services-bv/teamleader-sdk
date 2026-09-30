@@ -675,87 +675,21 @@ class TimeTracking extends Resource
      * The API accepts a single sort field, `starts_on`. Anything else is
      * silently ignored by the API, so it is rejected here.
      *
+     * Overrides FilterTrait::applySorting(), which passes sort through
+     * unvalidated, and delegates to FilterTrait::normaliseSort() — the same
+     * rule every other sortable resource uses.
+     *
      * @throws InvalidArgumentException When the sort field or order is not supported
      */
     protected function applySorting(array $params = [], $sort = null, $order = 'asc'): array
     {
-        // Handle null sort - return params as-is
-        if (! $sort) {
+        if (empty($sort)) {
             return $params;
         }
 
-        // If sort is already a list of sort objects
-        if (is_array($sort) && isset($sort[0]['field'])) {
-            $params['sort'] = array_map(fn (array $entry) => [
-                'field' => $this->validateSortField($entry['field']),
-                'order' => $this->normaliseSortOrder($entry['order'] ?? $order),
-            ], $sort);
+        $params['sort'] = $this->normaliseSort($sort, $order);
 
-            return $params;
-        }
-
-        // If sort is an array with 'field' and 'order' keys
-        if (is_array($sort) && isset($sort['field'])) {
-            $params['sort'] = [[
-                'field' => $this->validateSortField($sort['field']),
-                'order' => $this->normaliseSortOrder($sort['order'] ?? $order),
-            ]];
-
-            return $params;
-        }
-
-        // If sort is a string (field name), convert to proper structure
-        if (is_string($sort)) {
-            $params['sort'] = [[
-                'field' => $this->validateSortField($sort),
-                'order' => $this->normaliseSortOrder($order),
-            ]];
-
-            return $params;
-        }
-
-        throw new InvalidArgumentException(
-            'Unrecognised sort format. Pass a field name, '
-            ."['field' => ..., 'order' => ...], or a list of those."
-        );
-    }
-
-    /**
-     * Ensure a sort field is one the API accepts
-     *
-     * @throws InvalidArgumentException
-     */
-    protected function validateSortField(mixed $field): string
-    {
-        if (! is_string($field) || ! array_key_exists($field, $this->availableSortFields)) {
-            throw new InvalidArgumentException(
-                'Invalid sort field: '.(is_string($field) ? $field : gettype($field))
-                .'. timeTracking.list accepts: '
-                .implode(', ', array_keys($this->availableSortFields)).'.'
-            );
-        }
-
-        return $field;
-    }
-
-    /**
-     * Ensure a sort order is asc or desc
-     *
-     * @throws InvalidArgumentException
-     */
-    protected function normaliseSortOrder(mixed $order): string
-    {
-        if (! is_string($order)) {
-            throw new InvalidArgumentException('Sort order must be a string: asc or desc.');
-        }
-
-        $normalised = strtolower($order);
-
-        if (! in_array($normalised, ['asc', 'desc'], true)) {
-            throw new InvalidArgumentException("Invalid sort order: {$order}. Must be asc or desc.");
-        }
-
-        return $normalised;
+        return $params;
     }
 
     /**

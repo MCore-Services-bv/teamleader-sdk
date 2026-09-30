@@ -17,12 +17,12 @@
         "email": "help@mcore-services.be"
     },
     "require": {
-        "php": "^8.2",
+        "php": "^8.4",
         "guzzlehttp/guzzle": "^7.0",
         "illuminate/support": "^12.0|^13.0"
     },
     "require-dev": {
-        "phpunit/phpunit": "^11.5.50|^12.5.8",
+        "phpunit/phpunit": "^12.5.8",
         "orchestra/testbench": "^10.0|^11.0",
         "mockery/mockery": "^1.6",
         "laravel/pint": "^1.13",

@@ -13,6 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced caching strategies with tag-based invalidation
 - Laravel Pulse integration for monitoring
 
+### Changed (3.x branch)
+
+- **Requires PHP 8.4 or higher.** PHP 8.2 and 8.3 are dropped; CI tests
+  PHP 8.4 and 8.5 against Laravel 12 and 13, and code style is checked on
+  PHP 8.4. PHPUnit 11 is dropped from the development dependencies.
+- **One sort rule.** Deals, TimeTracking and CustomFields carried their own
+  copies of `normaliseSort()` / `validateSortField()` / `normaliseSortOrder()`,
+  which had drifted apart. They now delegate to `FilterTrait`, like every other
+  sortable resource. Accepted inputs are unchanged, with two additions:
+  TimeTracking now also takes a list of field names and a
+  `['field' => 'order']` map, as the other resources already did.
+- Sort validation messages name the endpoint on every resource:
+  `Invalid sort field: title. deals.list accepts: created_at, weighted_value.`
+  (previously `… Accepted: …` on most resources).
+
 ---
 
 ## [2.3.2] - 2026-09-30
