@@ -7,6 +7,7 @@ use Exception;
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use McoreServices\TeamleaderSDK\Connections\ConnectionManager;
 use McoreServices\TeamleaderSDK\TeamleaderSDK;
 
 class HealthCheckService
@@ -36,6 +37,7 @@ class HealthCheckService
             'database_connection' => $this->checkDatabaseConnection(),
             'cache_system' => $this->checkCacheSystem(),
             'error_handling' => $this->checkErrorHandling(),
+            'connections' => $this->checkConnections(),
         ];
 
         return new HealthCheckResult($checks);
@@ -76,6 +78,49 @@ class HealthCheckService
                     'error' => 'Configuration validation failed: '.$e->getMessage(),
                     'exception' => get_class($e),
                 ],
+            ];
+        }
+    }
+
+    /**
+     * Every connection: one that needs to be connected again is an error; a
+     * connected one whose access token expired means nothing renewed it —
+     * with auto_refresh on, the Laravel scheduler is probably not running.
+     */
+    private function checkConnections(): array
+    {
+        try {
+            $statuses = (app()->bound(ConnectionManager::class) ? app(ConnectionManager::class) : new ConnectionManager)->statuses();
+
+            $needs = array_keys(array_filter($statuses, fn ($row) => $row['status'] === ConnectionManager::STATUS_NEEDS_REAUTHORIZATION));
+            $unreadable = array_keys(array_filter($statuses, fn ($row) => $row['status'] === ConnectionManager::STATUS_UNREADABLE));
+            $expired = array_keys(array_filter($statuses, fn ($row) => $row['status'] === ConnectionManager::STATUS_CONNECTED
+                && $row['expires_in'] !== null && $row['expires_in'] <= 0));
+
+            $details = ['connections' => array_values($statuses)];
+            $status = 'healthy';
+
+            if ($expired !== []) {
+                $status = 'warning';
+                $details['warning'] = 'Access token expired without being renewed: '.implode(', ', $expired)
+                    .(config('teamleader.tokens.auto_refresh', true)
+                        ? '. Is the Laravel scheduler running (`php artisan schedule:work`, or cron for `schedule:run`)?'
+                        : '. Run `php artisan teamleader:tokens:refresh` on a schedule, or enable tokens.auto_refresh.');
+            }
+
+            if ($needs !== [] || $unreadable !== []) {
+                $status = 'error';
+                $details['error'] = trim(
+                    ($needs !== [] ? 'Needs to be connected again: '.implode(', ', $needs).'. ' : '')
+                    .($unreadable !== [] ? 'Tokens unreadable: '.implode(', ', $unreadable).'.' : '')
+                );
+            }
+
+            return ['status' => $status, 'details' => $details];
+        } catch (Exception $e) {
+            return [
+                'status' => 'error',
+                'details' => ['error' => 'Connection check failed: '.$e->getMessage()],
             ];
         }
     }

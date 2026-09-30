@@ -3,6 +3,7 @@
 namespace McoreServices\TeamleaderSDK;
 
 use Exception;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
@@ -63,13 +64,36 @@ class TeamleaderServiceProvider extends ServiceProvider
                 Console\Commands\TeamleaderHealthCommand::class,
                 Console\Commands\TeamleaderConfigValidateCommand::class,
                 Console\Commands\TeamleaderExportUuidsCommand::class,
+                Console\Commands\RefreshTokensCommand::class,
             ]);
         }
+
+        $this->scheduleTokenRefresh();
 
         $this->registerTrafficLogging();
 
         // Validate configuration on boot (if enabled)
         $this->validateConfigurationOnBoot();
+    }
+
+    /**
+     * Renew tokens every ten minutes, so a connection nobody uses stays
+     * connected and a refused refresh token is found before a real request
+     * needs it. Needs the Laravel scheduler to run. Off with
+     * teamleader.tokens.auto_refresh = false.
+     */
+    protected function scheduleTokenRefresh(): void
+    {
+        if (! config('teamleader.tokens.auto_refresh', true)) {
+            return;
+        }
+
+        $this->callAfterResolving(Schedule::class, function (Schedule $schedule) {
+            $schedule->command('teamleader:tokens:refresh')
+                ->everyTenMinutes()
+                ->withoutOverlapping()
+                ->onOneServer();
+        });
     }
 
     /**

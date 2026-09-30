@@ -18,6 +18,7 @@ use McoreServices\TeamleaderSDK\Events\RequestSending;
 use McoreServices\TeamleaderSDK\Events\ResponseReceived;
 use McoreServices\TeamleaderSDK\Exceptions\AccountMismatchException;
 use McoreServices\TeamleaderSDK\Exceptions\ConfigurationException;
+use McoreServices\TeamleaderSDK\Exceptions\ConnectionNeedsReauthorizationException;
 use McoreServices\TeamleaderSDK\Exceptions\OAuthStateException;
 use McoreServices\TeamleaderSDK\Exceptions\RateLimitExceededException;
 use McoreServices\TeamleaderSDK\Services\ApiRateLimiterService;
@@ -652,6 +653,17 @@ class TeamleaderSDK
             // If a manual token was set, use it. Otherwise, get from TokenService
             if (! $this->manualTokenSet) {
                 $this->accessToken = $this->tokenService->getValidAccessToken();
+            }
+
+            if (empty($this->accessToken) && ! $this->manualTokenSet && $this->tokenService->needsReauthorization()) {
+                $exception = new ConnectionNeedsReauthorizationException($this->connectionConfig->name);
+
+                $this->fireEvent(RequestFailed::class, fn () => new RequestFailed(
+                    (string) $method, (string) $endpoint, 401, $exception->getMessage(), $exception,
+                    connection: $this->connectionConfig->name,
+                ));
+
+                throw $exception;
             }
 
             if (empty($this->accessToken)) {

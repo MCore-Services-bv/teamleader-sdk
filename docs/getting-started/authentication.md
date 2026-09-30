@@ -103,10 +103,58 @@ php artisan teamleader:status
 
 ## Token refresh
 
-Access tokens are refreshed automatically when they have less than 15 minutes
-left. Refreshes are serialised with a cache lock, so concurrent workers do not
-race each other. If Teamleader rejects the refresh token, the stored tokens are
-cleared and the user has to connect again.
+Access tokens are refreshed before they run out, two ways:
+
+- **On a schedule.** The package schedules `teamleader:tokens:refresh` every
+  ten minutes, which renews every connection whose token expires within 30
+  minutes. A connection nobody uses stays connected, and a revoked refresh
+  token is found before a real request needs it. **This needs the Laravel
+  scheduler to run** — `php artisan schedule:work` locally, a cron entry for
+  `schedule:run` in production (Forge sets one up under *Scheduler*).
+- **On demand**, when a request finds less than 15 minutes left.
+
+Both use the same per-connection lock, so they never refresh a connection
+twice — which matters, because each refresh returns a new refresh token.
+
+```bash
+php artisan teamleader:tokens:refresh                     # every connection that is due
+php artisan teamleader:tokens:refresh --connection=ghent  # one
+php artisan teamleader:tokens:refresh --force             # even when not due
+```
+
+`TEAMLEADER_TOKENS_AUTO_REFRESH=false` turns the schedule off;
+`TEAMLEADER_TOKENS_REFRESH_BEFORE` (seconds, default 1800) sets how early.
+
+### When Teamleader refuses the refresh token
+
+A revoked or long-unused refresh token cannot be renewed. The connection is
+marked **`needs_reauthorization`** — the tokens are kept for inspection, not
+deleted — and a `TokenRefreshFailed` event with `reauthorizationRequired` is
+fired. From then on, every request on that connection throws
+`ConnectionNeedsReauthorizationException` naming it, whatever
+`TEAMLEADER_THROW_EXCEPTIONS` says. Send a user through `authorize()` for that
+connection to fix it.
+
+Listen for the event to be told — see
+[Events and Logging](../guides/events-and-logging.md#alert-when-an-account-needs-reconnecting).
+
+### Status
+
+```bash
+php artisan teamleader:status --all
+```
+
+```
+ Connection  Account              Status                 Expires in   Last refresh
+ antwerp     Klant Antwerpen      connected              41 min       3 minutes ago
+ default     MCore Services       connected              52 min       3 minutes ago
+ ghent       Klant Gent           needs_reauthorization  —            2 days ago
+```
+
+It exits with 1 when any connection needs to be connected again, so it can
+run in a deploy check. `teamleader:health` reports the same, and warns when a
+token expired without being renewed — the sign that the scheduler is not
+running.
 
 How tokens are stored, and how to harden that for production, is covered in
 [Token storage and security](../guides/token-storage-and-security.md).

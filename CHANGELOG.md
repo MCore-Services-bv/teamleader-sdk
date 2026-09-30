@@ -43,6 +43,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added (3.x branch)
 
+- **Scheduled token renewal.** `teamleader:tokens:refresh` renews every
+  connection whose token expires within `tokens.refresh_before` (30 minutes),
+  under the same lock as a request-time refresh; the package schedules it
+  every ten minutes (`tokens.auto_refresh`, `withoutOverlapping()`,
+  `onOneServer()`). `TokenService::refreshIfDue()` does the work.
+- **`needs_reauthorization`.** A refused refresh token marks the connection
+  instead of deleting its tokens; requests then throw
+  `ConnectionNeedsReauthorizationException` naming the connection.
+- `teamleader:status --all` (one line per connection, exit 1 when one needs
+  reconnecting) and `--connection=`; `teamleader:health` checks every
+  connection and warns when a token expired unrenewed.
 - One OAuth callback route for every connection: the state records which
   connection started the flow. The connected account's id (`users.me`) and
   name (its first department) are stored with the tokens, and a

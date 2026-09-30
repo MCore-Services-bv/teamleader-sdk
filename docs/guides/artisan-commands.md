@@ -2,8 +2,9 @@
 
 | Command | |
 |---|---|
-| `teamleader:status` | Connection, token and rate-limit status |
-| `teamleader:health` | Health checks: configuration, authentication, tokens, API connectivity, rate limits, database, the token cache and dependencies |
+| `teamleader:status` | Connection, token and rate-limit status; `--all` for every connection, `--connection=` for one |
+| `teamleader:tokens:refresh` | Renew tokens that expire soon — scheduled every ten minutes by the package |
+| `teamleader:health` | Health checks: configuration, authentication, tokens, every connection, API connectivity, rate limits, database, the token cache and dependencies |
 | `teamleader:config:validate` | Validate the configuration and environment |
 | `teamleader:export-uuids` | Print account UUIDs for `config/teamleader.php` |
 

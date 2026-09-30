@@ -103,6 +103,10 @@ class TokenService
             return null;
         }
 
+        if ($tokens->needsReauthorization()) {
+            return null;
+        }
+
         if ($this->shouldRefresh($tokens)) {
             $this->log()->debug('TokenService: Token needs refreshing', ['connection' => $this->connection]);
 
@@ -266,6 +270,85 @@ class TokenService
     }
 
     /**
+     * Whether Teamleader refused this connection's refresh token. The tokens
+     * are kept for inspection but never used, until the account is connected
+     * again (storeTokens() resets the status).
+     */
+    public function needsReauthorization(): bool
+    {
+        return (bool) $this->current()?->needsReauthorization();
+    }
+
+    /**
+     * Flag the connection as needing a new OAuth authorisation. The stored
+     * tokens are kept, not deleted, so what went wrong can still be inspected.
+     */
+    public function markNeedsReauthorization(): void
+    {
+        $stored = $this->readStore();
+
+        $this->forgetCache();
+
+        if ($stored === null || $stored->needsReauthorization()) {
+            return;
+        }
+
+        try {
+            $this->store->put($this->connection, $stored->withStatus(StoredTokens::NEEDS_REAUTHORIZATION));
+        } catch (Throwable $e) {
+            $this->log()->error('TokenService: Failed to mark the connection as needing reauthorization', [
+                'connection' => $this->connection,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public const REFRESHED = 'refreshed';
+
+    public const NOT_DUE = 'not_due';
+
+    public const NOT_CONNECTED = 'not_connected';
+
+    public const NEEDS_REAUTHORIZATION = 'needs_reauthorization';
+
+    public const FAILED = 'failed';
+
+    /**
+     * Refresh the access token when it expires within $withinSeconds — the
+     * scheduled renewal. Uses the same lock as a request-time refresh, so a
+     * scheduled run and a busy worker never refresh the same connection twice.
+     *
+     * @param  bool  $force  Refresh even when not due
+     * @return string One of REFRESHED, NOT_DUE, NOT_CONNECTED, NEEDS_REAUTHORIZATION, FAILED
+     */
+    public function refreshIfDue(int $withinSeconds, bool $force = false): string
+    {
+        // Straight from the store: the cache may be older than another process's refresh
+        $this->forgetCache();
+        $tokens = $this->readStore();
+
+        if ($tokens === null || $tokens->accessToken === '') {
+            return self::NOT_CONNECTED;
+        }
+
+        if ($tokens->needsReauthorization()) {
+            return self::NEEDS_REAUTHORIZATION;
+        }
+
+        $secondsLeft = $tokens->secondsUntilExpiry();
+
+        if (! $force && $secondsLeft !== null && $secondsLeft > $withinSeconds) {
+            return self::NOT_DUE;
+        }
+
+        if ($this->refreshTokenIfNeeded() !== null) {
+            return self::REFRESHED;
+        }
+
+        return $this->readStore()?->needsReauthorization() ? self::NEEDS_REAUTHORIZATION : self::FAILED;
+    }
+
+    /**
      * Refresh the access token using the refresh token with proper locking
      */
     public function refreshTokenIfNeeded(): ?string
@@ -311,7 +394,7 @@ class TokenService
 
         if (! $refreshToken) {
             $this->log()->error('TokenService: No refresh token stored', ['connection' => $this->connection]);
-            $this->forgetCache();
+            $this->markNeedsReauthorization();
 
             $this->fireEvent(TokenRefreshFailed::class, fn () => new TokenRefreshFailed(
                 'No refresh token is stored. Connect the account through OAuth.', null, true,
@@ -391,8 +474,8 @@ class TokenService
             $refused = in_array($statusCode, [400, 401], true);
 
             if ($refused) {
-                $this->log()->critical('TokenService: Refresh token is invalid, clearing tokens', ['connection' => $this->connection]);
-                $this->clearTokens();
+                $this->log()->critical('TokenService: Teamleader refused the refresh token; the connection needs to be authorised again', ['connection' => $this->connection]);
+                $this->markNeedsReauthorization();
             }
 
             $this->fireEvent(TokenRefreshFailed::class, fn () => new TokenRefreshFailed(

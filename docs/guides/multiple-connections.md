@@ -95,3 +95,9 @@ Call these from a service provider's `boot()` method.
 | Refresh lock | `teamleader:{connection}:refresh_lock` — one account refreshing never blocks another |
 | Rate-limit window | One per **client ID** — Teamleader allows 200 requests a minute per integration, so six accounts get six windows. The ID is hashed in the Redis key |
 | Events | Every event has a `connection` property |
+
+## Keeping every connection alive
+
+`teamleader:tokens:refresh` runs every ten minutes and renews each connection
+that is due, and `teamleader:status --all` shows them side by side. See
+[Token refresh](../getting-started/authentication.md#token-refresh).

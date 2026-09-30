@@ -128,6 +128,20 @@ Single-account applications need no change: the flat `client_id`,
   `Teamleader connection 'default' is missing: client_secret.` instead of
   `Missing required configuration: teamleader.client_secret`.
 
+### Token renewal
+
+- **Run the Laravel scheduler.** The package schedules
+  `teamleader:tokens:refresh` every ten minutes. Without the scheduler nothing
+  breaks — tokens are still refreshed when a request needs one — but an idle
+  connection can expire unnoticed. `TEAMLEADER_TOKENS_AUTO_REFRESH=false`
+  turns the schedule off.
+- **A refused refresh token no longer deletes the tokens.** The connection is
+  marked `needs_reauthorization`, and requests throw
+  `ConnectionNeedsReauthorizationException` (a subclass of
+  `AuthenticationException`) instead of returning a 401 error array. Code that
+  detected a lost connection by an empty `getTokenInfo()` should check
+  `needsReauthorization()` or the `status` key.
+
 ### OAuth
 
 - **`authorize()` without an argument now generates the `state`**, remembers

@@ -58,6 +58,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Token Renewal
+    |--------------------------------------------------------------------------
+    |
+    | teamleader:tokens:refresh renews every connection whose access token
+    | expires within refresh_before seconds. With auto_refresh on, the package
+    | schedules it every ten minutes — the Laravel scheduler has to run
+    | (`php artisan schedule:work`, or a cron entry for `schedule:run`).
+    |
+    */
+    'tokens' => [
+        'auto_refresh' => env('TEAMLEADER_TOKENS_AUTO_REFRESH', true),
+        'refresh_before' => env('TEAMLEADER_TOKENS_REFRESH_BEFORE', 1800),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Configuration Validation
     |--------------------------------------------------------------------------
     |

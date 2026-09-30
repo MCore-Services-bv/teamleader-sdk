@@ -43,6 +43,14 @@ final readonly class StoredTokens
             : (int) CarbonImmutable::now()->diffInSeconds($this->expiresAt, false);
     }
 
+    public function withStatus(string $status): self
+    {
+        return new self(
+            $this->accessToken, $this->refreshToken, $this->expiresAt, $this->expiresIn, $this->tokenType,
+            $status, $this->accountId, $this->accountName, $this->lastRefreshedAt,
+        );
+    }
+
     public function needsReauthorization(): bool
     {
         return $this->status === self::NEEDS_REAUTHORIZATION;

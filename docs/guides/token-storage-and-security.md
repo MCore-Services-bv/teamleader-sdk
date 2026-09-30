@@ -90,7 +90,9 @@ Memcached or the database store. The file and array stores do not coordinate
 across workers.
 
 If Teamleader answers the refresh with a 400 or 401, the refresh token has been
-revoked. The SDK clears all stored tokens, and the user has to connect again.
+revoked. The connection is marked `needs_reauthorization` and its tokens are
+kept but never used; a user has to connect it again. Tokens are also renewed on
+a schedule — see [Authentication](../getting-started/authentication.md#token-refresh).
 
 ## `APP_KEY` protects the tokens
 

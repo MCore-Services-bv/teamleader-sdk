@@ -7,6 +7,9 @@ namespace McoreServices\TeamleaderSDK\Connections;
 use Closure;
 use McoreServices\TeamleaderSDK\Exceptions\ConfigurationException;
 use McoreServices\TeamleaderSDK\TeamleaderSDK;
+use McoreServices\TeamleaderSDK\Tokens\DatabaseTokenStore;
+use McoreServices\TeamleaderSDK\Tokens\TokenStore;
+use Throwable;
 
 /**
  * Builds one TeamleaderSDK per connection and keeps it.
@@ -136,6 +139,99 @@ class ConnectionManager
         sort($names);
 
         return $names;
+    }
+
+    public const STATUS_CONNECTED = 'connected';
+
+    public const STATUS_NEEDS_REAUTHORIZATION = 'needs_reauthorization';
+
+    public const STATUS_NOT_CONNECTED = 'not_connected';
+
+    /** Tokens stored for a name that is no longer configured */
+    public const STATUS_NOT_CONFIGURED = 'not_configured';
+
+    public const STATUS_UNREADABLE = 'unreadable';
+
+    /**
+     * Every connection that is configured or has tokens stored, with what is
+     * known about it — for teamleader:status --all, teamleader:health and
+     * teamleader:tokens:refresh. Reads the token store only; sends nothing.
+     *
+     * @return array<string, array{
+     *     connection: string, configured: bool, status: string,
+     *     account_id: ?string, account_name: ?string,
+     *     expires_in: ?int, last_refreshed_at: ?string, error: ?string
+     * }>
+     */
+    public function statuses(): array
+    {
+        $store = $this->tokenStore();
+
+        try {
+            $stored = $store->connections();
+        } catch (Throwable $e) {
+            $stored = [];
+            $storeError = $e->getMessage();
+        }
+
+        $names = array_values(array_unique([...$this->names(), ...$stored]));
+        sort($names);
+
+        $statuses = [];
+
+        foreach ($names as $name) {
+            $row = [
+                'connection' => $name,
+                'configured' => $this->isConfigured($name),
+                'status' => self::STATUS_NOT_CONNECTED,
+                'account_id' => null,
+                'account_name' => null,
+                'expires_in' => null,
+                'last_refreshed_at' => null,
+                'error' => $storeError ?? null,
+            ];
+
+            try {
+                $tokens = in_array($name, $stored, true) ? $store->get($name) : null;
+            } catch (Throwable $e) {
+                $tokens = null;
+                $row['status'] = self::STATUS_UNREADABLE;
+                $row['error'] = $e->getMessage();
+            }
+
+            if ($tokens !== null) {
+                $row['status'] = $tokens->needsReauthorization() ? self::STATUS_NEEDS_REAUTHORIZATION : self::STATUS_CONNECTED;
+                $row['account_id'] = $tokens->accountId;
+                $row['account_name'] = $tokens->accountName;
+                $row['expires_in'] = $tokens->secondsUntilExpiry();
+                $row['last_refreshed_at'] = $tokens->lastRefreshedAt?->toIso8601String();
+            }
+
+            if (! $row['configured'] && $tokens !== null) {
+                $row['status'] = self::STATUS_NOT_CONFIGURED;
+            }
+
+            $statuses[$name] = $row;
+        }
+
+        return $statuses;
+    }
+
+    /** Whether config() resolves the name — without building an SDK */
+    public function isConfigured(string $name): bool
+    {
+        try {
+            $this->config($name);
+
+            return true;
+        } catch (ConfigurationException) {
+            return false;
+        }
+    }
+
+    private function tokenStore(): TokenStore
+    {
+        return app()->bound(TokenStore::class) ? app(TokenStore::class) : new DatabaseTokenStore;
     }
 
     /** Forget a built SDK, so the next connection() call builds it again */
