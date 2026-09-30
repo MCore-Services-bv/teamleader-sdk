@@ -34,6 +34,18 @@ final class SdkInventory
     }
 
     /**
+     * Deprecated resource key => canonical key, as declared on TeamleaderSDK.
+     *
+     * @return array<string, string>
+     */
+    public function deprecatedAliases(): array
+    {
+        $defaults = (new ReflectionClass(TeamleaderSDK::class))->getDefaultProperties();
+
+        return $defaults['deprecatedResourceAliases'] ?? [];
+    }
+
+    /**
      * Every registered resource, described.
      *
      * The same class can be registered under more than one key (an alias kept

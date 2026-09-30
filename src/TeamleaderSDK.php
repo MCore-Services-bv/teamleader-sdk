@@ -69,14 +69,14 @@ class TeamleaderSDK
         'meetings' => Resources\Calendar\Meetings::class,
         'calls' => Resources\Calendar\Calls::class,
         'callOutcomes' => Resources\Calendar\CallOutcomes::class,
-        'calenderEvents' => Resources\Calendar\Events::class,
+        'calendarEvents' => Resources\Calendar\Events::class,
         'activityTypes' => Resources\Calendar\ActivityTypes::class,
 
         // Invoicing
         'invoices' => Resources\Invoicing\Invoices::class,
-        'creditnotes' => Resources\Invoicing\Creditnotes::class,
-        'payment_methods' => Resources\Invoicing\PaymentMethods::class,
-        'payment_terms' => Resources\Invoicing\PaymentTerms::class,
+        'creditNotes' => Resources\Invoicing\Creditnotes::class,
+        'paymentMethods' => Resources\Invoicing\PaymentMethods::class,
+        'paymentTerms' => Resources\Invoicing\PaymentTerms::class,
         'subscriptions' => Resources\Invoicing\Subscriptions::class,
         'taxRates' => Resources\Invoicing\TaxRates::class,
         'withholdingTaxRates' => Resources\Invoicing\WithholdingTaxRates::class,
@@ -100,7 +100,7 @@ class TeamleaderSDK
         'legacyProjects' => Resources\Projects\LegacyProjects::class,
 
         // New Projects
-        'external_parties' => Resources\Projects\ExternalParties::class,
+        'externalParties' => Resources\Projects\ExternalParties::class,
         'groups' => Resources\Projects\Groups::class,
         'materials' => Resources\Projects\Materials::class,
         'projectLines' => Resources\Projects\ProjectLines::class,
@@ -113,9 +113,9 @@ class TeamleaderSDK
         'projectTasks' => Resources\Projects\ProjectTasks::class,
 
         // Pganning
-        'plannable_items' => Resources\Planning\PlannableItems::class,
+        'plannableItems' => Resources\Planning\PlannableItems::class,
         'reservations' => Resources\Planning\Reservations::class,
-        'user_availability' => Resources\Planning\UserAvailability::class,
+        'userAvailability' => Resources\Planning\UserAvailability::class,
 
         // Tasks
         'tasks' => Resources\Tasks\Tasks::class,
@@ -142,6 +142,36 @@ class TeamleaderSDK
     ];
 
     protected $resourceInstances = [];
+
+    /**
+     * Resource keys renamed in v2.2.6, mapped to their canonical name.
+     *
+     * One misspelling and six snake_case outliers in an otherwise camelCase
+     * map. The SDK's own usage examples already used the camelCase names — so
+     * `$teamleader->paymentMethods()` threw "resource not found" while
+     * `payment_methods()` worked. Both spellings resolve to the same instance
+     * now; the old ones raise an E_USER_DEPRECATED notice (logged by Laravel,
+     * never thrown) and are removed in v3.0.
+     *
+     * @var array<string, string>
+     */
+    protected array $deprecatedResourceAliases = [
+        'calenderEvents' => 'calendarEvents',
+        'creditnotes' => 'creditNotes',
+        'payment_methods' => 'paymentMethods',
+        'payment_terms' => 'paymentTerms',
+        'external_parties' => 'externalParties',
+        'plannable_items' => 'plannableItems',
+        'user_availability' => 'userAvailability',
+    ];
+
+    /**
+     * Deprecated keys already reported in this process, so a loop does not
+     * raise one notice per iteration.
+     *
+     * @var array<string, true>
+     */
+    protected static array $reportedDeprecatedAliases = [];
 
     private TokenService $tokenService;
 
@@ -649,6 +679,8 @@ class TeamleaderSDK
 
     public function __call($name, $arguments)
     {
+        $name = $this->resolveResourceAlias($name);
+
         if (isset($this->resources[$name])) {
             if (! isset($this->resourceInstances[$name])) {
                 $class = $this->resources[$name];
@@ -658,6 +690,42 @@ class TeamleaderSDK
             return $this->resourceInstances[$name];
         }
         throw new Exception("Method or resource '{$name}' not found");
+    }
+
+    /**
+     * Map a deprecated resource key to its canonical name.
+     *
+     * A key registered through addResource() wins over the alias, so an
+     * application that registered its own `payment_terms` resource keeps it.
+     */
+    protected function resolveResourceAlias(string $name): string
+    {
+        if (isset($this->resources[$name]) || ! isset($this->deprecatedResourceAliases[$name])) {
+            return $name;
+        }
+
+        $canonical = $this->deprecatedResourceAliases[$name];
+
+        if (! isset(self::$reportedDeprecatedAliases[$name])) {
+            self::$reportedDeprecatedAliases[$name] = true;
+
+            trigger_error(
+                "Teamleader resource '{$name}()' is deprecated since v2.2.6 and will be removed in v3.0. Use '{$canonical}()'.",
+                E_USER_DEPRECATED
+            );
+        }
+
+        return $canonical;
+    }
+
+    /**
+     * Deprecated resource keys and the canonical name each resolves to
+     *
+     * @return array<string, string>
+     */
+    public function getDeprecatedResourceAliases(): array
+    {
+        return $this->deprecatedResourceAliases;
     }
 
     public function addResource($name, $class)
