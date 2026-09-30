@@ -1,0 +1,78 @@
+name: Specification watch
+
+# Weekly check for a newer @teamleader/focus-api-specification than the one
+# pinned in package.json. When there is one, the SDK is audited against it and
+# an issue is opened (or updated) with the findings, so a Teamleader API change
+# shows up here before it shows up as a bug report. One issue per version.
+#
+# Nothing is committed: bumping the pin stays a deliberate change —
+# `npm install @teamleader/focus-api-specification@<version> --save-exact`,
+# `npm run spec:fixtures`, `composer spec:audit`, then fix or baseline.
+
+on:
+  schedule:
+    - cron: '17 6 * * 1'   # Mondays 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, json, curl
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Compare versions
+        id: versions
+        run: |
+          pinned=$(node -p "require('./package.json').devDependencies['@teamleader/focus-api-specification']")
+          latest=$(npm view @teamleader/focus-api-specification version)
+          echo "pinned=$pinned" >> "$GITHUB_OUTPUT"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          echo "Pinned $pinned, latest $latest"
+
+      - name: Audit against the latest specification
+        if: steps.versions.outputs.pinned != steps.versions.outputs.latest
+        id: audit
+        run: |
+          composer install --prefer-dist --no-progress --no-interaction
+          npm install --no-audit --no-fund
+          npm install "@teamleader/focus-api-specification@${{ steps.versions.outputs.latest }}" --no-save
+          npm run spec:fixtures
+          {
+            echo "A newer Teamleader Focus API specification is available: **${{ steps.versions.outputs.latest }}** (pinned: ${{ steps.versions.outputs.pinned }})."
+            echo
+            echo "Findings against it that are not in the baseline:"
+            echo
+            php bin/spec-audit --new
+          } > audit.md
+          cat audit.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open or update the issue
+        if: steps.versions.outputs.pinned != steps.versions.outputs.latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LATEST: ${{ steps.versions.outputs.latest }}
+        run: |
+          title="Teamleader API specification ${LATEST} is available"
+          existing=$(gh issue list --state open --search "in:title \"${title}\"" --json number --jq '.[0].number')
+          # One issue per version: later weekly runs leave it alone.
+          if [ -n "$existing" ]; then
+            echo "Issue #$existing already tracks ${LATEST}."
+          else
+            gh issue create --title "$title" --body-file audit.md
+          fi
