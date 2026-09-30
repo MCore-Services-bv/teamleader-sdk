@@ -43,6 +43,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added (3.x branch)
 
+- **Multiple connections.** `Teamleader::connection('antwerp')`, configured in
+  `connections` in `config/teamleader.php` (the flat keys are `default`), or at
+  runtime with `Teamleader::extend()` / `resolveConnectionsUsing()`. A
+  `ConnectionManager` builds one SDK instance per connection, with its own
+  credentials, tokens, cache entries, refresh lock and rate-limit window (per
+  client ID, hashed). Every event has a `connection` property. See the new
+  *Multiple Connections* guide.
 - **`TokenStore`** contract with `DatabaseTokenStore`, bound in the container
   so tokens can be stored elsewhere. One row per connection (`connection`,
   unique), with `status`, `account_id`, `account_name` and

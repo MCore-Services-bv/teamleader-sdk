@@ -15,6 +15,33 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Connections
+    |--------------------------------------------------------------------------
+    |
+    | One application can talk to several Teamleader accounts. The three keys
+    | above are the `default` connection; add one block here per extra
+    | account, and reach it with Teamleader::connection('antwerp').
+    |
+    | Every Teamleader account needs its own integration — its client ID and
+    | secret only work in that account — so client_id and client_secret are
+    | required per connection. redirect_uri may be left out: register the
+    | same callback URL in each integration and it falls back to the one
+    | above.
+    |
+    | Each connection has its own tokens, refresh lock and rate-limit window.
+    |
+    */
+    'default' => env('TEAMLEADER_CONNECTION', 'default'),
+
+    'connections' => [
+        // 'antwerp' => [
+        //     'client_id' => env('TEAMLEADER_ANTWERP_CLIENT_ID'),
+        //     'client_secret' => env('TEAMLEADER_ANTWERP_CLIENT_SECRET'),
+        // ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | API Configuration
     |--------------------------------------------------------------------------
     */

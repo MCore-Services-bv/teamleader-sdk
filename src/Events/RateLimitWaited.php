@@ -19,11 +19,13 @@ final readonly class RateLimitWaited
      * @param  float  $usagePercentage  How full the window was, 0 – 100
      * @param  string  $endpoint  The endpoint that waited
      * @param  bool  $gaveUp  True when the wait ran out and the request was not sent
+     * @param  string  $connection  The Teamleader connection, `default` for a single account
      */
     public function __construct(
         public int $waitedMs,
         public float $usagePercentage,
         public string $endpoint,
         public bool $gaveUp = false,
+        public string $connection = 'default',
     ) {}
 }

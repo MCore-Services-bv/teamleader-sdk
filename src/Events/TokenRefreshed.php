@@ -14,8 +14,10 @@ final readonly class TokenRefreshed
     /**
      * @param  int|null  $expiresIn  Lifetime of the new access token in seconds,
      *                               as Teamleader reported it
+     * @param  string  $connection  The Teamleader connection, `default` for a single account
      */
     public function __construct(
         public ?int $expiresIn = null,
+        public string $connection = 'default',
     ) {}
 }

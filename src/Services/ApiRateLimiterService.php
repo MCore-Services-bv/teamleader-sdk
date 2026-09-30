@@ -21,21 +21,6 @@ class ApiRateLimiterService
     private const WINDOW_DURATION = 60;
 
     /**
-     * Redis key for the sliding window sorted set
-     */
-    private const SORTED_SET_KEY = 'teamleader_sdk:rate_limit';
-
-    /**
-     * Redis key for the last-known remaining value from response headers
-     */
-    private const REMAINING_KEY = 'teamleader_sdk:remaining';
-
-    /**
-     * Redis key for the rate limit reset timestamp from response headers
-     */
-    private const RESET_TIME_KEY = 'teamleader_sdk:reset_time';
-
-    /**
      * Conservative throttling thresholds for sliding window
      */
     private const THROTTLE_THRESHOLDS = [
@@ -63,10 +48,38 @@ class ApiRateLimiterService
 
     private string $redisConnection;
 
-    public function __construct(?LoggerInterface $logger = null)
+    /** Redis keys of this limiter's window */
+    private string $windowKey;
+
+    private string $remainingKey;
+
+    private string $resetTimeKey;
+
+    /**
+     * @param  string|null  $clientId  The integration whose window to track. Teamleader
+     *                                 allows 200 requests a minute per integration, so
+     *                                 connections with different client IDs get separate
+     *                                 windows. The ID is hashed; it never appears in Redis.
+     *                                 Null uses the single window of SDK v2.x.
+     */
+    public function __construct(?LoggerInterface $logger = null, ?string $clientId = null)
     {
         $this->logger = $logger ?: new NullLogger;
         $this->redisConnection = config('teamleader.rate_limiting.redis_connection', 'default');
+
+        $prefix = $clientId === null || $clientId === ''
+            ? 'teamleader_sdk'
+            : 'teamleader_sdk:'.substr(hash('sha256', $clientId), 0, 16);
+
+        $this->windowKey = $prefix.':rate_limit';
+        $this->remainingKey = $prefix.':remaining';
+        $this->resetTimeKey = $prefix.':reset_time';
+    }
+
+    /** The Redis key of this limiter's sliding window */
+    public function windowKey(): string
+    {
+        return $this->windowKey;
     }
 
     /**
@@ -155,7 +168,7 @@ class ApiRateLimiterService
      */
     private function getHeaderRemaining(): ?int
     {
-        $value = $this->redis()->get(self::REMAINING_KEY);
+        $value = $this->redis()->get($this->remainingKey);
 
         return $value === null || $value === false ? null : (int) $value;
     }
@@ -169,7 +182,7 @@ class ApiRateLimiterService
      */
     private function getSecondsUntilSlotFree(): float
     {
-        $resetAt = $this->redis()->get(self::RESET_TIME_KEY);
+        $resetAt = $this->redis()->get($this->resetTimeKey);
 
         if ($resetAt !== null && $resetAt !== false) {
             $secondsUntilReset = (int) $resetAt - time();
@@ -205,9 +218,9 @@ class ApiRateLimiterService
         $member = uniqid('req_', true);
 
         $redis = $this->redis();
-        $redis->zadd(self::SORTED_SET_KEY, $now, $member);
+        $redis->zadd($this->windowKey, $now, $member);
         // Keep the key alive well beyond the window so short gaps don't lose the set
-        $redis->expire(self::SORTED_SET_KEY, self::WINDOW_DURATION * 2);
+        $redis->expire($this->windowKey, self::WINDOW_DURATION * 2);
 
         self::$processStats['total_requests']++;
 
@@ -252,12 +265,12 @@ class ApiRateLimiterService
                 $localRemaining = self::RATE_LIMIT - $localUsage;
 
                 // Store the more conservative estimate so all workers benefit from it
-                $redis->setex(self::REMAINING_KEY, self::WINDOW_DURATION, min($headerRemaining, $localRemaining));
+                $redis->setex($this->remainingKey, self::WINDOW_DURATION, min($headerRemaining, $localRemaining));
             }
 
             if (isset($rateLimitData['reset'])) {
                 $resetValue = (int) $rateLimitData['reset'];
-                $redis->setex(self::RESET_TIME_KEY, self::WINDOW_DURATION * 2, $resetValue);
+                $redis->setex($this->resetTimeKey, self::WINDOW_DURATION * 2, $resetValue);
             }
 
             self::$processStats['last_response_headers'] = $rateLimitData;
@@ -286,9 +299,9 @@ class ApiRateLimiterService
 
         // Clear the sliding window and mark the limit as exhausted for all workers
         $redis = $this->redis();
-        $redis->del(self::SORTED_SET_KEY);
-        $redis->setex(self::REMAINING_KEY, $retryAfter + 5, 0);
-        $redis->setex(self::RESET_TIME_KEY, $retryAfter + 5, time() + $retryAfter);
+        $redis->del($this->windowKey);
+        $redis->setex($this->remainingKey, $retryAfter + 5, 0);
+        $redis->setex($this->resetTimeKey, $retryAfter + 5, time() + $retryAfter);
 
         $this->logger->warning('Rate limit exceeded (429 response)', [
             'retry_after' => $retryAfter,
@@ -307,7 +320,7 @@ class ApiRateLimiterService
         $currentUsage = $this->getCurrentUsage();
         $usagePercentage = ($currentUsage / self::RATE_LIMIT) * 100;
 
-        $resetTimeValue = $this->redis()->get(self::RESET_TIME_KEY);
+        $resetTimeValue = $this->redis()->get($this->resetTimeKey);
         $resetTime = $resetTimeValue
             ? Carbon::createFromTimestamp((int) $resetTimeValue)->toISOString()
             : null;
@@ -339,9 +352,9 @@ class ApiRateLimiterService
     public function reset(): void
     {
         $redis = $this->redis();
-        $redis->del(self::SORTED_SET_KEY);
-        $redis->del(self::REMAINING_KEY);
-        $redis->del(self::RESET_TIME_KEY);
+        $redis->del($this->windowKey);
+        $redis->del($this->remainingKey);
+        $redis->del($this->resetTimeKey);
 
         self::$processStats = [
             'total_requests' => 0,
@@ -393,7 +406,7 @@ class ApiRateLimiterService
     {
         $this->cleanupOldRequests();
 
-        return (int) $this->redis()->zcard(self::SORTED_SET_KEY);
+        return (int) $this->redis()->zcard($this->windowKey);
     }
 
     /**
@@ -402,7 +415,7 @@ class ApiRateLimiterService
     private function cleanupOldRequests(): void
     {
         $cutoff = microtime(true) - self::WINDOW_DURATION;
-        $this->redis()->zremrangebyscore(self::SORTED_SET_KEY, '-inf', $cutoff);
+        $this->redis()->zremrangebyscore($this->windowKey, '-inf', $cutoff);
     }
 
     /**
@@ -467,13 +480,13 @@ class ApiRateLimiterService
      */
     private function getOldestRequestTime(): ?float
     {
-        $members = $this->redis()->zrange(self::SORTED_SET_KEY, 0, 0);
+        $members = $this->redis()->zrange($this->windowKey, 0, 0);
 
         if (empty($members)) {
             return null;
         }
 
-        $score = $this->redis()->zscore(self::SORTED_SET_KEY, $members[0]);
+        $score = $this->redis()->zscore($this->windowKey, $members[0]);
 
         return $score !== null ? (float) $score : null;
     }

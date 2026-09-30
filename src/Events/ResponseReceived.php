@@ -20,6 +20,7 @@ final readonly class ResponseReceived
      * @param  float  $durationMs  From sending the request to reading the body
      * @param  array<mixed>|null  $body  The decoded response body, with sensitive
      *                                   keys redacted; null when it was not JSON
+     * @param  string  $connection  The Teamleader connection, `default` for a single account
      */
     public function __construct(
         public string $method,
@@ -27,6 +28,7 @@ final readonly class ResponseReceived
         public int $statusCode,
         public float $durationMs,
         public ?array $body = null,
+        public string $connection = 'default',
     ) {}
 
     public function successful(): bool

@@ -20,6 +20,7 @@
 * [Events and Logging](guides/events-and-logging.md)
 * [Webhooks](guides/webhooks.md)
 * [Token Storage and Security](guides/token-storage-and-security.md)
+* [Multiple Connections](guides/multiple-connections.md)
 * [Artisan Commands](guides/artisan-commands.md)
 
 ## Project

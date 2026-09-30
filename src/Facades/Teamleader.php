@@ -202,6 +202,12 @@ use Psr\Log\LoggerInterface;
  * @method static Migrate migrate()
  * @method static Webhooks webhooks()
  *
+ * Connections
+ * @method static TeamleaderSDK connection(?string $name = null)
+ * @method static string connectionName()
+ * @method static TeamleaderSDK extend(string $name, \Closure $config)
+ * @method static TeamleaderSDK resolveConnectionsUsing(\Closure $resolver)
+ *
  * @see McoreServices\TeamleaderSDK\TeamleaderSDK
  */
 class Teamleader extends Facade

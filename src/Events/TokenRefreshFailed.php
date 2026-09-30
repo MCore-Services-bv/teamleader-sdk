@@ -22,10 +22,12 @@ final readonly class TokenRefreshFailed
      *                                when it was not reached or not called
      * @param  bool  $reauthorizationRequired  True when the account has to be
      *                                         connected again
+     * @param  string  $connection  The Teamleader connection, `default` for a single account
      */
     public function __construct(
         public string $reason,
         public ?int $statusCode = null,
         public bool $reauthorizationRequired = false,
+        public string $connection = 'default',
     ) {}
 }

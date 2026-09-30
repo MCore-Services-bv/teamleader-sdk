@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Log;
+use McoreServices\TeamleaderSDK\Connections\ConnectionConfig;
 use McoreServices\TeamleaderSDK\Events\TokenRefreshed;
 use McoreServices\TeamleaderSDK\Events\TokenRefreshFailed;
 use McoreServices\TeamleaderSDK\Tokens\DatabaseTokenStore;
@@ -58,8 +59,16 @@ class TokenService
 
     private TokenStore $store;
 
-    public function __construct(?TokenStore $store = null, private readonly string $connection = 'default')
-    {
+    /**
+     * @param  ConnectionConfig|null  $credentials  The connection's client ID and secret,
+     *                                              used for the refresh. Null reads the
+     *                                              flat teamleader.client_id / client_secret
+     */
+    public function __construct(
+        ?TokenStore $store = null,
+        private readonly string $connection = 'default',
+        private readonly ?ConnectionConfig $credentials = null,
+    ) {
         $this->store = $store ?? (app()->bound(TokenStore::class) ? app(TokenStore::class) : new DatabaseTokenStore);
 
         $this->httpClient = new Client([
@@ -303,7 +312,8 @@ class TokenService
             $this->forgetCache();
 
             $this->fireEvent(TokenRefreshFailed::class, fn () => new TokenRefreshFailed(
-                'No refresh token is stored. Connect the account through OAuth.', null, true
+                'No refresh token is stored. Connect the account through OAuth.', null, true,
+                connection: $this->connection,
             ));
 
             return null;
@@ -317,8 +327,8 @@ class TokenService
 
             $response = $this->httpClient->post($authUrl.'/oauth2/access_token', [
                 'form_params' => [
-                    'client_id' => Config::get('teamleader.client_id'),
-                    'client_secret' => Config::get('teamleader.client_secret'),
+                    'client_id' => $this->credentials?->clientId ?? Config::get('teamleader.client_id'),
+                    'client_secret' => $this->credentials?->clientSecret ?? Config::get('teamleader.client_secret'),
                     'refresh_token' => $refreshToken,
                     'grant_type' => 'refresh_token',
                 ],
@@ -351,7 +361,8 @@ class TokenService
             ]);
 
             $this->fireEvent(TokenRefreshed::class, fn () => new TokenRefreshed(
-                isset($result['expires_in']) ? (int) $result['expires_in'] : null
+                isset($result['expires_in']) ? (int) $result['expires_in'] : null,
+                connection: $this->connection,
             ));
 
             return $result['access_token'];
@@ -387,7 +398,8 @@ class TokenService
                     ? 'Teamleader refused the refresh token. Connect the account through OAuth again.'
                     : 'The token endpoint could not be reached: '.$e->getMessage(),
                 $statusCode,
-                $refused
+                $refused,
+                connection: $this->connection,
             ));
 
             return null;
@@ -397,7 +409,7 @@ class TokenService
                 'error' => $e->getMessage(),
             ]);
 
-            $this->fireEvent(TokenRefreshFailed::class, fn () => new TokenRefreshFailed($e->getMessage()));
+            $this->fireEvent(TokenRefreshFailed::class, fn () => new TokenRefreshFailed($e->getMessage(), connection: $this->connection));
 
             return null;
         }

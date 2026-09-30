@@ -25,6 +25,7 @@ final readonly class RequestFailed
      * @param  Throwable|null  $exception  Set when the failure raised one: a
      *                                     transport error, or the rate-limit wait
      *                                     running out
+     * @param  string  $connection  The Teamleader connection, `default` for a single account
      */
     public function __construct(
         public string $method,
@@ -32,5 +33,6 @@ final readonly class RequestFailed
         public ?int $statusCode,
         public string $message,
         public ?Throwable $exception = null,
+        public string $connection = 'default',
     ) {}
 }

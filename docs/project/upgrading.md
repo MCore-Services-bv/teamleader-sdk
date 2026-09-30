@@ -111,6 +111,23 @@ for them before upgrading — a value you set long ago takes effect:
 `logging.channel` defaults to `null` (your default channel) instead of
 `config('logging.default')`.
 
+### Connections
+
+Single-account applications need no change: the flat `client_id`,
+`client_secret` and `redirect_uri` are the `default` connection.
+
+- `new TeamleaderSDK(...)` takes a fifth argument, `?ConnectionConfig
+  $connection`. Resolve instances through the container or
+  `Teamleader::connection()` rather than constructing them.
+- The SDK reads the credentials when an instance is built, not on every
+  request. Code that changes `config('teamleader.client_id')` at runtime should
+  define a connection with `Teamleader::extend()` instead.
+- The rate-limit window moved to Redis keys per client ID. Its count starts at
+  zero on the first request after the upgrade — the window is a minute long.
+- Configuration errors name the connection:
+  `Teamleader connection 'default' is missing: client_secret.` instead of
+  `Missing required configuration: teamleader.client_secret`.
+
 ### Token storage
 
 - `TokenService` stores through a `TokenStore` (the table, by default) and

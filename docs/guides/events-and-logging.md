@@ -10,7 +10,8 @@ Available from v3.0.
 
 ## The events
 
-All are in `McoreServices\TeamleaderSDK\Events`. None carries a token value,
+All are in `McoreServices\TeamleaderSDK\Events`. Every event has a `connection` property — `default` for a single account; see
+[Multiple Connections](multiple-connections.md). None carries a token value,
 and request and response bodies have tokens, secrets and other sensitive keys
 redacted before the event is created.
 

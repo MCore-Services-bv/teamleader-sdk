@@ -18,10 +18,12 @@ final readonly class RequestSending
      * @param  string  $endpoint  e.g. `companies.list`
      * @param  array<mixed>  $body  The request body, with tokens, secrets and
      *                              other sensitive keys redacted
+     * @param  string  $connection  The Teamleader connection, `default` for a single account
      */
     public function __construct(
         public string $method,
         public string $endpoint,
         public array $body,
+        public string $connection = 'default',
     ) {}
 }

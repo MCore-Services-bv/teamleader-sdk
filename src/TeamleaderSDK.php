@@ -2,10 +2,13 @@
 
 namespace McoreServices\TeamleaderSDK;
 
+use Closure;
 use Exception;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Http\RedirectResponse;
+use McoreServices\TeamleaderSDK\Connections\ConnectionConfig;
+use McoreServices\TeamleaderSDK\Connections\ConnectionManager;
 use McoreServices\TeamleaderSDK\Events\RateLimitWaited;
 use McoreServices\TeamleaderSDK\Events\RequestFailed;
 use McoreServices\TeamleaderSDK\Events\RequestSending;
@@ -191,13 +194,19 @@ class TeamleaderSDK
     // Add flag to track manual token override
     private bool $manualTokenSet = false;
 
+    /** Credentials and name of the connection this instance talks to */
+    private ConnectionConfig $connectionConfig;
+
     public function __construct(
         ?TokenService $tokenService = null,
         ?ApiRateLimiterService $rateLimiter = null,
         ?LoggerInterface $logger = null,
-        ?TeamleaderErrorHandler $errorHandler = null
+        ?TeamleaderErrorHandler $errorHandler = null,
+        ?ConnectionConfig $connection = null,
     ) {
-        $this->validateConfiguration();
+        // Throws a ConfigurationException naming the connection when its
+        // credentials are incomplete
+        $this->connectionConfig = $connection ?? self::manager()->config(self::manager()->getDefaultConnection());
 
         $this->client = new Client([
             'headers' => [
@@ -215,8 +224,11 @@ class TeamleaderSDK
 
         // Use dependency injection or create instances
         $this->logger = $logger ?: $this->resolveLogger();
-        $this->tokenService = $tokenService ?: (app()->bound(TokenService::class) ? app(TokenService::class) : new TokenService);
-        $this->rateLimiter = $rateLimiter ?: (app()->bound(ApiRateLimiterService::class) ? app(ApiRateLimiterService::class) : new ApiRateLimiterService($this->logger));
+        // Per connection: tokens, cache entries and refresh lock under the
+        // connection's name; the rate-limit window under its client ID, because
+        // Teamleader counts 200 requests a minute per integration
+        $this->tokenService = $tokenService ?: new TokenService(null, $this->connectionConfig->name, $this->connectionConfig);
+        $this->rateLimiter = $rateLimiter ?: new ApiRateLimiterService($this->logger, $this->connectionConfig->clientId);
         $this->errorHandler = $errorHandler ?: new TeamleaderErrorHandler($this->logger);
 
         // Set API version from config
@@ -238,9 +250,6 @@ class TeamleaderSDK
     }
 
     /**
-     * Validate SDK configuration
-     */
-    /**
      * The logger for SDK output: `teamleader.logging.channel` when set, the
      * application's default logger otherwise.
      */
@@ -255,15 +264,57 @@ class TeamleaderSDK
         return app()->bound(LoggerInterface::class) ? app(LoggerInterface::class) : new NullLogger;
     }
 
-    private function validateConfiguration(): void
+    /**
+     * The name of the connection this instance talks to
+     */
+    public function connectionName(): string
     {
-        $requiredConfig = ['client_id', 'client_secret', 'redirect_uri'];
+        return $this->connectionConfig->name;
+    }
 
-        foreach ($requiredConfig as $key) {
-            if (empty(config("teamleader.{$key}"))) {
-                throw new ConfigurationException("Missing required configuration: teamleader.{$key}");
-            }
-        }
+    public function getConnectionConfig(): ConnectionConfig
+    {
+        return $this->connectionConfig;
+    }
+
+    /**
+     * Another connection's SDK instance:
+     *
+     *     Teamleader::connection('antwerp')->companies()->list();
+     */
+    public function connection(?string $name = null): self
+    {
+        return self::manager()->connection($name);
+    }
+
+    /**
+     * Define a connection at runtime — see ConnectionManager::extend()
+     *
+     * @param  Closure(): array<string, mixed>  $config
+     */
+    public function extend(string $name, Closure $config): self
+    {
+        self::manager()->extend($name, $config);
+
+        return $this;
+    }
+
+    /**
+     * Resolve unknown connection names through your own lookup — see
+     * ConnectionManager::resolveConnectionsUsing()
+     *
+     * @param  Closure(string): (array<string, mixed>|null)  $resolver
+     */
+    public function resolveConnectionsUsing(Closure $resolver): self
+    {
+        self::manager()->resolveConnectionsUsing($resolver);
+
+        return $this;
+    }
+
+    private static function manager(): ConnectionManager
+    {
+        return app()->bound(ConnectionManager::class) ? app(ConnectionManager::class) : new ConnectionManager;
     }
 
     public static function getApiCallCount()
@@ -318,9 +369,9 @@ class TeamleaderSDK
     public function getAuthorizationUrl(?string $state = null): string
     {
         $params = [
-            'client_id' => config('teamleader.client_id'),
+            'client_id' => $this->connectionConfig->clientId,
             'response_type' => 'code',
-            'redirect_uri' => config('teamleader.redirect_uri'),
+            'redirect_uri' => $this->connectionConfig->redirectUri,
         ];
 
         if ($state) {
@@ -331,7 +382,7 @@ class TeamleaderSDK
 
         $this->logger->debug('Generated authorization URL', $this->sanitizeForLog([
             'state' => $state ? 'present' : 'none',
-            'redirect_uri' => config('teamleader.redirect_uri'),
+            'redirect_uri' => $this->connectionConfig->redirectUri,
         ]));
 
         return $url;
@@ -351,11 +402,11 @@ class TeamleaderSDK
             // Exchange authorization code for tokens
             $response = $this->client->post($this->authUrl.'/oauth2/access_token', [
                 'form_params' => [
-                    'client_id' => config('teamleader.client_id'),
-                    'client_secret' => config('teamleader.client_secret'),
+                    'client_id' => $this->connectionConfig->clientId,
+                    'client_secret' => $this->connectionConfig->clientSecret,
                     'code' => $code,
                     'grant_type' => 'authorization_code',
-                    'redirect_uri' => config('teamleader.redirect_uri'),
+                    'redirect_uri' => $this->connectionConfig->redirectUri,
                 ],
                 'headers' => [
                     'Content-Type' => 'application/x-www-form-urlencoded',
@@ -430,7 +481,8 @@ class TeamleaderSDK
                 ];
 
                 $this->fireEvent(RequestFailed::class, fn () => new RequestFailed(
-                    (string) $method, (string) $endpoint, 401, $result['message']
+                    (string) $method, (string) $endpoint, 401, $result['message'],
+                    connection: $this->connectionConfig->name,
                 ));
 
                 $this->errorHandler->handleApiError($result, "{$method} {$endpoint}");
@@ -493,10 +545,12 @@ class TeamleaderSDK
                         );
 
                         $this->fireEvent(RateLimitWaited::class, fn () => new RateLimitWaited(
-                            $waitedMs, (float) $rateLimitCheck['usage_percentage'], (string) $endpoint, true
+                            $waitedMs, (float) $rateLimitCheck['usage_percentage'], (string) $endpoint, true,
+                            connection: $this->connectionConfig->name,
                         ));
                         $this->fireEvent(RequestFailed::class, fn () => new RequestFailed(
-                            (string) $method, (string) $endpoint, null, $exception->getMessage(), $exception
+                            (string) $method, (string) $endpoint, null, $exception->getMessage(), $exception,
+                            connection: $this->connectionConfig->name,
                         ));
 
                         throw $exception;
@@ -532,7 +586,8 @@ class TeamleaderSDK
 
                 if ($waitedMs > 0) {
                     $this->fireEvent(RateLimitWaited::class, fn () => new RateLimitWaited(
-                        (int) $waitedMs, (float) $rateLimitCheck['usage_percentage'], (string) $endpoint
+                        (int) $waitedMs, (float) $rateLimitCheck['usage_percentage'], (string) $endpoint,
+                        connection: $this->connectionConfig->name,
                     ));
                 }
 
@@ -589,7 +644,8 @@ class TeamleaderSDK
         ];
 
         $this->fireEvent(RequestSending::class, fn () => new RequestSending(
-            (string) $method, (string) $endpoint, (array) $this->sanitizeForLog((array) $data)
+            (string) $method, (string) $endpoint, (array) $this->sanitizeForLog((array) $data),
+            connection: $this->connectionConfig->name,
         ));
 
         try {
@@ -615,7 +671,8 @@ class TeamleaderSDK
                 (string) $endpoint,
                 $statusCode,
                 round($callDetails['duration'] * 1000, 1),
-                is_array($responseData) ? (array) $this->sanitizeForLog($responseData) : null
+                is_array($responseData) ? (array) $this->sanitizeForLog($responseData) : null,
+                connection: $this->connectionConfig->name,
             ));
 
             // Update rate limiting state from response headers — only when the
@@ -664,7 +721,8 @@ class TeamleaderSDK
             $primaryError = ! empty($errorMessages) ? $errorMessages[0] : 'Unknown error';
 
             $this->fireEvent(RequestFailed::class, fn () => new RequestFailed(
-                (string) $method, (string) $endpoint, $statusCode, (string) $primaryError
+                (string) $method, (string) $endpoint, $statusCode, (string) $primaryError,
+                connection: $this->connectionConfig->name,
             ));
 
             return [
@@ -679,7 +737,8 @@ class TeamleaderSDK
         } catch (GuzzleException $e) {
             // Before the handler, which throws when throw_exceptions is on
             $this->fireEvent(RequestFailed::class, fn () => new RequestFailed(
-                (string) $method, (string) $endpoint, null, $e->getMessage(), $e
+                (string) $method, (string) $endpoint, null, $e->getMessage(), $e,
+                connection: $this->connectionConfig->name,
             ));
 
             $this->errorHandler->handleGuzzleException($e, "{$method} {$endpoint}");

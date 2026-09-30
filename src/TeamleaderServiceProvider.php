@@ -6,6 +6,7 @@ use Exception;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
+use McoreServices\TeamleaderSDK\Connections\ConnectionManager;
 use McoreServices\TeamleaderSDK\Events\RequestSending;
 use McoreServices\TeamleaderSDK\Events\ResponseReceived;
 use McoreServices\TeamleaderSDK\Listeners\LogApiTraffic;
@@ -26,10 +27,12 @@ class TeamleaderServiceProvider extends ServiceProvider
         // Where tokens are kept. Bind your own TokenStore to replace it.
         $this->app->singletonIf(TokenStore::class, fn () => new DatabaseTokenStore);
 
-        // Register SDK singleton
-        $this->app->singleton(TeamleaderSDK::class, function ($app) {
-            return new TeamleaderSDK;
-        });
+        // One SDK instance per connection, built on first use
+        $this->app->singleton(ConnectionManager::class, fn () => new ConnectionManager);
+
+        // TeamleaderSDK and the facade resolve the default connection, so
+        // single-account code is unchanged
+        $this->app->singleton(TeamleaderSDK::class, fn ($app) => $app->make(ConnectionManager::class)->connection());
 
         // Register facade alias
         $this->app->alias(TeamleaderSDK::class, 'teamleader');
