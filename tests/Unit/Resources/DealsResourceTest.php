@@ -134,10 +134,37 @@ final class DealsResourceTest extends ResourceTestCase
 
     public function test_include_array_is_sent_as_a_comma_separated_string(): void
     {
-        $this->deals->list([], ['include' => ['custom_fields', 'responsible_user']]);
+        $this->deals->list([], ['include' => ['custom_fields', 'second_responsible_user']]);
 
-        $this->assertLastBodyHas('includes', 'custom_fields,responsible_user');
+        $this->assertLastBodyHas('includes', 'custom_fields,second_responsible_user');
         $this->assertLastBodyMissing('include');
+    }
+
+    /**
+     * lead.customer, responsible_user, department, current_phase and source
+     * were advertised as includes until v2.2.5. All five are returned on every
+     * deal by default; the API ignored the include values.
+     */
+    public function test_phantom_includes_throw(): void
+    {
+        foreach (['lead.customer', 'responsible_user', 'department', 'current_phase', 'source'] as $phantom) {
+            try {
+                $this->deals->list([], ['include' => $phantom]);
+                $this->fail("{$phantom} is not a deals.list include.");
+            } catch (InvalidArgumentException $e) {
+                $this->assertStringContainsString($phantom, $e->getMessage());
+            }
+        }
+
+        $this->assertNoRequestMade();
+    }
+
+    public function test_deprecated_fluent_include_methods_add_nothing(): void
+    {
+        $this->deals->withCustomer()->withResponsibleUser()->withDepartment()
+            ->withCurrentPhase()->withSource()->withAll()->list();
+
+        $this->assertLastBodyMissing('includes');
     }
 
     public function test_fluent_and_options_forms_produce_the_same_body(): void
@@ -153,11 +180,19 @@ final class DealsResourceTest extends ResourceTestCase
 
     public function test_info_sends_includes_plural(): void
     {
-        $this->deals->info('deal-uuid', 'custom_fields');
+        $this->deals->info('deal-uuid', 'second_responsible_user');
 
         $this->assertLastEndpoint('deals.info');
         $this->assertLastBodyHas('id', 'deal-uuid');
-        $this->assertLastBodyHas('includes', 'custom_fields');
+        $this->assertLastBodyHas('includes', 'second_responsible_user');
+    }
+
+    public function test_info_rejects_custom_fields_which_it_returns_by_default(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('deals.info');
+
+        $this->deals->info('deal-uuid', 'custom_fields');
     }
 
     // ---------------------------------------------------------------------
@@ -317,6 +352,48 @@ final class DealsResourceTest extends ResourceTestCase
 
         $this->assertLastBodyHas('reason_id', 'reason-uuid');
         $this->assertLastBodyHas('extra_info', 'Price too high');
+    }
+
+    public function test_create_accepts_phase_and_negative_value(): void
+    {
+        $this->deals->create([
+            'lead' => ['customer' => ['type' => 'company', 'id' => 'company-uuid']],
+            'title' => 'Credit deal',
+            'phase_id' => 'phase-uuid',
+            'estimated_value' => ['amount' => -250, 'currency' => 'EUR'],
+            'second_responsible_user_id' => 'user-uuid',
+        ]);
+
+        $this->assertLastBodyHas('estimated_value.amount', -250);
+        $this->assertLastBodyHas('second_responsible_user_id', 'user-uuid');
+    }
+
+    public function test_update_rejects_phase_id(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('deals.update does not accept: phase_id');
+
+        try {
+            $this->deals->update('deal-uuid', ['phase_id' => 'phase-uuid']);
+        } finally {
+            $this->assertNoRequestMade();
+        }
+    }
+
+    public function test_custom_field_can_be_cleared_with_null(): void
+    {
+        $this->deals->update('deal-uuid', ['custom_fields' => [['id' => 'field-uuid', 'value' => null]]]);
+
+        $this->assertLastEndpoint('deals.update');
+        $this->assertNull($this->lastBody()['custom_fields'][0]['value']);
+    }
+
+    public function test_status_filter_values_are_checked(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('filter.status[]');
+
+        $this->deals->list(['status' => 'new']);
     }
 
     public function test_win_sends_only_the_id(): void

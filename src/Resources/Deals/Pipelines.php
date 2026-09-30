@@ -7,6 +7,9 @@ use McoreServices\TeamleaderSDK\Resources\Resource;
 
 class Pipelines extends Resource
 {
+    /** `filter.status[]` on dealPipelines.list */
+    public const STATUSES = ['open', 'pending_deletion'];
+
     protected string $description = 'Manage deal pipelines in Teamleader Focus';
 
     // Resource capabilities
@@ -34,7 +37,8 @@ class Pipelines extends Resource
     // Common filters based on API documentation
     protected array $commonFilters = [
         'ids' => 'Array of deal pipeline UUIDs to filter by',
-        'status' => 'Filter by pipeline status (open, pending_deletion)',
+        'status' => 'Filter by pipeline status (open, pending_deletion) — a string is wrapped into an array',
+        'term' => 'Search the pipeline name',
     ];
 
     /**
@@ -45,6 +49,8 @@ class Pipelines extends Resource
      */
     public function list(array $filters = [], array $options = []): array
     {
+        $this->rejectUnsupportedListArguments($filters, $options);
+
         $params = [];
 
         // Apply filters
@@ -193,26 +199,57 @@ class Pipelines extends Resource
 
     /**
      * Build filters array for the API request
+     *
+     * dealPipelines.list accepts `ids`, `status` and — since specification
+     * 1.221.0 — `term`. Before v2.2.5 any other key, including `term`, was
+     * dropped here without a word.
+     *
+     * @throws InvalidArgumentException When an unsupported filter key or status is passed
      */
     protected function buildFilters(array $filters): array
     {
-        $apiFilters = [];
+        $unknown = array_diff(array_keys($filters), array_keys($this->commonFilters));
 
-        // Handle IDs filter
-        if (isset($filters['ids']) && is_array($filters['ids'])) {
-            $apiFilters['ids'] = $filters['ids'];
+        if ($unknown !== []) {
+            throw new InvalidArgumentException(
+                'Unsupported filter '.(count($unknown) > 1 ? 'keys' : 'key').' for dealPipelines.list: '
+                .implode(', ', $unknown).'. Supported: '.implode(', ', array_keys($this->commonFilters)).'.'
+            );
         }
 
-        // Handle status filter - API expects array format
+        $apiFilters = [];
+
+        if (isset($filters['ids'])) {
+            $apiFilters['ids'] = is_array($filters['ids']) ? array_values($filters['ids']) : [$filters['ids']];
+        }
+
         if (isset($filters['status'])) {
-            if (is_string($filters['status'])) {
-                $apiFilters['status'] = [$filters['status']];
-            } elseif (is_array($filters['status'])) {
-                $apiFilters['status'] = $filters['status'];
+            $statuses = is_array($filters['status']) ? array_values($filters['status']) : [$filters['status']];
+
+            foreach ($statuses as $status) {
+                if (! in_array($status, self::STATUSES, true)) {
+                    throw new InvalidArgumentException(
+                        "Invalid pipeline status: {$status}. Must be one of: ".implode(', ', self::STATUSES).'.'
+                    );
+                }
             }
+
+            $apiFilters['status'] = $statuses;
+        }
+
+        if (isset($filters['term']) && $filters['term'] !== '') {
+            $apiFilters['term'] = $filters['term'];
         }
 
         return $apiFilters;
+    }
+
+    /**
+     * Search pipelines by name
+     */
+    public function search(string $term, array $options = []): array
+    {
+        return $this->list(['term' => $term], $options);
     }
 
     /**
@@ -238,7 +275,7 @@ class Pipelines extends Resource
      */
     public function getAvailableStatuses(): array
     {
-        return ['open', 'pending_deletion'];
+        return self::STATUSES;
     }
 
     /**

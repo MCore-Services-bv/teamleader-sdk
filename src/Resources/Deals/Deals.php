@@ -4,9 +4,35 @@ namespace McoreServices\TeamleaderSDK\Resources\Deals;
 
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class Deals extends Resource
 {
+    use ValidatesWritePayload;
+
+    /**
+     * Body fields deals.update accepts, besides `id`. deals.create accepts the
+     * same set plus `phase_id` — a deal changes phase through move(), not
+     * update(). From @teamleader/focus-api-specification v1.221.0.
+     */
+    public const UPDATE_FIELDS = [
+        'lead', 'title', 'summary', 'source_id', 'department_id', 'responsible_user_id',
+        'second_responsible_user_id', 'estimated_value', 'estimated_probability',
+        'estimated_closing_date', 'currency', 'custom_fields', 'purchase_order_number',
+    ];
+
+    /** `lead.customer.type` on deals.create / deals.update, `filter.customer.type` on deals.list */
+    public const CUSTOMER_TYPES = ['contact', 'company'];
+
+    /** `filter.status[]` on deals.list */
+    public const STATUSES = ['open', 'won', 'lost'];
+
+    /** `estimated_value.currency` and `currency.code` on deals.create / deals.update */
+    public const CURRENCIES = [
+        'BAM', 'CAD', 'CHF', 'CLP', 'CNY', 'COP', 'CZK', 'DKK', 'EUR', 'GBP', 'INR', 'ISK',
+        'JPY', 'MAD', 'MXN', 'NOK', 'PEN', 'PLN', 'RON', 'SEK', 'TRY', 'USD', 'ZAR',
+    ];
+
     protected string $description = 'Manage sales deals in Teamleader Focus';
 
     // Resource capabilities
@@ -26,14 +52,31 @@ class Deals extends Resource
 
     protected bool $supportsSideloading = true;
 
-    // Available includes for sideloading
+    /**
+     * Includes accepted by deals.list.
+     *
+     * Until v2.2.5 this also listed lead.customer, responsible_user,
+     * department, current_phase and source. None of them is an include: all
+     * five are returned on every deal as a {type, id} reference. Requesting
+     * them did nothing, and because the data arrived regardless it looked like
+     * it worked — the Companies and Contacts defect of v2.2.0, again.
+     *
+     * `second_responsible_user` requires the second deal responsible feature
+     * to be enabled on the account.
+     *
+     * @see $infoIncludes For deals.info, which takes a smaller set
+     */
     protected array $availableIncludes = [
-        'lead.customer',
-        'responsible_user',
-        'department',
-        'current_phase',
-        'source',
         'custom_fields',
+        'second_responsible_user',
+    ];
+
+    /**
+     * Includes accepted by deals.info. Custom fields come back on info()
+     * without being asked.
+     */
+    protected array $infoIncludes = [
+        'second_responsible_user',
     ];
 
     // Default includes
@@ -42,7 +85,7 @@ class Deals extends Resource
     /**
      * Filters accepted by deals.list.
      *
-     * Verified against @teamleader/focus-api-specification v1.197.0 — these are
+     * Verified against @teamleader/focus-api-specification v1.221.0 — these are
      * exactly the keys the endpoint declares, and the keys of this array are
      * used as the filter whitelist in buildFilters(). Keeping the whitelist and
      * the documentation in one place is deliberate: they previously drifted, and
@@ -62,23 +105,12 @@ class Deals extends Resource
         'responsible_user_id' => 'Filter by responsible user UUID (string or array)',
         'updated_since' => 'Filter by last update date (inclusive)',
         'created_before' => 'Filter by creation date (inclusive)',
-        'status' => 'Filter by deal status (open, won, lost) — string is coerced to array',
+        'status' => 'Filter by deal status (open, won, lost) — a string is wrapped into an array',
         'pipeline_ids' => 'Array of pipeline UUIDs',
     ];
 
-    // Available deal statuses
-    protected array $availableStatuses = [
-        'new',
-        'open',
-        'won',
-        'lost',
-    ];
-
-    // Available customer types
-    protected array $customerTypes = [
-        'contact',
-        'company',
-    ];
+    // Kept for backwards compatibility — use the CUSTOMER_TYPES constant
+    protected array $customerTypes = self::CUSTOMER_TYPES;
 
     /**
      * Sort fields accepted by deals.list.
@@ -99,12 +131,8 @@ class Deals extends Resource
         'status',
     ];
 
-    // Available currency codes
-    protected array $availableCurrencies = [
-        'BAM', 'CAD', 'CHF', 'CLP', 'CNY', 'COP', 'CZK', 'DKK', 'EUR', 'GBP',
-        'INR', 'ISK', 'JPY', 'MAD', 'MXN', 'NOK', 'PEN', 'PLN', 'RON', 'SEK',
-        'TRY', 'USD', 'ZAR',
-    ];
+    // Kept for backwards compatibility — use the CURRENCIES constant
+    protected array $availableCurrencies = self::CURRENCIES;
 
     // Usage examples
     protected array $usageExamples = [
@@ -140,10 +168,9 @@ class Deals extends Resource
             'code' => '$result = $teamleader->deals()->move("deal-uuid", "phase-uuid");',
         ],
         'filter_deals' => [
-            'description' => 'Get deals with full information',
+            'description' => 'Get open deals with custom fields',
             'code' => '$deals = $teamleader->deals()
-                ->withCustomer()
-                ->withResponsibleUser()
+                ->withCustomFields()
                 ->list(["status" => ["open"]]);',
         ],
         'sorted_deals' => [
@@ -203,35 +230,52 @@ class Deals extends Resource
         //
         // Must go through applyIncludes(), which writes the `includes` (plural)
         // body key. The singular form is silently ignored by the API — see the
-        // note on FilterTrait::applyIncludes().
-        if (isset($options['include'])) {
-            $params = $this->applyIncludes($params, $options['include']);
-        }
+        // note on FilterTrait::applyIncludes(). Both option spellings are
+        // accepted, merged with fluent includes, and checked against the
+        // endpoint's set. Pending includes are consumed first, so a rejected
+        // call cannot leak them into the next one.
+        $pending = $this->getPendingIncludes();
+        $this->applyPendingIncludes([]);
 
-        // Apply any pending includes from fluent interface
-        $params = $this->applyPendingIncludes($params);
+        $includes = $this->assertIncludes(
+            [...(array) ($this->resolveIncludesOption($options) ?? []), ...$pending],
+            $this->availableIncludes,
+            'deals.list'
+        );
+
+        $params = $this->applyIncludes($params, $includes);
 
         return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
-     * Get deal information with enhanced include handling
+     * Get deal information
+     *
+     * deals.info accepts one include, `second_responsible_user`. Custom fields
+     * are returned without being asked; the lead, responsible user, department,
+     * phase and source are always returned as references.
      *
      * @param  string  $id  Deal UUID
-     * @param  mixed  $includes  Relations to include
+     * @param  mixed  $includes  second_responsible_user
+     *
+     * @throws InvalidArgumentException When an include is not valid for this endpoint
      */
     public function info($id, $includes = null): array
     {
-        $params = ['id' => $id];
+        $pending = $this->getPendingIncludes();
+        $this->applyPendingIncludes([]);
 
-        if (! empty($includes)) {
-            $params = $this->applyIncludes($params, $includes);
-        }
+        $requested = $this->assertIncludes(
+            [...(array) ($includes ?? []), ...$pending],
+            $this->infoIncludes,
+            'deals.info'
+        );
 
-        // Apply any pending includes from fluent interface
-        $params = $this->applyPendingIncludes($params);
-
-        return $this->api->request('POST', $this->getBasePath().'.info', $params);
+        return $this->api->request(
+            'POST',
+            $this->getBasePath().'.info',
+            $this->applyIncludes(['id' => $id], $requested)
+        );
     }
 
     /**
@@ -462,6 +506,14 @@ class Deals extends Resource
     /**
      * Validate deal data before create/update
      *
+     * Checked against deals.create / deals.update in the specification: the
+     * lead and title are required on create; unknown top-level fields throw
+     * (the API would drop them and report success — `phase_id` on update is
+     * the common one, since a deal changes phase through move()); enums are
+     * checked for the customer type and both currency fields.
+     *
+     * `estimated_value.amount` may be negative since specification 1.221.0.
+     *
      * @param  array  $data  Deal data
      * @param  string  $operation  Operation type ('create' or 'update')
      *
@@ -469,6 +521,14 @@ class Deals extends Resource
      */
     protected function validateDealData(array $data, string $operation): void
     {
+        $endpoint = $operation === 'create' ? 'deals.create' : 'deals.update';
+
+        $this->rejectUnknownFields(
+            $data,
+            $operation === 'create' ? [...self::UPDATE_FIELDS, 'phase_id'] : [...self::UPDATE_FIELDS, 'id'],
+            $endpoint
+        );
+
         // Validate required fields for creation
         if ($operation === 'create') {
             if (empty($data['lead']['customer'])) {
@@ -477,12 +537,6 @@ class Deals extends Resource
 
             if (empty($data['lead']['customer']['type'])) {
                 throw new InvalidArgumentException('Customer type is required');
-            }
-
-            if (! in_array($data['lead']['customer']['type'], $this->customerTypes)) {
-                throw new InvalidArgumentException(
-                    "Invalid customer type: {$data['lead']['customer']['type']}. Must be 'contact' or 'company'"
-                );
             }
 
             if (empty($data['lead']['customer']['id'])) {
@@ -494,7 +548,11 @@ class Deals extends Resource
             }
         }
 
-        // Validate estimated value if provided
+        if (isset($data['lead']['customer'])) {
+            $this->assertEnum($data['lead']['customer']['type'] ?? null, self::CUSTOMER_TYPES, 'lead.customer.type', $endpoint);
+        }
+
+        // Validate estimated value if provided — null clears it
         if (isset($data['estimated_value'])) {
             if (! isset($data['estimated_value']['amount'])) {
                 throw new InvalidArgumentException('Estimated value amount is required');
@@ -504,11 +562,7 @@ class Deals extends Resource
                 throw new InvalidArgumentException('Estimated value currency is required');
             }
 
-            if (! in_array($data['estimated_value']['currency'], $this->availableCurrencies)) {
-                throw new InvalidArgumentException(
-                    "Invalid currency: {$data['estimated_value']['currency']}"
-                );
-            }
+            $this->assertEnum($data['estimated_value']['currency'], self::CURRENCIES, 'estimated_value.currency', $endpoint);
         }
 
         // Validate estimated probability if provided
@@ -529,20 +583,17 @@ class Deals extends Resource
                 );
             }
 
-            if (! in_array($data['currency']['code'], $this->availableCurrencies)) {
-                throw new InvalidArgumentException(
-                    "Invalid currency code: {$data['currency']['code']}"
-                );
-            }
+            $this->assertEnum($data['currency']['code'], self::CURRENCIES, 'currency.code', $endpoint);
         }
 
-        // Validate custom fields if provided
+        // Validate custom fields if provided. A null value is allowed: it
+        // clears the field. Before v2.2.5 isset() rejected it client-side.
         if (isset($data['custom_fields']) && is_array($data['custom_fields'])) {
             foreach ($data['custom_fields'] as $field) {
                 if (! isset($field['id'])) {
                     throw new InvalidArgumentException('Custom field must include an id');
                 }
-                if (! isset($field['value'])) {
+                if (! is_array($field) || ! array_key_exists('value', $field)) {
                     throw new InvalidArgumentException('Custom field must include a value');
                 }
             }
@@ -585,9 +636,23 @@ class Deals extends Resource
             }
 
             if (in_array($key, $this->arrayFilters, true) && ! is_array($value)) {
-                $apiFilters[$key] = [$value];
+                $value = [$value];
+            }
 
-                continue;
+            if ($key === 'status') {
+                foreach ($value as $status) {
+                    $this->assertEnum($status, self::STATUSES, 'filter.status[]', 'deals.list');
+                }
+            }
+
+            if ($key === 'customer') {
+                if (! is_array($value) || ! isset($value['type'], $value['id'])) {
+                    throw new InvalidArgumentException(
+                        'The customer filter takes ["type" => "contact"|"company", "id" => "..."].'
+                    );
+                }
+
+                $this->assertEnum($value['type'], self::CUSTOMER_TYPES, 'filter.customer.type', 'deals.list');
             }
 
             $apiFilters[$key] = $value;
@@ -700,47 +765,58 @@ class Deals extends Resource
     }
 
     /**
-     * Fluent method to include customer information
+     * @deprecated since v2.2.5 — `lead.customer` is not an include. The lead
+     * is returned on every deal as a {type, id} reference; this method now
+     * adds nothing to the request. Removed in v3.0.
      */
     public function withCustomer(): self
     {
-        return $this->with('lead.customer');
+        return $this;
     }
 
     /**
-     * Fluent method to include responsible user information
+     * @deprecated since v2.2.5 — `responsible_user` is not an include. It is
+     * returned on every deal as a {type, id} reference; this method now adds
+     * nothing to the request. Removed in v3.0.
      */
     public function withResponsibleUser(): self
     {
-        return $this->with('responsible_user');
+        return $this;
     }
 
     /**
-     * Fluent method to include department information
+     * @deprecated since v2.2.5 — `department` is not an include. It is
+     * returned on every deal as a {type, id} reference; this method now adds
+     * nothing to the request. Removed in v3.0.
      */
     public function withDepartment(): self
     {
-        return $this->with('department');
+        return $this;
     }
 
     /**
-     * Fluent method to include current phase information
+     * @deprecated since v2.2.5 — `current_phase` is not an include. It is
+     * returned on every deal as a {type, id} reference; this method now adds
+     * nothing to the request. Removed in v3.0.
      */
     public function withCurrentPhase(): self
     {
-        return $this->with('current_phase');
+        return $this;
     }
 
     /**
-     * Fluent method to include source information
+     * @deprecated since v2.2.5 — `source` is not an include. It is returned
+     * on every deal as a {type, id} reference; this method now adds nothing to
+     * the request. Removed in v3.0.
      */
     public function withSource(): self
     {
-        return $this->with('source');
+        return $this;
     }
 
     /**
-     * Fluent method to include custom fields
+     * Fluent method to include custom fields — deals.list only; deals.info
+     * returns them without being asked
      */
     public function withCustomFields(): self
     {
@@ -748,17 +824,22 @@ class Deals extends Resource
     }
 
     /**
-     * Fluent method to include all common relationships
+     * Fluent method to include the second responsible user, on list() or
+     * info(). Requires the second deal responsible feature on the account.
+     */
+    public function withSecondResponsibleUser(): self
+    {
+        return $this->with('second_responsible_user');
+    }
+
+    /**
+     * @deprecated since v2.2.5 — every relation it requested is returned by
+     * default, and none of them is an include. Now adds nothing to the
+     * request. Removed in v3.0.
      */
     public function withAll(): self
     {
-        return $this->with([
-            'lead.customer',
-            'responsible_user',
-            'department',
-            'current_phase',
-            'source',
-        ]);
+        return $this;
     }
 
     /**
@@ -766,6 +847,6 @@ class Deals extends Resource
      */
     protected function getSuggestedIncludes(): array
     {
-        return $this->availableIncludes;
+        return [];
     }
 }

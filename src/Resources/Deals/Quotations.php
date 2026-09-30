@@ -4,9 +4,43 @@ namespace McoreServices\TeamleaderSDK\Resources\Deals;
 
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class Quotations extends Resource
 {
+    use ValidatesWritePayload;
+
+    /**
+     * Body fields quotations.update accepts, besides `id`. quotations.create
+     * accepts the same set plus `deal_id`. `name` is accepted since
+     * specification 1.221.0.
+     */
+    public const UPDATE_FIELDS = ['name', 'currency', 'grouped_lines', 'text', 'document_template_id', 'discounts', 'expiry'];
+
+    /** Body fields quotations.send accepts */
+    public const SEND_FIELDS = ['quotations', 'from', 'recipients', 'subject', 'content', 'language', 'attachments'];
+
+    /** `expiry.action_after_expiry` on quotations.create / quotations.update */
+    public const EXPIRY_ACTIONS = ['lock', 'none'];
+
+    /** `discounts[].type` on quotations.create / quotations.update */
+    public const DISCOUNT_TYPES = ['percentage'];
+
+    /** `from.sender.type` on quotations.send */
+    public const SENDER_TYPES = ['user', 'department'];
+
+    /** `recipients.{to,cc,bcc}[].customer.type` on quotations.send */
+    public const RECIPIENT_TYPES = ['contact', 'company'];
+
+    /** `language` on quotations.send */
+    public const SEND_LANGUAGES = [
+        'en', 'nl', 'fr', 'ch', 'jp', 'de', 'es', 'pt', 'it', 'gr', 'tr', 'cs', 'so', 'sk', 'ru', 'ko', 'ir', 'iq',
+        'hu', 'gh', 'bg', 'bs', 'br', 'ar', 'ag', 'al', 'af', 'ro', 'pl', 'ca', 'da', 'uk', 'no', 'fi', 'sv',
+    ];
+
+    /** `status` on quotations.info / quotations.list responses */
+    public const STATUSES = ['open', 'accepted', 'refused', 'expired'];
+
     protected string $description = 'Manage quotations in Teamleader Focus';
 
     // Resource capabilities
@@ -24,13 +58,20 @@ class Quotations extends Resource
 
     protected bool $supportsFiltering = true;
 
-    // Neither quotations.list nor quotations.info declares an includes
-    // parameter. Until v2.2.2 this was true and $availableIncludes advertised an
-    // `expiry` include that the API has never accepted.
-    protected bool $supportsSideloading = false;
+    /**
+     * `expiry` is the one include, on both quotations.list and quotations.info.
+     *
+     * v2.2.2 removed it, reading that neither endpoint declares an includes
+     * request property — which is true. But both responses document the
+     * `expiry` field as "returned if user has access to quotation expiry and
+     * `includes=expiry` is requested". The specification contradicts itself;
+     * the response documentation is the more specific of the two, and an
+     * include the API does not know is ignored rather than rejected, so
+     * offering it again costs nothing either way. Restored in v2.2.5.
+     */
+    protected bool $supportsSideloading = true;
 
-    // Available includes for sideloading — none exist for this resource
-    protected array $availableIncludes = [];
+    protected array $availableIncludes = ['expiry'];
 
     /**
      * Filters accepted by quotations.list.
@@ -43,14 +84,9 @@ class Quotations extends Resource
         'ids' => 'Array of quotation UUIDs to filter by',
     ];
 
-    // Quotation status values
-    protected array $validStatuses = [
-        'open',
-        'accepted',
-        'expired',
-        'rejected',
-        'closed',
-    ];
+    // Quotation status values — until v2.2.5 this listed `rejected` and
+    // `closed`, which the API does not return, and missed `refused`
+    protected array $validStatuses = self::STATUSES;
 
     // Supported download formats
     protected array $supportedFormats = [
@@ -70,6 +106,10 @@ class Quotations extends Resource
         'get_single' => [
             'description' => 'Get a single quotation',
             'code' => '$quotation = $teamleader->quotations()->info(\'quotation-uuid\');',
+        ],
+        'with_expiry' => [
+            'description' => 'Get a quotation with its expiry settings',
+            'code' => '$quotation = $teamleader->quotations()->withExpiry()->info(\'quotation-uuid\');',
         ],
         'create' => [
             'description' => 'Create a new quotation',
@@ -96,26 +136,35 @@ class Quotations extends Resource
     /**
      * Get quotation information
      *
-     * `quotations.info` declares no includes parameter — everything the endpoint
-     * returns comes back automatically.
-     *
      * @param  string  $id  Quotation UUID
-     * @param  mixed  $includes  Not supported by this endpoint
+     * @param  mixed  $includes  `expiry` — returned when the account has access to quotation expiry
      *
-     * @throws InvalidArgumentException When includes are requested
+     * @throws InvalidArgumentException When another include is requested
      */
     public function info($id, $includes = null): array
     {
-        if (! empty($includes) || ! empty($this->getPendingIncludes())) {
-            throw new InvalidArgumentException(
-                'quotations.info accepts no includes parameter. The `expiry` include '
-                .'advertised before v2.2.2 does not exist in the API.'
-            );
-        }
+        $pending = $this->getPendingIncludes();
+        $this->applyPendingIncludes([]);
 
-        return $this->api->request('POST', $this->getBasePath().'.info', [
-            'id' => $id,
-        ]);
+        $requested = $this->assertIncludes(
+            [...(array) ($includes ?? []), ...$pending],
+            $this->availableIncludes,
+            'quotations.info'
+        );
+
+        return $this->api->request(
+            'POST',
+            $this->getBasePath().'.info',
+            $this->applyIncludes(['id' => $id], $requested)
+        );
+    }
+
+    /**
+     * Include the `expiry` block in the next list() or info() request
+     */
+    public function withExpiry(): self
+    {
+        return $this->with('expiry');
     }
 
     /**
@@ -129,29 +178,23 @@ class Quotations extends Resource
     /**
      * Create a new quotation
      *
+     * quotations.create requires `deal_id` and nothing else. Before v2.2.5 the
+     * SDK also required grouped_lines or text, which the specification does
+     * not.
+     *
      * @param  array  $data  Quotation data
-     */
-    public function create(array $data): array
-    {
-        $this->validateCreateData($data);
-
-        return $this->api->request('POST', $this->getBasePath().'.create', $data);
-    }
-
-    /**
-     * Validate data for creating a quotation
      *
      * @throws InvalidArgumentException
      */
-    private function validateCreateData(array $data): void
+    public function create(array $data): array
     {
-        if (! isset($data['deal_id'])) {
+        if (empty($data['deal_id'])) {
             throw new InvalidArgumentException('deal_id is required to create a quotation');
         }
 
-        if (! isset($data['grouped_lines']) && ! isset($data['text'])) {
-            throw new InvalidArgumentException('A quotation needs either grouped_lines or text to be valid');
-        }
+        $this->validateQuotationData($data, [...self::UPDATE_FIELDS, 'deal_id'], 'quotations.create');
+
+        return $this->api->request('POST', $this->getBasePath().'.create', $data);
     }
 
     /**
@@ -159,12 +202,32 @@ class Quotations extends Resource
      *
      * @param  string  $id  Quotation UUID
      * @param  array  $data  Updated quotation data
+     *
+     * @throws InvalidArgumentException
      */
     public function update(string $id, array $data): array
     {
         $data['id'] = $id;
 
+        $this->validateQuotationData($data, [...self::UPDATE_FIELDS, 'id'], 'quotations.update');
+
         return $this->api->request('POST', $this->getBasePath().'.update', $data);
+    }
+
+    /**
+     * Unknown fields and the enums the specification declares on the body
+     *
+     * @throws InvalidArgumentException
+     */
+    protected function validateQuotationData(array $data, array $allowed, string $endpoint): void
+    {
+        $this->rejectUnknownFields($data, $allowed, $endpoint);
+
+        $this->assertItemEnum($data, 'discounts', 'type', self::DISCOUNT_TYPES, $endpoint);
+
+        if (isset($data['expiry']) && is_array($data['expiry'])) {
+            $this->assertEnum($data['expiry']['action_after_expiry'] ?? null, self::EXPIRY_ACTIONS, 'expiry.action_after_expiry', $endpoint);
+        }
     }
 
     /**
@@ -202,16 +265,17 @@ class Quotations extends Resource
     /**
      * Validate data for sending quotations
      *
+     * quotations.send requires quotations, recipients, subject, content and
+     * language. `from` is optional — before v2.2.5 the SDK required it.
+     *
      * @throws InvalidArgumentException
      */
     private function validateSendData(array $data): void
     {
+        $this->rejectUnknownFields($data, self::SEND_FIELDS, 'quotations.send');
+
         if (! isset($data['quotations']) || ! is_array($data['quotations']) || empty($data['quotations'])) {
             throw new InvalidArgumentException('quotations array is required and must not be empty');
-        }
-
-        if (! isset($data['from']) || ! isset($data['from']['sender'])) {
-            throw new InvalidArgumentException('from.sender is required');
         }
 
         if (! isset($data['recipients']) || ! isset($data['recipients']['to']) || empty($data['recipients']['to'])) {
@@ -228,6 +292,25 @@ class Quotations extends Resource
 
         if (! isset($data['language'])) {
             throw new InvalidArgumentException('language is required');
+        }
+
+        $this->assertEnum($data['language'], self::SEND_LANGUAGES, 'language', 'quotations.send');
+
+        if (isset($data['from']['sender'])) {
+            $this->assertEnum($data['from']['sender']['type'] ?? null, self::SENDER_TYPES, 'from.sender.type', 'quotations.send');
+        }
+
+        foreach (['to', 'cc', 'bcc'] as $list) {
+            foreach ($data['recipients'][$list] ?? [] as $index => $recipient) {
+                if (isset($recipient['customer'])) {
+                    $this->assertEnum(
+                        $recipient['customer']['type'] ?? null,
+                        self::RECIPIENT_TYPES,
+                        "recipients.{$list}[{$index}].customer.type",
+                        'quotations.send'
+                    );
+                }
+            }
         }
     }
 
@@ -289,6 +372,15 @@ class Quotations extends Resource
         } elseif (isset($options['page'])) {
             $params['page'] = $this->buildPagination($options['page']);
         }
+
+        $pending = $this->getPendingIncludes();
+        $this->applyPendingIncludes([]);
+
+        $params = $this->applyIncludes($params, $this->assertIncludes(
+            [...(array) ($this->resolveIncludesOption($options) ?? []), ...$pending],
+            $this->availableIncludes,
+            'quotations.list'
+        ));
 
         return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
@@ -383,7 +475,8 @@ class Quotations extends Resource
                     'data.deal.id' => 'Deal UUID',
                     'data.deal.type' => 'Deal type string',
                     'data.grouped_lines' => 'Array of line item groups',
-                    'data.status' => 'Quotation status (open, accepted, expired, rejected, closed)',
+                    'data.status' => 'Quotation status (open, accepted, refused, expired)',
+                    'data.expiry' => 'Expiry settings — only with includes=expiry, and only when the account has access to quotation expiry',
                     'data.name' => 'Quotation name',
                 ],
             ],

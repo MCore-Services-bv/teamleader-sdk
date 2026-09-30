@@ -8,13 +8,111 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Category-by-category spec audit: Deals, Invoicing, Expenses, Projects,
+- Category-by-category spec audit: Invoicing, Expenses, Projects,
   Tasks, TimeTracking, Calendar, Tickets, General, Products, Planning, Files,
   Templates, Other — one patch release each, with the matching wiki pages
 - Bulk operations helper for processing large datasets
 - Enhanced caching strategies with tag-based invalidation
 - Laravel Pulse integration for monitoring
 - CLI tool for quick API exploration
+
+---
+
+## [2.2.5] - 2026-09-30
+
+The Deals category — Deals, Quotations, Orders, Phases, Pipelines, Sources,
+LostReasons — brought in line with `@teamleader/focus-api-specification`
+**1.221.0**. Same theme as v2.2.4: values the API accepts with `200` and
+ignores now throw before the request. **Code that relied on an ignored value
+will now get an `InvalidArgumentException`** — most likely the five Deals
+includes below, a descending sort on Sources or LostReasons, or `phase_id` on
+`Deals::update()`.
+
+### Fixed — Deals
+
+- **Five phantom includes.** `lead.customer`, `responsible_user`, `department`,
+  `current_phase` and `source` were advertised as includes. None is: all five
+  are returned on every deal as a `{type, id}` reference. `deals.list` takes
+  `custom_fields` and `second_responsible_user`; `deals.info` takes
+  `second_responsible_user` only (custom fields come back without asking).
+  Both are now validated. `withCustomer()`, `withResponsibleUser()`,
+  `withDepartment()`, `withCurrentPhase()`, `withSource()` and `withAll()` are
+  deprecated no-ops, removed in v3.0 — the data they appeared to fetch still
+  arrives by default. **`withSecondResponsibleUser()`** added.
+- **`update()` accepted `phase_id`.** `deals.update` has no such field; the API
+  dropped it and reported success. A deal changes phase through `move()`.
+  Unknown write fields now throw on create and update.
+- **`second_responsible_user_id`** is accepted on create and update, and a
+  **negative `estimated_value.amount`** is allowed (both spec 1.221.0).
+- `filter.status[]` and `filter.customer.type` are checked against their enums.
+- A custom field could not be cleared: `isset()` rejected `'value' => null`
+  client-side.
+
+### Fixed — Phases
+
+- **`delete()` was a fatal error.** It called `parent::delete()`, which
+  `Resource` does not define — the Pipelines defect fixed in v2.2.2, on the
+  class next to it. It also demanded `new_phase_id`, which the spec makes
+  optional. Both fixed.
+- **`update()` did not require `requires_attention_after`**, which
+  `dealPhases.update` requires on every call. It passed client-side and failed
+  at the API. It also accepted `deal_pipeline_id`, which cannot change.
+- Unknown filter keys were dropped silently; a string `ids` was dropped too.
+
+### Fixed — Pipelines, Sources, LostReasons
+
+- **Pipelines** and **Sources** gain the `term` filter (spec 1.221.0).
+  `Pipelines::search()` is new; `Sources::search()` now uses it — before, it
+  filtered the first page in PHP, so a source past the first 20 was never
+  found.
+- **Sources** and **LostReasons** silently rewrote any sort to `name`/`asc`, so
+  asking for descending order returned ascending. Both endpoints accept only
+  `name`, ascending; anything else now throws. The Tags defect fixed in
+  v2.1.2, twice more.
+- **`Sources::all()`** returned the first 20 sources and **`LostReasons::all()`**
+  the first 100; both now walk every page, and `selectOptions()`,
+  `getStatistics()`, `getStats()` and `getSelectOptions()` with them.
+- Unknown filter keys throw on all three; pipeline `status` values are checked.
+- `LostReasons::info()` no longer returns an `included` key the API never sends.
+- `LostReasons::search()` is deprecated — it never searched by text.
+
+### Fixed — Quotations
+
+- **The `expiry` include is back.** v2.2.2 removed it because neither
+  `quotations.list` nor `quotations.info` declares an includes request
+  property. But both responses document the `expiry` field as *"returned if
+  user has access to quotation expiry and `includes=expiry` is requested"*. The
+  specification contradicts itself; the response documentation is the more
+  specific of the two, and an unrecognised include is ignored rather than
+  rejected, so offering it costs nothing. **`withExpiry()`** added.
+- **Status values were wrong:** `rejected` and `closed` do not exist; `refused`
+  was missing. The API returns `open`, `accepted`, `refused`, `expired`.
+- `create()` no longer demands `grouped_lines` or `text` — the spec requires
+  `deal_id` only. `send()` no longer demands `from`, which is optional.
+- `name` is accepted on create and update (spec 1.221.0); unknown fields throw;
+  `discounts[].type`, `expiry.action_after_expiry`, and on `send()` the
+  `language`, sender type and recipient customer types are enum-checked.
+
+### Fixed — Orders
+
+- Includes on `list()` and `info()` are validated (`custom_fields` only). The
+  comment describing pagination as undocumented is trimmed — spec 1.221.0
+  declares it.
+
+### Changed — tooling
+
+- **The fixture generator reads includes from response documentation too.**
+  Several endpoints name an include only in a response field description —
+  *"Only included with request parameter `includes=…`"*. That is how the
+  Quotations `expiry` contradiction surfaced. It also cleared a false positive:
+  the Meetings `estimated_time` include is documented this way, so it was
+  never phantom. `pagination` mentions are recorded separately as
+  `declares_pagination_meta`.
+- A sort field documented only as a `default` (`dealSources.list`) is now
+  extracted.
+- `API-list-endpoint-contract.md` shows both include sources.
+- Tests: `DealsReferencePayloadTest`, `QuotationsOrdersPayloadTest`,
+  `DealsSpecContractTest`; `DealsResourceTest` updated. Baseline 97 → 87.
 
 ---
 

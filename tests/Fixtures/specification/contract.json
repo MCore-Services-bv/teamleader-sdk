@@ -20,6 +20,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -65,6 +67,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -114,6 +118,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "filter.subject.type": [
@@ -162,6 +168,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -200,6 +208,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -246,6 +256,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "participant.customer.type": [
@@ -296,6 +308,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -330,6 +344,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -364,6 +380,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -450,6 +468,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": true,
         "includes_example": null,
         "enums": {}
       },
@@ -516,6 +536,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "participant.customer.type": [
@@ -564,6 +586,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -598,6 +622,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -641,6 +667,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": true,
         "includes_example": null,
         "enums": {}
       },
@@ -683,6 +711,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "type": [
@@ -730,6 +760,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -789,6 +821,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "emails[].type": [
@@ -869,6 +903,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -907,6 +943,11 @@
           "related_companies",
           "related_contacts"
         ],
+        "response_includes": [
+          "related_companies",
+          "related_contacts"
+        ],
+        "declares_pagination_meta": false,
         "includes_example": "related_companies,related_contacts",
         "enums": {}
       },
@@ -1064,6 +1105,10 @@
         "includes": [
           "custom_fields"
         ],
+        "response_includes": [
+          "custom_fields"
+        ],
+        "declares_pagination_meta": false,
         "includes_example": "custom_fields",
         "enums": {
           "filter.email.type": [
@@ -1168,6 +1213,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -1204,6 +1251,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -1256,6 +1305,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "emails[].type": [
@@ -1338,6 +1389,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -1389,6 +1442,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "emails[].type": [
@@ -1451,6 +1506,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -1485,6 +1542,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -1583,6 +1642,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -1672,6 +1733,10 @@
         "includes": [
           "custom_fields"
         ],
+        "response_includes": [
+          "custom_fields"
+        ],
+        "declares_pagination_meta": false,
         "includes_example": "custom_fields",
         "enums": {
           "filter.email.type": [
@@ -1772,6 +1837,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -1808,6 +1875,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -1844,6 +1913,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -1896,6 +1967,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "emails[].type": [
@@ -1962,6 +2035,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -1998,6 +2073,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -2034,6 +2111,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "format": [
@@ -2080,6 +2159,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -2246,6 +2327,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "filter.customer.type": [
@@ -2326,6 +2409,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -2360,6 +2445,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "base": [
@@ -2433,6 +2520,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "type": [
@@ -2498,6 +2587,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -2574,6 +2665,8 @@
         "declares_sort": true,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "filter.context": [
@@ -2645,6 +2738,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -2679,6 +2774,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -2709,6 +2806,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -2751,6 +2850,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -2786,6 +2887,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -2824,6 +2927,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -2864,6 +2969,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "requires_attention_after.unit": [
@@ -2909,6 +3016,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -2943,6 +3052,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -2987,6 +3098,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -3033,6 +3146,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -3072,6 +3187,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "requires_attention_after.unit": [
@@ -3116,6 +3233,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -3151,6 +3270,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -3185,6 +3306,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -3238,6 +3361,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": true,
         "includes_example": null,
         "enums": {
           "filter.status[]": [
@@ -3283,6 +3408,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -3319,6 +3446,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -3367,6 +3496,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "lead.customer.type": [
@@ -3462,6 +3593,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -3499,6 +3632,10 @@
         "includes": [
           "second_responsible_user"
         ],
+        "response_includes": [
+          "second_responsible_user"
+        ],
+        "declares_pagination_meta": false,
         "includes_example": "second_responsible_user",
         "enums": {}
       },
@@ -3677,6 +3814,11 @@
           "custom_fields",
           "second_responsible_user"
         ],
+        "response_includes": [
+          "custom_fields",
+          "second_responsible_user"
+        ],
+        "declares_pagination_meta": false,
         "includes_example": "custom_fields,second_responsible_user",
         "enums": {
           "filter.customer.type": [
@@ -3791,6 +3933,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -3827,6 +3971,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -3874,6 +4020,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "lead.customer.type": [
@@ -3969,6 +4117,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -4008,7 +4158,9 @@
           "term"
         ],
         "filter_required": [],
-        "sort_fields": [],
+        "sort_fields": [
+          "name"
+        ],
         "sort_orders": [
           "asc"
         ],
@@ -4016,6 +4168,8 @@
         "declares_sort": true,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "sort[].order": [
@@ -4059,6 +4213,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -4141,6 +4297,8 @@
         "declares_sort": true,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "filter.status[]": [
@@ -4231,6 +4389,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "filter.document_type": [
@@ -4294,6 +4454,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "subject.type": [
@@ -4353,6 +4515,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "filter.subject.type": [
@@ -4412,6 +4576,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -4457,6 +4623,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "attendees[].type": [
@@ -4501,6 +4669,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -4615,6 +4785,8 @@
         "declares_sort": true,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "filter.attendee.type": [
@@ -4697,6 +4869,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "attendees[].type": [
@@ -4828,6 +5002,8 @@
         "declares_sort": true,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": true,
         "includes_example": null,
         "enums": {
           "filter.source_types[]": [
@@ -4948,6 +5124,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -4982,6 +5160,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -5021,6 +5201,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -5088,6 +5270,8 @@
         "declares_sort": true,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "filter.subject.type": [
@@ -5159,6 +5343,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "subject.type": [
@@ -5220,6 +5406,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "currency.code": [
@@ -5280,6 +5468,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -5314,6 +5504,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -5348,6 +5540,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -5413,6 +5607,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -5460,6 +5656,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -5494,6 +5692,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -5534,6 +5734,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "payment.currency": [
@@ -5596,6 +5798,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -5630,6 +5834,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -5675,6 +5881,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "currency.code": [
@@ -5741,6 +5949,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "payment.currency": [
@@ -5812,6 +6022,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "currency.code": [
@@ -5872,6 +6084,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -5906,6 +6120,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -5940,6 +6156,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -6005,6 +6223,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -6052,6 +6272,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -6086,6 +6308,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -6126,6 +6350,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "payment.currency": [
@@ -6188,6 +6414,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -6222,6 +6450,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -6267,6 +6497,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "currency.code": [
@@ -6333,6 +6565,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "payment.currency": [
@@ -6395,6 +6629,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -6429,6 +6665,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -6464,6 +6702,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -6502,6 +6742,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "grouped_lines[].line_items[].unit_price.tax": [
@@ -6546,6 +6788,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -6582,6 +6826,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "format": [
@@ -6646,6 +6892,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "invoicee.customer.type": [
@@ -6739,6 +6987,8 @@
           "totals.fixed_late_fee",
           "totals.interest"
         ],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": "late_fees",
         "enums": {}
       },
@@ -7010,6 +7260,8 @@
           "totals.fixed_late_fee",
           "totals.interest"
         ],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": "late_fees",
         "enums": {
           "filter.status[]": [
@@ -7144,6 +7396,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "payment.currency": [
@@ -7204,6 +7458,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -7242,6 +7498,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "recipients.to[].customer.type": [
@@ -7289,6 +7547,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -7337,6 +7597,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "invoicee.customer.type": [
@@ -7435,6 +7697,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "invoicee.customer.type": [
@@ -7497,6 +7761,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -7548,6 +7814,8 @@
         "declares_sort": true,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "sort[].field": [
@@ -7612,6 +7880,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "filter.type": [
@@ -7666,6 +7936,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -7704,6 +7976,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "attach_to.type": [
@@ -7750,6 +8024,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -7787,6 +8063,11 @@
         "includes": [
           "tracked_time"
         ],
+        "response_includes": [
+          "estimated_time",
+          "tracked_time"
+        ],
+        "declares_pagination_meta": false,
         "includes_example": "tracked_time",
         "enums": {}
       },
@@ -7917,6 +8198,11 @@
         "includes": [
           "tracked_time"
         ],
+        "response_includes": [
+          "estimated_time",
+          "tracked_time"
+        ],
+        "declares_pagination_meta": false,
         "includes_example": "tracked_time",
         "enums": {
           "sort[].field": [
@@ -8011,6 +8297,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "attendees[].type": [
@@ -8072,6 +8360,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "attendees[].type": [
@@ -8119,6 +8409,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "type": [
@@ -8163,6 +8455,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "type": [
@@ -8224,6 +8518,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -8263,6 +8559,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -8307,6 +8605,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "custom_fields[].value.type": [
@@ -8348,6 +8648,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -8382,6 +8684,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -8503,6 +8807,8 @@
         "declares_sort": true,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "filter.status": [
@@ -8593,6 +8899,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -8635,6 +8943,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "custom_fields[].value.type": [
@@ -8679,6 +8989,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "subject.type": [
@@ -8729,6 +9041,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -8776,6 +9090,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "filter.subject.type": [
@@ -8834,6 +9150,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -8871,6 +9189,10 @@
         "includes": [
           "custom_fields"
         ],
+        "response_includes": [
+          "custom_fields"
+        ],
+        "declares_pagination_meta": false,
         "includes_example": "custom_fields",
         "enums": {}
       },
@@ -9014,6 +9336,10 @@
         "includes": [
           "custom_fields"
         ],
+        "response_includes": [
+          "custom_fields"
+        ],
+        "declares_pagination_meta": false,
         "includes_example": "custom_fields",
         "enums": {}
       },
@@ -9116,6 +9442,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "filter.status[]": [
@@ -9157,6 +9485,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -9197,6 +9527,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -9318,6 +9650,8 @@
         "declares_sort": true,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "filter.types[]": [
@@ -9401,6 +9735,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -9445,6 +9781,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -9485,6 +9823,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "purchase_price.currency": [
@@ -9579,6 +9919,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -9616,6 +9958,10 @@
         "includes": [
           "suppliers"
         ],
+        "response_includes": [
+          "suppliers"
+        ],
+        "declares_pagination_meta": false,
         "includes_example": "suppliers",
         "enums": {}
       },
@@ -9710,6 +10056,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -9775,6 +10123,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "purchase_price.currency": [
@@ -9873,6 +10223,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "customer.type": [
@@ -9912,6 +10264,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -9949,6 +10303,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "customer.type": [
@@ -9990,6 +10346,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "assignee.type": [
@@ -10047,6 +10405,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "billing_method": [
@@ -10217,6 +10577,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -10251,6 +10613,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -10285,6 +10649,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -10386,6 +10752,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -10482,6 +10850,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "assignee.type": [
@@ -10536,6 +10906,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "status": [
@@ -10710,6 +11082,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "assignee.type": [
@@ -10760,6 +11134,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "color": [
@@ -10896,6 +11272,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "delete_strategy": [
@@ -10936,6 +11314,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -10970,6 +11350,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -11070,6 +11452,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -11161,6 +11545,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "assignee.type": [
@@ -11209,6 +11595,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "color": [
@@ -11345,6 +11733,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -11397,6 +11787,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "filter.types[]": [
@@ -11450,6 +11842,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -11486,6 +11880,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "customer.type": [
@@ -11527,6 +11923,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -11563,6 +11961,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -11599,6 +11999,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -11635,6 +12037,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "assignee.type": [
@@ -11676,6 +12080,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "closing_strategy": [
@@ -11737,6 +12143,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "time_budget.unit": [
@@ -11992,6 +12400,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "delete_strategy": [
@@ -12034,6 +12444,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -12071,6 +12483,8 @@
         "includes": [
           "legacy_project"
         ],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": "legacy_project",
         "enums": {}
       },
@@ -12268,6 +12682,10 @@
           "custom_fields",
           "legacy_project"
         ],
+        "response_includes": [
+          "custom_fields"
+        ],
+        "declares_pagination_meta": true,
         "includes_example": "legacy_project,custom_fields",
         "enums": {
           "filter.status": [
@@ -12424,6 +12842,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "customer.type": [
@@ -12465,6 +12885,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -12501,6 +12923,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -12537,6 +12961,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -12571,6 +12997,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -12607,6 +13035,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "assignee.type": [
@@ -12664,6 +13094,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "time_budget.unit": [
@@ -12915,6 +13347,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "assignee.type": [
@@ -12969,6 +13403,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "billing_method": [
@@ -13123,6 +13559,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "delete_strategy": [
@@ -13162,6 +13600,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -13196,6 +13636,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -13309,6 +13751,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -13412,6 +13856,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "assignee.type": [
@@ -13464,6 +13910,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "status": [
@@ -13621,6 +14069,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "role": [
@@ -13660,6 +14110,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -13704,6 +14156,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "participants[].role": [
@@ -13753,6 +14207,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -13787,6 +14243,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -13921,6 +14379,8 @@
         "declares_sort": true,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "filter.customer.type": [
@@ -14022,6 +14482,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -14064,6 +14526,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "status": [
@@ -14143,6 +14607,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "role": [
@@ -14182,6 +14648,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -14223,6 +14691,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "currency.code": [
@@ -14321,6 +14791,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -14357,6 +14829,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "format": [
@@ -14400,6 +14874,10 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [
+          "expiry"
+        ],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -14524,6 +15002,10 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [
+          "expiry"
+        ],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -14604,6 +15086,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "from.sender.type": [
@@ -14699,6 +15183,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "currency.code": [
@@ -14805,6 +15291,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "currency.code": [
@@ -14865,6 +15353,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -14899,6 +15389,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -14933,6 +15425,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -14993,6 +15487,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -15040,6 +15536,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -15074,6 +15572,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -15114,6 +15614,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "payment.currency": [
@@ -15176,6 +15678,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -15210,6 +15714,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -15252,6 +15758,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "currency.code": [
@@ -15318,6 +15826,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "payment.currency": [
@@ -15384,6 +15894,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "duration.unit": [
@@ -15426,6 +15938,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -15511,6 +16025,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "filter.assignees[].type": [
@@ -15586,6 +16102,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "duration.unit": [
@@ -15651,6 +16169,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "invoicee.customer.type": [
@@ -15745,6 +16265,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -15779,6 +16301,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -15964,6 +16488,8 @@
         "declares_sort": true,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "filter.customer.type": [
@@ -16083,6 +16609,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "billing_cycle.periodicity.unit": [
@@ -16180,6 +16708,8 @@
         "declares_sort": true,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "sort[].field": [
@@ -16225,6 +16755,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -16272,6 +16804,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "estimated_duration.unit": [
@@ -16324,6 +16858,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -16358,6 +16894,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -16481,6 +17019,8 @@
         "declares_sort": true,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "filter.customer.type": [
@@ -16563,6 +17103,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -16601,6 +17143,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -16647,6 +17191,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "estimated_duration.unit": [
@@ -16712,6 +17258,8 @@
         "declares_sort": true,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "sort[].field": [
@@ -16784,6 +17332,8 @@
         "declares_sort": true,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "sort[].field": [
@@ -16841,6 +17391,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -16884,6 +17436,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -16934,6 +17488,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "customer.type": [
@@ -16987,6 +17543,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -17037,6 +17595,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "sent_by.type": [
@@ -17082,6 +17642,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -17163,6 +17725,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "filter.relates_to.type": [
@@ -17249,6 +17813,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": true,
         "includes_example": null,
         "enums": {
           "filter.type": [
@@ -17312,6 +17878,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "customer.type": [
@@ -17368,6 +17936,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -17404,6 +17974,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -17456,6 +18028,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "subject.type": [
@@ -17495,6 +18069,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -17531,6 +18107,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "subject.type": [
@@ -17576,6 +18154,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "subject.type": [
@@ -17620,6 +18200,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -17658,6 +18240,11 @@
           "materials",
           "relates_to"
         ],
+        "response_includes": [
+          "materials",
+          "relates_to"
+        ],
+        "declares_pagination_meta": false,
         "includes_example": "materials,relates_to",
         "enums": {}
       },
@@ -17798,6 +18385,11 @@
           "materials",
           "relates_to"
         ],
+        "response_includes": [
+          "materials",
+          "relates_to"
+        ],
+        "declares_pagination_meta": false,
         "includes_example": "materials,relates_to",
         "enums": {
           "filter.subject.type": [
@@ -17902,6 +18494,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -17942,6 +18536,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "subject.type": [
@@ -17981,6 +18577,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -18029,6 +18627,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "filter.assignees[].type": [
@@ -18098,6 +18698,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "filter.assignees[].type": [
@@ -18156,6 +18758,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -18204,6 +18808,8 @@
         "includes": [
           "external_rate"
         ],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": "external_rate",
         "enums": {}
       },
@@ -18289,6 +18895,8 @@
         "declares_sort": true,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "filter.status[]": [
@@ -18369,6 +18977,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": true,
         "includes_example": null,
         "enums": {}
       },
@@ -18413,6 +19023,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -18493,6 +19105,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": true,
         "includes_example": null,
         "enums": {}
       },
@@ -18538,6 +19152,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -18579,6 +19195,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "types[]": [
@@ -18713,6 +19331,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {
           "types[]": [
@@ -18849,6 +19469,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
@@ -18902,6 +19524,8 @@
         "declares_sort": false,
         "declares_includes": false,
         "includes": [],
+        "response_includes": [],
+        "declares_pagination_meta": false,
         "includes_example": null,
         "enums": {}
       },
