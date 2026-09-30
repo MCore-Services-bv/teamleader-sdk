@@ -5,6 +5,7 @@ namespace McoreServices\TeamleaderSDK\Resources;
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\TeamleaderSDK;
 use McoreServices\TeamleaderSDK\Traits\FilterTrait;
+use McoreServices\TeamleaderSDK\Traits\Paginates;
 
 /**
  * Base resource class for all Teamleader API resources
@@ -19,6 +20,7 @@ use McoreServices\TeamleaderSDK\Traits\FilterTrait;
 abstract class Resource
 {
     use FilterTrait;
+    use Paginates;
 
     /**
      * @var TeamleaderSDK The main SDK instance for making API requests

@@ -43,6 +43,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added (3.x branch)
 
+- **`lazy()` and `cursor()` on every paginated resource.** `lazy()` returns a
+  `LazyCollection` that fetches pages of 100 as it is iterated, through the
+  resource's own `list()` so all validation applies; `cursor()` exposes the
+  total (where the endpoint reports `meta.matches`), the pages fetched and the
+  last page, for progress and resuming. A failed page throws regardless of
+  `throw_exceptions`, fluent includes apply to every page, and an endpoint
+  that ignores the page parameters is detected instead of looped forever.
+  Non-paginated resources throw `BadMethodCallException`.
 - **Events.** `RequestSending`, `ResponseReceived`, `RequestFailed`,
   `RateLimitWaited`, `TokenRefreshed` and `TokenRefreshFailed`, in
   `McoreServices\TeamleaderSDK\Events`. Bodies are sanitised and no event
