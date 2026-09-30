@@ -4,14 +4,20 @@
 
 | Version | Supported | Notes |
 | ------- | --------- | ----- |
-| 2.2.x | ✅ Active | Current release |
-| 2.1.x | ⚠️ Security fixes only | Upgrade to 2.2.x when convenient |
-| 2.0.x | ⚠️ Security fixes only | Upgrade recommended |
+| 2.2.x | ✅ Active | Current release — receives every fix |
+| 2.1.x | ❌ Unsupported | Upgrade to 2.2.x — same requirements, no breaking changes |
+| 2.0.x | ❌ Unsupported | Upgrade to 2.2.x — same requirements, no breaking changes |
 | < 2.0 | ❌ Unsupported | Requires Laravel 10 or 11 — both EOL with unpatched CVEs |
+
+Only the latest minor of the current major is supported. Fixes land as patch
+releases on 2.2.x, which runs on the same PHP and Laravel versions as 2.0 and
+2.1, so there is no reason to stay on an older minor.
+
+When 3.0.0 is released, 2.x moves to security fixes only for **three months**
+and is unsupported after that. The date will be stated here on release.
 
 Versions below 2.0 depend on Laravel 10 or 11. Composer's security advisories
 block installing those, so there is no supported upgrade path that keeps them.
-Move to 2.x.
 
 ## Reporting a Vulnerability
 

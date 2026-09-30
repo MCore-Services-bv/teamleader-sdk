@@ -1,0 +1,12 @@
+{
+    "name": "teamleader-sdk-tooling",
+    "private": true,
+    "description": "Development tooling only: regenerates the specification fixtures. Not part of the Composer package.",
+    "scripts": {
+        "spec:fixtures": "node tests/Fixtures/specification/generate-spec-fixtures.mjs"
+    },
+    "devDependencies": {
+        "@teamleader/focus-api-specification": "1.221.0",
+        "js-yaml": "^4.1.0"
+    }
+}

@@ -1,19 +1,20 @@
 {
   "_comment": "Generated — do not edit by hand. See generate-spec-fixtures.mjs.",
-  "specification_version": "1.198.0",
+  "specification_version": "1.221.0",
   "endpoints": {
     "orders.list": {
       "request": {
         "properties": [
           "filter",
-          "includes"
+          "includes",
+          "page"
         ],
         "required": [],
         "filters": [
           "ids"
         ],
         "sort_fields": [],
-        "declares_pagination": false,
+        "declares_pagination": true,
         "declares_sort": false,
         "declares_includes": true,
         "includes_example": "custom_fields"

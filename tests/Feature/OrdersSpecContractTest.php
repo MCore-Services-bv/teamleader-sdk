@@ -24,8 +24,8 @@ use ReflectionClass;
  * to make a test pass: a fixture that disagrees with the SDK is a finding about
  * the SDK.
  *
- * One deliberate divergence is asserted rather than ignored — see
- * test_pagination_is_undeclared_in_the_specification_but_supported.
+ * Pagination was a deliberate divergence until specification 1.221.0 declared
+ * it — see test_pagination_is_declared_and_supported.
  */
 #[Group('spec-contract')]
 class OrdersSpecContractTest extends TestCase
@@ -190,34 +190,29 @@ class OrdersSpecContractTest extends TestCase
         $this->assertSame(['id', 'includes'], $request['properties']);
     }
 
-    // -- the one divergence --------------------------------------------------
+    // -- pagination ----------------------------------------------------------
 
     /**
-     * orders.list is not declared as paginated, but paginates.
+     * orders.list paginates, and since specification 1.221.0 says so.
      *
-     * Verified live on 2026-08-20 against an account holding 30 orders: no page
-     * parameter returned 20, size 100 returned all 30, size 100 number 2
-     * returned 0, and size 5 returned five records on page 1 and five different
-     * records on page 2. An ignored parameter cannot produce that.
-     *
-     * This test exists so the divergence stays deliberate. If Teamleader
-     * documents the parameter, this fails and the explanatory comments on
-     * $supportsPagination and list() can be shortened to a normal declaration.
+     * Pagination was verified live on 2026-08-20, before Teamleader documented
+     * it (changelog 2026-08-25: "We added the `page` parameter to
+     * `orders.list`"). This test guarded that deliberate divergence; it now
+     * asserts the ordinary case, and fails if the declaration is withdrawn.
      */
-    public function test_pagination_is_undeclared_in_the_specification_but_supported(): void
+    public function test_pagination_is_declared_and_supported(): void
     {
-        $this->assertFalse(
+        $this->assertTrue(
             $this->spec['endpoints']['orders.list']['request']['declares_pagination'],
-            'orders.list now declares `page` in specification '
-            .$this->spec['specification_version'].'. The divergence documented on '
-            .'Orders::$supportsPagination is resolved — trim the comment to a '
-            .'plain reference to the specification.'
+            'orders.list no longer declares `page` in specification '
+            .$this->spec['specification_version'].'. Re-verify against a live '
+            .'account before changing Orders::$supportsPagination.'
         );
 
         $this->assertTrue(
             $this->property('supportsPagination'),
-            'Pagination is undeclared but functional. Turning this off returns '
-            .'the resource to silently capping every caller at 20 records.'
+            'The specification declares page. Turning this off returns the '
+            .'resource to silently capping every caller at 20 records.'
         );
     }
 
