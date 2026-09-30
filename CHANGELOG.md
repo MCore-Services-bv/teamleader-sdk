@@ -15,6 +15,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.3.1] - 2026-09-30
+
+**Documentation release.** The documentation moves from the GitHub wiki into
+the repository, as `docs/`, published to GitBook through Git Sync. No runtime
+behaviour changes.
+
+### Added
+
+- **`docs/` with hand-written guides**: installation, configuration,
+  authentication, quick start, filtering and sorting, pagination, sideloading,
+  validation, error handling, rate limiting, webhooks, token storage and
+  security, Artisan commands, specification parity and upgrading. Ported from
+  the wiki and the README, and checked against the code — see *Fixed* below.
+- **An API reference generated from the code** — one page per resource under
+  `docs/reference`, plus an index with a capability matrix, every include per
+  endpoint, and the deprecated resource keys. Each page lists the facade
+  method, the endpoints the resource calls (marked when Teamleader deprecates
+  them), its filters, sort fields and includes, the public constants holding
+  its accepted values, and every public method with its signature and
+  docblock, deprecations included. It is built by `bin/docs`
+  (`tests/Support/Docs/ReferenceGenerator.php`) with reflection only, so it
+  describes exactly what the SDK does.
+- **`composer docs:build`** and **`composer docs:check`**. The check exits 1
+  when a reference page is missing, outdated or no longer belongs to a
+  resource; it runs in the CI *Specification parity* job and as
+  `ReferenceDocsTest`.
+- `.gitbook.yaml`, pointing GitBook at `docs/`.
+
+### Changed
+
+- `Contacts` declares `$infoIncludes = []`. `contacts.info` has always
+  rejected includes; the declaration makes the reference and the spec audit
+  read the info endpoint separately instead of assuming it matches `list`.
+- README and CONTRIBUTING link to `docs/` instead of the wiki. CONTRIBUTING
+  describes the docs workflow, and the PR checklist asks for
+  `composer docs:check`.
+- README's sideloading example no longer uses the deprecated
+  `deals()->withCustomer()` / `withResponsibleUser()` no-ops, or includes
+  `deals.list` does not accept.
+
+### Fixed — documentation that did not match the code
+
+- **The wiki documented settings the SDK does not read.** Of the keys in
+  `config/teamleader.php`, only the credentials, API version, timeouts, retry
+  attempts, `throw_exceptions`, `validate_on_boot`, `rate_limiting.enabled`,
+  `redis_connection`, `max_wait_ms` and `caching.enabled` have an effect. The
+  logging, sideloading and development keys, the other rate-limiting keys, and
+  `base_url` / `auth_url` are not read. The configuration guide now says so;
+  wiring them up or removing them is a v3.0 item.
+- **Error handling.** The wiki implied exceptions are thrown by default. They
+  are not: `throw_exceptions` defaults to `false`, and a failed request is
+  returned as an array with `error => true`. Server and connection errors are
+  retried only when exceptions are on.
+- **Token storage.** The wiki suggested adding encrypted casts to a model to
+  encrypt stored tokens; the SDK reads and writes the table directly, so that
+  has no effect. The guide now states that tokens are stored unencrypted and
+  how to protect them. It also documented a `teamleader:token` command that
+  does not exist.
+- **OAuth `state`.** The SDK passes `state` through but does not verify it.
+  The authentication guide now shows how to generate and check it.
+- Wrong facade method names in the wiki's resource tables, a `Laravel 10.x`
+  requirement, an `mcore-services-bv/teamleader-sdk` package name, and
+  debugging helpers (`getApiCallCount()`, `getApiCalls()`) that do not exist.
+
+### Upgrading
+
+Nothing to do. To publish the docs, connect the repository to GitBook with
+Git Sync (branch `main`); `.gitbook.yaml` points it at `docs/`.
+
+---
+
 ## [2.3.0] - 2026-09-30
 
 **Specification parity release.** Between v2.2.4 and v2.2.17, every resource

@@ -14,7 +14,7 @@ rate limiting, and around 70 API resources behind a consistent interface.
 **Quick Links:**
 - 📦 **Packagist:** [packagist.org/packages/mcore-services/teamleader-sdk](https://packagist.org/packages/mcore-services/teamleader-sdk)
 - 💻 **GitHub:** [github.com/MCore-Services-bv/teamleader-sdk](https://github.com/MCore-Services-bv/teamleader-sdk)
-- 📖 **Documentation:** [Wiki](https://github.com/MCore-Services-bv/teamleader-sdk/wiki)
+- 📖 **Documentation:** [docs/](https://github.com/MCore-Services-bv/teamleader-sdk/tree/main/docs) — guides, and an API reference generated from the code
 
 ---
 
@@ -235,7 +235,7 @@ $outstanding = Teamleader::invoices()->list(['status' => ['outstanding']]);
 
 > A grouped line with no section title must **omit** the `section` key entirely —
 > Teamleader rejects both `null` and `''`. See the
-> [Invoices wiki page](https://github.com/MCore-Services-bv/teamleader-sdk/wiki/Invoices).
+> [Invoices reference](https://github.com/MCore-Services-bv/teamleader-sdk/blob/main/docs/reference/invoicing/invoices.md).
 
 ### Time Tracking
 
@@ -347,13 +347,12 @@ the fluent methods:
 ```php
 $deals = Teamleader::deals()->list(
     ['status' => ['open']],
-    ['include' => 'lead.customer,responsible_user,current_phase']
+    ['include' => 'custom_fields']
 );
 
-$deals = Teamleader::deals()
-    ->withCustomer()
-    ->withResponsibleUser()
-    ->list(['status' => ['open']]);
+$company = Teamleader::companies()
+    ->withRelatedContacts()
+    ->info('company-uuid');
 
 // What does this resource actually accept?
 $capabilities = Teamleader::companies()->getCapabilities();
@@ -517,7 +516,7 @@ The MIT License (MIT). See [LICENSE.md](LICENSE.md).
 
 ## 💬 Support
 
-- **Documentation**: [Wiki](https://github.com/MCore-Services-bv/teamleader-sdk/wiki)
+- **Documentation**: [docs/](https://github.com/MCore-Services-bv/teamleader-sdk/tree/main/docs)
 - **Email**: help@mcore-services.be
 - **Issues**: [GitHub Issues](https://github.com/MCore-Services-bv/teamleader-sdk/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/MCore-Services-bv/teamleader-sdk/discussions)

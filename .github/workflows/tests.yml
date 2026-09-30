@@ -127,3 +127,9 @@ jobs:
         run: |
           php bin/spec-audit --summary >> "$GITHUB_STEP_SUMMARY"
           php bin/spec-audit --check
+
+      # docs/reference is generated from the resource classes. A resource that
+      # changes without `composer docs:build` being run fails here, so the
+      # published reference always describes the code on main.
+      - name: API reference matches the code
+        run: php bin/docs --check

@@ -1,0 +1,62 @@
+#!/usr/bin/env php
+<?php
+
+/*
+ * Generates the API reference in docs/reference from the resource classes.
+ *
+ *   php bin/docs            Write docs/reference/** and the reference part of docs/SUMMARY.md
+ *   php bin/docs --check    CI gate: exit 1 when a generated page is missing, outdated or stale
+ *
+ * The guides in docs/ are written by hand; only docs/reference and the section
+ * of SUMMARY.md between the reference markers are generated.
+ *
+ * Development tooling only — excluded from the Composer dist archive.
+ */
+
+declare(strict_types=1);
+
+use McoreServices\TeamleaderSDK\Tests\Support\Docs\ReferenceGenerator;
+use McoreServices\TeamleaderSDK\Tests\Support\Spec\SdkInventory;
+use McoreServices\TeamleaderSDK\Tests\Support\Spec\SpecContract;
+
+$root = dirname(__DIR__);
+
+if (! is_file($root.'/vendor/autoload.php')) {
+    fwrite(STDERR, "Run composer install first.\n");
+    exit(2);
+}
+
+require $root.'/vendor/autoload.php';
+
+$options = getopt('', ['check', 'help']);
+
+if (isset($options['help'])) {
+    echo preg_replace('/^ \* ?/m', '', explode('*/', explode('/*', file_get_contents(__FILE__), 2)[1], 2)[0]);
+    exit(0);
+}
+
+$generator = new ReferenceGenerator(new SdkInventory, new SpecContract);
+$docs = ReferenceGenerator::defaultDocsPath();
+
+if (isset($options['check'])) {
+    $diff = $generator->diff($docs);
+
+    if ($diff === []) {
+        echo 'API reference is up to date ('.count($generator->pages())." pages).\n";
+        exit(0);
+    }
+
+    fwrite(STDERR, "The API reference does not match the code. Run `composer docs:build` and commit the result.\n\n");
+
+    foreach ($diff as $path => $state) {
+        fwrite(STDERR, "  {$state}: docs/{$path}\n");
+    }
+
+    exit(1);
+}
+
+$changed = $generator->write($docs);
+
+echo $changed === []
+    ? "API reference already up to date.\n"
+    : count($changed)." file(s) written or removed:\n  docs/".implode("\n  docs/", $changed)."\n";
