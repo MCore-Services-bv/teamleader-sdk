@@ -76,6 +76,13 @@ class Contacts extends Resource
         'custom_fields',
     ];
 
+    /**
+     * contacts.info takes no includes; info() throws when given any. Declared
+     * so the generated reference and the spec audit read the info endpoint
+     * separately instead of assuming it matches list (added in v2.3.1).
+     */
+    protected array $infoIncludes = [];
+
     // Default includes
     protected array $defaultIncludes = [];
 

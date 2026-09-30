@@ -65,7 +65,7 @@ Feature suggestions are welcome. Please:
 2. **Create a branch** from `main`: `git checkout -b feature/my-feature`
 3. **Make your changes** following the standards below
 4. **Write tests** — see [Testing](#testing)
-5. **Update the wiki page** for any resource you changed
+5. **Update the docs** — run `composer docs:build`, and edit the guides in `docs/` if behaviour changed
 6. **Commit** with a clear message
 7. **Push** and open a Pull Request against `main`
 
@@ -309,7 +309,8 @@ did I check against the API?*
 - [ ] `composer test` passes
 - [ ] New behaviour has tests
 - [ ] Bug fixes have a regression test
-- [ ] Wiki page updated for any resource changed
+- [ ] `composer docs:check` passes (run `composer docs:build` to fix)
+- [ ] Guides in `docs/` updated if behaviour changed
 - [ ] CHANGELOG.md updated
 - [ ] Breaking changes clearly documented
 
@@ -352,7 +353,7 @@ Fixes #123
 
 ## Checklist
 - [ ] Tests pass
-- [ ] Wiki updated
+- [ ] Docs regenerated / updated
 - [ ] CHANGELOG updated
 ```
 
@@ -443,29 +444,30 @@ class YourService
 
 ## 📚 Documentation
 
-Documentation lives in the [GitHub wiki](https://github.com/MCore-Services-bv/teamleader-sdk/wiki),
-one page per resource. There is no `docs/` folder.
+Documentation lives in `docs/` and is published to GitBook from `main` through
+Git Sync. It has two parts:
 
-When you change a resource, update its wiki page in the same PR. Each page
-covers: overview and gotchas, endpoint, capabilities, methods, helpers, filters,
-sorting, sideloading, response structure, usage examples, error handling, and
-related resources.
+- **Guides** (`docs/getting-started`, `docs/guides`, `docs/project`) are written
+  by hand. Change them in the same PR as the behaviour they describe.
+- **The API reference** (`docs/reference`) is generated from the resource
+  classes by `bin/docs`: the facade method, endpoints, filters, sort fields,
+  includes, public constants, public methods with their docblocks, and
+  `$usageExamples`. Do not edit it by hand.
 
-If the API behaves in a way that would surprise someone, say so explicitly and
-say what to do instead. Most of the value in these pages is in the notes, not the
-method signatures.
-
-## 🐛 Debugging Tips
-
-### Enable Debug Mode
-
-```env
-TEAMLEADER_DEBUG_MODE=true
-TEAMLEADER_LOG_ALL_REQUESTS=true
+```bash
+composer docs:build    # regenerate docs/reference and the reference part of docs/SUMMARY.md
+composer docs:check    # exits 1 when the committed reference does not match the code
 ```
 
-> `TEAMLEADER_LOG_ALL_REQUESTS` logs request payloads, which can contain personal
-> data from the Teamleader account. Keep it off in production.
+`ReferenceDocsTest` and the CI *Specification parity* job both fail when the
+reference is out of date. So the way to improve a reference page is to improve
+the code it is generated from: a filter description in `$commonFilters`, a
+clearer docblock, a better usage example.
+
+If the API behaves in a way that would surprise someone, say so in the method's
+docblock and say what to do instead. That note then appears in the reference.
+
+## 🐛 Debugging Tips
 
 ### Inspect what the SDK sent
 
@@ -491,7 +493,7 @@ php artisan teamleader:export-uuids
 
 ## 🤔 Questions?
 
-- **Documentation**: [Wiki](https://github.com/MCore-Services-bv/teamleader-sdk/wiki)
+- **Documentation**: [docs/](https://github.com/MCore-Services-bv/teamleader-sdk/tree/main/docs)
 - **Issues**: [Existing issues](https://github.com/MCore-Services-bv/teamleader-sdk/issues)
 - **Discussions**: [Start a discussion](https://github.com/MCore-Services-bv/teamleader-sdk/discussions)
 - **Email**: help@mcore-services.be

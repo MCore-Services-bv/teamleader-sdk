@@ -26,7 +26,9 @@
         "format": "vendor/bin/pint",
         "spec:audit": "@php bin/spec-audit",
         "spec:baseline": "@php bin/spec-audit --write-baseline",
-        "spec:check": "@php bin/spec-audit --check"
+        "spec:check": "@php bin/spec-audit --check",
+        "docs:build": "@php bin/docs",
+        "docs:check": "@php bin/docs --check"
     },
     "autoload": {
         "psr-4": {
