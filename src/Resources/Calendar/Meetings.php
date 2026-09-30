@@ -4,12 +4,41 @@ namespace McoreServices\TeamleaderSDK\Resources\Calendar;
 
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class Meetings extends Resource
 {
+    use ValidatesWritePayload;
+
+    /** Body fields meetings.schedule accepts */
+    public const SCHEDULE_FIELDS = [
+        'title', 'starts_at', 'ends_at', 'description', 'attendees', 'customer', 'location',
+        'project_id', 'group_id', 'milestone_id', 'deal_id', 'work_order_id', 'custom_fields',
+    ];
+
+    /** Body fields meetings.update accepts, besides `id` — no work_order_id */
+    public const UPDATE_FIELDS = [
+        'title', 'starts_at', 'ends_at', 'description', 'attendees', 'customer', 'location',
+        'project_id', 'group_id', 'milestone_id', 'deal_id', 'custom_fields',
+    ];
+
+    public const REQUIRED_ON_SCHEDULE = ['title', 'starts_at', 'ends_at', 'attendees'];
+
+    /** Body fields meetings.createReport accepts, besides `id` */
+    public const REPORT_FIELDS = ['attach_to', 'summary', 'custom_fields'];
+
+    public const ATTENDEE_TYPES = ['user', 'contact'];
+
+    public const CUSTOMER_TYPES = ['contact', 'company'];
+
+    /** `attach_to.type` on meetings.createReport */
+    public const REPORT_TARGET_TYPES = ['contact', 'company', 'deal'];
+
+    /** Includes meetings.list and meetings.info accept */
+    public const INCLUDES = ['tracked_time', 'estimated_time'];
+
     protected string $description = 'Manage meetings in Teamleader Focus Calendar';
 
-    // Resource capabilities based on API documentation
     protected bool $supportsCreation = true;
 
     protected bool $supportsUpdate = true;
@@ -20,13 +49,14 @@ class Meetings extends Resource
 
     protected bool $supportsPagination = true;
 
-    // Available includes for sideloading
-    protected array $availableIncludes = [
-        'tracked_time',
-        'estimated_time',
-    ];
+    protected bool $supportsSorting = true;
 
-    // Common filters based on API documentation
+    protected bool $supportsFiltering = true;
+
+    protected bool $supportsSideloading = true;
+
+    protected array $availableIncludes = self::INCLUDES;
+
     protected array $commonFilters = [
         'ids' => 'Array of meeting UUIDs to filter by',
         'employee_id' => 'Filter by assigned employee UUID',
@@ -36,6 +66,14 @@ class Meetings extends Resource
         'group_id' => 'Filter by nextgen project group UUID (cannot be combined with milestone_id)',
         'term' => 'Search meetings by title or description',
         'recurrence_id' => 'Filter by recurring meeting series UUID',
+    ];
+
+    /**
+     * Sort fields meetings.list accepts. Before v2.2.12 the sort option was
+     * passed through unchecked.
+     */
+    protected array $availableSortFields = [
+        'scheduled_at' => 'Scheduled start',
     ];
 
     // Usage examples specific to meetings
@@ -62,127 +100,111 @@ class Meetings extends Resource
         ],
     ];
 
-    /**
-     * Get the base path for the meetings resource
-     */
     protected function getBasePath(): string
     {
         return 'meetings';
     }
 
     /**
-     * List meetings with optional filtering, pagination and sorting.
+     * List meetings
      *
-     * @param  array  $filters  Filters to apply (ids, employee_id, start_date, end_date,
-     *                          milestone_id, group_id, term, recurrence_id).
-     *                          `group_id` (nextgen project group) cannot be combined with
-     *                          `milestone_id` (legacy milestone).
-     * @param  array  $options  Pagination and sort options (page_size, page_number, sort, include)
+     * @param  array  $filters  ids, employee_id, start_date, end_date, milestone_id,
+     *                          group_id, term, recurrence_id. group_id (nextgen project
+     *                          group) cannot be combined with milestone_id (legacy).
+     * @param  array  $options  page_size, page_number, sort (scheduled_at), sort_order, include(s)
      *
-     * @throws InvalidArgumentException When both group_id and milestone_id are provided
+     * @throws InvalidArgumentException On an unknown filter key, option, sort field or include
      */
     public function list(array $filters = [], array $options = []): array
     {
+        $unknown = array_diff(
+            array_keys($options),
+            ['page_size', 'page_number', 'sort', 'sort_order', 'include', 'includes', 'filters']
+        );
+
+        if ($unknown !== []) {
+            throw new InvalidArgumentException(
+                'meetings.list does not support: '.implode(', ', $unknown)
+                .'. Supported: page_size, page_number, sort, sort_order, include.'
+            );
+        }
+
         if (! empty($filters['group_id']) && ! empty($filters['milestone_id'])) {
             throw new InvalidArgumentException(
                 'The "group_id" filter cannot be combined with "milestone_id". Use one or the other.'
             );
         }
 
-        $params = $this->buildFilterParams($filters, $options);
-
-        return $this->api->request('POST', $this->getBasePath().'.list', $params);
+        return $this->api->request('POST', $this->getBasePath().'.list', $this->buildFilterParams($filters, $options));
     }
 
     /**
-     * Get information about a specific meeting.
+     * Get one meeting
      *
      * @param  string  $id  Meeting UUID
-     * @param  mixed  $includes  Optional sideloads: 'tracked_time', 'estimated_time'
+     * @param  mixed  $includes  tracked_time and/or estimated_time
+     *
+     * @throws InvalidArgumentException On an include meetings.info does not accept
      */
     public function info($id, $includes = null): array
     {
         $params = ['id' => $id];
+        $includes = $this->collectIncludes($includes, 'meetings.info');
 
-        if (! empty($includes)) {
-            $params = $this->applyIncludes($params, $includes);
-        }
-
-        // Apply any pending includes from fluent interface
-        $params = $this->applyPendingIncludes($params);
-
-        return $this->api->request('POST', $this->getBasePath().'.info', $params);
+        return $this->api->request('POST', $this->getBasePath().'.info', $this->applyIncludes($params, $includes));
     }
 
     /**
-     * Schedule a new meeting.
+     * Schedule a meeting
      *
-     * Required: title, starts_at, ends_at, attendees (incl. at least one user), customer.
-     * Optional (pass-through) includes, among others:
-     *   - project_id (string): link the meeting to a nextgen project
-     *   - group_id (string): link the meeting to a nextgen project group
-     *   - milestone_id (string): link the meeting to a legacy milestone
-     *   - location (object): supports the inline `address` location type
+     * Requires title, starts_at, ends_at and attendees, with at least one user
+     * attendee. `customer` is optional; until v2.2.12 the SDK required it.
+     *
+     * project_id and milestone_id are mutually exclusive, and group_id
+     * requires project_id.
+     *
+     * @throws InvalidArgumentException When a required field is missing, or a field or value is not accepted
      */
     public function schedule(array $data): array
     {
-        $validatedData = $this->validateScheduleData($data);
-
-        return $this->api->request('POST', $this->getBasePath().'.schedule', $validatedData);
+        return $this->api->request('POST', $this->getBasePath().'.schedule', $this->validateScheduleData($data));
     }
 
     /**
-     * Validate data for meeting scheduling
+     * @throws InvalidArgumentException
      */
     protected function validateScheduleData(array $data): array
     {
-        if (empty($data['title'])) {
-            throw new InvalidArgumentException('Meeting title is required');
-        }
-        if (empty($data['starts_at'])) {
-            throw new InvalidArgumentException('Meeting start time is required');
-        }
-        if (empty($data['ends_at'])) {
-            throw new InvalidArgumentException('Meeting end time is required');
-        }
-        if (empty($data['attendees']) || ! is_array($data['attendees'])) {
-            throw new InvalidArgumentException('At least one attendee is required');
-        }
-        if (empty($data['customer'])) {
-            throw new InvalidArgumentException('Customer information is required');
-        }
-
-        $hasUserAttendee = false;
-        foreach ($data['attendees'] as $attendee) {
-            if (isset($attendee['type']) && $attendee['type'] === 'user') {
-                $hasUserAttendee = true;
-                break;
+        foreach (self::REQUIRED_ON_SCHEDULE as $field) {
+            if (empty($data[$field])) {
+                throw new InvalidArgumentException("{$field} is required to schedule a meeting");
             }
         }
-        if (! $hasUserAttendee) {
-            throw new InvalidArgumentException('At least one user attendee must be present');
-        }
+
+        $this->rejectUnknownFields($data, self::SCHEDULE_FIELDS, 'meetings.schedule');
+        $this->validateCommonFields($data, 'meetings.schedule');
 
         return $data;
     }
 
     /**
-     * Update an existing meeting.
+     * Update a meeting
      *
-     * Accepts the same optional pass-through params as schedule(), including
-     * project_id, group_id, milestone_id, and the inline `address` location type.
-     * If attendees is provided it must still include at least one user attendee.
+     * If attendees is given it must include at least one user. customer,
+     * description, deal_id, project_id, group_id and milestone_id take null
+     * to clear them.
+     *
+     * @throws InvalidArgumentException When a field or value is not accepted
      */
     public function update($id, array $data): array
     {
         $data['id'] = $id;
-        $validatedData = $this->validateUpdateData($data);
 
-        return $this->api->request('POST', $this->getBasePath().'.update', $validatedData);
+        return $this->api->request('POST', $this->getBasePath().'.update', $this->validateUpdateData($data));
     }
 
     /**
-     * Validate data for meeting updates
+     * @throws InvalidArgumentException
      */
     protected function validateUpdateData(array $data): array
     {
@@ -190,20 +212,62 @@ class Meetings extends Resource
             throw new InvalidArgumentException('Meeting ID is required for updates');
         }
 
-        if (isset($data['attendees']) && ! empty($data['attendees'])) {
-            $hasUserAttendee = false;
-            foreach ($data['attendees'] as $attendee) {
-                if (isset($attendee['type']) && $attendee['type'] === 'user') {
-                    $hasUserAttendee = true;
-                    break;
-                }
+        $this->rejectUnknownFields($data, [...self::UPDATE_FIELDS, 'id'], 'meetings.update');
+        $this->validateCommonFields($data, 'meetings.update');
+
+        return $data;
+    }
+
+    /**
+     * Checks schedule and update share
+     *
+     * @throws InvalidArgumentException
+     */
+    private function validateCommonFields(array $data, string $endpoint): void
+    {
+        if (isset($data['attendees'])) {
+            if (! is_array($data['attendees']) || ! array_is_list($data['attendees'])) {
+                throw new InvalidArgumentException("attendees must be a list of ['type' => user|contact, 'id' => uuid]");
             }
-            if (! $hasUserAttendee) {
-                throw new InvalidArgumentException('At least one user attendee must be present when updating attendees');
+
+            foreach ($data['attendees'] as $index => $attendee) {
+                if (! is_array($attendee) || empty($attendee['id']) || ! isset($attendee['type'])) {
+                    throw new InvalidArgumentException("attendees[{$index}] needs both a type and an id");
+                }
+
+                $this->assertEnum($attendee['type'], self::ATTENDEE_TYPES, "attendees[{$index}].type", $endpoint);
+            }
+
+            if (! in_array('user', array_column($data['attendees'], 'type'), true)) {
+                throw new InvalidArgumentException('At least one user attendee must be present');
             }
         }
 
-        return $data;
+        if (isset($data['customer'])) {
+            if (! is_array($data['customer']) || empty($data['customer']['id']) || ! isset($data['customer']['type'])) {
+                throw new InvalidArgumentException("customer must be ['type' => contact|company, 'id' => uuid]");
+            }
+
+            $this->assertEnum($data['customer']['type'], self::CUSTOMER_TYPES, 'customer.type', $endpoint);
+        }
+
+        if (! empty($data['project_id']) && ! empty($data['milestone_id'])) {
+            throw new InvalidArgumentException('project_id and milestone_id are mutually exclusive');
+        }
+
+        if (! empty($data['group_id']) && empty($data['project_id'])) {
+            throw new InvalidArgumentException('group_id requires project_id; the group must belong to that project');
+        }
+
+        foreach (['starts_at', 'ends_at'] as $field) {
+            if (isset($data[$field]) && (! is_string($data[$field]) || strtotime($data[$field]) === false)) {
+                throw new InvalidArgumentException("{$field} must be an ISO 8601 datetime, e.g. 2026-01-15T09:00:00+01:00");
+            }
+        }
+
+        if (isset($data['starts_at'], $data['ends_at']) && strtotime($data['ends_at']) <= strtotime($data['starts_at'])) {
+            throw new InvalidArgumentException('ends_at must be after starts_at');
+        }
     }
 
     /**
@@ -224,34 +288,34 @@ class Meetings extends Resource
 
     /**
      * Create a report for a meeting
+     *
+     * @param  array  $reportData  attach_to [type => contact|company|deal, id] (required), summary, custom_fields
+     *
+     * @throws InvalidArgumentException
      */
     public function createReport($meetingId, array $reportData): array
     {
         $data = array_merge(['id' => $meetingId], $reportData);
-        $validatedData = $this->validateReportData($data);
 
-        return $this->api->request('POST', $this->getBasePath().'.createReport', $validatedData);
+        return $this->api->request('POST', $this->getBasePath().'.createReport', $this->validateReportData($data));
     }
 
     /**
-     * Validate data for meeting reports
+     * @throws InvalidArgumentException
      */
     protected function validateReportData(array $data): array
     {
         if (empty($data['id'])) {
             throw new InvalidArgumentException('Meeting ID is required for reports');
         }
-        if (empty($data['attach_to'])) {
-            throw new InvalidArgumentException('Attachment target is required for reports');
-        }
+
+        $this->rejectUnknownFields($data, [...self::REPORT_FIELDS, 'id'], 'meetings.createReport');
+
         if (empty($data['attach_to']['type']) || empty($data['attach_to']['id'])) {
             throw new InvalidArgumentException('Report attachment must specify type and id');
         }
 
-        $validTypes = ['contact', 'company', 'deal'];
-        if (! in_array($data['attach_to']['type'], $validTypes)) {
-            throw new InvalidArgumentException('Report can only be attached to: '.implode(', ', $validTypes));
-        }
+        $this->assertEnum($data['attach_to']['type'], self::REPORT_TARGET_TYPES, 'attach_to.type', 'meetings.createReport');
 
         return $data;
     }
@@ -281,38 +345,58 @@ class Meetings extends Resource
     }
 
     /**
-     * Build filter parameters for API request
+     * Build the request body for meetings.list
+     *
+     * Until v2.2.12 filters and sort were passed through unchecked, and the
+     * `includes` option key was ignored.
+     *
+     * @throws InvalidArgumentException
      */
     protected function buildFilterParams(array $filters, array $options): array
     {
         $params = [];
 
-        if (! empty($filters)) {
-            $params['filter'] = $filters;
+        if ($filters !== []) {
+            $this->rejectUnknownFilters($filters, 'meetings.list');
+
+            if (isset($filters['ids']) && ! is_array($filters['ids'])) {
+                $filters['ids'] = [$filters['ids']];
+            }
+
+            $filters = array_filter($filters, fn ($value) => $value !== null);
+
+            if ($filters !== []) {
+                $params['filter'] = $filters;
+            }
         }
 
-        // Pagination
         if (isset($options['page_size']) || isset($options['page_number'])) {
             $params['page'] = [
-                'size' => $options['page_size'] ?? 20,
-                'number' => $options['page_number'] ?? 1,
+                'size' => (int) ($options['page_size'] ?? 20),
+                'number' => (int) ($options['page_number'] ?? 1),
             ];
         }
 
-        // Sorting
-        if (isset($options['sort'])) {
-            $params['sort'] = $options['sort'];
+        if (! empty($options['sort'])) {
+            $params['sort'] = $this->normaliseSort($options['sort'], $options['sort_order'] ?? 'asc');
         }
 
-        // Includes
-        if (isset($options['include'])) {
-            $params['includes'] = $options['include'];
-        }
+        return $this->applyIncludes($params, $this->collectIncludes($this->resolveIncludesOption($options), 'meetings.list'));
+    }
 
-        // Apply pending includes from fluent interface
-        $params = $this->applyPendingIncludes($params);
+    /**
+     * Includes from the argument plus any queued through the fluent interface, checked
+     *
+     * @return list<string>
+     *
+     * @throws InvalidArgumentException
+     */
+    private function collectIncludes(mixed $includes, string $endpoint): array
+    {
+        $pending = $this->getPendingIncludes();
+        $this->pendingIncludes = [];
 
-        return $params;
+        return $this->assertIncludes([...(array) ($includes ?? []), ...$pending], self::INCLUDES, $endpoint);
     }
 
     /**

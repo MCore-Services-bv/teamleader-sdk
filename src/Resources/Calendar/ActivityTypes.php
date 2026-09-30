@@ -2,10 +2,14 @@
 
 namespace McoreServices\TeamleaderSDK\Resources\Calendar;
 
+use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class ActivityTypes extends Resource
 {
+    use ValidatesWritePayload;
+
     protected string $description = 'Manage activity types in Teamleader Focus Calendar';
 
     // Resource capabilities - ActivityTypes are read-only
@@ -74,13 +78,12 @@ class ActivityTypes extends Resource
     ): array {
         $params = $baseParams;
 
-        // Build filter object
-        if (! empty($filters)) {
-            $params['filter'] = [];
+        // Unknown keys and a string `ids` were dropped without a word until
+        // v2.2.12, returning every activity type.
+        $this->rejectUnknownFilters($filters, 'activityTypes.list');
 
-            if (isset($filters['ids']) && is_array($filters['ids'])) {
-                $params['filter']['ids'] = $filters['ids'];
-            }
+        if (isset($filters['ids'])) {
+            $params['filter'] = ['ids' => is_array($filters['ids']) ? array_values($filters['ids']) : [$filters['ids']]];
         }
 
         // Build page object
@@ -97,6 +100,14 @@ class ActivityTypes extends Resource
      */
     public function list(array $filters = [], array $options = []): array
     {
+        $unknown = array_diff(array_keys($options), ['page_size', 'page_number', 'filters']);
+
+        if ($unknown !== []) {
+            throw new InvalidArgumentException(
+                'activityTypes.list does not support: '.implode(', ', $unknown).'. Supported: page_size, page_number.'
+            );
+        }
+
         $params = $this->buildQueryParams(
             [],
             $filters,

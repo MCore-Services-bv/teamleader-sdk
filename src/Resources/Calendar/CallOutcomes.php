@@ -2,6 +2,7 @@
 
 namespace McoreServices\TeamleaderSDK\Resources\Calendar;
 
+use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
 
 class CallOutcomes extends Resource
@@ -21,7 +22,7 @@ class CallOutcomes extends Resource
 
     protected bool $supportsSorting = false;
 
-    protected bool $supportsFiltering = true;
+    protected bool $supportsFiltering = false;
 
     protected bool $supportsSideloading = false;
 
@@ -31,10 +32,12 @@ class CallOutcomes extends Resource
     // Default includes
     protected array $defaultIncludes = [];
 
-    // Common filters based on API documentation
-    protected array $commonFilters = [
-        'ids' => 'Array of call outcome UUIDs',
-    ];
+    /**
+     * callOutcomes.list takes no filter at all. Until v2.2.12 an `ids` filter
+     * was advertised and sent, the API ignored it, and byIds() returned every
+     * outcome. byIds() now filters the full list client-side.
+     */
+    protected array $commonFilters = [];
 
     // Usage examples specific to call outcomes
     protected array $usageExamples = [
@@ -61,64 +64,77 @@ class CallOutcomes extends Resource
     }
 
     /**
-     * List call outcomes with filtering and pagination
+     * List call outcomes
+     *
+     * @param  array  $filters  None; callOutcomes.list takes no filter. Passing any throws.
+     * @param  array  $options  page_size, page_number
+     *
+     * @throws InvalidArgumentException On a filter or an unsupported option
      */
     public function list(array $filters = [], array $options = []): array
     {
-        $params = $this->buildQueryParams(
-            [],
-            $filters,
-            $options['sort'] ?? null,
-            $options['sort_order'] ?? 'asc',
-            $options['page_size'] ?? 20,
-            $options['page_number'] ?? 1,
-            $options['include'] ?? null
-        );
-
-        return $this->api->request('POST', $this->getBasePath().'.list', $params);
-    }
-
-    /**
-     * Build query parameters for API requests
-     */
-    protected function buildQueryParams(
-        array $baseParams = [],
-        array $filters = [],
-        $sort = null,
-        string $sortOrder = 'asc',
-        int $pageSize = 20,
-        int $pageNumber = 1,
-        $includes = null
-    ): array {
-        $params = $baseParams;
-
-        // Build filter object
-        if (! empty($filters)) {
-            $params['filter'] = [];
-
-            if (isset($filters['ids']) && is_array($filters['ids'])) {
-                $params['filter']['ids'] = $filters['ids'];
-            }
+        if ($filters !== []) {
+            throw new InvalidArgumentException(
+                'callOutcomes.list takes no filters; the API would ignore them and return every outcome. '
+                .'Use byIds() to pick outcomes by ID.'
+            );
         }
 
-        // Build page object
-        $params['page'] = [
-            'size' => $pageSize,
-            'number' => $pageNumber,
-        ];
+        $unknown = array_diff(array_keys($options), ['page_size', 'page_number', 'filters']);
 
-        return $params;
+        if ($unknown !== []) {
+            throw new InvalidArgumentException(
+                'callOutcomes.list does not support: '.implode(', ', $unknown).'. Supported: page_size, page_number.'
+            );
+        }
+
+        return $this->api->request('POST', $this->getBasePath().'.list', [
+            'page' => [
+                'size' => (int) ($options['page_size'] ?? 20),
+                'number' => (int) ($options['page_number'] ?? 1),
+            ],
+        ]);
     }
 
     /**
-     * Get call outcomes by specific IDs
+     * Get call outcomes by ID
+     *
+     * The API cannot filter outcomes, so this reads every page and keeps the
+     * requested IDs. Outcomes are a short, account-level list, so that is one
+     * request in practice.
+     *
+     * @param  array  $ids  Call outcome UUIDs
+     * @return array{data: list<array>}
      */
     public function byIds(array $ids, array $options = []): array
     {
-        return $this->list(
-            array_merge(['ids' => $ids], $options['filters'] ?? []),
-            $options
-        );
+        $wanted = array_flip($ids);
+
+        return ['data' => array_values(array_filter(
+            $this->everyOutcome(),
+            fn (array $outcome) => isset($outcome['id'], $wanted[$outcome['id']])
+        ))];
+    }
+
+    /**
+     * Every call outcome, across pages
+     *
+     * @return list<array>
+     */
+    private function everyOutcome(): array
+    {
+        $outcomes = [];
+
+        for ($page = 1; $page <= 50; $page++) {
+            $batch = $this->list([], ['page_size' => 100, 'page_number' => $page])['data'] ?? [];
+            array_push($outcomes, ...$batch);
+
+            if (count($batch) < 100) {
+                break;
+            }
+        }
+
+        return $outcomes;
     }
 
     /**
@@ -126,13 +142,10 @@ class CallOutcomes extends Resource
      */
     public function findByName(string $name, array $options = []): ?array
     {
-        $response = $this->list([], $options);
-
-        if (isset($response['data']) && is_array($response['data'])) {
-            foreach ($response['data'] as $outcome) {
-                if (isset($outcome['name']) && strcasecmp($outcome['name'], $name) === 0) {
-                    return $outcome;
-                }
+        // Reads every page: before v2.2.12 only the first 20 outcomes were searched.
+        foreach ($this->everyOutcome() as $outcome) {
+            if (isset($outcome['name']) && strcasecmp($outcome['name'], $name) === 0) {
+                return $outcome;
             }
         }
 
