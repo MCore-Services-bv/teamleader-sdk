@@ -13,6 +13,11 @@ return [
     'client_secret' => env('TEAMLEADER_CLIENT_SECRET'),
     'redirect_uri' => env('TEAMLEADER_REDIRECT_URI'),
 
+    // Optional: the Teamleader account id this connection must connect to.
+    // A callback that connects any other account is refused and nothing is
+    // stored. Find it with `php artisan teamleader:status` after connecting.
+    'expected_account_id' => env('TEAMLEADER_EXPECTED_ACCOUNT_ID'),
+
     /*
     |--------------------------------------------------------------------------
     | Connections

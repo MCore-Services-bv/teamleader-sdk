@@ -43,6 +43,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added (3.x branch)
 
+- One OAuth callback route for every connection: the state records which
+  connection started the flow. The connected account's id (`users.me`) and
+  name (its first department) are stored with the tokens, and a
+  `ConnectionAuthorized` event is fired.
 - **Multiple connections.** `Teamleader::connection('antwerp')`, configured in
   `connections` in `config/teamleader.php` (the flat keys are `default`), or at
   runtime with `Teamleader::extend()` / `resolveConnectionsUsing()`. A
@@ -90,6 +94,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security (3.x branch)
 
+- **The OAuth `state` is generated and checked by the SDK.** `authorize()`
+  remembers a random state in the session; `handleCallback()` accepts only a
+  state it issued, once, and throws `OAuthStateException` otherwise. Passing
+  your own state keeps the 2.x behaviour.
+- **`expected_account_id`** per connection: a callback that connects a
+  different Teamleader account throws `AccountMismatchException` and stores
+  nothing.
 - **Tokens are encrypted at rest** with `APP_KEY`, in the `teamleader_tokens`
   table and in the cache, which now holds one encrypted entry per connection
   instead of the plain-text access and refresh token. v2.x rows are encrypted

@@ -128,6 +128,19 @@ Single-account applications need no change: the flat `client_id`,
   `Teamleader connection 'default' is missing: client_secret.` instead of
   `Missing required configuration: teamleader.client_secret`.
 
+### OAuth
+
+- **`authorize()` without an argument now generates the `state`**, remembers
+  it in the session, and `handleCallback()` checks it. If you generated and
+  checked a state yourself, you can delete that code — or keep passing your
+  own state to `authorize($state)`, which works as in 2.x.
+- `getAuthorizationUrl()` without an argument generates a state too.
+- `handleCallback()` returns the connected `TeamleaderSDK` instance instead of
+  `true` (still `false` on failure). `if (Teamleader::handleCallback(...))`
+  keeps working; `=== true` does not.
+- A callback with a state this session did not issue throws
+  `OAuthStateException`.
+
 ### Token storage
 
 - `TokenService` stores through a `TokenStore` (the table, by default) and

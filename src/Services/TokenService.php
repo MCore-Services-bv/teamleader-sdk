@@ -120,8 +120,10 @@ class TokenService
      *
      * @param  array<string, mixed>  $tokenData  access_token, refresh_token, expires_in, token_type
      * @param  bool  $refreshed  True when this is the result of a refresh
+     * @param  string|null  $accountId  The connected Teamleader account; null keeps the stored one
+     * @param  string|null  $accountName  Its name; null keeps the stored one
      */
-    public function storeTokens(array $tokenData, bool $refreshed = false): void
+    public function storeTokens(array $tokenData, bool $refreshed = false, ?string $accountId = null, ?string $accountName = null): void
     {
         $existing = $this->readStore();
         $expiresIn = (int) ($tokenData['expires_in'] ?? 3600);
@@ -143,8 +145,8 @@ class TokenService
             expiresIn: $expiresIn,
             tokenType: (string) ($tokenData['token_type'] ?? 'Bearer'),
             status: StoredTokens::CONNECTED,
-            accountId: $existing?->accountId,
-            accountName: $existing?->accountName,
+            accountId: $accountId ?? $existing?->accountId,
+            accountName: $accountName ?? $existing?->accountName,
             lastRefreshedAt: $refreshed ? CarbonImmutable::now() : $existing?->lastRefreshedAt,
         );
 

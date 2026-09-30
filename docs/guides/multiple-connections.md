@@ -6,8 +6,8 @@ environments, a handful of clients, one per tenant. Each account is a
 window.
 
 {% hint style="info" %}
-Available from v3.0. Connecting several accounts through one callback route,
-and scheduled token renewal, are coming in the following v3.0 steps.
+Available from v3.0. Connecting each account is covered in
+[Authentication](../getting-started/authentication.md#several-accounts-one-callback).
 {% endhint %}
 
 ## One integration per account

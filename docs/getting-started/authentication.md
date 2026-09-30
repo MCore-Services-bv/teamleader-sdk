@@ -9,23 +9,15 @@ then on.
 ```php
 // routes/web.php
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use McoreServices\TeamleaderSDK\Facades\Teamleader;
 
 // 1. Send the user to Teamleader to authorise your integration
-Route::get('/teamleader/connect', function (Request $request) {
-    $state = Str::random(40);
-    $request->session()->put('teamleader_oauth_state', $state);
-
-    return Teamleader::authorize($state);
+Route::get('/teamleader/connect', function () {
+    return Teamleader::authorize();
 })->middleware('auth');
 
 // 2. Teamleader sends the user back here with a code
 Route::get('/teamleader/callback', function (Request $request) {
-    $expected = $request->session()->pull('teamleader_oauth_state');
-
-    abort_unless($expected && hash_equals($expected, (string) $request->query('state')), 403);
-
     if (Teamleader::handleCallback($request->query('code'), $request->query('state'))) {
         return redirect('/dashboard')->with('success', 'Connected to Teamleader.');
     }
@@ -35,19 +27,65 @@ Route::get('/teamleader/callback', function (Request $request) {
 ```
 
 The callback path must match `TEAMLEADER_REDIRECT_URI` and the redirect URI of
-your integration exactly.
+your integration exactly. Both routes need the `web` middleware group (for the
+session) — routes in `routes/web.php` have it.
 
-{% hint style="warning" %}
-**Check the `state` parameter yourself.** The SDK passes it through to
-Teamleader and back but does not store or compare it. Without the check above,
-another site could complete the flow with its own authorization code and
-connect your application to the wrong Teamleader account.
-{% endhint %}
+### The `state` check
 
-`authorize()` returns a redirect response. If you need the URL itself — to
-render a button, say — use `Teamleader::getAuthorizationUrl($state)`.
+`authorize()` generates a random `state`, remembers it in the session, and
+sends it to Teamleader. `handleCallback()` only accepts a callback whose
+`state` this session issued, and each state works once. A mismatch throws
+`OAuthStateException` and nothing is stored: that is what stops another site
+from completing the flow with its own authorization code and connecting your
+application to the wrong Teamleader account.
 
-The callback is a `GET`, so Laravel's CSRF middleware does not apply to it.
+`authorize('your-state')` and `getAuthorizationUrl('your-state')` keep the 2.x
+behaviour — the SDK does not store or check a state you pass in.
+
+`authorize()` returns a redirect response. For the URL itself — to render a
+button, say — use `Teamleader::getAuthorizationUrl()`, which generates and
+remembers a state the same way.
+
+### Several accounts, one callback
+
+With [multiple connections](../guides/multiple-connections.md), start the flow
+on the connection and keep the one callback route:
+
+```php
+Route::get('/teamleader/{connection}/connect', fn (string $connection) =>
+    Teamleader::connection($connection)->authorize()
+)->middleware('auth');
+
+Route::get('/teamleader/callback', function (Request $request) {
+    $connected = Teamleader::handleCallback($request->query('code'), $request->query('state'));
+
+    return redirect('/settings')->with('success', "Connected {$connected->connectionName()}.");
+})->middleware('auth');
+```
+
+The state remembers which connection started the flow, so the callback stores
+the tokens on that connection. Register the same redirect URI in every
+integration.
+
+### Making sure the right account is connected
+
+`handleCallback()` identifies the account that was connected (`users.me`) and
+stores its id and name with the tokens. Set `expected_account_id` on a
+connection — `TEAMLEADER_EXPECTED_ACCOUNT_ID` for the default one — and a
+callback that connects any other account throws `AccountMismatchException`
+without storing anything. With several environments, the easy mistake is being
+logged into the wrong Teamleader account in the browser while connecting; this
+makes that mistake impossible to save.
+
+The first time, connect without it, then read the id from
+`php artisan teamleader:status` and add it.
+
+### What `handleCallback()` returns
+
+The SDK instance of the connection that was connected — truthy, so the `if`
+above works — or `false` when the code exchange failed and
+`TEAMLEADER_THROW_EXCEPTIONS` is off. A `ConnectionAuthorized` event is fired
+on success.
 
 ## Checking the connection
 
