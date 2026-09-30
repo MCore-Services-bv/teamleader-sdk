@@ -16,7 +16,6 @@
         "reservations:filter.missing:term": "`reservations.list` declares filter `term` (string); the resource does not advertise it.",
         "reservations:filter.missing:work_type_ids": "`reservations.list` declares filter `work_type_ids` (array of string); the resource does not advertise it.",
         "teams:sort.missing:name": "`teams.list` declares sort field `name`; the resource does not advertise it.",
-        "tickets:filter.missing:assignee_ids": "`tickets.list` declares filter `assignee_ids` (array of string, nullable); the resource does not advertise it.",
         "users:endpoint.deprecated:users.getWeekSchedule": "Calls `users.getWeekSchedule`, which the specification marks as deprecated.",
         "users:include.shape:availableIncludes": "$availableIncludes is a keyed map; every resource must declare a flat list so getCapabilities() has one shape.",
         "users:sort.missing:email": "`users.list` declares sort field `email`; the resource does not advertise it.",
