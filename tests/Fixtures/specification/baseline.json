@@ -2,8 +2,6 @@
     "_comment": "Known divergences from the specification. Remove an entry when you fix it; move it to \"accepted\" with a reason when it is deliberate. Regenerate with: php bin/spec-audit --write-baseline",
     "specification_version": "1.221.0",
     "open": {
-        "callOutcomes:filter.flag:supportsFiltering": "$supportsFiltering is true but `callOutcomes.list` does not declare a filter object.",
-        "callOutcomes:filter.phantom:ids": "Advertises filter `ids`; `callOutcomes.list` does not declare it, so the API ignores it and returns everything.",
         "departments:include.flag:supportsSideloading": "$supportsSideloading is true but neither `.list` nor `.info` declares includes.",
         "departments:pagination.flag:supportsPagination": "$supportsPagination is true but `departments.list` does not declare page.",
         "departments:sort.missing:created_at": "`departments.list` declares sort field `created_at`; the resource does not advertise it.",
@@ -11,7 +9,6 @@
         "departments:sort.missing:name": "`departments.list` declares sort field `name`; the resource does not advertise it.",
         "documentTemplates:include.flag:supportsSideloading": "$supportsSideloading is true but neither `.list` nor `.info` declares includes.",
         "documentTemplates:sort.flag:supportsSorting": "$supportsSorting is true but `documentTemplates.list` does not declare sort.",
-        "meetings:sort.missing:scheduled_at": "`meetings.list` declares sort field `scheduled_at`; the resource does not advertise it.",
         "plannableItems:filter.missing:types": "`plannableItems.list` declares filter `types` (array of string, enum: closingDay|dayOffType|meeting|task|call|externalEvent); the resource does not advertise it.",
         "plannableItems:filter.phantom:status": "Advertises filter `status`; `plannableItems.list` does not declare it, so the API ignores it and returns everything.",
         "products:include.phantom:custom_fields": "Advertises include `custom_fields`; the specification names only: suppliers. Verify before removing.",

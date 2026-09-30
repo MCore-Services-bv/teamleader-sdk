@@ -8,12 +8,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Category-by-category spec audit: Calendar, Tickets, General, Products,
-  Planning, Files, Templates, Other — one patch release each, with the matching wiki pages
+- Category-by-category spec audit: Tickets, General, Products, Planning,
+  Files, Templates, Other — one patch release each, with the matching wiki pages
 - Bulk operations helper for processing large datasets
 - Enhanced caching strategies with tag-based invalidation
 - Laravel Pulse integration for monitoring
 - CLI tool for quick API exploration
+
+---
+
+## [2.2.12] - 2026-09-30
+
+The Calendar category — Events, Meetings, Calls, Call Outcomes and Activity
+Types — brought in line with `@teamleader/focus-api-specification` **1.221.0**.
+
+### Fixed
+
+- **`callOutcomes()->byIds()` returned every outcome.** callOutcomes.list
+  takes no filter, so the `ids` the SDK sent was ignored. `byIds()` now reads
+  the list and filters it client-side. `findByName()` now searches every page
+  rather than the first 20, and `list()` with a filter throws.
+- **Events: sorting.** A field-name sort (`'sort' => 'starts_at'`) was a
+  `TypeError`, and `sort_order` was ignored.
+- **Events: filtering on user attendees did not work.** events.list filters
+  attendees of type `contact` only, but `forAttendee('user', …)` was accepted
+  and sent. It now throws; `forUser()` is the way to get a user's events.
+- **Meetings required a `customer`**, which meetings.schedule does not
+  require. Meetings' sort was passed through unchecked, `scheduled_at` was
+  not advertised, and the `includes` option key was ignored.
+- **Unknown filter keys were passed or dropped silently** on events,
+  meetings, calls and activity types, and a string `ids` was dropped on
+  activity types. Every one of these returned unfiltered results. They now
+  throw, or are wrapped in the case of `ids`.
+- Event create and update rejected UTC datetimes written with `Z`.
+
+### Changed
+
+- **Unknown write fields throw** on events.create/update,
+  meetings.schedule/update/createReport and calls.add/update. Examples:
+  `activity_type_id` on events.update (it cannot change) and `work_order_id`
+  on meetings.update (schedule only).
+- These are now checked:
+  - calls are assigned to users only (`assignee.type`)
+  - meetings: `project_id` and `milestone_id` are mutually exclusive, and
+    `group_id` requires `project_id`
+  - end times must follow start times
+  - attendee, link, customer and report-target types
+- `calls()->list()` sends `includes=pagination`, so the response carries
+  the total match count in `meta`.
+- Includes are checked on meetings (`tracked_time`, `estimated_time`);
+  events.info and calls.info take none. Unknown list options throw.
+- Field-list, required-field and enum constants on Events, Meetings and
+  Calls, each checked against the spec.
+- New tests: `CalendarPayloadTest` and `CalendarSpecContractTest`.
+  Baseline 25 → 22.
 
 ---
 
