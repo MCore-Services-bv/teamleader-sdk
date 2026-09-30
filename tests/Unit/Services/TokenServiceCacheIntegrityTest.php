@@ -1,108 +1,107 @@
 <?php
 
+declare(strict_types=1);
+
 namespace McoreServices\TeamleaderSDK\Tests\Unit\Services;
 
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Crypt;
 use McoreServices\TeamleaderSDK\Services\TokenService;
 use McoreServices\TeamleaderSDK\Tests\TestCase;
+use ReflectionProperty;
 
 /**
- * Regression tests for the v2.1.1 token cache fix.
+ * The token cache: one encrypted entry per connection.
  *
- * Before v2.1.1 the SDK cached a live Carbon instance under the
- * `_expires_at` key. When the cache store could not rehydrate that object it
- * returned __PHP_Incomplete_Class, and Carbon::parse() threw a TypeError.
- *
- * File: tests/Unit/Services/TokenServiceCacheIntegrityTest.php
+ * Until v3.0 the cache held the access and refresh token in plain text under
+ * three fixed keys. Before v2.1.1 one of them could also hold a Carbon object,
+ * which a cache store could return as __PHP_Incomplete_Class. Both are covered:
+ * whatever unreadable value is found is purged and the store read instead.
  */
-class TokenServiceCacheIntegrityTest extends TestCase
+final class TokenServiceCacheIntegrityTest extends TestCase
 {
-    private const ACCESS_TOKEN_KEY = 'teamleader_access_token';
-
-    private const EXPIRES_AT_KEY = 'teamleader_access_token_expires_at';
-
-    private const REFRESH_TOKEN_KEY = 'teamleader_refresh_token';
-
-    private TokenService $tokenService;
-
-    public function test_expires_at_is_cached_as_a_scalar(): void
-    {
-        $this->tokenService->storeTokens([
-            'access_token' => 'test_access_token',
-            'refresh_token' => 'test_refresh_token',
-            'expires_in' => 3600,
-        ]);
-
-        $cached = Cache::get(self::EXPIRES_AT_KEY);
-
-        $this->assertIsString($cached, 'expires_at must be cached as a string, never as an object');
-    }
-
-    public function test_unreadable_cached_expiry_does_not_throw_and_self_heals(): void
-    {
-        $this->tokenService->storeTokens([
-            'access_token' => 'test_access_token',
-            'refresh_token' => 'test_refresh_token',
-            'expires_in' => 3600,
-        ]);
-
-        // Reproduce exactly what an older SDK version left behind: a value the
-        // cache store could not turn back into a real object.
-        Cache::put(self::EXPIRES_AT_KEY, $this->incompleteObject(), 3600);
-
-        // Previously a TypeError; must now fall back to the database.
-        $this->assertTrue($this->tokenService->hasValidTokens());
-
-        // The poisoned entries are purged so the next read is clean.
-        $this->assertNull(Cache::get(self::EXPIRES_AT_KEY));
-        $this->assertNull(Cache::get(self::ACCESS_TOKEN_KEY));
-        $this->assertNull(Cache::get(self::REFRESH_TOKEN_KEY));
-
-        // And the cache is repopulated from the database with a scalar.
-        $this->assertEquals('test_access_token', $this->tokenService->getValidAccessToken());
-        $this->assertIsString(Cache::get(self::EXPIRES_AT_KEY));
-    }
-
-    /**
-     * Build a __PHP_Incomplete_Class the same way PHP does when it cannot
-     * resolve a serialized class.
-     */
-    private function incompleteObject(): object
-    {
-        return unserialize('O:12:"MissingClass":0:{}');
-    }
-
-    public function test_token_info_does_not_throw_on_unreadable_cached_expiry(): void
-    {
-        $this->tokenService->storeTokens([
-            'access_token' => 'test_access_token',
-            'refresh_token' => 'test_refresh_token',
-            'expires_in' => 3600,
-        ]);
-
-        Cache::put(self::EXPIRES_AT_KEY, $this->incompleteObject(), 3600);
-
-        $info = $this->tokenService->getTokenInfo();
-
-        $this->assertTrue($info['has_access_token']);
-        $this->assertNotNull($info['expires_at']);
-    }
-
-    public function test_missing_cached_expiry_does_not_throw(): void
-    {
-        Cache::put(self::ACCESS_TOKEN_KEY, 'orphan_access_token', 3600);
-        Cache::put(self::REFRESH_TOKEN_KEY, 'orphan_refresh_token', 3600);
-
-        // Unchanged behaviour: an unknown expiry is not treated as expired by
-        // hasValidTokens(), but shouldRefreshToken() will force a refresh.
-        $this->assertTrue($this->tokenService->hasValidTokens());
-        $this->assertTrue($this->tokenService->getTokenInfo()['needs_refresh']);
-    }
+    private const TOKENS = ['access_token' => 'test_access_token', 'refresh_token' => 'test_refresh_token', 'expires_in' => 3600];
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->tokenService = new TokenService;
         Cache::flush();
+    }
+
+    public function test_the_cache_holds_one_encrypted_entry_and_no_plain_token(): void
+    {
+        (new TokenService)->storeTokens(self::TOKENS);
+
+        $cached = Cache::get('teamleader:default:tokens');
+
+        $this->assertIsString($cached);
+        $this->assertStringNotContainsString('test_access_token', $cached);
+        $this->assertStringNotContainsString('test_refresh_token', $cached);
+        $this->assertSame('test_access_token', json_decode(Crypt::decryptString($cached), true)['access_token']);
+    }
+
+    public function test_connections_have_their_own_cache_entry(): void
+    {
+        (new TokenService(null, 'antwerp'))->storeTokens(['access_token' => 'antwerp-access', 'expires_in' => 3600]);
+        (new TokenService(null, 'ghent'))->storeTokens(['access_token' => 'ghent-access', 'expires_in' => 3600]);
+
+        $this->assertSame('antwerp-access', (new TokenService(null, 'antwerp'))->getValidAccessToken());
+        $this->assertSame('ghent-access', (new TokenService(null, 'ghent'))->getValidAccessToken());
+        $this->assertNull((new TokenService(null, 'default'))->getValidAccessToken());
+    }
+
+    public function test_an_unreadable_cache_entry_is_purged_and_the_store_used(): void
+    {
+        $service = new TokenService;
+        $service->storeTokens(self::TOKENS);
+
+        Cache::put('teamleader:default:tokens', unserialize('O:12:"MissingClass":0:{}'), 3600);
+
+        $this->assertSame('test_access_token', $service->getValidAccessToken());
+        $this->assertIsString(Cache::get('teamleader:default:tokens'), 'Re-cached from the store');
+    }
+
+    public function test_a_cache_entry_encrypted_with_another_key_is_purged(): void
+    {
+        $service = new TokenService;
+        $service->storeTokens(self::TOKENS);
+
+        Cache::put('teamleader:default:tokens', 'eyJpdiI6Im5vdCJ9', 3600);
+
+        $this->assertTrue($service->hasValidTokens());
+
+        // Replaced by a readable entry from the store
+        $cached = json_decode(Crypt::decryptString(Cache::get('teamleader:default:tokens')), true);
+        $this->assertSame('test_access_token', $cached['access_token']);
+    }
+
+    public function test_the_plain_text_cache_keys_of_2x_are_removed(): void
+    {
+        (new ReflectionProperty(TokenService::class, 'legacyCacheCleared'))->setValue(null, false);
+
+        Cache::put('teamleader_access_token', 'legacy-access', 3600);
+        Cache::put('teamleader_refresh_token', 'legacy-refresh', 3600);
+
+        new TokenService;
+
+        $this->assertNull(Cache::get('teamleader_access_token'));
+        $this->assertNull(Cache::get('teamleader_refresh_token'));
+    }
+
+    public function test_token_info_reports_the_connection_and_source(): void
+    {
+        $service = new TokenService(null, 'antwerp');
+        $service->storeTokens(self::TOKENS);
+
+        $info = $service->getTokenInfo();
+
+        $this->assertSame('antwerp', $info['connection']);
+        $this->assertSame('cache', $info['token_source']);
+        $this->assertTrue($info['database_has_tokens']);
+        $this->assertFalse($info['needs_refresh']);
+
+        Cache::flush();
+
+        $this->assertSame('database', $service->getTokenInfo()['token_source']);
     }
 }

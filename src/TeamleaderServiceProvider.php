@@ -10,6 +10,8 @@ use McoreServices\TeamleaderSDK\Events\RequestSending;
 use McoreServices\TeamleaderSDK\Events\ResponseReceived;
 use McoreServices\TeamleaderSDK\Listeners\LogApiTraffic;
 use McoreServices\TeamleaderSDK\Services\ConfigurationValidator;
+use McoreServices\TeamleaderSDK\Tokens\DatabaseTokenStore;
+use McoreServices\TeamleaderSDK\Tokens\TokenStore;
 
 class TeamleaderServiceProvider extends ServiceProvider
 {
@@ -20,6 +22,9 @@ class TeamleaderServiceProvider extends ServiceProvider
     {
         // Merge config
         $this->mergeConfigFrom(__DIR__.'/../config/teamleader.php', 'teamleader');
+
+        // Where tokens are kept. Bind your own TokenStore to replace it.
+        $this->app->singletonIf(TokenStore::class, fn () => new DatabaseTokenStore);
 
         // Register SDK singleton
         $this->app->singleton(TeamleaderSDK::class, function ($app) {
@@ -39,6 +44,14 @@ class TeamleaderServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__.'/../config/teamleader.php' => config_path('teamleader.php'),
         ], 'teamleader-config');
+
+        // The token table. Run with `php artisan migrate`; publishing is only
+        // needed to change them.
+        $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+
+        $this->publishes([
+            __DIR__.'/../database/migrations' => database_path('migrations'),
+        ], 'teamleader-migrations');
 
         // Register commands
         if ($this->app->runningInConsole()) {

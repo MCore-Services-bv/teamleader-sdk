@@ -160,7 +160,9 @@ class ConfigurationValidator
         try {
             $hasTable = \DB::getSchemaBuilder()->hasTable('teamleader_tokens');
             if (! $hasTable) {
-                $this->warnings[] = 'Teamleader tokens table does not exist - token storage will be created automatically';
+                $this->errors[] = 'The teamleader_tokens table does not exist - run `php artisan migrate`';
+            } elseif (! \DB::getSchemaBuilder()->hasColumn('teamleader_tokens', 'connection')) {
+                $this->errors[] = 'The teamleader_tokens table predates SDK v3.0 - run `php artisan migrate`';
             }
         } catch (\Exception $e) {
             $this->warnings[] = "Could not check tokens table: {$e->getMessage()}";

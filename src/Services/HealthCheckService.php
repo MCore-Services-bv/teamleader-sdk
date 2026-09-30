@@ -332,9 +332,13 @@ class HealthCheckService
             }
 
             $status = $connectionOk ? 'healthy' : 'error';
-            if (! $hasTokenTable && $status === 'healthy') {
-                $status = 'warning';
-                $details['warning'] = 'Tokens table will be created automatically when needed';
+
+            if (! $hasTokenTable) {
+                $status = 'error';
+                $details['error'] = 'The teamleader_tokens table is missing. Run `php artisan migrate`.';
+            } elseif (! DB::getSchemaBuilder()->hasColumn('teamleader_tokens', 'connection')) {
+                $status = 'error';
+                $details['error'] = 'The teamleader_tokens table predates SDK v3.0. Run `php artisan migrate`.';
             }
 
             return [

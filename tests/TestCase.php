@@ -21,6 +21,14 @@ abstract class TestCase extends Orchestra
     }
 
     /**
+     * The token table, as `php artisan migrate` creates it.
+     */
+    protected function defineDatabaseMigrations(): void
+    {
+        $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+    }
+
+    /**
      * Get package providers
      *
      * @param  Application  $app

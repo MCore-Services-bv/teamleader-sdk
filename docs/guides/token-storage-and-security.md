@@ -7,37 +7,64 @@ in production.
 
 | Layer | Where | Purpose |
 |---|---|---|
-| Database | `teamleader_tokens` table | Source of truth; survives restarts and cache flushes |
+| Token store | `teamleader_tokens` table, one row per connection | Source of truth; survives restarts and cache flushes |
 | Cache | Your default Laravel cache store | Fast reads on every request |
 
-Reads check the cache first and fall back to the database. Writes go to the
-database first, then to the cache, so a lost cache is recoverable and a lost
-database row means connecting again.
+Reads check the cache first and fall back to the store. Writes go to the store
+first, then to the cache, so a lost cache is recoverable and a lost row means
+connecting again.
+
+**Both layers are encrypted** with your application key (`APP_KEY`), using
+Laravel's encrypter. Neither the table nor the cache store holds a readable
+token.
 
 ### The table
 
-Created automatically the first time tokens are stored — no migration needed.
-Only one row is ever kept; a refresh updates it in place.
+Created by a migration that ships with the package:
+
+```bash
+php artisan migrate
+```
 
 ```
 teamleader_tokens
-├── id             bigint, primary key
-├── access_token   text
-├── refresh_token  text, nullable
-├── token_type     varchar(50), default 'Bearer'
-├── expires_in     integer
-├── expires_at     timestamp, indexed
-├── created_at     timestamp
-└── updated_at     timestamp, indexed
+├── id                 bigint, primary key
+├── connection         varchar(100), unique — 'default' for a single account
+├── access_token       text, encrypted
+├── refresh_token      text, encrypted, nullable
+├── token_type         varchar(50), default 'Bearer'
+├── expires_in         integer
+├── expires_at         timestamp, indexed
+├── status             varchar(32) — 'connected' or 'needs_reauthorization'
+├── account_id         varchar, nullable — the connected Teamleader account
+├── account_name       varchar, nullable
+├── last_refreshed_at  timestamp, nullable
+├── created_at         timestamp
+└── updated_at         timestamp
 ```
+
+To change the migrations, publish them first:
+`php artisan vendor:publish --tag=teamleader-migrations`.
 
 ### Cache keys
 
 | Key | Holds | Lifetime |
 |---|---|---|
-| `teamleader_access_token` | Access token | Token lifetime minus 2 minutes (at least 60 s) |
-| `teamleader_refresh_token` | Refresh token | 7 days |
-| `teamleader_refresh_lock` | Refresh lock | 60 s |
+| `teamleader:{connection}:tokens` | The token pair and expiry, encrypted | Until 2 minutes before the access token expires (at least 60 s) |
+| `teamleader:{connection}:refresh_lock` | Refresh lock | 60 s |
+
+### Storing tokens elsewhere
+
+The table is the default `TokenStore`. To keep tokens somewhere else — a
+secrets manager, your own tenants table — implement
+`McoreServices\TeamleaderSDK\Tokens\TokenStore` and bind it:
+
+```php
+$this->app->singleton(TokenStore::class, VaultTokenStore::class);
+```
+
+Your implementation is then responsible for protecting the values at rest. The
+SDK still caches them, encrypted.
 
 ## Refresh
 
@@ -65,26 +92,28 @@ across workers.
 If Teamleader answers the refresh with a 400 or 401, the refresh token has been
 revoked. The SDK clears all stored tokens, and the user has to connect again.
 
-## Tokens are stored unencrypted
+## `APP_KEY` protects the tokens
 
-The SDK writes the tokens as plain text to both the table and the cache. A
+Anyone with `APP_KEY` and a copy of the table can read the tokens, and a
 refresh token gives full API access to the connected Teamleader account until
-it is revoked, so protect both stores accordingly:
+it is revoked. So:
 
-- **Cache:** use Redis with a password and TLS (`REDIS_SCHEME=tls`), not the
-  file store — which also writes the tokens to disk in `storage/`.
-- **Database:** enable encryption at rest, and keep backups under the same
-  access rules as the live database.
-- **Access:** give the application's database user only the privileges it
-  needs.
+- Keep `APP_KEY` out of version control and different per environment.
+- **Rotating `APP_KEY` makes the stored tokens unreadable.** The SDK reports a
+  `TokenStorageException` naming the connection. Either connect the account
+  again, or add the old key to `APP_PREVIOUS_KEYS` during the rotation — the
+  SDK re-encrypts each token with the new key the next time it is refreshed.
+- A database backup is only as sensitive as the key it can be combined with:
+  store backups and `.env` apart.
 
-Encrypting the tokens inside the SDK is on the list for v3.0.
+Rows written by v2.x are plain text. They are encrypted automatically the
+first time the SDK reads them after the upgrade.
 
 ## Production checklist
 
 - [ ] Cache store is Redis (or another shared store), not `file` or `array`
 - [ ] Redis has a password and TLS
-- [ ] Database encryption at rest is on
+- [ ] `php artisan migrate` has run after installing or upgrading the SDK
 - [ ] `.env` is not in version control, and `APP_KEY` differs per environment
 - [ ] `TEAMLEADER_THROW_EXCEPTIONS=true`, so a failed refresh is noticed
 - [ ] Token refresh log entries are monitored
@@ -103,6 +132,8 @@ $tokens->getTokenInfo();
 //   'expires_at' => '2026-09-30 14:30:00',
 //   'expires_in' => 847,
 //   'needs_refresh' => false,
+//   'connection' => 'default',
+//   'status' => 'connected',
 //   'token_source' => 'cache',          // 'cache', 'database' or 'none'
 //   'cache_has_tokens' => true,
 //   'database_has_tokens' => true,

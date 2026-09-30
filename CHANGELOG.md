@@ -43,6 +43,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added (3.x branch)
 
+- **`TokenStore`** contract with `DatabaseTokenStore`, bound in the container
+  so tokens can be stored elsewhere. One row per connection (`connection`,
+  unique), with `status`, `account_id`, `account_name` and
+  `last_refreshed_at`.
+- **Migrations** for the token table (`php artisan migrate`), including one
+  that upgrades a v2.x table in place. Publishable with
+  `--tag=teamleader-migrations`. The table is no longer created at runtime,
+  which also removes a schema check from every token read.
 - **`lazy()` and `cursor()` on every paginated resource.** `lazy()` returns a
   `LazyCollection` that fetches pages of 100 as it is iterated, through the
   resource's own `list()` so all validation applies; `cursor()` exposes the
@@ -75,6 +83,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security (3.x branch)
 
+- **Tokens are encrypted at rest** with `APP_KEY`, in the `teamleader_tokens`
+  table and in the cache, which now holds one encrypted entry per connection
+  instead of the plain-text access and refresh token. v2.x rows are encrypted
+  on first read; the old cache keys are removed.
 - The first 20 characters of the refresh token were logged at info level on
   every refresh. Nothing from the token is logged now.
 - A token response without an access token was quoted in full in the

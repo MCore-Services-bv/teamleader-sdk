@@ -2,61 +2,83 @@
 
 namespace McoreServices\TeamleaderSDK\Services;
 
-use Carbon\Carbon;
-use DateTimeInterface;
+use Carbon\CarbonImmutable;
 use Exception;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Log;
 use McoreServices\TeamleaderSDK\Events\TokenRefreshed;
 use McoreServices\TeamleaderSDK\Events\TokenRefreshFailed;
+use McoreServices\TeamleaderSDK\Tokens\DatabaseTokenStore;
+use McoreServices\TeamleaderSDK\Tokens\StoredTokens;
+use McoreServices\TeamleaderSDK\Tokens\TokenStore;
 use McoreServices\TeamleaderSDK\Traits\DispatchesEvents;
 use McoreServices\TeamleaderSDK\Traits\SanitizesLogData;
 use Psr\Log\LoggerInterface;
+use Throwable;
 
+/**
+ * Keeps one connection's access token valid.
+ *
+ * Reads go to the cache first and to the TokenStore on a miss. The cache holds
+ * a single entry per connection — `teamleader:{connection}:tokens` — encrypted
+ * with the application key, so no token is readable in the cache store either.
+ *
+ * An access token with less than 15 minutes left is refreshed before it is
+ * handed out, under a per-connection lock so concurrent workers refresh once.
+ */
 class TokenService
 {
     use DispatchesEvents;
     use SanitizesLogData;
 
-    // Cache keys for performance (with database backup)
-    private const ACCESS_TOKEN_KEY = 'teamleader_access_token';
-
-    private const REFRESH_TOKEN_KEY = 'teamleader_refresh_token';
-
-    private const REFRESH_LOCK_KEY = 'teamleader_refresh_lock';
-
-    // Database table for persistent storage
-    private const TOKENS_TABLE = 'teamleader_tokens';
-
-    // Refresh token if it expires within this many seconds (more aggressive)
+    // Refresh token if it expires within this many seconds
     private const REFRESH_THRESHOLD = 900; // 15 minutes
 
     // Lock timeout to prevent infinite locks
-    private const LOCK_TIMEOUT = 60; // 60 seconds for safety
+    private const LOCK_TIMEOUT = 60;
+
+    /**
+     * Cache keys used before v3.0. They held the tokens in plain text; they are
+     * removed once per process so a copy does not linger for up to seven days.
+     */
+    private const LEGACY_CACHE_KEYS = [
+        'teamleader_access_token',
+        'teamleader_access_token_expires_at',
+        'teamleader_refresh_token',
+        'teamleader_refresh_lock',
+    ];
+
+    private static bool $legacyCacheCleared = false;
 
     private Client $httpClient;
 
-    /**
-     * The logger for token output: `teamleader.logging.channel` when set, the
-     * application's default channel otherwise.
-     */
-    private function log(): LoggerInterface
-    {
-        $channel = Config::get('teamleader.logging.channel');
+    private TokenStore $store;
 
-        return is_string($channel) && $channel !== '' ? Log::channel($channel) : Log::driver();
-    }
-
-    public function __construct()
+    public function __construct(?TokenStore $store = null, private readonly string $connection = 'default')
     {
+        $this->store = $store ?? (app()->bound(TokenStore::class) ? app(TokenStore::class) : new DatabaseTokenStore);
+
         $this->httpClient = new Client([
             'timeout' => 15,
             'connect_timeout' => 5,
         ]);
+
+        $this->clearLegacyCacheOnce();
+    }
+
+    /** The connection these tokens belong to */
+    public function connection(): string
+    {
+        return $this->connection;
+    }
+
+    public function store(): TokenStore
+    {
+        return $this->store;
     }
 
     /**
@@ -64,264 +86,172 @@ class TokenService
      */
     public function getValidAccessToken(): ?string
     {
-        // First try to get from cache for performance
-        $tokenData = $this->getTokensFromCache();
+        $tokens = $this->current();
 
-        if (! $tokenData || ! $tokenData['access_token']) {
-            // Fallback to database
-            $tokenData = $this->getTokensFromDatabase();
-
-            if ($tokenData && $tokenData['access_token']) {
-                // Cache the database tokens for performance
-                $this->cacheTokens($tokenData);
-            }
-        }
-
-        if (! $tokenData || ! $tokenData['access_token']) {
-            $this->log()->warning('TokenService: No access token found in cache or database');
+        if ($tokens === null || $tokens->accessToken === '') {
+            $this->log()->warning('TokenService: No access token stored', ['connection' => $this->connection]);
 
             return null;
         }
 
-        // Check if token needs refreshing
-        if ($this->shouldRefreshToken($tokenData)) {
-            $this->log()->debug('TokenService: Token needs refreshing');
-            $newToken = $this->refreshTokenIfNeeded();
+        if ($this->shouldRefresh($tokens)) {
+            $this->log()->debug('TokenService: Token needs refreshing', ['connection' => $this->connection]);
 
-            return $newToken;
+            return $this->refreshTokenIfNeeded();
         }
 
-        return $tokenData['access_token'];
+        return $tokens->accessToken;
     }
 
     /**
-     * Get tokens from cache
+     * Store a token response from Teamleader — the OAuth callback or a refresh.
      *
-     * Self-healing: if the cached expiry cannot be read (for example because it
-     * was written as a serialized object by an older SDK version), the cached
-     * tokens are purged and null is returned so the database becomes the source
-     * of truth again.
-     */
-    private function getTokensFromCache(): ?array
-    {
-        try {
-            $accessToken = Cache::get(self::ACCESS_TOKEN_KEY);
-
-            if (! $accessToken || ! is_string($accessToken)) {
-                return null;
-            }
-
-            $rawExpiresAt = Cache::get(self::ACCESS_TOKEN_KEY.'_expires_at');
-            $expiresAt = $this->parseExpiresAt($rawExpiresAt);
-
-            if ($rawExpiresAt !== null && $expiresAt === null) {
-                $this->log()->warning('TokenService: Unreadable expires_at in cache, purging cached tokens', [
-                    'type' => get_debug_type($rawExpiresAt),
-                ]);
-
-                $this->forgetCachedTokens();
-
-                return null;
-            }
-
-            $refreshToken = Cache::get(self::REFRESH_TOKEN_KEY);
-
-            return [
-                'access_token' => $accessToken,
-                'refresh_token' => is_string($refreshToken) ? $refreshToken : null,
-                'expires_at' => $expiresAt?->toIso8601String(),
-                'source' => 'cache',
-            ];
-        } catch (Exception $e) {
-            $this->log()->warning('TokenService: Failed to get tokens from cache', [
-                'error' => $e->getMessage(),
-            ]);
-
-            return null;
-        }
-    }
-
-    /**
-     * Safely turn a stored expiry value into a Carbon instance
+     * A response without a refresh token keeps the stored one. The account id
+     * and name already stored are kept too.
      *
-     * Accepts strings, unix timestamps and DateTimeInterface instances. Anything
-     * else — including the __PHP_Incomplete_Class returned when a serialized
-     * object cannot be rehydrated from the cache — returns null, which callers
-     * treat as "expired / needs refresh" rather than crashing.
+     * @param  array<string, mixed>  $tokenData  access_token, refresh_token, expires_in, token_type
+     * @param  bool  $refreshed  True when this is the result of a refresh
      */
-    private function parseExpiresAt(mixed $value): ?Carbon
+    public function storeTokens(array $tokenData, bool $refreshed = false): void
     {
-        if ($value === null || $value === '') {
-            return null;
-        }
-
-        if ($value instanceof DateTimeInterface) {
-            return Carbon::instance($value);
-        }
-
-        if (is_int($value) || (is_string($value) && ctype_digit($value))) {
-            return Carbon::createFromTimestamp((int) $value);
-        }
-
-        if (! is_string($value)) {
-            $this->log()->warning('TokenService: Unusable expires_at value, treating token as expired', [
-                'type' => get_debug_type($value),
-            ]);
-
-            return null;
-        }
-
-        try {
-            return Carbon::parse($value);
-        } catch (Exception $e) {
-            $this->log()->warning('TokenService: Failed to parse expires_at, treating token as expired', [
-                'error' => $e->getMessage(),
-            ]);
-
-            return null;
-        }
-    }
-
-    /**
-     * Forget the cached token entries without touching the database
-     */
-    private function forgetCachedTokens(): void
-    {
-        try {
-            Cache::forget(self::ACCESS_TOKEN_KEY);
-            Cache::forget(self::ACCESS_TOKEN_KEY.'_expires_at');
-            Cache::forget(self::REFRESH_TOKEN_KEY);
-        } catch (Exception $e) {
-            $this->log()->warning('TokenService: Failed to forget cached tokens', [
-                'error' => $e->getMessage(),
-            ]);
-        }
-    }
-
-    /**
-     * Get tokens from database (persistent storage)
-     */
-    private function getTokensFromDatabase(): ?array
-    {
-        try {
-            $this->ensureTokensTableExists();
-
-            $tokenRecord = DB::table(self::TOKENS_TABLE)
-                ->orderBy('updated_at', 'desc')
-                ->first();
-
-            if (! $tokenRecord) {
-                $this->log()->debug('TokenService: No token record found in database');
-
-                return null;
-            }
-
-            return [
-                'access_token' => $tokenRecord->access_token,
-                'refresh_token' => $tokenRecord->refresh_token,
-                'expires_at' => $tokenRecord->expires_at,
-                'expires_in' => $tokenRecord->expires_in,
-                'token_type' => $tokenRecord->token_type,
-                'source' => 'database',
-            ];
-        } catch (Exception $e) {
-            $this->log()->error('TokenService: Failed to get tokens from database', [
-                'error' => $e->getMessage(),
-            ]);
-
-            return null;
-        }
-    }
-
-    /**
-     * Ensure the tokens table exists
-     */
-    private function ensureTokensTableExists(): void
-    {
-        if (! DB::getSchemaBuilder()->hasTable(self::TOKENS_TABLE)) {
-            DB::getSchemaBuilder()->create(self::TOKENS_TABLE, function ($table) {
-                $table->id();
-                $table->text('access_token');
-                $table->text('refresh_token')->nullable();
-                $table->string('token_type', 50)->default('Bearer');
-                $table->integer('expires_in');
-                $table->timestamp('expires_at');
-                $table->timestamps();
-
-                $table->index('expires_at');
-                $table->index('updated_at');
-            });
-
-            $this->log()->info('TokenService: Created teamleader_tokens table');
-        }
-    }
-
-    /**
-     * Cache tokens for performance
-     *
-     * Only scalar values are written to the cache. Never store a Carbon (or any
-     * other object) here: cache stores serialize their payload, and a payload
-     * that cannot be rehydrated comes back as __PHP_Incomplete_Class.
-     */
-    private function cacheTokens(array $tokenData): void
-    {
+        $existing = $this->readStore();
         $expiresIn = (int) ($tokenData['expires_in'] ?? 3600);
-        $cacheTtl = max(60, $expiresIn - 120); // Cache for slightly less time for safety
+        $refreshToken = $tokenData['refresh_token'] ?? null;
 
-        $expiresAt = $this->parseExpiresAt($tokenData['expires_at'] ?? null);
+        if (empty($refreshToken)) {
+            $refreshToken = $existing?->refreshToken;
+
+            $this->log()->info('TokenService: No refresh token in new data, preserving existing', [
+                'connection' => $this->connection,
+                'has_existing_refresh_token' => ! empty($refreshToken),
+            ]);
+        }
+
+        $tokens = new StoredTokens(
+            accessToken: (string) $tokenData['access_token'],
+            refreshToken: $refreshToken,
+            expiresAt: CarbonImmutable::now()->addSeconds($expiresIn),
+            expiresIn: $expiresIn,
+            tokenType: (string) ($tokenData['token_type'] ?? 'Bearer'),
+            status: StoredTokens::CONNECTED,
+            accountId: $existing?->accountId,
+            accountName: $existing?->accountName,
+            lastRefreshedAt: $refreshed ? CarbonImmutable::now() : $existing?->lastRefreshedAt,
+        );
 
         try {
-            Cache::put(self::ACCESS_TOKEN_KEY, $tokenData['access_token'], $cacheTtl);
-            Cache::put(
-                self::ACCESS_TOKEN_KEY.'_expires_at',
-                $expiresAt?->toIso8601String(),
-                $cacheTtl
-            );
-
-            if (! empty($tokenData['refresh_token'])) {
-                // Cache refresh token for longer but still less than database
-                Cache::put(self::REFRESH_TOKEN_KEY, $tokenData['refresh_token'], 60 * 60 * 24 * 7); // 7 days
-            }
-
-            $this->log()->debug('TokenService: Tokens cached', [
-                'cache_ttl_minutes' => round($cacheTtl / 60, 1),
-            ]);
-        } catch (Exception $e) {
-            $this->log()->warning('TokenService: Failed to cache tokens', [
+            $this->store->put($this->connection, $tokens);
+        } catch (Throwable $e) {
+            $this->log()->error('TokenService: Failed to store tokens', [
+                'connection' => $this->connection,
                 'error' => $e->getMessage(),
             ]);
-            // Don't throw - database storage is more important
+            // Keep going: the cached copy serves until the store is fixed
         }
+
+        $this->writeCache($tokens);
+
+        $this->log()->info('TokenService: Tokens stored successfully', [
+            'connection' => $this->connection,
+            'expires_in_minutes' => round($expiresIn / 60, 1),
+            'has_refresh_token' => ! empty($refreshToken),
+            'refresh_token_source' => isset($tokenData['refresh_token']) ? 'new' : 'preserved',
+        ]);
     }
 
     /**
-     * Check if the current access token should be refreshed
+     * Clear all stored tokens (cache and store)
      */
-    private function shouldRefreshToken(array $tokenData): bool
+    public function clearTokens(): void
     {
-        $expiresAt = $this->parseExpiresAt($tokenData['expires_at'] ?? null);
+        $this->forgetCache();
 
-        if (! $expiresAt) {
-            $this->log()->debug('TokenService: No usable expiration info, assuming refresh needed');
+        try {
+            $this->store->forget($this->connection);
+        } catch (Throwable $e) {
+            $this->log()->warning('TokenService: Failed to clear stored tokens', [
+                'connection' => $this->connection,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
+        $this->log()->info('TokenService: Tokens cleared', ['connection' => $this->connection]);
+    }
+
+    /**
+     * Check if we have valid tokens
+     */
+    public function hasValidTokens(): bool
+    {
+        $tokens = $this->current();
+
+        if ($tokens === null || $tokens->accessToken === '' || empty($tokens->refreshToken)) {
+            return false;
+        }
+
+        if ($tokens->needsReauthorization()) {
+            return false;
+        }
+
+        // Unknown expiry: not invalid, but shouldRefresh() will refresh it
+        if ($tokens->expiresAt === null) {
             return true;
         }
 
-        $now = Carbon::now();
+        return ! $tokens->expiresAt->subMinutes(5)->isPast();
+    }
 
-        // Carbon is mutable: copy() before subtracting, otherwise $expiresAt is
-        // shifted by the threshold and every log line below reports a wrong time.
-        $shouldRefresh = $expiresAt->copy()->subSeconds(self::REFRESH_THRESHOLD)->isPast();
+    /**
+     * Get comprehensive token information for debugging
+     *
+     * @return array<string, mixed>
+     */
+    public function getTokenInfo(): array
+    {
+        $cached = $this->readCache();
+        $stored = $this->readStore();
+        $active = $cached ?? $stored;
 
-        if ($shouldRefresh) {
-            $this->log()->debug('TokenService: Token refresh needed', [
-                'expires_at' => $expiresAt->toDateTimeString(),
-                'minutes_left' => round($now->diffInMinutes($expiresAt, false), 1),
-                'threshold_minutes' => self::REFRESH_THRESHOLD / 60,
-            ]);
+        return [
+            'connection' => $this->connection,
+            'has_access_token' => $active !== null && $active->accessToken !== '',
+            'has_refresh_token' => ! empty($active?->refreshToken),
+            'expires_at' => $active?->expiresAt?->toDateTimeString(),
+            'expires_in' => $active?->secondsUntilExpiry() === null ? null : max(0, $active->secondsUntilExpiry()),
+            'needs_refresh' => $active === null || $this->shouldRefresh($active),
+            'status' => $active?->status,
+            'account_id' => $active?->accountId,
+            'account_name' => $active?->accountName,
+            'last_refreshed_at' => $active?->lastRefreshedAt?->toDateTimeString(),
+            'token_source' => $cached !== null ? 'cache' : ($stored !== null ? 'database' : 'none'),
+            'cache_has_tokens' => $cached !== null,
+            'database_has_tokens' => $stored !== null,
+            'storage_sync' => [
+                'cache_access_token' => $cached !== null && $cached->accessToken !== '',
+                'db_access_token' => $stored !== null && $stored->accessToken !== '',
+                'cache_refresh_token' => ! empty($cached?->refreshToken),
+                'db_refresh_token' => ! empty($stored?->refreshToken),
+            ],
+        ];
+    }
+
+    /**
+     * Re-cache the stored tokens, after a cache flush
+     */
+    public function syncTokensToCache(): bool
+    {
+        $stored = $this->readStore();
+
+        if ($stored === null || $stored->accessToken === '') {
+            $this->log()->warning('TokenService: No stored tokens to sync', ['connection' => $this->connection]);
+
+            return false;
         }
 
-        return $shouldRefresh;
+        $this->writeCache($stored);
+        $this->log()->info('TokenService: Synced stored tokens to cache', ['connection' => $this->connection]);
+
+        return true;
     }
 
     /**
@@ -329,37 +259,34 @@ class TokenService
      */
     public function refreshTokenIfNeeded(): ?string
     {
-        // Try to acquire a lock to prevent concurrent refresh attempts
-        $lockAcquired = Cache::add(self::REFRESH_LOCK_KEY, true, self::LOCK_TIMEOUT);
+        $lock = $this->cacheKey('refresh_lock');
 
-        if (! $lockAcquired) {
-            $this->log()->debug('TokenService: Another refresh is in progress, waiting...');
+        if (! Cache::add($lock, true, self::LOCK_TIMEOUT)) {
+            $this->log()->debug('TokenService: Another refresh is in progress, waiting...', ['connection' => $this->connection]);
 
-            // Wait for the other refresh to complete
             $attempts = 0;
-            while (Cache::has(self::REFRESH_LOCK_KEY) && $attempts < 60) {
+            while (Cache::has($lock) && $attempts < 60) {
                 usleep(500000); // 500ms
                 $attempts++;
             }
 
-            // Return the potentially refreshed token from database
-            $tokenData = $this->getTokensFromDatabase();
+            // The other process stored the new pair; read it from the store
+            $this->forgetCache();
 
-            return $tokenData['access_token'] ?? null;
+            return $this->current()?->accessToken;
         }
 
         try {
             return $this->performTokenRefresh();
         } catch (Exception $e) {
             $this->log()->error('TokenService: Exception during token refresh', [
+                'connection' => $this->connection,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
 
             return null;
         } finally {
-            // Always release the lock
-            Cache::forget(self::REFRESH_LOCK_KEY);
+            Cache::forget($lock);
         }
     }
 
@@ -368,13 +295,12 @@ class TokenService
      */
     private function performTokenRefresh(): ?string
     {
-        // Get refresh token from database (most reliable source)
-        $tokenData = $this->getTokensFromDatabase();
-        $refreshToken = $tokenData['refresh_token'] ?? null;
+        // The store, not the cache: another process may have refreshed since
+        $refreshToken = $this->readStore()?->refreshToken;
 
         if (! $refreshToken) {
-            $this->log()->error('TokenService: No refresh token available in database');
-            $this->clearAllTokens(); // Clean up any stale cache
+            $this->log()->error('TokenService: No refresh token stored', ['connection' => $this->connection]);
+            $this->forgetCache();
 
             $this->fireEvent(TokenRefreshFailed::class, fn () => new TokenRefreshFailed(
                 'No refresh token is stored. Connect the account through OAuth.', null, true
@@ -384,9 +310,8 @@ class TokenService
         }
 
         try {
-            // No part of the refresh token is logged: until v3.0 its first 20
-            // characters were, at info level.
-            $this->log()->info('TokenService: Attempting to refresh access token');
+            // No part of the refresh token is logged
+            $this->log()->info('TokenService: Attempting to refresh access token', ['connection' => $this->connection]);
 
             $authUrl = rtrim((string) (Config::get('teamleader.auth_url') ?: 'https://focus.teamleader.eu'), '/');
 
@@ -415,12 +340,13 @@ class TokenService
                     .(is_array($result) ? implode(', ', array_keys($result)) : gettype($result)));
             }
 
-            // CRITICAL: Store the new tokens (including new refresh token)
-            $this->storeTokens($result);
+            // Store the new pair, including the new refresh token, before the
+            // lock is released
+            $this->storeTokens($result, true);
 
             $this->log()->info('TokenService: Access token refreshed successfully', [
+                'connection' => $this->connection,
                 'expires_in' => $result['expires_in'] ?? 'unknown',
-                'token_type' => $result['token_type'] ?? 'unknown',
                 'has_new_refresh_token' => isset($result['refresh_token']),
             ]);
 
@@ -432,27 +358,28 @@ class TokenService
 
         } catch (GuzzleException $e) {
             $statusCode = null;
+
             if (method_exists($e, 'getResponse') && $e->getResponse()) {
                 $statusCode = $e->getResponse()->getStatusCode();
-                $responseBody = (string) $e->getResponse()->getBody();
 
                 $this->log()->error('TokenService: HTTP error during token refresh', [
+                    'connection' => $this->connection,
                     'status_code' => $statusCode,
-                    'response_body' => $responseBody,
-                    'error' => $e->getMessage(),
+                    'response_body' => (string) $e->getResponse()->getBody(),
                 ]);
             } else {
                 $this->log()->error('TokenService: Network error during token refresh', [
+                    'connection' => $this->connection,
                     'error' => $e->getMessage(),
                 ]);
             }
 
-            // If refresh token is invalid (400/401), clear all tokens
+            // A refused refresh token (400/401) cannot recover
             $refused = in_array($statusCode, [400, 401], true);
 
             if ($refused) {
-                $this->log()->critical('TokenService: Refresh token is invalid, clearing all tokens');
-                $this->clearAllTokens();
+                $this->log()->critical('TokenService: Refresh token is invalid, clearing tokens', ['connection' => $this->connection]);
+                $this->clearTokens();
             }
 
             $this->fireEvent(TokenRefreshFailed::class, fn () => new TokenRefreshFailed(
@@ -466,8 +393,8 @@ class TokenService
             return null;
         } catch (Exception $e) {
             $this->log()->error('TokenService: Error refreshing token', [
+                'connection' => $this->connection,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
 
             $this->fireEvent(TokenRefreshFailed::class, fn () => new TokenRefreshFailed($e->getMessage()));
@@ -476,202 +403,143 @@ class TokenService
         }
     }
 
-    /**
-     * Clear all tokens from all storage locations
-     */
-    private function clearAllTokens(): void
+    // -- storage ----------------------------------------------------------------
+
+    /** Cache first, then the store — caching what the store returned */
+    private function current(): ?StoredTokens
     {
-        // Clear cache
-        try {
-            Cache::forget(self::ACCESS_TOKEN_KEY);
-            Cache::forget(self::ACCESS_TOKEN_KEY.'_expires_at');
-            Cache::forget(self::REFRESH_TOKEN_KEY);
-            $this->log()->debug('TokenService: Cleared tokens from cache');
-        } catch (Exception $e) {
-            $this->log()->warning('TokenService: Failed to clear cache tokens', [
-                'error' => $e->getMessage(),
-            ]);
+        $cached = $this->readCache();
+
+        if ($cached !== null) {
+            return $cached;
         }
 
-        // Clear database
-        try {
-            if (DB::getSchemaBuilder()->hasTable(self::TOKENS_TABLE)) {
-                DB::table(self::TOKENS_TABLE)->delete();
-                $this->log()->debug('TokenService: Cleared tokens from database');
-            }
-        } catch (Exception $e) {
-            $this->log()->warning('TokenService: Failed to clear database tokens', [
-                'error' => $e->getMessage(),
-            ]);
+        $stored = $this->readStore();
+
+        if ($stored !== null && $stored->accessToken !== '') {
+            $this->writeCache($stored);
         }
 
-        $this->log()->info('TokenService: All tokens cleared from all storage locations');
+        return $stored;
     }
 
-    /**
-     * Store tokens in both database (persistent) and cache (performance)
-     */
-    public function storeTokens(array $tokenData): void
-    {
-        $expiresIn = (int) ($tokenData['expires_in'] ?? 3600);
-        $expiresAt = Carbon::now()->addSeconds($expiresIn);
-
-        // Get existing refresh token if new one not provided
-        $refreshToken = $tokenData['refresh_token'] ?? null;
-
-        // CRITICAL FIX: If no refresh token in new data, preserve the existing one
-        if (empty($refreshToken)) {
-            $existingData = $this->getTokensFromDatabase();
-            $refreshToken = $existingData['refresh_token'] ?? null;
-
-            $this->log()->info('TokenService: No refresh token in new data, preserving existing', [
-                'has_existing_refresh_token' => ! empty($refreshToken),
-            ]);
-        }
-
-        $tokenRecord = [
-            'access_token' => $tokenData['access_token'],
-            'refresh_token' => $refreshToken, // Use preserved or new refresh token
-            'token_type' => $tokenData['token_type'] ?? 'Bearer',
-            'expires_in' => $expiresIn,
-            // CRITICAL: keep this a scalar. This same array is handed to
-            // cacheTokens(), and an object here ends up serialized in the cache
-            // store, where it can come back as __PHP_Incomplete_Class.
-            'expires_at' => $expiresAt->toDateTimeString(),
-            'updated_at' => Carbon::now()->toDateTimeString(),
-        ];
-
-        // CRITICAL: Store in database first (persistent storage)
-        try {
-            $this->ensureTokensTableExists();
-
-            $existing = DB::table(self::TOKENS_TABLE)->first();
-
-            if ($existing) {
-                DB::table(self::TOKENS_TABLE)->update($tokenRecord);
-                $this->log()->debug('TokenService: Updated existing token record in database');
-            } else {
-                $tokenRecord['created_at'] = Carbon::now()->toDateTimeString();
-                DB::table(self::TOKENS_TABLE)->insert($tokenRecord);
-                $this->log()->debug('TokenService: Created new token record in database');
-            }
-        } catch (Exception $e) {
-            $this->log()->error('TokenService: Failed to store tokens in database', [
-                'error' => $e->getMessage(),
-            ]);
-            // Don't throw - we can still use cache temporarily
-        }
-
-        // Then cache for performance (with shorter TTL for safety)
-        $this->cacheTokens($tokenRecord);
-
-        $this->log()->info('TokenService: Tokens stored successfully', [
-            'expires_in_minutes' => round($expiresIn / 60, 1),
-            'expires_at' => $tokenRecord['expires_at'],
-            'has_refresh_token' => ! empty($refreshToken),
-            'refresh_token_source' => isset($tokenData['refresh_token']) ? 'new' : 'preserved',
-        ]);
-    }
-
-    /**
-     * Clear all stored tokens (cache and database)
-     */
-    public function clearTokens(): void
-    {
-        $this->clearAllTokens();
-    }
-
-    /**
-     * Check if we have valid tokens
-     */
-    public function hasValidTokens(): bool
-    {
-        $tokenData = $this->getTokensFromCache() ?? $this->getTokensFromDatabase();
-
-        if (! $tokenData || empty($tokenData['access_token']) || empty($tokenData['refresh_token'])) {
-            return false;
-        }
-
-        if (isset($tokenData['expires_at'])) {
-            $expiresAt = $this->parseExpiresAt($tokenData['expires_at']);
-
-            if (! $expiresAt) {
-                $this->log()->debug('TokenService: Tokens exist but expiry is unreadable, treating as invalid');
-
-                return false;
-            }
-
-            // copy() so the 5 minute buffer does not mutate $expiresAt
-            if ($expiresAt->copy()->subMinutes(5)->isPast()) {
-                $this->log()->debug('TokenService: Tokens exist but are expired');
-
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    /**
-     * Get comprehensive token information for debugging
-     */
-    public function getTokenInfo(): array
-    {
-        $cacheData = $this->getTokensFromCache();
-        $dbData = $this->getTokensFromDatabase();
-
-        $activeData = $cacheData ?? $dbData;
-
-        $expiresAt = $activeData
-            ? $this->parseExpiresAt($activeData['expires_at'] ?? null)
-            : null;
-
-        $expiresIn = $expiresAt
-            ? (int) max(0, round(Carbon::now()->diffInSeconds($expiresAt, false)))
-            : null;
-
-        return [
-            'has_access_token' => ! empty($activeData['access_token']),
-            'has_refresh_token' => ! empty($activeData['refresh_token']),
-            'expires_at' => $expiresAt ? $expiresAt->toDateTimeString() : null,
-            'expires_in' => $expiresIn,
-            'needs_refresh' => $activeData ? $this->shouldRefreshToken($activeData) : true,
-            'token_source' => $activeData['source'] ?? 'none',
-            'cache_has_tokens' => ! empty($cacheData),
-            'database_has_tokens' => ! empty($dbData),
-            'storage_sync' => [
-                'cache_access_token' => ! empty($cacheData['access_token']),
-                'db_access_token' => ! empty($dbData['access_token']),
-                'cache_refresh_token' => ! empty($cacheData['refresh_token']),
-                'db_refresh_token' => ! empty($dbData['refresh_token']),
-            ],
-        ];
-    }
-
-    /**
-     * Manually sync tokens from database to cache
-     */
-    public function syncTokensToCache(): bool
+    private function readStore(): ?StoredTokens
     {
         try {
-            $dbData = $this->getTokensFromDatabase();
-
-            if ($dbData && $dbData['access_token']) {
-                $this->cacheTokens($dbData);
-                $this->log()->info('TokenService: Synced tokens from database to cache');
-
-                return true;
-            }
-
-            $this->log()->warning('TokenService: No valid tokens in database to sync');
-
-            return false;
-        } catch (Exception $e) {
-            $this->log()->error('TokenService: Failed to sync tokens to cache', [
+            return $this->store->get($this->connection);
+        } catch (Throwable $e) {
+            $this->log()->error('TokenService: Failed to read stored tokens', [
+                'connection' => $this->connection,
                 'error' => $e->getMessage(),
             ]);
 
-            return false;
+            return null;
         }
+    }
+
+    /**
+     * The cached tokens, or null. An entry that is not a readable encrypted
+     * payload — a leftover from another version, another APP_KEY — is removed,
+     * so the store becomes the source again.
+     */
+    private function readCache(): ?StoredTokens
+    {
+        try {
+            $payload = Cache::get($this->cacheKey('tokens'));
+
+            if ($payload === null) {
+                return null;
+            }
+
+            if (! is_string($payload)) {
+                throw new Exception('Cached tokens are a '.get_debug_type($payload).', not an encrypted string');
+            }
+
+            $data = json_decode(Crypt::decryptString($payload), true, 512, JSON_THROW_ON_ERROR);
+
+            return is_array($data) ? StoredTokens::fromArray($data) : null;
+        } catch (Throwable $e) {
+            $this->log()->warning('TokenService: Unreadable cached tokens, purging', [
+                'connection' => $this->connection,
+                'error' => $e->getMessage(),
+            ]);
+
+            $this->forgetCache();
+
+            return null;
+        }
+    }
+
+    /**
+     * Cache the tokens, encrypted, until shortly before the access token expires
+     */
+    private function writeCache(StoredTokens $tokens): void
+    {
+        $secondsLeft = $tokens->secondsUntilExpiry() ?? $tokens->expiresIn;
+        $ttl = max(60, $secondsLeft - 120);
+
+        try {
+            Cache::put($this->cacheKey('tokens'), Crypt::encryptString(json_encode($tokens->toArray())), $ttl);
+        } catch (Throwable $e) {
+            $this->log()->warning('TokenService: Failed to cache tokens', [
+                'connection' => $this->connection,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function forgetCache(): void
+    {
+        try {
+            Cache::forget($this->cacheKey('tokens'));
+        } catch (Throwable $e) {
+            $this->log()->warning('TokenService: Failed to forget cached tokens', [
+                'connection' => $this->connection,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    private function shouldRefresh(StoredTokens $tokens): bool
+    {
+        if ($tokens->expiresAt === null) {
+            return true;
+        }
+
+        return $tokens->expiresAt->subSeconds(self::REFRESH_THRESHOLD)->isPast();
+    }
+
+    /** `teamleader:{connection}:{suffix}` */
+    private function cacheKey(string $suffix): string
+    {
+        return "teamleader:{$this->connection}:{$suffix}";
+    }
+
+    private function clearLegacyCacheOnce(): void
+    {
+        if (self::$legacyCacheCleared) {
+            return;
+        }
+
+        self::$legacyCacheCleared = true;
+
+        try {
+            foreach (self::LEGACY_CACHE_KEYS as $key) {
+                Cache::forget($key);
+            }
+        } catch (Throwable) {
+            // No cache store configured: nothing to clear
+        }
+    }
+
+    /**
+     * The logger for token output: `teamleader.logging.channel` when set, the
+     * application's default channel otherwise.
+     */
+    private function log(): LoggerInterface
+    {
+        $channel = Config::get('teamleader.logging.channel');
+
+        return is_string($channel) && $channel !== '' ? Log::channel($channel) : Log::driver();
     }
 }

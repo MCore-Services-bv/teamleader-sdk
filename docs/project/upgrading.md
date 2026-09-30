@@ -5,6 +5,23 @@
 > 3.0 is in development on the `3.x` branch. This section grows as the
 > breaking changes land.
 
+### Run the migrations
+
+```bash
+php artisan migrate
+```
+
+2.x created the `teamleader_tokens` table itself on first use. 3.0 ships
+migrations instead, and one of them upgrades your existing table in place: its
+row becomes the `default` connection, and the tokens you have keep working.
+**Without this step the SDK cannot read its tokens**; `teamleader:health`
+reports it.
+
+The tokens are then encrypted with `APP_KEY` — in the table the first time the
+SDK reads them, and in the cache under new keys (`teamleader:default:tokens`).
+The old plain-text cache keys are removed. If you ever rotate `APP_KEY`, see
+[Token storage and security](../guides/token-storage-and-security.md).
+
 ### Requirements
 
 **PHP 8.4 or higher.** 3.0 drops PHP 8.2 and 8.3. Laravel 12 and 13 are both
@@ -93,6 +110,16 @@ for them before upgrading — a value you set long ago takes effect:
 
 `logging.channel` defaults to `null` (your default channel) instead of
 `config('logging.default')`.
+
+### Token storage
+
+- `TokenService` stores through a `TokenStore` (the table, by default) and
+  takes the connection name: `new TokenService($store, 'default')`. Calling
+  `new TokenService` without arguments still works.
+- `getTokenInfo()` has new keys: `connection`, `status`, `account_id`,
+  `account_name`, `last_refreshed_at`.
+- `storeTokens()` takes a second argument, `bool $refreshed`, used by the
+  refresh.
 
 ### Logging and the call log
 
