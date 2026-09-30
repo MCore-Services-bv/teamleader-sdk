@@ -141,15 +141,19 @@ use Psr\Log\LoggerInterface;
  * @method static ActivityTypes activityTypes()
  * @method static CallOutcomes callOutcomes()
  * @method static Calls calls()
- * @method static Events calenderEvents()
+ * @method static Events calendarEvents()
+ * @method static Events calenderEvents() Deprecated since v2.2.6 — use calendarEvents(). Removed in v3.0.
  * @method static Meetings meetings()
  *
  * Invoicing
  * @method static CommercialDiscounts commercialDiscounts()
- * @method static Creditnotes creditnotes()
+ * @method static Creditnotes creditNotes()
+ * @method static Creditnotes creditnotes() Deprecated since v2.2.6 — use creditNotes(). Removed in v3.0.
  * @method static Invoices invoices()
- * @method static PaymentMethods payment_methods()
- * @method static PaymentTerms payment_terms()
+ * @method static PaymentMethods paymentMethods()
+ * @method static PaymentMethods payment_methods() Deprecated since v2.2.6 — use paymentMethods(). Removed in v3.0.
+ * @method static PaymentTerms paymentTerms()
+ * @method static PaymentTerms payment_terms() Deprecated since v2.2.6 — use paymentTerms(). Removed in v3.0.
  * @method static Subscriptions subscriptions()
  * @method static TaxRates taxRates()
  * @method static WithholdingTaxRates withholdingTaxRates()
@@ -168,7 +172,8 @@ use Psr\Log\LoggerInterface;
  * @method static UnitOfMeasure unitsOfMeasure()
  *
  * Projects
- * @method static ExternalParties external_parties()
+ * @method static ExternalParties externalParties()
+ * @method static ExternalParties external_parties() Deprecated since v2.2.6 — use externalParties(). Removed in v3.0.
  * @method static Groups groups()
  * @method static LegacyMilestones legacyMilestones()
  * @method static LegacyProjects legacyProjects()
@@ -179,9 +184,11 @@ use Psr\Log\LoggerInterface;
  * @method static Projects nextgenProjects() Alias for projects() — Teamleader's webhook vocabulary
  *
  * Planning
- * @method static PlannableItems plannable_items()
+ * @method static PlannableItems plannableItems()
+ * @method static PlannableItems plannable_items() Deprecated since v2.2.6 — use plannableItems(). Removed in v3.0.
  * @method static Reservations reservations()
- * @method static UserAvailability user_availability()
+ * @method static UserAvailability userAvailability()
+ * @method static UserAvailability user_availability() Deprecated since v2.2.6 — use userAvailability(). Removed in v3.0.
  *
  * Tasks & time tracking
  * @method static Tasks tasks()

@@ -68,22 +68,22 @@ class Events extends Resource
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all events',
-            'code' => '$events = $teamleader->events()->list();',
+            'code' => '$events = $teamleader->calendarEvents()->list();',
         ],
         'list_for_user' => [
             'description' => 'Get events for a specific user',
-            'code' => '$events = $teamleader->events()->forUser("user-uuid");',
+            'code' => '$events = $teamleader->calendarEvents()->forUser("user-uuid");',
         ],
         'list_by_date_range' => [
             'description' => 'Get events within a date range',
-            'code' => '$events = $teamleader->events()->list([
+            'code' => '$events = $teamleader->calendarEvents()->list([
     "ends_after" => "2025-01-01T00:00:00+00:00",
     "starts_before" => "2025-12-31T23:59:59+00:00"
 ]);',
         ],
         'create_event' => [
             'description' => 'Create a new calendar event',
-            'code' => '$event = $teamleader->events()->create([
+            'code' => '$event = $teamleader->calendarEvents()->create([
     "title" => "Meeting with stakeholders",
     "activity_type_id" => "activity-type-uuid",
     "starts_at" => "2025-02-04T16:00:00+00:00",
@@ -95,18 +95,18 @@ class Events extends Resource
         ],
         'update_event' => [
             'description' => 'Update an existing event',
-            'code' => '$event = $teamleader->events()->update("event-uuid", [
+            'code' => '$event = $teamleader->calendarEvents()->update("event-uuid", [
     "title" => "Updated meeting title",
     "starts_at" => "2025-02-04T17:00:00+00:00"
 ]);',
         ],
         'cancel_event' => [
             'description' => 'Cancel an event (for all attendees)',
-            'code' => '$result = $teamleader->events()->cancel("event-uuid");',
+            'code' => '$result = $teamleader->calendarEvents()->cancel("event-uuid");',
         ],
         'search_events' => [
             'description' => 'Search events by term',
-            'code' => '$events = $teamleader->events()->search("coffee");',
+            'code' => '$events = $teamleader->calendarEvents()->search("coffee");',
         ],
     ];
 

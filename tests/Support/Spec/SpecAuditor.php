@@ -38,6 +38,7 @@ namespace McoreServices\TeamleaderSDK\Tests\Support\Spec;
  *   include.shape        $availableIncludes is a keyed map, not a list
  *   example.resource     Usage example calls a resource key that is not registered
  *   example.method       Usage example calls a method the resource does not have
+ *   example.deprecated_key  Usage example calls a deprecated resource key
  *
  * The include vocabulary is derived (the specification types `includes` as a
  * free-form string and only names values in its example and description), so
@@ -383,12 +384,20 @@ final class SpecAuditor
     private function auditExamples(array $resource, array &$findings): void
     {
         $registry = $this->sdk->registry();
+        $aliases = $this->sdk->deprecatedAliases();
         $inventory = $this->sdk->resources();
 
         foreach ($resource['usage_examples'] as $name => $example) {
             $code = is_array($example) ? (string) ($example['code'] ?? '') : (string) $example;
 
             foreach (UsageExampleParser::chains($code) as [$key, $methods]) {
+                if (! isset($registry[$key]) && isset($aliases[$key])) {
+                    $this->add($findings, $resource, 'example.deprecated_key', "{$name}:{$key}", 'warning',
+                        "Usage example `{$name}` calls `{$key}()`, deprecated in favour of `{$aliases[$key]}()`.");
+
+                    $key = $aliases[$key];
+                }
+
                 if (! isset($registry[$key])) {
                     $this->add($findings, $resource, 'example.resource', "{$name}:{$key}", 'error',
                         "Usage example `{$name}` calls `{$key}()`, which is not a registered resource.");

@@ -18,6 +18,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.2.6] - 2026-09-30
+
+Seven resource keys renamed to camelCase, with the old keys kept as deprecated
+aliases. No behaviour changes for existing code.
+
+### Fixed
+
+- **36 SDK usage examples could not run.** The resource map had one misspelling
+  and six snake_case outliers, while the examples published by those same
+  resources used the camelCase names — so `$teamleader->paymentMethods()` threw
+  *"Method or resource 'paymentMethods' not found"* and only `payment_methods()`
+  worked. The audit reported these as `example.resource` errors across
+  Calendar, Invoicing, Planning and Projects.
+
+| Canonical (new) | Deprecated alias |
+|---|---|
+| `calendarEvents()` | `calenderEvents()` |
+| `creditNotes()` | `creditnotes()` |
+| `paymentMethods()` | `payment_methods()` |
+| `paymentTerms()` | `payment_terms()` |
+| `externalParties()` | `external_parties()` |
+| `plannableItems()` | `plannable_items()` |
+| `userAvailability()` | `user_availability()` |
+
+  Both spellings return the same instance. An old key raises one
+  `E_USER_DEPRECATED` notice per process — Laravel logs it to the
+  `deprecations` channel and never throws it. **The aliases are removed in
+  v3.0**; the facade's `@method` block lists both, with the old ones marked
+  deprecated, so IDE completion steers towards the new names.
+- A resource an application registered itself under one of the old keys with
+  `addResource()` keeps precedence over the alias.
+- The Events and Creditnotes usage examples called `events()` and
+  `creditnotes()`; they now use `calendarEvents()` and `creditNotes()`.
+
+### Changed — tooling
+
+- `SpecAuditor` resolves deprecated keys in usage examples and reports them as
+  `example.deprecated_key` warnings. Baseline **87 → 51** (errors 44 → 8).
+- `ResourceKeyAliasTest` covers every rename, the shared instance, the
+  once-per-process notice and `addResource()` precedence.
+
+---
+
 ## [2.2.5] - 2026-09-30
 
 The Deals category — Deals, Quotations, Orders, Phases, Pipelines, Sources,

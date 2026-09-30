@@ -84,62 +84,62 @@ class Creditnotes extends Resource
     protected array $usageExamples = [
         'list_all' => [
             'description' => 'Get all credit notes',
-            'code' => '$creditNotes = $teamleader->creditnotes()->list();',
+            'code' => '$creditNotes = $teamleader->creditNotes()->list();',
         ],
         'filter_by_invoice' => [
             'description' => 'Get credit notes for a specific invoice',
-            'code' => '$creditNotes = $teamleader->creditnotes()->forInvoice(\'invoice-uuid\');',
+            'code' => '$creditNotes = $teamleader->creditNotes()->forInvoice(\'invoice-uuid\');',
         ],
         'filter_by_customer' => [
             'description' => 'Get credit notes for a specific customer',
-            'code' => '$creditNotes = $teamleader->creditnotes()->forCustomer(\'company\', \'customer-uuid\');',
+            'code' => '$creditNotes = $teamleader->creditNotes()->forCustomer(\'company\', \'customer-uuid\');',
         ],
         'filter_by_project' => [
             'description' => 'Get credit notes for a specific project',
-            'code' => '$creditNotes = $teamleader->creditnotes()->forProject(\'project-uuid\');',
+            'code' => '$creditNotes = $teamleader->creditNotes()->forProject(\'project-uuid\');',
         ],
         'filter_by_date_range' => [
             'description' => 'Get credit notes within a date range',
-            'code' => '$creditNotes = $teamleader->creditnotes()->betweenDates(\'2022-01-01\', \'2023-01-01\');',
+            'code' => '$creditNotes = $teamleader->creditNotes()->betweenDates(\'2022-01-01\', \'2023-01-01\');',
         ],
         'get_info' => [
             'description' => 'Get detailed credit note information',
-            'code' => '$creditNote = $teamleader->creditnotes()->info(\'credit-note-uuid\');',
+            'code' => '$creditNote = $teamleader->creditNotes()->info(\'credit-note-uuid\');',
         ],
         'download_pdf' => [
             'description' => 'Download credit note as PDF',
-            'code' => '$download = $teamleader->creditnotes()->download(\'credit-note-uuid\', \'pdf\');',
+            'code' => '$download = $teamleader->creditNotes()->download(\'credit-note-uuid\', \'pdf\');',
         ],
         'download_ubl' => [
             'description' => 'Download credit note as UBL e-fff format',
-            'code' => '$download = $teamleader->creditnotes()->download(\'credit-note-uuid\', \'ubl/e-fff\');',
+            'code' => '$download = $teamleader->creditNotes()->download(\'credit-note-uuid\', \'ubl/e-fff\');',
         ],
         'send_peppol' => [
             'description' => 'Send credit note via Peppol network',
-            'code' => '$result = $teamleader->creditnotes()->sendViaPeppol(\'credit-note-uuid\');',
+            'code' => '$result = $teamleader->creditNotes()->sendViaPeppol(\'credit-note-uuid\');',
         ],
         'check_peppol_status' => [
             'description' => 'Send via Peppol and check submission status',
             'code' => <<<'PHP'
-$teamleader->creditnotes()->sendViaPeppol('credit-note-uuid');
+$teamleader->creditNotes()->sendViaPeppol('credit-note-uuid');
 
 // Poll info() until peppol_status is no longer 'sending'
-$creditNote = $teamleader->creditnotes()->info('credit-note-uuid');
+$creditNote = $teamleader->creditNotes()->info('credit-note-uuid');
 $peppolStatus = $creditNote['data']['peppol_status'] ?? null;
 // e.g. 'sent', 'sending_failed', 'receiver_accepted', etc.
 PHP,
         ],
         'get_booked' => [
             'description' => 'Get only booked credit notes',
-            'code' => '$creditNotes = $teamleader->creditnotes()->booked();',
+            'code' => '$creditNotes = $teamleader->creditNotes()->booked();',
         ],
         'get_paid' => [
             'description' => 'Get paid credit notes',
-            'code' => '$creditNotes = $teamleader->creditnotes()->paid();',
+            'code' => '$creditNotes = $teamleader->creditNotes()->paid();',
         ],
         'get_unpaid' => [
             'description' => 'Get unpaid credit notes',
-            'code' => '$creditNotes = $teamleader->creditnotes()->unpaid();',
+            'code' => '$creditNotes = $teamleader->creditNotes()->unpaid();',
         ],
     ];
 
