@@ -8,13 +8,80 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Category-by-category spec audit: Expenses, Projects,
+- Category-by-category spec audit: Projects,
   Tasks, TimeTracking, Calendar, Tickets, General, Products, Planning, Files,
   Templates, Other — one patch release each, with the matching wiki pages
 - Bulk operations helper for processing large datasets
 - Enhanced caching strategies with tag-based invalidation
 - Laravel Pulse integration for monitoring
 - CLI tool for quick API exploration
+
+---
+
+## [2.2.8] - 2026-09-30
+
+The Expenses category — Expenses, Incoming Invoices, Incoming Credit Notes,
+Receipts, Bookkeeping Submissions — brought in line with
+`@teamleader/focus-api-specification` **1.221.0**. The audit reported three
+sort warnings here; reading the code against the spec found considerably more.
+
+### Fixed — Bookkeeping Submissions
+
+- **`forInvoice()` and `forCreditNote()` could not work.** They sent subject
+  types `incoming_invoice` and `incoming_credit_note`; the API accepts
+  `incomingInvoice`, `incomingCreditNote` and `receipt`. Every status helper
+  built on them (`confirmed()`, `failed()`, `sending()`, `latest()`,
+  `hasConfirmed()`, `hasFailed()`, `statistics()`) was affected for those two
+  document types. The camelCase values are now sent; the old snake_case
+  spellings are still accepted and translated, so existing calls keep working.
+- Paging and sorting options, and filter keys other than `subject`, now throw.
+
+### Fixed — Expenses
+
+- **`unpaid()` sent `payment_statuses: ["unpaid"]`**, which is not a payment
+  status. It now sends `not_paid` and `partially_paid`. The documented status
+  list was `paid, unpaid`; the API's is `unknown, paid, partially_paid,
+  credited, not_paid`.
+- **A field-name sort was dropped.** `['sort' => 'document_date']` was ignored
+  because only sort objects were read; `sort_order` was ignored too.
+- **Unknown filter keys were dropped without a word**, and no enum was checked:
+  source types, review, bookkeeping and payment statuses, supplier type and
+  date operators now are. A date filter with `between` but no `start` or `end`,
+  or `equals`/`before`/`after` with no `value`, throws instead of being sent
+  half-built.
+- `includes=pagination` is sent by default, so the response carries a `meta`
+  block with the total match count.
+
+### Fixed — Incoming Invoices, Incoming Credit Notes, Receipts
+
+- **One implementation instead of three copies.** The three resources were
+  ~550-line near-duplicates that had drifted apart. They now extend a new
+  abstract `ExpenseDocument`; each declares only its field list, the keys its
+  `total` accepts and its payment statuses. Public methods and signatures are
+  unchanged, except `updatePayment()`'s `$payment`, which is now nullable.
+- **`add()` required a `total`**, and receipts required
+  `total.tax_inclusive`. The API requires only `title` and `currency.code`.
+- **`updatePayment()` required the payment amount** on every call. The API
+  requires only the two IDs; pass `null` to change just the date, method or
+  remark.
+- **Receipts accepted `tax_exclusive`, `due_date`, `iban_number` and
+  `payment_reference`**, none of which `receipts.add`/`update` have — the API
+  dropped them. Unknown fields now throw on all three, and a receipt's `total`
+  accepts `tax_inclusive` only.
+- `total.*` entries must be `['amount' => number]` or `null`.
+- `info()` rejects includes; the endpoint takes none.
+- Incoming invoices' payment statuses gain `credited`. `listPayments()`
+  documents `meta.total.currency` (spec 2026-09-21).
+
+### Changed — tooling
+
+- `SdkInventory` reads endpoints from parent classes too, so resources built on
+  a shared base (`ExpenseDocument`) are audited correctly.
+- New `pagination.meta` check: a resource claiming a meta block the endpoint
+  does not document is a warning; an endpoint offering one the resource does
+  not request is reported as info.
+- Tests: `ExpenseDocumentsPayloadTest` (shared behaviour run against all three
+  documents), `ExpensesSpecContractTest`. Baseline 45 → 42.
 
 ---
 

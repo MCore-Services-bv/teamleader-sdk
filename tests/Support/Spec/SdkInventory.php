@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace McoreServices\TeamleaderSDK\Tests\Support\Spec;
 
+use McoreServices\TeamleaderSDK\Resources\Resource;
 use McoreServices\TeamleaderSDK\TeamleaderSDK;
 use ReflectionClass;
 use ReflectionMethod;
@@ -85,7 +86,7 @@ final class SdkInventory
         $reflection = new ReflectionClass($class);
         $defaults = $reflection->getDefaultProperties();
         $basePath = $this->basePath($reflection);
-        $source = (string) file_get_contents((string) $reflection->getFileName());
+        $source = $this->sourceOf($reflection);
 
         [$endpoints, $dynamic] = $this->referencedEndpoints($source, $basePath);
 
@@ -101,6 +102,7 @@ final class SdkInventory
             'dynamic_endpoints' => $dynamic,
             'supports' => [
                 'pagination' => (bool) ($defaults['supportsPagination'] ?? false),
+                'pagination_meta' => (bool) ($defaults['requestsPaginationMeta'] ?? false),
                 'filtering' => (bool) ($defaults['supportsFiltering'] ?? false),
                 'sorting' => (bool) ($defaults['supportsSorting'] ?? false),
                 'sideloading' => (bool) ($defaults['supportsSideloading'] ?? false),
@@ -118,6 +120,22 @@ final class SdkInventory
             'usage_examples' => $defaults['usageExamples'] ?? [],
             'public_methods' => $this->publicMethods($reflection),
         ];
+    }
+
+    /**
+     * The class's source plus that of every parent below Resource, so an
+     * endpoint called from a shared base class (Expenses\ExpenseDocument)
+     * counts for each resource that extends it.
+     */
+    private function sourceOf(ReflectionClass $reflection): string
+    {
+        $source = '';
+
+        for ($class = $reflection; $class !== false && $class->getName() !== Resource::class; $class = $class->getParentClass()) {
+            $source .= (string) file_get_contents((string) $class->getFileName())."\n";
+        }
+
+        return $source;
     }
 
     /**
