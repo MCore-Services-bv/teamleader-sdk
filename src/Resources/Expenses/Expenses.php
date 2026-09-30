@@ -4,9 +4,30 @@ namespace McoreServices\TeamleaderSDK\Resources\Expenses;
 
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class Expenses extends Resource
 {
+    use ValidatesWritePayload;
+
+    /** `filter.source_types[]` */
+    public const SOURCE_TYPES = ['incomingInvoice', 'incomingCreditNote', 'receipt'];
+
+    /** `filter.review_statuses[]` */
+    public const REVIEW_STATUSES = ['pending', 'approved', 'refused'];
+
+    /** `filter.bookkeeping_statuses[]` */
+    public const BOOKKEEPING_STATUSES = ['sent', 'not_sent'];
+
+    /** `filter.payment_statuses[]` */
+    public const PAYMENT_STATUSES = ['unknown', 'paid', 'partially_paid', 'credited', 'not_paid'];
+
+    /** `filter.supplier.type` */
+    public const SUPPLIER_TYPES = ['company', 'contact'];
+
+    /** `filter.document_date.operator` and `filter.paid_at.operator` */
+    public const DATE_OPERATORS = ['is_empty', 'between', 'equals', 'before', 'after'];
+
     protected string $description = 'Manage expenses in Teamleader Focus';
 
     // Resource capabilities
@@ -32,26 +53,35 @@ class Expenses extends Resource
     // Default includes
     protected array $defaultIncludes = [];
 
-    // Valid payment statuses returned by list endpoint
-    protected array $validPaymentStatuses = [
-        'paid',
-        'unpaid',
+    /**
+     * `includes=pagination` adds a meta block with the total match count —
+     * expenses.list documents it, so it is requested on every call.
+     */
+    protected bool $requestsPaginationMeta = true;
+
+    // Payment statuses expenses.list filters on. Until v2.2.8 this was
+    // ['paid', 'unpaid'] — `unpaid` is not a value the API knows, so
+    // unpaid() could never work.
+    protected array $validPaymentStatuses = self::PAYMENT_STATUSES;
+
+    // Sort fields accepted by expenses.list — a keyed map, so normaliseSort()
+    // validates against it
+    protected array $availableSortFields = [
+        'document_date' => 'Document date',
+        'due_date' => 'Due date',
+        'supplier_name' => 'Supplier name',
     ];
 
-    // Valid sort fields for the list endpoint
-    protected array $validSortFields = [
-        'document_date',
-        'due_date',
-        'supplier_name',
-    ];
+    // Kept for backwards compatibility — see $availableSortFields
+    protected array $validSortFields = ['document_date', 'due_date', 'supplier_name'];
 
     // Common filters based on API documentation
     protected array $commonFilters = [
-        'term' => 'Search by document number and supplier name (case-insensitive)',
+        'term' => 'Search by document number, title and supplier name (case-insensitive)',
         'source_types' => 'Filter by expense source type(s): incomingInvoice, incomingCreditNote, receipt',
         'review_statuses' => 'Filter by review status(es): pending, approved, refused',
         'bookkeeping_statuses' => 'Filter by bookkeeping status(es): sent, not_sent',
-        'payment_statuses' => 'Filter by payment status(es): paid, unpaid',
+        'payment_statuses' => 'Filter by payment status(es): unknown, paid, partially_paid, credited, not_paid',
         'department_ids' => 'Filter by one or more department UUIDs',
         'supplier' => 'Filter by a specific supplier (object with type and id)',
         'document_date' => 'Filter by document date with operators: is_empty, between, equals, before, after',
@@ -106,7 +136,7 @@ class Expenses extends Resource
         ],
         'sort_by_date' => [
             'description' => 'Get expenses sorted by document date descending',
-            'code' => '$expenses = $teamleader->expenses()->list([], ["sort" => [["field" => "document_date", "order" => "desc"]]]);',
+            'code' => '$expenses = $teamleader->expenses()->list([], ["sort" => "document_date", "sort_order" => "desc"]);',
         ],
     ];
 
@@ -141,10 +171,14 @@ class Expenses extends Resource
             ];
         }
 
-        // Apply sorting
-        if (isset($options['sort']) && is_array($options['sort'])) {
-            $params['sort'] = $this->buildSort($options['sort']);
+        // Apply sorting — a field name, a list of names, or sort objects.
+        // Before v2.2.8 only the last form was read; a field name was dropped.
+        if (isset($options['sort'])) {
+            $params['sort'] = $this->normaliseSort($options['sort'], $options['sort_order'] ?? 'desc');
         }
+
+        // Request the meta block (total match count) unless told otherwise
+        $params = $this->applyIncludes($params, $this->resolveIncludesOption($options) ?? 'pagination');
 
         return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
@@ -182,11 +216,14 @@ class Expenses extends Resource
     }
 
     /**
-     * Get expenses with unpaid payment status
+     * Get expenses not (fully) paid: not_paid and partially_paid
+     *
+     * Before v2.2.8 this sent `unpaid`, which is not a payment status the API
+     * knows.
      */
     public function unpaid(): array
     {
-        return $this->list(['payment_statuses' => ['unpaid']]);
+        return $this->list(['payment_statuses' => ['not_paid', 'partially_paid']]);
     }
 
     /**
@@ -334,80 +371,70 @@ class Expenses extends Resource
     }
 
     /**
-     * Build filters array for the API request
+     * Build the `filter` object for expenses.list
+     *
+     * Before v2.2.8: unknown keys were dropped without a word, enum values
+     * (statuses, source types, date operators) were not checked, and a date
+     * filter with `between` but no start or end was sent half-built.
+     *
+     * @throws InvalidArgumentException When a key, value or date filter is not valid
      */
     private function buildFilters(array $filters): array
     {
+        $this->rejectUnknownFilters($filters, 'expenses.list');
+
+        $enums = [
+            'source_types' => self::SOURCE_TYPES,
+            'review_statuses' => self::REVIEW_STATUSES,
+            'bookkeeping_statuses' => self::BOOKKEEPING_STATUSES,
+            'payment_statuses' => self::PAYMENT_STATUSES,
+        ];
+
         $apiFilters = [];
 
-        // Handle term filter
-        if (isset($filters['term']) && ! empty($filters['term'])) {
-            $apiFilters['term'] = $filters['term'];
-        }
-
-        // Handle source_types filter
-        if (isset($filters['source_types'])) {
-            $apiFilters['source_types'] = is_string($filters['source_types'])
-                ? [$filters['source_types']]
-                : $filters['source_types'];
-        }
-
-        // Handle review_statuses filter
-        if (isset($filters['review_statuses'])) {
-            $apiFilters['review_statuses'] = is_string($filters['review_statuses'])
-                ? [$filters['review_statuses']]
-                : $filters['review_statuses'];
-        }
-
-        // Handle bookkeeping_statuses filter
-        if (isset($filters['bookkeeping_statuses'])) {
-            $apiFilters['bookkeeping_statuses'] = is_string($filters['bookkeeping_statuses'])
-                ? [$filters['bookkeeping_statuses']]
-                : $filters['bookkeeping_statuses'];
-        }
-
-        // Handle payment_statuses filter
-        if (isset($filters['payment_statuses'])) {
-            $apiFilters['payment_statuses'] = is_string($filters['payment_statuses'])
-                ? [$filters['payment_statuses']]
-                : $filters['payment_statuses'];
-        }
-
-        // Handle department_ids filter
-        if (isset($filters['department_ids'])) {
-            $apiFilters['department_ids'] = is_string($filters['department_ids'])
-                ? [$filters['department_ids']]
-                : $filters['department_ids'];
-        }
-
-        // Handle supplier filter
-        if (isset($filters['supplier']) && is_array($filters['supplier'])) {
-            if (empty($filters['supplier']['type']) || empty($filters['supplier']['id'])) {
-                throw new InvalidArgumentException(
-                    'Supplier filter requires both type (company or contact) and id'
-                );
+        foreach ($filters as $key => $value) {
+            if ($value === null || $value === '' || $value === []) {
+                continue;
             }
 
-            if (! in_array($filters['supplier']['type'], ['company', 'contact'])) {
-                throw new InvalidArgumentException(
-                    "Invalid supplier type '{$filters['supplier']['type']}'. Must be one of: company, contact"
-                );
+            if (isset($enums[$key]) || $key === 'department_ids') {
+                $value = is_array($value) ? array_values($value) : [$value];
+
+                foreach (isset($enums[$key]) ? $value : [] as $item) {
+                    $this->assertEnum($item, $enums[$key], "filter.{$key}[]", 'expenses.list');
+                }
+
+                $apiFilters[$key] = $value;
+
+                continue;
             }
 
-            $apiFilters['supplier'] = [
-                'type' => $filters['supplier']['type'],
-                'id' => $filters['supplier']['id'],
-            ];
-        }
+            if ($key === 'supplier') {
+                if (! is_array($value) || empty($value['type']) || empty($value['id'])) {
+                    throw new InvalidArgumentException(
+                        'Supplier filter requires both type (company or contact) and id'
+                    );
+                }
 
-        // Handle document_date filter
-        if (isset($filters['document_date']) && is_array($filters['document_date'])) {
-            $apiFilters['document_date'] = $this->buildDateFilter($filters['document_date']);
-        }
+                $this->assertEnum($value['type'], self::SUPPLIER_TYPES, 'filter.supplier.type', 'expenses.list');
+                $apiFilters['supplier'] = ['type' => $value['type'], 'id' => $value['id']];
 
-        // Handle paid_at filter
-        if (isset($filters['paid_at']) && is_array($filters['paid_at'])) {
-            $apiFilters['paid_at'] = $this->buildDateFilter($filters['paid_at']);
+                continue;
+            }
+
+            if ($key === 'document_date' || $key === 'paid_at') {
+                if (! is_array($value)) {
+                    throw new InvalidArgumentException(
+                        "{$key} takes ['operator' => ..., 'value' | 'start' + 'end' => 'YYYY-MM-DD']"
+                    );
+                }
+
+                $apiFilters[$key] = $this->buildDateFilter($value, $key);
+
+                continue;
+            }
+
+            $apiFilters[$key] = $value;
         }
 
         return $apiFilters;
@@ -416,63 +443,41 @@ class Expenses extends Resource
     /**
      * Build a date filter object for the API request
      *
-     * @param  array  $dateFilter  Date filter with operator and value/start/end
+     * - `is_empty` takes nothing else
+     * - `equals`, `before`, `after` take `value`
+     * - `between` takes `start` and `end`
+     *
+     * @throws InvalidArgumentException When the operator or its operands are missing or invalid
      */
-    private function buildDateFilter(array $dateFilter): array
+    private function buildDateFilter(array $dateFilter, string $key = 'date'): array
     {
-        if (empty($dateFilter['operator'])) {
+        $operator = $dateFilter['operator'] ?? null;
+
+        if (! is_string($operator) || ! in_array($operator, self::DATE_OPERATORS, true)) {
             throw new InvalidArgumentException(
-                'Date filter requires an operator: is_empty, between, equals, before, after'
+                "filter.{$key}.operator must be one of: ".implode(', ', self::DATE_OPERATORS)
             );
         }
 
-        $built = ['operator' => $dateFilter['operator']];
+        $built = ['operator' => $operator];
 
-        if (in_array($dateFilter['operator'], ['equals', 'before', 'after'])) {
-            if (isset($dateFilter['value'])) {
-                $built['value'] = $dateFilter['value'];
+        if (in_array($operator, ['equals', 'before', 'after'], true)) {
+            if (empty($dateFilter['value'])) {
+                throw new InvalidArgumentException("filter.{$key} with operator {$operator} needs a value");
             }
+
+            $built['value'] = $dateFilter['value'];
         }
 
-        if ($dateFilter['operator'] === 'between') {
-            if (isset($dateFilter['start'])) {
-                $built['start'] = $dateFilter['start'];
+        if ($operator === 'between') {
+            if (empty($dateFilter['start']) || empty($dateFilter['end'])) {
+                throw new InvalidArgumentException("filter.{$key} with operator between needs start and end");
             }
-            if (isset($dateFilter['end'])) {
-                $built['end'] = $dateFilter['end'];
-            }
+
+            $built['start'] = $dateFilter['start'];
+            $built['end'] = $dateFilter['end'];
         }
 
         return $built;
-    }
-
-    /**
-     * Build sort array for the API request
-     *
-     * @param  array  $sort  Array of sort items with field and optional order
-     */
-    private function buildSort(array $sort): array
-    {
-        $apiSort = [];
-
-        foreach ($sort as $item) {
-            if (empty($item['field'])) {
-                continue;
-            }
-
-            if (! in_array($item['field'], $this->validSortFields)) {
-                throw new InvalidArgumentException(
-                    "Invalid sort field '{$item['field']}'. Available fields: ".
-                    implode(', ', $this->validSortFields)
-                );
-            }
-
-            $apiSort[] = [
-                'field' => $item['field'],
-                'order' => $item['order'] ?? 'asc',
-            ];
-        }
-
-        return $apiSort;
     }
 }

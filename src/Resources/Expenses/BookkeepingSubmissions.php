@@ -7,6 +7,21 @@ use McoreServices\TeamleaderSDK\Resources\Resource;
 
 class BookkeepingSubmissions extends Resource
 {
+    /** `filter.subject.type` on bookkeepingSubmissions.list */
+    public const SUBJECT_TYPES = ['incomingInvoice', 'incomingCreditNote', 'receipt'];
+
+    /**
+     * The snake_case spellings this class used until v2.2.8, mapped to what
+     * the API accepts. Still accepted, so existing calls keep working.
+     */
+    public const LEGACY_SUBJECT_TYPES = [
+        'incoming_invoice' => 'incomingInvoice',
+        'incoming_credit_note' => 'incomingCreditNote',
+    ];
+
+    /** `status` on submissions */
+    public const STATUSES = ['sending', 'confirmed', 'failed'];
+
     protected string $description = 'Manage bookkeeping submissions for expense documents in Teamleader Focus';
 
     // Resource capabilities
@@ -41,7 +56,7 @@ class BookkeepingSubmissions extends Resource
     protected array $usageExamples = [
         'list_for_document' => [
             'description' => 'Get all bookkeeping submissions for a specific document',
-            'code' => '$submissions = $teamleader->bookkeepingSubmissions()->forDocument("document-uuid", "incoming_invoice");',
+            'code' => '$submissions = $teamleader->bookkeepingSubmissions()->forDocument("document-uuid", "incomingInvoice");',
         ],
         'list_for_invoice' => [
             'description' => 'Get submissions for an incoming invoice',
@@ -77,6 +92,8 @@ class BookkeepingSubmissions extends Resource
      */
     public function list(array $filters = [], array $options = []): array
     {
+        $this->rejectUnsupportedListArguments([], $options);
+
         // Validate that subject filter is provided
         if (empty($filters['subject'])) {
             throw new InvalidArgumentException(
@@ -94,13 +111,15 @@ class BookkeepingSubmissions extends Resource
             throw new InvalidArgumentException('The subject.type is required');
         }
 
-        // Validate subject type
-        $validTypes = ['incoming_invoice', 'incoming_credit_note', 'receipt'];
-        if (! in_array($filters['subject']['type'], $validTypes)) {
+        $unknown = array_diff(array_keys($filters), ['subject']);
+
+        if ($unknown !== []) {
             throw new InvalidArgumentException(
-                'Invalid subject.type. Must be one of: '.implode(', ', $validTypes)
+                'bookkeepingSubmissions.list accepts only the subject filter. Passed: '.implode(', ', $unknown).'.'
             );
         }
+
+        $filters['subject']['type'] = $this->normaliseSubjectType($filters['subject']['type']);
 
         $params = [];
 
@@ -116,19 +135,13 @@ class BookkeepingSubmissions extends Resource
      * Get bookkeeping submissions for a specific financial document
      *
      * @param  string  $documentId  UUID of the financial document
-     * @param  string  $documentType  Type of document: incoming_invoice, incoming_credit_note, or receipt
+     * @param  string  $documentType  incomingInvoice, incomingCreditNote or receipt
      *
      * @throws InvalidArgumentException When document type is invalid
      */
     public function forDocument(string $documentId, string $documentType): array
     {
-        $validTypes = ['incoming_invoice', 'incoming_credit_note', 'receipt'];
-
-        if (! in_array($documentType, $validTypes)) {
-            throw new InvalidArgumentException(
-                "Invalid document type '{$documentType}'. Must be one of: ".implode(', ', $validTypes)
-            );
-        }
+        $documentType = $this->normaliseSubjectType($documentType);
 
         return $this->list([
             'subject' => [
@@ -145,7 +158,7 @@ class BookkeepingSubmissions extends Resource
      */
     public function forInvoice(string $invoiceId): array
     {
-        return $this->forDocument($invoiceId, 'incoming_invoice');
+        return $this->forDocument($invoiceId, 'incomingInvoice');
     }
 
     /**
@@ -155,7 +168,7 @@ class BookkeepingSubmissions extends Resource
      */
     public function forCreditNote(string $creditNoteId): array
     {
-        return $this->forDocument($creditNoteId, 'incoming_credit_note');
+        return $this->forDocument($creditNoteId, 'incomingCreditNote');
     }
 
     /**
@@ -179,7 +192,7 @@ class BookkeepingSubmissions extends Resource
      */
     public function byStatus(string $documentId, string $documentType, string $status): array
     {
-        $validStatuses = ['sending', 'confirmed', 'failed'];
+        $validStatuses = self::STATUSES;
 
         if (! in_array($status, $validStatuses)) {
             throw new InvalidArgumentException(
@@ -338,6 +351,30 @@ class BookkeepingSubmissions extends Resource
         $stats['first_submission'] = end($submissions) ?: null;
 
         return $stats;
+    }
+
+    /**
+     * Map a subject type to the spelling the API accepts
+     *
+     * bookkeepingSubmissions.list takes `incomingInvoice`, `incomingCreditNote`
+     * and `receipt`. Until v2.2.8 this class sent `incoming_invoice` and
+     * `incoming_credit_note` — values outside the enum — so forInvoice(),
+     * forCreditNote() and every status helper for those two document types
+     * could not work. The old spellings are still accepted and translated.
+     *
+     * @throws InvalidArgumentException When the type is neither
+     */
+    protected function normaliseSubjectType(string $type): string
+    {
+        $type = self::LEGACY_SUBJECT_TYPES[$type] ?? $type;
+
+        if (! in_array($type, self::SUBJECT_TYPES, true)) {
+            throw new InvalidArgumentException(
+                "Invalid document type '{$type}'. Must be one of: ".implode(', ', self::SUBJECT_TYPES)
+            );
+        }
+
+        return $type;
     }
 
     /**

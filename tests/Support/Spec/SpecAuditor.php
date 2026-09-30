@@ -32,6 +32,8 @@ namespace McoreServices\TeamleaderSDK\Tests\Support\Spec;
  *   sort.missing         Declared sort field the resource does not advertise
  *   sort.flag            $supportsSorting disagrees with the specification
  *   pagination.flag      $supportsPagination disagrees with the specification
+ *   pagination.meta      $requestsPaginationMeta disagrees with the documented
+ *                        `includes=pagination` meta block (info when unused)
  *   include.phantom      Advertised include not named by list or info
  *   include.missing      Include named by list or info but not advertised
  *   include.flag         $supportsSideloading disagrees with the specification
@@ -248,6 +250,16 @@ final class SpecAuditor
                 $listEndpoint,
                 $request['declares_sort'] ? 'declares' : 'does not declare'
             ));
+        }
+
+        $declaresMeta = (bool) ($request['declares_pagination_meta'] ?? false);
+
+        if ($resource['supports']['pagination_meta'] && ! $declaresMeta) {
+            $this->add($findings, $resource, 'pagination.meta', 'requestsPaginationMeta', 'warning',
+                "\$requestsPaginationMeta is true but `{$listEndpoint}` documents no `includes=pagination` meta block.");
+        } elseif ($declaresMeta && ! $resource['supports']['pagination_meta']) {
+            $this->add($findings, $resource, 'pagination.meta', 'requestsPaginationMeta', 'info',
+                "`{$listEndpoint}` returns a total count with `includes=pagination`; the resource does not request it.");
         }
 
         if ($resource['supports']['pagination'] !== $request['declares_pagination']) {

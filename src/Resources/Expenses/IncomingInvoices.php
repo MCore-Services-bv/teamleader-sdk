@@ -2,62 +2,29 @@
 
 namespace McoreServices\TeamleaderSDK\Resources\Expenses;
 
-use InvalidArgumentException;
-use McoreServices\TeamleaderSDK\Resources\Resource;
-
-class IncomingInvoices extends Resource
+class IncomingInvoices extends ExpenseDocument
 {
+    /**
+     * Body fields incomingInvoices.add accepts; incomingInvoices.update accepts the same
+     * set plus `id`. From @teamleader/focus-api-specification v1.221.0.
+     */
+    public const WRITE_FIELDS = [
+        'title', 'supplier_id', 'document_number', 'invoice_date', 'due_date', 'currency', 'total',
+        'company_entity_id', 'file_id', 'payment_reference', 'iban_number',
+    ];
+
+    /** Keys `total` accepts on add / update */
+    public const TOTAL_KEYS = ['tax_exclusive', 'tax_inclusive'];
+
+    /** `payment_status` on incomingInvoices.info */
+    public const PAYMENT_STATUSES = ['unknown', 'paid', 'partially_paid', 'credited', 'not_paid'];
+
     protected string $description = 'Manage incoming invoices from suppliers in Teamleader Focus';
 
-    // Resource capabilities - Incoming invoices support create, update, delete, and info
-    protected bool $supportsCreation = true;
+    // `payment_status` values incomingInvoices.info returns. Until v2.2.8 this
+    // missed `credited`.
+    protected array $validPaymentStatuses = self::PAYMENT_STATUSES;
 
-    protected bool $supportsUpdate = true;
-
-    protected bool $supportsDeletion = true;
-
-    protected bool $supportsBatch = false;
-
-    protected bool $supportsPagination = false;
-
-    protected bool $supportsSorting = false;
-
-    protected bool $supportsFiltering = false;
-
-    protected bool $supportsSideloading = false;
-
-    // Available includes for sideloading
-    protected array $availableIncludes = [];
-
-    // Default includes
-    protected array $defaultIncludes = [];
-
-    // Common filters - Not supported for this resource
-    protected array $commonFilters = [];
-
-    // Valid currency codes
-    protected array $validCurrencyCodes = [
-        'BAM', 'CAD', 'CHF', 'CLP', 'CNY', 'COP', 'CZK', 'DKK',
-        'EUR', 'GBP', 'INR', 'ISK', 'JPY', 'MAD', 'MXN', 'NOK',
-        'PEN', 'PLN', 'RON', 'SEK', 'TRY', 'USD', 'ZAR',
-    ];
-
-    // Valid review statuses
-    protected array $validReviewStatuses = [
-        'pending',
-        'approved',
-        'refused',
-    ];
-
-    // Valid payment statuses (returned by info endpoint)
-    protected array $validPaymentStatuses = [
-        'unknown',
-        'paid',
-        'partially_paid',
-        'not_paid',
-    ];
-
-    // Usage examples specific to incoming invoices
     protected array $usageExamples = [
         'create_basic' => [
             'description' => 'Create a basic incoming invoice',
@@ -85,430 +52,19 @@ class IncomingInvoices extends Resource
         return 'incomingInvoices';
     }
 
-    /**
-     * Create a new incoming invoice
-     *
-     * @param  array  $data  Invoice data
-     * @return array Created invoice response
-     *
-     * @throws InvalidArgumentException When required fields are missing
-     */
-    public function add(array $data): array
+    protected function writeFields(): array
     {
-        if (empty($data['title'])) {
-            throw new InvalidArgumentException('title is required for incoming invoices');
-        }
-
-        if (empty($data['currency']['code'])) {
-            throw new InvalidArgumentException('currency.code is required for incoming invoices');
-        }
-
-        if (empty($data['total'])) {
-            throw new InvalidArgumentException('total is required for incoming invoices');
-        }
-
-        if (empty($data['total']['tax_exclusive']) && empty($data['total']['tax_inclusive'])) {
-            throw new InvalidArgumentException('Either total.tax_exclusive or total.tax_inclusive is required');
-        }
-
-        if (! in_array($data['currency']['code'], $this->validCurrencyCodes)) {
-            throw new InvalidArgumentException(
-                'Invalid currency code. Must be one of: '.implode(', ', $this->validCurrencyCodes)
-            );
-        }
-
-        return $this->api->request('POST', $this->getBasePath().'.add', $data);
+        return self::WRITE_FIELDS;
     }
 
-    /**
-     * Alias for add()
-     *
-     * @param  array  $data  Invoice data
-     * @return array Created invoice response
-     */
-    public function create(array $data): array
+    protected function totalKeys(): array
     {
-        return $this->add($data);
+        return self::TOTAL_KEYS;
     }
 
-    /**
-     * Update an existing incoming invoice
-     *
-     * @param  string  $id  Invoice UUID
-     * @param  array  $data  Invoice data to update
-     * @return array Update response
-     *
-     * @throws InvalidArgumentException When ID is empty or data is invalid
-     */
-    public function update(string $id, array $data): array
+    protected function documentLabel(): string
     {
-        if (empty($id)) {
-            throw new InvalidArgumentException('Invoice ID is required');
-        }
-
-        if (isset($data['currency']['code']) && ! in_array($data['currency']['code'], $this->validCurrencyCodes)) {
-            throw new InvalidArgumentException(
-                'Invalid currency code. Must be one of: '.implode(', ', $this->validCurrencyCodes)
-            );
-        }
-
-        $params = array_merge(['id' => $id], $data);
-
-        return $this->api->request('POST', $this->getBasePath().'.update', $params);
-    }
-
-    /**
-     * Get information about a specific incoming invoice
-     *
-     * @param  string  $id  Invoice UUID
-     * @param  mixed  $includes  Not used for incoming invoices
-     * @return array Invoice information
-     *
-     * @throws InvalidArgumentException When ID is empty
-     */
-    public function info(string $id, $includes = null): array
-    {
-        if (empty($id)) {
-            throw new InvalidArgumentException('Invoice ID is required');
-        }
-
-        return $this->api->request('POST', $this->getBasePath().'.info', ['id' => $id]);
-    }
-
-    /**
-     * Delete an incoming invoice
-     *
-     * @param  string  $id  Invoice UUID
-     * @return array Delete response
-     *
-     * @throws InvalidArgumentException When ID is empty
-     */
-    public function delete(string $id): array
-    {
-        if (empty($id)) {
-            throw new InvalidArgumentException('Invoice ID is required');
-        }
-
-        return $this->api->request('POST', $this->getBasePath().'.delete', ['id' => $id]);
-    }
-
-    /**
-     * Approve an incoming invoice
-     *
-     * @param  string  $id  Invoice UUID
-     * @return array Approval response
-     *
-     * @throws InvalidArgumentException When ID is empty
-     */
-    public function approve(string $id): array
-    {
-        if (empty($id)) {
-            throw new InvalidArgumentException('Invoice ID is required');
-        }
-
-        return $this->api->request('POST', $this->getBasePath().'.approve', ['id' => $id]);
-    }
-
-    /**
-     * Refuse an incoming invoice
-     *
-     * @param  string  $id  Invoice UUID
-     * @return array Refusal response
-     *
-     * @throws InvalidArgumentException When ID is empty
-     */
-    public function refuse(string $id): array
-    {
-        if (empty($id)) {
-            throw new InvalidArgumentException('Invoice ID is required');
-        }
-
-        return $this->api->request('POST', $this->getBasePath().'.refuse', ['id' => $id]);
-    }
-
-    /**
-     * Mark an incoming invoice as pending review
-     *
-     * @param  string  $id  Invoice UUID
-     * @return array Response
-     *
-     * @throws InvalidArgumentException When ID is empty
-     */
-    public function markAsPendingReview(string $id): array
-    {
-        if (empty($id)) {
-            throw new InvalidArgumentException('Invoice ID is required');
-        }
-
-        return $this->api->request('POST', $this->getBasePath().'.markAsPendingReview', ['id' => $id]);
-    }
-
-    /**
-     * Send an incoming invoice to bookkeeping
-     *
-     * @param  string  $id  Invoice UUID
-     * @return array Response
-     *
-     * @throws InvalidArgumentException When ID is empty
-     */
-    public function sendToBookkeeping(string $id): array
-    {
-        if (empty($id)) {
-            throw new InvalidArgumentException('Invoice ID is required');
-        }
-
-        return $this->api->request('POST', $this->getBasePath().'.sendToBookkeeping', ['id' => $id]);
-    }
-
-    /**
-     * List all payments for an incoming invoice
-     *
-     * Returns an array of payment objects, each containing:
-     * - id (string): Payment UUID
-     * - payment.amount (float): Payment amount
-     * - payment.currency (string): Currency code
-     * - paid_at (datetime): When the payment was made
-     * - payment_method (object|null): Payment method reference (type + id)
-     * - remark (string|null): Optional remark
-     * Also includes meta.total.amount for the total paid amount.
-     *
-     * @param  string  $id  Invoice UUID
-     * @return array List of payments with meta totals
-     *
-     * @throws InvalidArgumentException When ID is empty
-     */
-    public function listPayments(string $id): array
-    {
-        if (empty($id)) {
-            throw new InvalidArgumentException('Invoice ID is required');
-        }
-
-        return $this->api->request('POST', $this->getBasePath().'.listPayments', ['id' => $id]);
-    }
-
-    /**
-     * Register a payment for an incoming invoice
-     *
-     * @param  string  $id  Invoice UUID
-     * @param  array  $payment  Payment details with required 'amount' (float) and 'currency' (string)
-     * @param  string  $paidAt  ISO 8601 datetime when the payment was made
-     * @param  string|null  $paymentMethodId  Optional payment method UUID
-     * @param  string|null  $remark  Optional remark
-     * @return array Created payment response with data.type and data.id
-     *
-     * @throws InvalidArgumentException When required fields are missing or invalid
-     */
-    public function registerPayment(
-        string $id,
-        array $payment,
-        string $paidAt,
-        ?string $paymentMethodId = null,
-        ?string $remark = null
-    ): array {
-        if (empty($id)) {
-            throw new InvalidArgumentException('Invoice ID is required');
-        }
-
-        if (empty($paidAt)) {
-            throw new InvalidArgumentException('paid_at is required when registering a payment');
-        }
-
-        $this->validatePaymentData($payment);
-
-        $data = [
-            'id' => $id,
-            'payment' => $payment,
-            'paid_at' => $paidAt,
-        ];
-
-        if (! empty($paymentMethodId)) {
-            $data['payment_method_id'] = $paymentMethodId;
-        }
-
-        if (! empty($remark)) {
-            $data['remark'] = $remark;
-        }
-
-        return $this->api->request('POST', $this->getBasePath().'.registerPayment', $data);
-    }
-
-    /**
-     * Remove a specific payment from an incoming invoice
-     *
-     * @param  string  $id  Invoice UUID
-     * @param  string  $paymentId  Payment UUID to remove
-     * @return array Response
-     *
-     * @throws InvalidArgumentException When ID or payment ID is empty
-     */
-    public function removePayment(string $id, string $paymentId): array
-    {
-        if (empty($id)) {
-            throw new InvalidArgumentException('Invoice ID is required');
-        }
-
-        if (empty($paymentId)) {
-            throw new InvalidArgumentException('Payment ID is required');
-        }
-
-        return $this->api->request('POST', $this->getBasePath().'.removePayment', [
-            'id' => $id,
-            'payment_id' => $paymentId,
-        ]);
-    }
-
-    /**
-     * Update an existing payment on an incoming invoice
-     *
-     * @param  string  $id  Invoice UUID
-     * @param  string  $paymentId  Payment UUID to update
-     * @param  array  $payment  Updated payment details with required 'amount' (float) and 'currency' (string)
-     * @param  string|null  $paidAt  Optional ISO 8601 datetime override
-     * @param  string|null  $paymentMethodId  Optional payment method UUID
-     * @param  string|null  $remark  Optional remark
-     * @return array Response
-     *
-     * @throws InvalidArgumentException When required fields are missing or invalid
-     */
-    public function updatePayment(
-        string $id,
-        string $paymentId,
-        array $payment,
-        ?string $paidAt = null,
-        ?string $paymentMethodId = null,
-        ?string $remark = null
-    ): array {
-        if (empty($id)) {
-            throw new InvalidArgumentException('Invoice ID is required');
-        }
-
-        if (empty($paymentId)) {
-            throw new InvalidArgumentException('Payment ID is required');
-        }
-
-        $this->validatePaymentData($payment);
-
-        $data = [
-            'id' => $id,
-            'payment_id' => $paymentId,
-            'payment' => $payment,
-        ];
-
-        if (! empty($paidAt)) {
-            $data['paid_at'] = $paidAt;
-        }
-
-        if (! empty($paymentMethodId)) {
-            $data['payment_method_id'] = $paymentMethodId;
-        }
-
-        if (! empty($remark)) {
-            $data['remark'] = $remark;
-        }
-
-        return $this->api->request('POST', $this->getBasePath().'.updatePayment', $data);
-    }
-
-    /**
-     * List method is not supported for incoming invoices
-     *
-     * @throws InvalidArgumentException
-     */
-    public function list(array $filters = [], array $options = []): array
-    {
-        throw new InvalidArgumentException(
-            'The list method is not supported for incoming invoices. Use info() to get a specific invoice.'
-        );
-    }
-
-    /**
-     * Get valid currency codes for incoming invoices
-     *
-     * @return array Array of valid currency codes
-     */
-    public function getValidCurrencyCodes(): array
-    {
-        return $this->validCurrencyCodes;
-    }
-
-    /**
-     * Get valid review statuses for incoming invoices
-     *
-     * @return array Array of valid review statuses
-     */
-    public function getValidReviewStatuses(): array
-    {
-        return $this->validReviewStatuses;
-    }
-
-    /**
-     * Get valid payment statuses for incoming invoices
-     *
-     * @return array Array of valid payment statuses
-     */
-    public function getValidPaymentStatuses(): array
-    {
-        return $this->validPaymentStatuses;
-    }
-
-    /**
-     * Validate invoice data before creating or updating
-     *
-     * @param  array  $data  Invoice data to validate
-     * @param  bool  $isUpdate  Whether this is for an update operation
-     * @return array Validated data
-     */
-    protected function validateInvoiceData(array $data, bool $isUpdate = false): array
-    {
-        if (! $isUpdate) {
-            if (empty($data['title'])) {
-                throw new InvalidArgumentException('title is required');
-            }
-
-            if (empty($data['currency']['code'])) {
-                throw new InvalidArgumentException('currency.code is required');
-            }
-
-            if (empty($data['total'])) {
-                throw new InvalidArgumentException('total is required');
-            }
-
-            if (empty($data['total']['tax_exclusive']) && empty($data['total']['tax_inclusive'])) {
-                throw new InvalidArgumentException('Either total.tax_exclusive or total.tax_inclusive is required');
-            }
-        }
-
-        if (isset($data['currency']['code']) && ! in_array($data['currency']['code'], $this->validCurrencyCodes)) {
-            throw new InvalidArgumentException(
-                'Invalid currency code. Must be one of: '.implode(', ', $this->validCurrencyCodes)
-            );
-        }
-
-        return $data;
-    }
-
-    /**
-     * Validate payment data (amount and currency are required)
-     *
-     * @param  array  $payment  Payment data to validate
-     *
-     * @throws InvalidArgumentException When required payment fields are missing or invalid
-     */
-    protected function validatePaymentData(array $payment): void
-    {
-        if (! isset($payment['amount']) || ! is_numeric($payment['amount'])) {
-            throw new InvalidArgumentException('Payment amount is required and must be numeric');
-        }
-
-        if (empty($payment['currency'])) {
-            throw new InvalidArgumentException('Payment currency is required');
-        }
-
-        if (! in_array($payment['currency'], $this->validCurrencyCodes)) {
-            throw new InvalidArgumentException(
-                'Invalid payment currency. Must be one of: '.implode(', ', $this->validCurrencyCodes)
-            );
-        }
+        return 'incoming invoice';
     }
 
     /**
@@ -541,7 +97,7 @@ class IncomingInvoices extends Resource
                     'data.payment_reference' => 'Payment reference (nullable)',
                     'data.review_status' => 'Review status (pending, approved, refused)',
                     'data.iban_number' => 'IBAN number (nullable)',
-                    'data.payment_status' => 'Payment status (unknown, paid, partially_paid, not_paid)',
+                    'data.payment_status' => 'Payment status (unknown, paid, partially_paid, credited, not_paid)',
                 ],
             ],
             'listPayments' => [
@@ -554,6 +110,7 @@ class IncomingInvoices extends Resource
                     'data[].payment_method' => 'Payment method reference (nullable)',
                     'data[].remark' => 'Optional remark (nullable)',
                     'meta.total.amount' => 'Total amount paid across all payments',
+                    'meta.total.currency' => 'Currency of meta.total.amount (since specification 1.221.0)',
                 ],
             ],
             'registerPayment' => [
