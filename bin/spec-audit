@@ -11,6 +11,9 @@
  *   php bin/spec-audit --format=json           Machine-readable
  *   php bin/spec-audit --summary               Counts per category only
  *   php bin/spec-audit --write-baseline        Rewrite baseline.json from current findings
+ *   php bin/spec-audit --check                 CI gate: exit 1 on any error or warning not in
+ *                                              the baseline, or any stale baseline entry;
+ *                                              prints the summary either way
  *
  * Reads tests/Fixtures/specification/contract.json. Regenerate that first when
  * the pinned specification version changes: npm install && npm run spec:fixtures
@@ -34,7 +37,7 @@ if (! is_file($root.'/vendor/autoload.php')) {
 
 require $root.'/vendor/autoload.php';
 
-$options = getopt('', ['category:', 'severity:', 'format:', 'new', 'summary', 'write-baseline', 'help']);
+$options = getopt('', ['category:', 'severity:', 'format:', 'new', 'summary', 'write-baseline', 'check', 'help']);
 
 if (isset($options['help'])) {
     echo preg_replace('/^ \* ?/m', '', explode('*/', explode('/*', file_get_contents(__FILE__), 2)[1], 2)[0]);
@@ -55,6 +58,39 @@ if (isset($options['write-baseline'])) {
     $gated = count(array_filter($findings, fn ($f) => $f['severity'] !== 'info'));
     fwrite(STDERR, "baseline.json written: {$gated} entries against specification {$version}.\n");
     exit(0);
+}
+
+// -- CI gate ---------------------------------------------------------------------
+//
+// The same rule SpecParityTest applies, as a command: a finding that is neither
+// open nor accepted in the baseline fails, and so does a baseline entry nothing
+// produces any more (fixed, but the baseline was not regenerated). Info findings
+// never fail. The summary is printed first so the CI log shows where things stand.
+
+if (isset($options['check'])) {
+    $unknown = array_filter(
+        $findings,
+        fn (array $f) => $f['severity'] !== 'info' && ! $baseline->isKnown($f['id'])
+    );
+    $stale = $baseline->stale($findings);
+
+    passthru(escapeshellarg(PHP_BINARY).' '.escapeshellarg(__FILE__).' --summary');
+
+    foreach ($unknown as $id => $finding) {
+        fwrite(STDERR, "NEW  {$id}: {$finding['message']}\n");
+    }
+
+    foreach ($stale as $id => $list) {
+        fwrite(STDERR, "STALE ({$list}) {$id}: no longer reported. Run composer spec:baseline.\n");
+    }
+
+    if ($unknown === [] && $stale === []) {
+        fwrite(STDERR, "Specification {$version}: no findings outside the baseline.\n");
+        exit(0);
+    }
+
+    fwrite(STDERR, sprintf("%d new finding(s), %d stale baseline entr%s.\n", count($unknown), count($stale), count($stale) === 1 ? 'y' : 'ies'));
+    exit(1);
 }
 
 $selected = array_filter($findings, function (array $finding) use ($categories, $severity, $options, $baseline) {

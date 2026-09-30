@@ -84,3 +84,46 @@ jobs:
       - name: Run code style checks
         run: vendor/bin/pint --test
         if: matrix.php == '8.3' && matrix.laravel == '13.*'
+
+  specification:
+    # Runs once rather than per matrix cell: the checks below compare the SDK
+    # with the pinned @teamleader/focus-api-specification and do not depend on
+    # the PHP or Laravel version.
+    runs-on: ubuntu-latest
+    name: Specification parity
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, json, curl
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # package-lock.json is not committed; the specification itself is pinned
+      # to an exact version in package.json, which is what the fixtures depend on.
+      - name: Install dependencies
+        run: |
+          composer install --prefer-dist --no-progress --no-interaction
+          npm install --no-audit --no-fund
+
+      # The committed fixtures must be exactly what the generator produces from
+      # the pinned specification. A hand edit, a generator change without a
+      # regeneration, or a version bump in package.json without one all fail here.
+      - name: Fixtures match the pinned specification
+        run: |
+          npm run spec:fixtures
+          git diff --exit-code -- tests/Fixtures/specification API-list-endpoint-contract.md
+
+      # Fails on any error or warning not in baseline.json, and on any baseline
+      # entry that is no longer reported. The summary goes to the job page.
+      - name: Specification audit
+        run: |
+          php bin/spec-audit --summary >> "$GITHUB_STEP_SUMMARY"
+          php bin/spec-audit --check

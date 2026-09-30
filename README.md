@@ -5,6 +5,8 @@
 [![PHP Version](https://img.shields.io/packagist/php-v/mcore-services/teamleader-sdk)](https://packagist.org/packages/mcore-services/teamleader-sdk)
 [![Laravel Version](https://img.shields.io/badge/Laravel-12%20%7C%2013-blue)](https://laravel.com)
 [![License](https://img.shields.io/github/license/MCore-Services-bv/teamleader-sdk)](https://github.com/MCore-Services-bv/teamleader-sdk/blob/main/LICENSE.md)
+[![Tests](https://github.com/MCore-Services-bv/teamleader-sdk/actions/workflows/tests.yml/badge.svg)](https://github.com/MCore-Services-bv/teamleader-sdk/actions/workflows/tests.yml)
+[![Teamleader API spec](https://img.shields.io/badge/Teamleader%20API%20spec-1.221.0-2ea44f)](#-specification-parity)
 
 A Laravel package for the Teamleader Focus API. Handles OAuth token management,
 rate limiting, and around 70 API resources behind a consistent interface.
@@ -446,6 +448,39 @@ php artisan teamleader:export-uuids      # Export reference UUIDs
 
 ---
 
+## ✅ Specification Parity
+
+Every resource is checked against Teamleader's machine-readable API
+specification, [`@teamleader/focus-api-specification`](https://www.npmjs.com/package/@teamleader/focus-api-specification),
+currently pinned at **1.221.0**.
+
+The Teamleader API answers `200 OK` to a filter, sort field, include or body
+field it does not recognise, and simply ignores it. A typo therefore looks like
+success: a mistyped filter returns every record, and a mistyped field on an
+update changes nothing. The SDK checks those names against the specification
+and throws before the request is sent.
+
+How that is kept true:
+
+- **Spec contract tests.** Field lists, required fields and enums on each
+  resource are asserted against a fixture generated from the specification.
+- **Spec audit.** `composer spec:audit` compares every resource's filters,
+  sort fields, includes, pagination and endpoints with the specification;
+  `php bin/spec-audit --check` fails CI on anything not recorded in the
+  baseline. The one recorded divergence is the deprecated
+  `users.getWeekSchedule` wrapper, kept until v3.0.
+- **Weekly watch.** A scheduled workflow audits the SDK against the newest
+  published specification and opens an issue when it finds a difference, so
+  API changes surface before they surface as bug reports.
+
+```bash
+composer spec:audit -- --summary     # counts per category
+composer spec:audit -- --new         # anything not in the baseline
+composer spec:check                  # the CI gate
+```
+
+---
+
 ## 🤝 Contributing
 
 Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
@@ -490,9 +525,10 @@ The MIT License (MIT). See [LICENSE.md](LICENSE.md).
 
 ## 🗺️ Roadmap
 
-- [ ] Spec-derived filter parity across every resource, enforced by a test
-- [ ] Payload tests for all resources
-- [ ] Bulk operations helper
+- [x] Spec-derived filter parity across every resource, enforced by a test (v2.3.0)
+- [x] Payload tests for all resources (v2.3.0)
+- [ ] Bulk operations helper (v3.0)
+- [ ] CLI tool for quick API exploration (v3.0)
 - [ ] Enhanced caching strategies with tag-based invalidation
 - [ ] Laravel Pulse integration
 

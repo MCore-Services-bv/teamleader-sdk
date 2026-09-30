@@ -8,12 +8,100 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- v2.3.0: audit milestone — spec-audit in CI, README spec note, a summary of
-  the v2.2.4–v2.2.17 audit
 - v3.0: bulk operations helper for processing large datasets, CLI tool, and
   the removals deprecated during the audit
 - Enhanced caching strategies with tag-based invalidation
 - Laravel Pulse integration for monitoring
+
+---
+
+## [2.3.0] - 2026-09-30
+
+**Specification parity release.** Between v2.2.4 and v2.2.17, every resource
+in the SDK was read against Teamleader's machine-readable API specification,
+`@teamleader/focus-api-specification` **1.221.0**, one category per patch
+release. This release adds no new API behaviour of its own: it marks the
+audit as complete and puts the checks that hold it in place into CI.
+
+### The audit in numbers
+
+- **Baseline: 111 → 0 open divergences.** One is recorded as accepted: the
+  deprecated `users.getWeekSchedule` wrapper, kept until v3.0.
+- **Test methods: 227 → 608.** Every category now has a payload test (what
+  the SDK sends) and a spec-contract test (field lists, required fields and
+  enums compared with the specification).
+- **13 categories, 17 releases.** These are CRM, Deals, Invoicing, Expenses,
+  Projects, Tasks, Time Tracking, Calendar, Tickets, General, Products,
+  Planning, and Files / Templates / Other, plus the resource-key cleanup in
+  v2.2.6.
+
+### What changed for users, in short
+
+- **Silent no-ops now throw.** The API answers `200 OK` to a filter, sort
+  field, include, option or body field it does not recognise, and ignores it.
+  Across the SDK, these used to be passed through or dropped without a word,
+  which meant unfiltered results or updates that changed nothing. They now
+  throw an `InvalidArgumentException` naming the accepted values. This is the
+  change most likely to surface in existing code; in every case the call was
+  not doing what it appeared to.
+- **Crashes fixed.** Among others:
+  - `projectTasks()->list()` with any filter
+  - `dealPhases()->delete()`
+  - a field-name sort on tasks, events and subscriptions
+  - an array sort on files
+  - error responses in the accounts, cloud platforms, migrate and mail
+    template helpers
+- **Wrong answers fixed.** Among others:
+  - `callOutcomes()->byIds()`, the plannable items status filter and
+    `quotations()->byStatus()` returned everything
+  - `projectLines()->unassigned()` returned every line
+  - `accounts()->isUsingProjectsV2()` reported projects-v2 accounts as legacy
+    when the call failed
+  - `getCommonHolidays()` returned the wrong Belgian holidays
+- **Endpoints and filters added** where the SDK was behind the
+  specification. Examples: materials delete/duplicate/assign, full-day days
+  off, ticket assignee filters, reservation filters, plannable item types,
+  and cloud platform URLs for deals.
+- **Stricter-than-API checks relaxed** where the SDK demanded fields the API
+  does not: meeting customers, timer subjects, expense totals, task work
+  types on update, and others.
+
+The individual release notes below list every change with the reason for it.
+
+### Added
+
+- **`composer spec:check`** (`php bin/spec-audit --check`). It exits 1 on any
+  error or warning not in the baseline, or any baseline entry that is no
+  longer reported, and prints the summary either way.
+- **CI: *Specification parity* job** in `tests.yml`. It checks that the
+  committed fixtures are exactly what the generator produces from the pinned
+  specification, then runs `spec:check`. The audit summary is written to the
+  job page.
+- **CI: weekly specification watch** (`spec-watch.yml`). It audits the SDK
+  against the newest published specification and opens an issue listing the
+  differences when it is newer than the pinned one. Nothing is committed
+  automatically; bumping the pin stays a deliberate change.
+- README: a *Specification Parity* section, a spec-version badge and a tests
+  badge. CONTRIBUTING documents the CI checks.
+
+### Changed
+
+- **Supported versions: 2.3.x.** 2.2.x and older are unsupported; 2.3 runs on
+  the same PHP and Laravel versions, with no breaking changes. See SECURITY.md.
+
+### Deprecated — to be removed in v3.0
+
+- `users()->getWeekSchedule()` — use `userSchedules()->forUser()`
+- `plannableItems()->active()` — the endpoint has no status filter
+- `products()->withCustomFields()`, and `deals()->withCustomer()`,
+  `withResponsibleUser()`, `withDepartment()`, `withCurrentPhase()`,
+  `withSource()` and `withAll()` — not includes, now no-ops
+- `companies()->byName()`, `quotations()->byStatus()`,
+  `creditNotes()->paid()` / `unpaid()` and `lostReasons()->search()` —
+  the filters they implied do not exist
+- `invoices()->draft()` — use `listDrafts()`
+- The seven snake_case / misspelt resource keys aliased in v2.2.6 (for
+  example `calenderEvents`) — use the camelCase names
 
 ---
 

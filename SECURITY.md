@@ -4,14 +4,15 @@
 
 | Version | Supported | Notes |
 | ------- | --------- | ----- |
-| 2.2.x | ✅ Active | Current release — receives every fix |
-| 2.1.x | ❌ Unsupported | Upgrade to 2.2.x — same requirements, no breaking changes |
-| 2.0.x | ❌ Unsupported | Upgrade to 2.2.x — same requirements, no breaking changes |
+| 2.3.x | ✅ Active | Current release — receives every fix |
+| 2.2.x | ❌ Unsupported | Upgrade to 2.3.x — same requirements, no breaking changes |
+| 2.1.x | ❌ Unsupported | Upgrade to 2.3.x — same requirements, no breaking changes |
+| 2.0.x | ❌ Unsupported | Upgrade to 2.3.x — same requirements, no breaking changes |
 | < 2.0 | ❌ Unsupported | Requires Laravel 10 or 11 — both EOL with unpatched CVEs |
 
 Only the latest minor of the current major is supported. Fixes land as patch
-releases on 2.2.x, which runs on the same PHP and Laravel versions as 2.0 and
-2.1, so there is no reason to stay on an older minor.
+releases on 2.3.x, which runs on the same PHP and Laravel versions as 2.0, 2.1
+and 2.2, so there is no reason to stay on an older minor.
 
 When 3.0.0 is released, 2.x moves to security fixes only for **three months**
 and is unsupported after that. The date will be stated here on release.

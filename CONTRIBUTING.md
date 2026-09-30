@@ -265,6 +265,7 @@ npm run spec:fixtures       # regenerates contract.json, orders.json, API-list-e
 composer spec:audit         # Markdown report of every divergence, by category
 composer spec:audit -- --category=CRM --severity=error
 composer spec:audit -- --new  # only what is not in the baseline yet
+composer spec:check         # the CI gate: exits 1 on anything new or stale
 ```
 
 `SpecParityTest` gates the audit against
@@ -279,6 +280,12 @@ Divergences that are deliberate (an undeclared filter the API honours, verified
 against a live account) move from `open` to `accepted` with a one-line reason.
 After a specification bump: regenerate, read `composer spec:audit -- --new`,
 fix or accept, then `composer spec:baseline`.
+
+CI runs the same checks once per push, in the *Specification parity* job:
+the committed fixtures must be exactly what `npm run spec:fixtures` produces
+from the pinned version, and `composer spec:check` must pass. A weekly
+workflow (`spec-watch.yml`) audits against the newest published specification
+and opens an issue when it differs, so a bump starts from a list of findings.
 
 The raw YAML is at `node_modules/@teamleader/focus-api-specification/dist/`.
 
