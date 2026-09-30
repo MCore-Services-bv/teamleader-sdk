@@ -154,20 +154,6 @@ class TeamleaderConfigValidateCommand extends Command
             $this->line('      Check DB_CONNECTION settings in .env');
         }
 
-        // Cache suggestions
-        if (! config('teamleader.caching.enabled')) {
-            $this->line('   3. Enable caching for better performance:');
-            $this->line('      Set <fg=cyan>TEAMLEADER_CACHING_ENABLED=true</> in .env');
-        }
-
-        // Production-specific suggestions
-        if (app()->environment('production')) {
-            if (config('teamleader.development.debug_mode')) {
-                $this->line('   4. Disable debug mode in production:');
-                $this->line('      Set <fg=cyan>TEAMLEADER_DEBUG_MODE=false</> in .env');
-            }
-        }
-
         $this->newLine();
     }
 

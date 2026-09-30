@@ -44,7 +44,6 @@ abstract class TestCase extends Orchestra
         $app['config']->set('teamleader.client_id', 'test_client_id');
         $app['config']->set('teamleader.client_secret', 'test_client_secret');
         $app['config']->set('teamleader.redirect_uri', 'http://localhost/callback');
-        $app['config']->set('teamleader.caching.enabled', false);
         $app['config']->set('teamleader.rate_limiting.enabled', false);
         $app['config']->set('teamleader.error_handling.throw_exceptions', true);
 

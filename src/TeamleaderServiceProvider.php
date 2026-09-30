@@ -135,19 +135,6 @@ class TeamleaderServiceProvider extends ServiceProvider
                 ]);
             }
 
-            // Cache validation result to avoid repeated checks
-            if (config('teamleader.caching.enabled')) {
-                cache()->put(
-                    'teamleader_config_validation',
-                    [
-                        'is_valid' => $result->isValid(),
-                        'validated_at' => now()->toIso8601String(),
-                        'summary' => $result->getSummary(),
-                    ],
-                    3600 // Cache for 1 hour
-                );
-            }
-
         } catch (Exception $e) {
             // Don't let validation errors break the application
             Log::error('Teamleader SDK configuration validation encountered an error', [

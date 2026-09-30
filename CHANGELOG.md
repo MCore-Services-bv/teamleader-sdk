@@ -29,7 +29,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `userSchedules()->forUser()` wraps its successor. The spec-audit baseline
   records this as an accepted `endpoint.unwrapped`.
 
+- **Configuration keys that had no effect.** `sideloading.*`, `caching.*`,
+  `development.*`, four `rate_limiting.*` keys, four `logging.*` keys and
+  three `error_handling.*` keys. The upgrade guide lists each with its `.env`
+  variable. With them: `Resource::invalidateCache()` / `clearCache()` /
+  `getCacheKey()`, which nothing called.
+- `teamleader:health --fix` no longer calls `Cache::flush()`. A failing cache
+  check cleared the application's entire cache — sessions and other packages'
+  data included, if they share the store.
+
 ### Changed (3.x branch)
+
+- **`base_url`, `auth_url` and `api.retry_delay` are read.** They were in the
+  published config and documented, but the hosts were hard-coded — the token
+  refresh URL in `TokenService` separately — and the retry base was fixed at
+  1000 ms.
+- `teamleader:health` checks the application's default cache store, where
+  tokens are cached, whatever the removed `caching.enabled` flag said.
+- `ConfigurationValidator` checks for PHP 8.4 / Laravel 12, stopped warning
+  "Laravel 11 detected" on every install, and validates `api.retry_delay`.
+- `logging.channel` defaults to `null` rather than calling `config()` inside
+  the config file.
 
 - **Requires PHP 8.4 or higher.** PHP 8.2 and 8.3 are dropped; CI tests
   PHP 8.4 and 8.5 against Laravel 12 and 13, and code style is checked on

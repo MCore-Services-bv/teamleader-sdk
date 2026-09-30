@@ -368,7 +368,9 @@ class TokenService
                 'refresh_token_preview' => substr($refreshToken, 0, 20).'...',
             ]);
 
-            $response = $this->httpClient->post('https://focus.teamleader.eu/oauth2/access_token', [
+            $authUrl = rtrim((string) (Config::get('teamleader.auth_url') ?: 'https://focus.teamleader.eu'), '/');
+
+            $response = $this->httpClient->post($authUrl.'/oauth2/access_token', [
                 'form_params' => [
                     'client_id' => Config::get('teamleader.client_id'),
                     'client_secret' => Config::get('teamleader.client_secret'),

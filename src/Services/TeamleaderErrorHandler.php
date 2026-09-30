@@ -267,11 +267,15 @@ class TeamleaderErrorHandler
 
     /**
      * Calculate retry delay with exponential backoff
+     *
+     * The base is `teamleader.api.retry_delay` in milliseconds (default 1000),
+     * doubled per attempt, plus up to 100 ms jitter, capped at 30 seconds.
      */
     private function calculateRetryDelay(TeamleaderException $exception, int $attempt): int
     {
-        // Exponential backoff with jitter
-        $baseDelay = 1000; // 1 second base
+        // A key set to null (an empty env var) keeps the default.
+        $configured = config('teamleader.api.retry_delay');
+        $baseDelay = is_numeric($configured) ? max(0, (int) $configured) : 1000;
         $exponentialDelay = $baseDelay * pow(2, $attempt - 1);
         $jitter = rand(0, 100); // Add up to 100ms jitter
 

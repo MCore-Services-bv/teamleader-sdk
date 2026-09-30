@@ -354,42 +354,31 @@ class HealthCheckService
     }
 
     /**
-     * Check cache system functionality
+     * Check the cache store the SDK keeps its tokens in
+     *
+     * TokenService caches the access token in the application's default cache
+     * store, so a broken store means a database read on every request.
      */
     private function checkCacheSystem(): array
     {
         try {
-            $cacheEnabled = config('teamleader.caching.enabled', false);
-
-            if (! $cacheEnabled) {
-                return [
-                    'status' => 'disabled',
-                    'details' => ['message' => 'Caching is disabled in configuration'],
-                ];
-            }
-
-            $store = config('teamleader.caching.store', 'default');
+            $store = (string) config('cache.default');
             $testKey = 'teamleader_health_check_'.uniqid();
             $testValue = 'test_'.time();
 
-            // Test cache write
-            Cache::store($store)->put($testKey, $testValue, 60);
-
-            // Test cache read
-            $cachedValue = Cache::store($store)->get($testKey);
-
-            // Test cache delete
-            Cache::store($store)->forget($testKey);
+            Cache::put($testKey, $testValue, 60);
+            $cachedValue = Cache::get($testKey);
+            Cache::forget($testKey);
 
             $working = $cachedValue === $testValue;
 
             return [
                 'status' => $working ? 'healthy' : 'error',
                 'details' => [
-                    'enabled' => $cacheEnabled,
                     'store' => $store,
-                    'working' => $working,
                     'driver' => config("cache.stores.{$store}.driver"),
+                    'working' => $working,
+                    'used_for' => 'access token cache',
                 ],
             ];
 
@@ -415,9 +404,6 @@ class HealthCheckService
 
             $details = [
                 'throws_exceptions' => $throwsExceptions,
-                'log_errors' => config('teamleader.error_handling.log_errors', true),
-                'include_stack_trace' => config('teamleader.error_handling.include_stack_trace', false),
-                'parse_teamleader_errors' => config('teamleader.error_handling.parse_teamleader_errors', true),
             ];
 
             // Test error handler with a mock error

@@ -204,6 +204,11 @@ class TeamleaderSDK
         // Set API version from config
         $this->apiVersion = config('teamleader.api_version', '2023-09-26');
 
+        // Hosts — configurable for a proxy or a sandbox. Unset or empty keeps
+        // Teamleader's production hosts.
+        $this->baseUrl = rtrim((string) (config('teamleader.base_url') ?: $this->baseUrl), '/');
+        $this->authUrl = rtrim((string) (config('teamleader.auth_url') ?: $this->authUrl), '/');
+
         // Get initial token from TokenService
         $this->accessToken = $this->tokenService->getValidAccessToken();
 

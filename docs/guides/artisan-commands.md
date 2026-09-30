@@ -3,7 +3,7 @@
 | Command | |
 |---|---|
 | `teamleader:status` | Connection, token and rate-limit status |
-| `teamleader:health` | Health checks: configuration, authentication, tokens, API connectivity, rate limits, database, cache and dependencies |
+| `teamleader:health` | Health checks: configuration, authentication, tokens, API connectivity, rate limits, database, the token cache and dependencies |
 | `teamleader:config:validate` | Validate the configuration and environment |
 | `teamleader:export-uuids` | Print account UUIDs for `config/teamleader.php` |
 

@@ -60,6 +60,43 @@ In 2.3 all of these still ran, most of them with an `E_USER_DEPRECATED`
 notice in your log. If you upgrade to 2.3 first and clear those notices, this
 step is a no-op.
 
+### Configuration
+
+If you published `config/teamleader.php`, compare it with the package's copy
+(`vendor/mcore-services/teamleader-sdk/config/teamleader.php`). The keys below
+were in the file but had no effect; they are removed. Deleting them from your
+copy and from `.env` changes nothing about how the SDK behaves.
+
+| Removed key | `.env` variable | Why |
+|---|---|---|
+| `sideloading.*` | `TEAMLEADER_SIDELOADING_ENABLED`, `TEAMLEADER_VALIDATE_INCLUDES`, `TEAMLEADER_MAX_INCLUDES` | Include validation is always on |
+| `caching.*` | `TEAMLEADER_CACHING_ENABLED`, `TEAMLEADER_CACHE_TTL`, `TEAMLEADER_CACHE_STORE` | The SDK caches no API responses. The flag only cached the boot-time validation result, which nothing read |
+| `development.*` | `TEAMLEADER_SANDBOX_MODE`, `TEAMLEADER_MOCK_RESPONSES`, `TEAMLEADER_DEBUG_MODE`, `TEAMLEADER_LOG_ALL_REQUESTS` | Only the configuration validator mentioned them |
+| `rate_limiting.requests_per_minute`, `throttle_threshold`, `aggressive_throttling`, `respect_retry_after` | `TEAMLEADER_RATE_LIMIT`, `TEAMLEADER_THROTTLE_THRESHOLD`, `TEAMLEADER_AGGRESSIVE_THROTTLING`, `TEAMLEADER_RESPECT_RETRY_AFTER` | The limit is Teamleader's; the throttle steps are fixed |
+| `logging.enabled`, `sanitize_logs`, `log_rate_limits`, `log_token_refresh` | `TEAMLEADER_LOGGING_ENABLED`, `TEAMLEADER_SANITIZE_LOGS`, `TEAMLEADER_LOG_RATE_LIMITS`, `TEAMLEADER_LOG_TOKEN_REFRESH` | Sanitising is always on; silence the SDK through its log channel |
+| `error_handling.log_errors`, `include_stack_trace`, `parse_teamleader_errors` | `TEAMLEADER_LOG_ERRORS`, `TEAMLEADER_INCLUDE_STACK_TRACE`, `TEAMLEADER_PARSE_TL_ERRORS` | Only shown by the health check, never applied |
+
+Three keys that were documented but ignored **now work**. Check your `.env`
+for them before upgrading — a value you set long ago takes effect:
+
+| Key | `.env` variable | Effect |
+|---|---|---|
+| `base_url` | `TEAMLEADER_BASE_URL` | API host |
+| `auth_url` | `TEAMLEADER_AUTH_URL` | OAuth host for authorize, code exchange and token refresh |
+| `api.retry_delay` | `TEAMLEADER_API_RETRY_DELAY` | First retry delay in ms (was fixed at 1000) |
+
+`logging.channel` defaults to `null` (your default channel) instead of
+`config('logging.default')`.
+
+### Health and validation commands
+
+- `teamleader:health` checks your default cache store — the one tokens live
+  in — instead of a `caching.store` setting. `--fix` no longer runs
+  `Cache::flush()`, which cleared your **whole** application cache.
+- `teamleader:config:validate` no longer suggests enabling caching or debug
+  mode, and no longer warns "Laravel 11 detected" on every Laravel 12 and 13
+  install.
+
 ## From 2.2 to 2.3
 
 There are no breaking API changes in the SDK itself, and 2.3 runs on the same

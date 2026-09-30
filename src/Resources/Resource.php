@@ -2,7 +2,6 @@
 
 namespace McoreServices\TeamleaderSDK\Resources;
 
-use Illuminate\Support\Facades\Cache;
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\TeamleaderSDK;
 use McoreServices\TeamleaderSDK\Traits\FilterTrait;
@@ -516,75 +515,4 @@ abstract class Resource
      * define it themselves; fifteen do. Deals called it without defining it,
      * which was a fatal error on any sorted list() call until v2.1.2.
      */
-
-    /**
-     * Invalidate cache after updates
-     *
-     * @param  string  $id  Resource ID that was updated
-     */
-    protected function invalidateCache(string $id): void
-    {
-        $this->clearCache($id);
-
-        // Also clear list caches as they might include this resource
-        if (config('cache.default') === 'redis' || config('cache.default') === 'memcached') {
-            Cache::tags(["{$this->getBasePath()}_list"])->flush();
-        }
-    }
-
-    /**
-     * Clear cache for a specific resource
-     *
-     * @param  string|null  $id  Resource ID to clear cache for (null = all)
-     */
-    protected function clearCache(?string $id = null): void
-    {
-        if (! config('teamleader.caching.enabled')) {
-            return; // Caching not enabled, nothing to clear
-        }
-
-        if ($id) {
-            // Clear cache for specific resource
-            $cacheKey = $this->getCacheKey($id);
-            Cache::forget($cacheKey);
-
-            $this->api->getLogger()->debug('Cache cleared for resource', [
-                'resource' => $this->getBasePath(),
-                'id' => $id,
-                'cache_key' => $cacheKey,
-            ]);
-        } else {
-            // Clear all cache for this resource type using tags
-            if (config('cache.default') === 'redis' || config('cache.default') === 'memcached') {
-                Cache::tags([$this->getBasePath()])->flush();
-
-                $this->api->getLogger()->debug('All cache cleared for resource', [
-                    'resource' => $this->getBasePath(),
-                ]);
-            } else {
-                // Fallback for drivers that don't support tags
-                $this->api->getLogger()->warning('Cache tags not supported by cache driver', [
-                    'resource' => $this->getBasePath(),
-                    'cache_driver' => config('cache.default'),
-                ]);
-            }
-        }
-    }
-
-    /**
-     * Generate cache key for a resource
-     *
-     * @param  string  $id  Resource ID
-     * @param  array  $params  Additional params to include in key
-     */
-    protected function getCacheKey(string $id, array $params = []): string
-    {
-        $key = "teamleader:{$this->getBasePath()}:{$id}";
-
-        if (! empty($params)) {
-            $key .= ':'.md5(serialize($params));
-        }
-
-        return $key;
-    }
 }

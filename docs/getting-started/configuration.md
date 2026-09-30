@@ -15,21 +15,25 @@ three OAuth credentials are required.
 | `TEAMLEADER_API_CONNECT_TIMEOUT` | `10` | Connect timeout, seconds |
 | `TEAMLEADER_API_READ_TIMEOUT` | `25` | Read timeout, seconds |
 | `TEAMLEADER_API_RETRY_ATTEMPTS` | `3` | Attempts for server and connection errors |
+| `TEAMLEADER_API_RETRY_DELAY` | `1000` | First retry delay, milliseconds; doubles per attempt, capped at 30 s |
+| `TEAMLEADER_BASE_URL` | `https://api.focus.teamleader.eu` | API host — change only for a proxy or a sandbox |
+| `TEAMLEADER_AUTH_URL` | `https://focus.teamleader.eu` | OAuth host (authorize, token exchange and refresh) |
 | `TEAMLEADER_THROW_EXCEPTIONS` | `false` | Throw typed exceptions on failure |
 | `TEAMLEADER_RATE_LIMITING_ENABLED` | `true` | Track and throttle requests in Redis |
 | `TEAMLEADER_RATE_LIMIT_REDIS_CONNECTION` | `default` | Redis connection used by the limiter |
 | `TEAMLEADER_RATE_LIMIT_MAX_WAIT_MS` | `5000` | Longest wait for a free slot before throwing |
 | `TEAMLEADER_VALIDATE_ON_BOOT` | `false` | Validate the configuration when the app boots |
-| `TEAMLEADER_CACHING_ENABLED` | `false` | Cache the boot-time validation result |
 
 {% hint style="info" %}
-**Other keys in `config/teamleader.php` are not read by v2.3.** The logging,
-sideloading, development and remaining rate-limiting and caching keys, and
-`TEAMLEADER_BASE_URL` / `TEAMLEADER_AUTH_URL`, are in the published file but
-have no effect: the SDK logs through your application's default logger with
-tokens always redacted, validates includes always, and uses Teamleader's
-production URLs. They will either be wired up or removed in v3.0.
+**`TEAMLEADER_LOG_CHANNEL`, `TEAMLEADER_LOG_REQUESTS` and
+`TEAMLEADER_LOG_RESPONSES` are not read yet.** They are in the published file
+because v3.0 wires them up together with the SDK's events. Until then the SDK
+logs through your application's default logger, with tokens always redacted.
 {% endhint %}
+
+The SDK does not cache API responses, and include validation cannot be turned
+off: both are by design. Tokens are cached in your application's default cache
+store.
 
 ## Settings worth changing
 

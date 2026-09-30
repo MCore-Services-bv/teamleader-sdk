@@ -103,24 +103,8 @@ class ConfigurationValidator
     {
         $environment = app()->environment();
 
-        if ($environment === 'production') {
-            // Production-specific checks
-            if (config('teamleader.development.debug_mode')) {
-                $this->warnings[] = 'Debug mode should not be enabled in production';
-            }
-
-            if (config('teamleader.development.log_all_requests')) {
-                $this->warnings[] = 'Request logging should be disabled in production for performance';
-            }
-
-            if (config('app.debug')) {
-                $this->warnings[] = 'Laravel debug mode is enabled in production - this can expose sensitive information';
-            }
-        } else {
-            // Development-specific checks
-            if (! config('teamleader.development.debug_mode')) {
-                $this->warnings[] = 'Debug mode is disabled in development - you might want to enable it';
-            }
+        if ($environment === 'production' && config('app.debug')) {
+            $this->warnings[] = 'Laravel debug mode is enabled in production - this can expose sensitive information';
         }
 
         // Check for localhost in production
@@ -137,26 +121,6 @@ class ConfigurationValidator
      */
     private function validateFeatureConfig(): void
     {
-        // Validate cache configuration
-        if (config('teamleader.caching.enabled')) {
-            $store = config('teamleader.caching.store');
-
-            if ($store !== 'default' && ! config("cache.stores.{$store}")) {
-                $this->errors[] = "Cache store '{$store}' is not configured";
-            }
-
-            $defaultTtl = config('teamleader.caching.default_ttl');
-            if ($defaultTtl && ($defaultTtl < 60 || $defaultTtl > 86400)) {
-                $this->warnings[] = 'Cache TTL should be between 60 seconds and 24 hours';
-            }
-        }
-
-        // Validate rate limiting
-        $rateLimit = config('teamleader.rate_limiting.requests_per_minute');
-        if ($rateLimit && ($rateLimit < 1 || $rateLimit > 1000)) {
-            $this->warnings[] = 'Rate limit should be between 1 and 1000 requests per minute';
-        }
-
         // Validate API settings
         $timeout = config('teamleader.api.timeout');
         if ($timeout && ($timeout < 5 || $timeout > 300)) {
@@ -166,6 +130,11 @@ class ConfigurationValidator
         $retryAttempts = config('teamleader.api.retry_attempts');
         if ($retryAttempts && ($retryAttempts < 1 || $retryAttempts > 10)) {
             $this->warnings[] = 'Retry attempts should be between 1 and 10';
+        }
+
+        $retryDelay = config('teamleader.api.retry_delay');
+        if ($retryDelay !== null && ($retryDelay < 0 || $retryDelay > 30000)) {
+            $this->warnings[] = 'Retry delay should be between 0 and 30000 milliseconds';
         }
 
         // Validate error handling
@@ -204,7 +173,7 @@ class ConfigurationValidator
     private function validatePhpExtensions(): void
     {
         $required = ['curl', 'json', 'openssl', 'mbstring'];
-        $recommended = ['redis', 'memcached'];
+        $recommended = ['redis'];
 
         foreach ($required as $ext) {
             if (! extension_loaded($ext)) {
@@ -214,13 +183,14 @@ class ConfigurationValidator
 
         foreach ($recommended as $ext) {
             if (! extension_loaded($ext)) {
-                $this->warnings[] = "Recommended PHP extension '{$ext}' is not loaded (needed for advanced caching)";
+                $this->warnings[] = "Recommended PHP extension '{$ext}' is not loaded (the rate limiter needs Redis — through this extension or predis)";
             }
         }
 
-        // Check PHP version
-        if (version_compare(PHP_VERSION, '8.2.0', '<')) {
-            $this->warnings[] = 'PHP version '.PHP_VERSION.' is supported but PHP 8.2+ is recommended';
+        // Composer enforces this; the check covers a vendor directory copied
+        // between machines.
+        if (version_compare(PHP_VERSION, '8.4.0', '<')) {
+            $this->errors[] = 'PHP '.PHP_VERSION.' is not supported. The SDK requires PHP 8.4 or higher';
         }
     }
 
@@ -231,13 +201,8 @@ class ConfigurationValidator
     {
         $laravelVersion = app()->version();
 
-        if (version_compare($laravelVersion, '10.0', '<')) {
-            $this->errors[] = "Laravel version {$laravelVersion} is not supported. Minimum version is 10.0";
-        }
-
-        if (version_compare($laravelVersion, '11.0', '>=')) {
-            // Check for Laravel 11 specific compatibility
-            $this->warnings[] = 'Laravel 11 detected - ensure all features are compatible';
+        if (version_compare($laravelVersion, '12.0', '<')) {
+            $this->errors[] = "Laravel version {$laravelVersion} is not supported. Minimum version is 12.0";
         }
     }
 
@@ -247,26 +212,6 @@ class ConfigurationValidator
     public function getSuggestions(): array
     {
         $suggestions = [];
-
-        // Performance suggestions
-        if (! config('teamleader.caching.enabled')) {
-            $suggestions[] = [
-                'type' => 'performance',
-                'title' => 'Enable Caching',
-                'description' => 'Enable response caching to improve performance',
-                'config' => 'teamleader.caching.enabled = true',
-            ];
-        }
-
-        // Security suggestions
-        if (app()->environment('production') && config('teamleader.development.debug_mode')) {
-            $suggestions[] = [
-                'type' => 'security',
-                'title' => 'Disable Debug Mode',
-                'description' => 'Debug mode should be disabled in production',
-                'config' => 'teamleader.development.debug_mode = false',
-            ];
-        }
 
         // Reliability suggestions
         $timeout = config('teamleader.api.timeout');
@@ -303,8 +248,7 @@ class ConfigurationValidator
                 'client_id' => ! empty(config('teamleader.client_id')) ? 'configured' : 'missing',
                 'client_secret' => ! empty(config('teamleader.client_secret')) ? 'configured' : 'missing',
                 'redirect_uri' => config('teamleader.redirect_uri', 'missing'),
-                'caching_enabled' => config('teamleader.caching.enabled', false),
-                'debug_mode' => config('teamleader.development.debug_mode', false),
+                'rate_limiting_enabled' => (bool) config('teamleader.rate_limiting.enabled', true),
             ],
             'validated_at' => now()->toISOString(),
         ];

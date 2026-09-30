@@ -3,7 +3,6 @@
 namespace McoreServices\TeamleaderSDK\Console\Commands;
 
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Cache;
 use McoreServices\TeamleaderSDK\Services\HealthCheckService;
 use McoreServices\TeamleaderSDK\Services\TokenService;
 
@@ -186,14 +185,6 @@ class TeamleaderHealthCommand extends Command
             }
         }
 
-        // Clear expired cache
-        if (isset($checks['cache_system']) && $checks['cache_system']['status'] === 'error') {
-            if ($this->attemptCacheClear()) {
-                $this->line('   ✅ Cleared potentially corrupted cache');
-                $fixed++;
-            }
-        }
-
         if ($fixed === 0) {
             $this->line('   ℹ️  No automatic fixes available for current issues');
         } else {
@@ -210,17 +201,6 @@ class TeamleaderHealthCommand extends Command
             $tokenService = app(TokenService::class);
 
             return $tokenService->syncTokensToCache();
-        } catch (\Exception $e) {
-            return false;
-        }
-    }
-
-    private function attemptCacheClear(): bool
-    {
-        try {
-            Cache::flush();
-
-            return true;
         } catch (\Exception $e) {
             return false;
         }
