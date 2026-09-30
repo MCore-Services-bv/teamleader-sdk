@@ -50,6 +50,7 @@ lock, the rate limiter waits for a free slot instead of spending requests on
 
 ## Links
 
+- [Documentation site](https://teamleader-sdk.mcore-services.dev/)
 - [Packagist](https://packagist.org/packages/mcore-services/teamleader-sdk)
 - [GitHub](https://github.com/MCore-Services-bv/teamleader-sdk)
 - [Changelog](https://github.com/MCore-Services-bv/teamleader-sdk/blob/main/CHANGELOG.md)

@@ -53,6 +53,19 @@ class ReferenceDocsTest extends TestCase
         $this->assertSame($this->generator->pages(), $this->generator->pages());
     }
 
+    /**
+     * PHP 8.5 reports a `self` return type through reflection differently
+     * from 8.2 – 8.4. Before v2.3.2 that changed six pages on 8.5 only, so
+     * docs:check passed locally and failed in the 8.5 CI jobs.
+     */
+    public function test_self_return_types_render_the_same_on_every_php_version(): void
+    {
+        $pages = $this->generator->pages();
+
+        $this->assertStringContainsString('withSuppliers(): self', $pages['reference/products/products.md']);
+        $this->assertStringNotContainsString('): Products', $pages['reference/products/products.md']);
+    }
+
     public function test_every_link_in_the_reference_index_resolves(): void
     {
         $pages = $this->generator->pages();

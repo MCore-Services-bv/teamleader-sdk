@@ -773,14 +773,14 @@ final class ReferenceGenerator
     private function signature(ReflectionMethod $method): string
     {
         $params = array_map(fn (ReflectionParameter $p) => $this->parameter($p), $method->getParameters());
-        $return = $method->hasReturnType() ? ': '.$this->type($method->getReturnType()) : '';
+        $return = $method->hasReturnType() ? ': '.$this->type($method->getReturnType(), $method->getDeclaringClass()) : '';
 
         return $method->getName().'('.implode(', ', $params).')'.$return;
     }
 
     private function parameter(ReflectionParameter $parameter): string
     {
-        $out = $parameter->hasType() ? $this->type($parameter->getType()).' ' : '';
+        $out = $parameter->hasType() ? $this->type($parameter->getType(), $parameter->getDeclaringClass()).' ' : '';
         $out .= ($parameter->isVariadic() ? '...' : '').'$'.$parameter->getName();
 
         if ($parameter->isDefaultValueAvailable()) {
@@ -792,16 +792,34 @@ final class ReferenceGenerator
         return $out;
     }
 
-    private function type(?\ReflectionType $type): string
+    /**
+     * A type as it would be written in the declaring class.
+     *
+     * `self`, `static` and `parent` are normalised explicitly. PHP 8.5
+     * reports a `self` type through reflection differently from 8.2 – 8.4,
+     * which made the generated pages differ per PHP version and failed
+     * `docs:check` on 8.5 only. The declaring class's own name is rendered as
+     * `self` for the same reason, so every supported version produces the
+     * same bytes.
+     */
+    private function type(?\ReflectionType $type, ?ReflectionClass $context = null): string
     {
         if ($type instanceof ReflectionNamedType) {
-            $name = $type->isBuiltin() ? $type->getName() : $this->shortClass($type->getName());
+            $raw = ltrim($type->getName(), '\\');
+            $lower = strtolower($raw);
 
-            return ($type->allowsNull() && $name !== 'mixed' && $name !== 'null' ? '?' : '').$name;
+            $name = match (true) {
+                in_array($lower, ['self', 'static', 'parent'], true) => $lower,
+                $context !== null && strcasecmp($raw, $context->getName()) === 0 => 'self',
+                $type->isBuiltin() => $raw,
+                default => $this->shortClass($raw),
+            };
+
+            return ($type->allowsNull() && ! in_array($name, ['mixed', 'null'], true) ? '?' : '').$name;
         }
 
         if ($type instanceof \ReflectionUnionType) {
-            return implode('|', array_map(fn ($t) => $this->type($t), $type->getTypes()));
+            return implode('|', array_map(fn ($t) => $this->type($t, $context), $type->getTypes()));
         }
 
         return (string) $type;
