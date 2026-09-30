@@ -8,11 +8,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Category-by-category spec audit: Planning, Files, Templates, Other — one patch release each, with the matching wiki pages
+- Category-by-category spec audit: Files, Templates, Other — one patch release each, with the matching wiki pages
 - Bulk operations helper for processing large datasets
 - Enhanced caching strategies with tag-based invalidation
 - Laravel Pulse integration for monitoring
 - CLI tool for quick API exploration
+
+---
+
+## [2.2.16] - 2026-09-30
+
+The Planning category — Plannable Items, Reservations and User Availability —
+brought in line with `@teamleader/focus-api-specification` **1.221.0**. This
+closes the last open error in the audit.
+
+### Fixed
+
+- **Plannable items: the `status` filter did not exist.** The SDK advertised
+  and sent `status: [active|deactivated]`, which plannableItems.list does not
+  have. The API ignored it, so the filter returned every item, and so did
+  `active()`. The filter now throws with a pointer to the real filters.
+  `active()` is deprecated (it raises `E_USER_DEPRECATED` once and goes in
+  v3.0).
+- **Plannable items: sorting was half-checked.** A list of sort objects was
+  validated, but a plain field name or `"field:order"` string was not, and
+  `sort_order` was ignored. All forms now go through `normaliseSort()`.
+- **Unknown or mistyped filter keys were dropped without a word** on plannable
+  items, reservations and user availability, and a string `ids` /
+  `project_ids` was dropped too. They now throw, or are wrapped in the case
+  of string ids. Assignees, sources and source types are checked, and dates
+  must be real dates.
+
+### Added
+
+- Plannable items: the `types` filter (closingDay, dayOffType, meeting, task,
+  call, externalEvent), with `ofTypes()` and `unassigned()` helpers.
+- Reservations: the `project_ids`, `work_type_ids` and `term` filters.
+- User availability: `page_size` / `page_number` shorthand alongside `page`.
+
+### Changed
+
+- **Unknown write fields throw** on reservations.create and
+  reservations.update. For example, `plannable_item_id` cannot change on
+  update.
+- Unknown list options throw.
+- Constants `TYPES`, `COMPLETION_STATUSES` and `PLANNED_TIME_STATUSES` on
+  PlannableItems; `CREATE_FIELDS`, `UPDATE_FIELDS`, `SOURCE_TYPES` and
+  `DURATION_UNITS` on Reservations. Each is checked against the spec.
+- New tests: `PlanningPayloadTest` and `PlanningSpecContractTest`. Baseline
+  6 → 1: nothing open, and the one accepted divergence
+  (users.getWeekSchedule).
 
 ---
 

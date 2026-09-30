@@ -3,10 +3,27 @@
 namespace McoreServices\TeamleaderSDK\Resources\Planning;
 
 use InvalidArgumentException;
+use McoreServices\TeamleaderSDK\Resources\Planning\Concerns\ChecksPlanningFilters;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class Reservations extends Resource
 {
+    use ChecksPlanningFilters;
+    use ValidatesWritePayload;
+
+    /** Body fields reservations.create accepts */
+    public const CREATE_FIELDS = ['plannable_item_id', 'date', 'duration', 'assignee'];
+
+    /** Body fields reservations.update accepts, besides `id` — the plannable item cannot change */
+    public const UPDATE_FIELDS = ['date', 'duration', 'assignee'];
+
+    /** `source_types[]` and `sources[].type` on reservations.list */
+    public const SOURCE_TYPES = ['call', 'closingDay', 'dayOffType', 'externalEvent', 'meeting', 'task'];
+
+    /** `duration.unit` */
+    public const DURATION_UNITS = ['minutes'];
+
     protected string $description = 'Manage planning reservations in Teamleader Focus';
 
     // Resource capabilities
@@ -35,6 +52,9 @@ class Reservations extends Resource
     // Common filters based on API documentation
     protected array $commonFilters = [
         'plannable_item_ids' => 'Filter by array of plannable item UUIDs',
+        'project_ids' => 'Filter by array of project UUIDs',
+        'work_type_ids' => 'Filter by array of work type UUIDs',
+        'term' => 'Search term',
         'start_date' => 'Filter reservations from this date (YYYY-MM-DD)',
         'end_date' => 'Filter reservations up to this date (YYYY-MM-DD)',
         'assignees' => 'Filter by assignees (array of objects with type and id; pass null for unassigned)',
@@ -49,19 +69,10 @@ class Reservations extends Resource
     ];
 
     // Valid source types
-    protected array $sourceTypes = [
-        'call',
-        'closingDay',
-        'dayOffType',
-        'externalEvent',
-        'meeting',
-        'task',
-    ];
+    protected array $sourceTypes = self::SOURCE_TYPES;
 
     // Valid duration units
-    protected array $durationUnits = [
-        'minutes',
-    ];
+    protected array $durationUnits = self::DURATION_UNITS;
 
     // Usage examples specific to reservations
     protected array $usageExamples = [
@@ -147,6 +158,14 @@ class Reservations extends Resource
      */
     public function list(array $filters = [], array $options = []): array
     {
+        $unknown = array_diff(array_keys($options), ['page_size', 'page_number', 'filters']);
+
+        if ($unknown !== []) {
+            throw new InvalidArgumentException(
+                'reservations.list does not support: '.implode(', ', $unknown).'. Supported: page_size, page_number.'
+            );
+        }
+
         $params = [];
 
         // Build filter object
@@ -294,52 +313,55 @@ class Reservations extends Resource
     }
 
     /**
-     * Build filters array for the API request
+     * Build the filter object for reservations.list
+     *
+     * Until v2.2.16 project_ids, work_type_ids and term were not offered,
+     * unknown keys were dropped without a word, and assignees and sources were
+     * passed through unchecked.
+     *
+     * @throws InvalidArgumentException
      */
     protected function buildFilters(array $filters): array
     {
-        $apiFilters = [];
+        $endpoint = 'reservations.list';
 
-        // plannable_item_ids — array of UUIDs
-        if (isset($filters['plannable_item_ids']) && is_array($filters['plannable_item_ids'])) {
-            $apiFilters['plannable_item_ids'] = $filters['plannable_item_ids'];
-        }
+        $this->rejectUnknownFilters($filters, $endpoint);
 
-        // start_date
-        if (isset($filters['start_date'])) {
-            $this->validateDateFormat($filters['start_date'], 'start_date');
-            $apiFilters['start_date'] = $filters['start_date'];
-        }
-
-        // end_date
-        if (isset($filters['end_date'])) {
-            $this->validateDateFormat($filters['end_date'], 'end_date');
-            $apiFilters['end_date'] = $filters['end_date'];
-        }
-
-        // assignees — array of objects or null values
-        if (isset($filters['assignees']) && is_array($filters['assignees'])) {
-            $apiFilters['assignees'] = $filters['assignees'];
-        }
-
-        // sources — array of objects with id and type
-        if (isset($filters['sources']) && is_array($filters['sources'])) {
-            $apiFilters['sources'] = $filters['sources'];
-        }
-
-        // source_types — array of SourceType strings
-        if (isset($filters['source_types']) && is_array($filters['source_types'])) {
-            foreach ($filters['source_types'] as $type) {
-                if (! in_array($type, $this->sourceTypes)) {
-                    throw new InvalidArgumentException(
-                        "Invalid source_type: {$type}. Must be one of: ".implode(', ', $this->sourceTypes)
-                    );
-                }
+        foreach (['plannable_item_ids', 'project_ids', 'work_type_ids'] as $key) {
+            if (isset($filters[$key]) && ! is_array($filters[$key])) {
+                $filters[$key] = [$filters[$key]];
             }
-            $apiFilters['source_types'] = $filters['source_types'];
         }
 
-        return $apiFilters;
+        foreach (['start_date', 'end_date'] as $key) {
+            if (isset($filters[$key])) {
+                $this->checkedDate($filters[$key], $key);
+            }
+        }
+
+        if (isset($filters['assignees'])) {
+            $filters['assignees'] = $this->checkedAssignees($filters['assignees'], $endpoint, true);
+        }
+
+        if (isset($filters['source_types'])) {
+            $filters['source_types'] = $this->checkedEnumList($filters['source_types'], self::SOURCE_TYPES, 'source_types', $endpoint);
+        }
+
+        if (isset($filters['sources'])) {
+            if (! is_array($filters['sources']) || ! array_is_list($filters['sources'])) {
+                throw new InvalidArgumentException("sources on {$endpoint} must be a list of ['type' => ..., 'id' => uuid].");
+            }
+
+            foreach ($filters['sources'] as $index => $source) {
+                if (! is_array($source) || empty($source['id']) || ! isset($source['type'])) {
+                    throw new InvalidArgumentException("sources[{$index}] on {$endpoint} needs both a type and an id.");
+                }
+
+                $this->assertEnum($source['type'], self::SOURCE_TYPES, "filter.sources[{$index}].type", $endpoint);
+            }
+        }
+
+        return array_filter($filters, fn ($value) => $value !== null);
     }
 
     /**
@@ -349,6 +371,7 @@ class Reservations extends Resource
      */
     protected function validateCreateData(array $data): void
     {
+        $this->rejectUnknownFields($data, self::CREATE_FIELDS, 'reservations.create');
         if (empty($data['plannable_item_id'])) {
             throw new InvalidArgumentException('plannable_item_id is required');
         }
@@ -379,6 +402,8 @@ class Reservations extends Resource
         if (empty($data['id'])) {
             throw new InvalidArgumentException('id is required for update');
         }
+
+        $this->rejectUnknownFields($data, [...self::UPDATE_FIELDS, 'id'], 'reservations.update');
 
         if (isset($data['date'])) {
             $this->validateDateFormat($data['date'], 'date');
@@ -450,11 +475,7 @@ class Reservations extends Resource
      */
     protected function validateDateFormat(string $date, string $fieldName): void
     {
-        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-            throw new InvalidArgumentException(
-                "{$fieldName} must be in YYYY-MM-DD format (e.g., 2024-01-12)"
-            );
-        }
+        $this->checkedDate($date, $fieldName);
     }
 
     /**

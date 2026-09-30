@@ -3,10 +3,16 @@
 namespace McoreServices\TeamleaderSDK\Resources\Planning;
 
 use InvalidArgumentException;
+use McoreServices\TeamleaderSDK\Resources\Planning\Concerns\ChecksPlanningFilters;
 use McoreServices\TeamleaderSDK\Resources\Resource;
 
 class UserAvailability extends Resource
 {
+    use ChecksPlanningFilters;
+
+    /** Top-level keys daily() and total() accept; page_size / page_number are shorthand for `page` */
+    public const PARAM_KEYS = ['period', 'filter', 'page', 'page_size', 'page_number'];
+
     protected string $description = 'Retrieve user availability information from Teamleader Focus';
 
     // Resource capabilities — read-only, no CRUD
@@ -239,16 +245,24 @@ class UserAvailability extends Resource
             ],
         ];
 
-        // Optional filter
         if (! empty($params['filter'])) {
             $body['filter'] = $params['filter'];
         }
 
-        // Optional pagination
-        if (! empty($params['page'])) {
+        $page = $params['page'] ?? [];
+
+        if (isset($params['page_size'])) {
+            $page['size'] = $params['page_size'];
+        }
+
+        if (isset($params['page_number'])) {
+            $page['number'] = $params['page_number'];
+        }
+
+        if ($page !== []) {
             $body['page'] = [
-                'size' => $params['page']['size'] ?? 20,
-                'number' => $params['page']['number'] ?? 1,
+                'size' => (int) ($page['size'] ?? 20),
+                'number' => (int) ($page['number'] ?? 1),
             ];
         }
 
@@ -264,6 +278,31 @@ class UserAvailability extends Resource
      */
     protected function validateParams(array $params, string $endpoint): void
     {
+        // Unknown keys (top level and inside `filter`) were dropped without a
+        // word until v2.2.16, so a mistyped filter returned every user.
+        $unknown = array_diff(array_keys($params), self::PARAM_KEYS);
+
+        if ($unknown !== []) {
+            throw new InvalidArgumentException(
+                "userAvailability.{$endpoint} does not accept: ".implode(', ', $unknown)
+                .'. Accepted: period, filter, page (or page_size / page_number).'
+            );
+        }
+
+        if (isset($params['filter'])) {
+            if (! is_array($params['filter'])) {
+                throw new InvalidArgumentException("filter must be ['assignees' => [...]]");
+            }
+
+            $unknownFilters = array_diff(array_keys($params['filter']), ['assignees']);
+
+            if ($unknownFilters !== []) {
+                throw new InvalidArgumentException(
+                    "Unsupported filter key for userAvailability.{$endpoint}: ".implode(', ', $unknownFilters).'. Supported: assignees.'
+                );
+            }
+        }
+
         // period is required
         if (empty($params['period']) || ! is_array($params['period'])) {
             throw new InvalidArgumentException('period is required and must be an object');
@@ -298,22 +337,8 @@ class UserAvailability extends Resource
         }
 
         // Validate assignees if provided
-        if (! empty($params['filter']['assignees'])) {
-            foreach ($params['filter']['assignees'] as $assignee) {
-                if (! is_array($assignee)) {
-                    throw new InvalidArgumentException('Each assignee must be an object with type and id');
-                }
-
-                if (empty($assignee['type']) || ! in_array($assignee['type'], $this->assigneeTypes)) {
-                    throw new InvalidArgumentException(
-                        'Invalid assignee type. Must be one of: '.implode(', ', $this->assigneeTypes)
-                    );
-                }
-
-                if (empty($assignee['id'])) {
-                    throw new InvalidArgumentException('Each assignee must have an id');
-                }
-            }
+        if (isset($params['filter']['assignees'])) {
+            $this->checkedAssignees($params['filter']['assignees'], "userAvailability.{$endpoint}", false);
         }
     }
 
@@ -324,11 +349,7 @@ class UserAvailability extends Resource
      */
     protected function validateDateFormat(string $date, string $fieldName): void
     {
-        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-            throw new InvalidArgumentException(
-                "{$fieldName} must be in YYYY-MM-DD format (e.g., 2024-01-12)"
-            );
-        }
+        $this->checkedDate($date, $fieldName);
     }
 
     /**
