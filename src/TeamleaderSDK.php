@@ -6,22 +6,40 @@ use Exception;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Http\RedirectResponse;
+use McoreServices\TeamleaderSDK\Events\RateLimitWaited;
+use McoreServices\TeamleaderSDK\Events\RequestFailed;
+use McoreServices\TeamleaderSDK\Events\RequestSending;
+use McoreServices\TeamleaderSDK\Events\ResponseReceived;
 use McoreServices\TeamleaderSDK\Exceptions\ConfigurationException;
 use McoreServices\TeamleaderSDK\Exceptions\RateLimitExceededException;
 use McoreServices\TeamleaderSDK\Services\ApiRateLimiterService;
 use McoreServices\TeamleaderSDK\Services\TeamleaderErrorHandler;
 use McoreServices\TeamleaderSDK\Services\TokenService;
+use McoreServices\TeamleaderSDK\Traits\DispatchesEvents;
 use McoreServices\TeamleaderSDK\Traits\SanitizesLogData;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 class TeamleaderSDK
 {
+    use DispatchesEvents;
     use SanitizesLogData;
 
     protected static $apiCallCount = 0;
 
+    /**
+     * The most recent calls — method, endpoint, status, size and duration.
+     *
+     * Bounded to API_CALL_LOG_LIMIT entries. Until v3.0 every call was kept,
+     * with its request body and response headers, for the life of the process:
+     * a queue worker grew without limit and held personal data in memory. For
+     * anything beyond a quick look, listen to the ResponseReceived event.
+     *
+     * @var list<array<string, mixed>>
+     */
     protected static $apiCalls = [];
+
+    public const API_CALL_LOG_LIMIT = 100;
 
     protected $client;
 
@@ -196,9 +214,9 @@ class TeamleaderSDK
         ]);
 
         // Use dependency injection or create instances
+        $this->logger = $logger ?: $this->resolveLogger();
         $this->tokenService = $tokenService ?: (app()->bound(TokenService::class) ? app(TokenService::class) : new TokenService);
-        $this->rateLimiter = $rateLimiter ?: (app()->bound(ApiRateLimiterService::class) ? app(ApiRateLimiterService::class) : new ApiRateLimiterService);
-        $this->logger = $logger ?: (app()->bound(LoggerInterface::class) ? app(LoggerInterface::class) : new NullLogger);
+        $this->rateLimiter = $rateLimiter ?: (app()->bound(ApiRateLimiterService::class) ? app(ApiRateLimiterService::class) : new ApiRateLimiterService($this->logger));
         $this->errorHandler = $errorHandler ?: new TeamleaderErrorHandler($this->logger);
 
         // Set API version from config
@@ -222,6 +240,21 @@ class TeamleaderSDK
     /**
      * Validate SDK configuration
      */
+    /**
+     * The logger for SDK output: `teamleader.logging.channel` when set, the
+     * application's default logger otherwise.
+     */
+    private function resolveLogger(): LoggerInterface
+    {
+        $channel = config('teamleader.logging.channel');
+
+        if (is_string($channel) && $channel !== '' && app()->bound('log')) {
+            return app('log')->channel($channel);
+        }
+
+        return app()->bound(LoggerInterface::class) ? app(LoggerInterface::class) : new NullLogger;
+    }
+
     private function validateConfiguration(): void
     {
         $requiredConfig = ['client_id', 'client_secret', 'redirect_uri'];
@@ -396,6 +429,10 @@ class TeamleaderSDK
                     'message' => 'No access token available. Please connect to Teamleader first.',
                 ];
 
+                $this->fireEvent(RequestFailed::class, fn () => new RequestFailed(
+                    (string) $method, (string) $endpoint, 401, $result['message']
+                ));
+
                 $this->errorHandler->handleApiError($result, "{$method} {$endpoint}");
 
                 return $result;
@@ -447,13 +484,22 @@ class TeamleaderSDK
                             'reason' => $rateLimitCheck['reason'],
                         ]);
 
-                        throw new RateLimitExceededException(
+                        $exception = new RateLimitExceededException(
                             'Rate limit window did not clear within the configured maximum wait of '
                             .round($maxWaitMs / 1000, 1).'s. Retry later — in a queue worker, '
                             .'release() using getRetryAfter(). Raise '
                             .'teamleader.rate_limiting.max_wait_ms to have the SDK wait longer.',
                             (int) ceil($delayMs / 1000)
                         );
+
+                        $this->fireEvent(RateLimitWaited::class, fn () => new RateLimitWaited(
+                            $waitedMs, (float) $rateLimitCheck['usage_percentage'], (string) $endpoint, true
+                        ));
+                        $this->fireEvent(RequestFailed::class, fn () => new RequestFailed(
+                            (string) $method, (string) $endpoint, null, $exception->getMessage(), $exception
+                        ));
+
+                        throw $exception;
                     }
 
                     $this->logger->warning('TeamleaderSDK: Rate limit window full, waiting', [
@@ -481,6 +527,13 @@ class TeamleaderSDK
                     ]);
 
                     usleep($delayMs * 1000); // Convert to microseconds
+                    $waitedMs += $delayMs;
+                }
+
+                if ($waitedMs > 0) {
+                    $this->fireEvent(RateLimitWaited::class, fn () => new RateLimitWaited(
+                        (int) $waitedMs, (float) $rateLimitCheck['usage_percentage'], (string) $endpoint
+                    ));
                 }
 
                 // Record the request before dispatching it.
@@ -533,8 +586,11 @@ class TeamleaderSDK
             'endpoint' => $endpoint,
             'api_version' => $this->apiVersion,
             'timestamp' => microtime(true),
-            'request_data' => $data,
         ];
+
+        $this->fireEvent(RequestSending::class, fn () => new RequestSending(
+            (string) $method, (string) $endpoint, (array) $this->sanitizeForLog((array) $data)
+        ));
 
         try {
             $fullUrl = $this->baseUrl.'/'.ltrim($endpoint, '/');
@@ -548,16 +604,33 @@ class TeamleaderSDK
             $callDetails['status_code'] = $statusCode;
             $callDetails['response_size'] = strlen($responseBody);
             $callDetails['duration'] = microtime(true) - $callDetails['timestamp'];
-            $callDetails['headers'] = $responseHeaders;
             self::$apiCalls[] = $callDetails;
 
-            // Update rate limiting state from response headers
-            $this->rateLimiter->updateFromResponseHeaders($responseHeaders);
+            if (count(self::$apiCalls) > self::API_CALL_LOG_LIMIT) {
+                self::$apiCalls = array_slice(self::$apiCalls, -self::API_CALL_LOG_LIMIT);
+            }
 
+            $this->fireEvent(ResponseReceived::class, fn () => new ResponseReceived(
+                (string) $method,
+                (string) $endpoint,
+                $statusCode,
+                round($callDetails['duration'] * 1000, 1),
+                is_array($responseData) ? (array) $this->sanitizeForLog($responseData) : null
+            ));
+
+            // Update rate limiting state from response headers — only when the
+            // limiter is on. Until v3.0 this, and the statistics in the log line
+            // below, reached Redis on every response even with rate limiting
+            // disabled, so an application without Redis failed on every call.
+            if ((bool) config('teamleader.rate_limiting.enabled', true)) {
+                $this->rateLimiter->updateFromResponseHeaders($responseHeaders);
+            }
+
+            // No limiter statistics here: they cost several Redis reads per
+            // request for a debug line. getRateLimitStats() returns them on demand.
             $this->logger->debug('TeamleaderSDK: API response', [
                 'status_code' => $statusCode,
                 'response_body_length' => strlen($responseBody),
-                'rate_limit_stats' => $this->rateLimiter->getStatistics(),
             ]);
 
             // Success responses
@@ -590,6 +663,10 @@ class TeamleaderSDK
             $errorMessages = $this->parseTeamleaderErrors($responseData);
             $primaryError = ! empty($errorMessages) ? $errorMessages[0] : 'Unknown error';
 
+            $this->fireEvent(RequestFailed::class, fn () => new RequestFailed(
+                (string) $method, (string) $endpoint, $statusCode, (string) $primaryError
+            ));
+
             return [
                 'error' => true,
                 'status_code' => $statusCode,
@@ -600,6 +677,11 @@ class TeamleaderSDK
             ];
 
         } catch (GuzzleException $e) {
+            // Before the handler, which throws when throw_exceptions is on
+            $this->fireEvent(RequestFailed::class, fn () => new RequestFailed(
+                (string) $method, (string) $endpoint, null, $e->getMessage(), $e
+            ));
+
             $this->errorHandler->handleGuzzleException($e, "{$method} {$endpoint}");
 
             return [

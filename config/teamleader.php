@@ -94,8 +94,10 @@ return [
     | Logging Configuration
     |--------------------------------------------------------------------------
     */
-    // Not read yet: these are wired up in v3.0 together with the SDK events.
-    // Tokens and secrets are always redacted from SDK log output.
+    // channel: where SDK logs go; null uses your default channel.
+    // log_requests / log_responses: write every request / response body to
+    // that channel at debug level. Off by default — bodies hold your
+    // customers' data. Tokens and secrets are always redacted.
     'logging' => [
         'channel' => env('TEAMLEADER_LOG_CHANNEL'),
         'log_requests' => env('TEAMLEADER_LOG_REQUESTS', false),

@@ -94,6 +94,17 @@ for them before upgrading — a value you set long ago takes effect:
 `logging.channel` defaults to `null` (your default channel) instead of
 `config('logging.default')`.
 
+### Logging and the call log
+
+- `TEAMLEADER_LOG_CHANNEL`, `TEAMLEADER_LOG_REQUESTS` and
+  `TEAMLEADER_LOG_RESPONSES` now work. If you set them in 2.x, where they did
+  nothing, check the values: `LOG_REQUESTS=true` writes every request body to
+  your log. See [Events and Logging](../guides/events-and-logging.md).
+- `TeamleaderSDK::getApiCalls()` keeps the last 100 calls instead of every call
+  since the process started, and no longer includes `request_data` or
+  `headers`. Listen to `RequestSending` / `ResponseReceived` if you used them.
+- The refresh token is no longer logged, not even its first 20 characters.
+
 ### Health and validation commands
 
 - `teamleader:health` checks your default cache store — the one tokens live

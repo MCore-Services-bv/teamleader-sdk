@@ -23,13 +23,12 @@ three OAuth credentials are required.
 | `TEAMLEADER_RATE_LIMIT_REDIS_CONNECTION` | `default` | Redis connection used by the limiter |
 | `TEAMLEADER_RATE_LIMIT_MAX_WAIT_MS` | `5000` | Longest wait for a free slot before throwing |
 | `TEAMLEADER_VALIDATE_ON_BOOT` | `false` | Validate the configuration when the app boots |
+| `TEAMLEADER_LOG_CHANNEL` | — | Log channel for SDK output; unset uses your default channel |
+| `TEAMLEADER_LOG_REQUESTS` | `false` | Log every request body at debug level |
+| `TEAMLEADER_LOG_RESPONSES` | `false` | Log every response body at debug level |
 
-{% hint style="info" %}
-**`TEAMLEADER_LOG_CHANNEL`, `TEAMLEADER_LOG_REQUESTS` and
-`TEAMLEADER_LOG_RESPONSES` are not read yet.** They are in the published file
-because v3.0 wires them up together with the SDK's events. Until then the SDK
-logs through your application's default logger, with tokens always redacted.
-{% endhint %}
+See [Events and Logging](../guides/events-and-logging.md). Tokens and secrets
+are redacted from all SDK log output.
 
 The SDK does not cache API responses, and include validation cannot be turned
 off: both are by design. Tokens are cached in your application's default cache

@@ -43,13 +43,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added (3.x branch)
 
+- **Events.** `RequestSending`, `ResponseReceived`, `RequestFailed`,
+  `RateLimitWaited`, `TokenRefreshed` and `TokenRefreshFailed`, in
+  `McoreServices\TeamleaderSDK\Events`. Bodies are sanitised and no event
+  carries a token. An event with no listener is not built. See the new
+  *Events and Logging* guide.
+- **`logging.channel`, `logging.log_requests` and `logging.log_responses`**
+  work: the channel receives all SDK output (including `TokenService`'s), and
+  the two flags register a listener that logs bodies at debug level.
 - `McoreServices\TeamleaderSDK\Support\ResourceCatalog`: every registered
   resource with its endpoints, filters, sort fields, includes and
   capabilities, read by reflection without constructing anything. The spec
   audit and the generated API reference already used it (as the test-only
   `SdkInventory`); it moved to `src/` for the CLI.
 
+### Fixed (3.x branch)
+
+- **With rate limiting disabled, every successful request still called
+  Redis** — to store the rate-limit headers and to put limiter statistics in a
+  debug log line — so an application without Redis failed on every call. The
+  headers are only stored when rate limiting is on, and the statistics are no
+  longer computed per request (`getRateLimitStats()` still returns them).
+
+### Security (3.x branch)
+
+- The first 20 characters of the refresh token were logged at info level on
+  every refresh. Nothing from the token is logged now.
+- A token response without an access token was quoted in full in the
+  exception message, which could include a refresh token. It now lists the
+  keys received.
+
 ### Changed (3.x branch)
+
+- `TeamleaderSDK::getApiCalls()` is bounded to the last 100 calls and no longer
+  stores request bodies or response headers. It grew for the life of the
+  process — without limit in a queue worker — and held personal data.
+- The rate limiter logs through the SDK's logger when the SDK creates it;
+  before, it logged nowhere.
 
 - **`base_url`, `auth_url` and `api.retry_delay` are read.** They were in the
   published config and documented, but the hosts were hard-coded — the token

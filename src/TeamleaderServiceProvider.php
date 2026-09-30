@@ -3,8 +3,12 @@
 namespace McoreServices\TeamleaderSDK;
 
 use Exception;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
+use McoreServices\TeamleaderSDK\Events\RequestSending;
+use McoreServices\TeamleaderSDK\Events\ResponseReceived;
+use McoreServices\TeamleaderSDK\Listeners\LogApiTraffic;
 use McoreServices\TeamleaderSDK\Services\ConfigurationValidator;
 
 class TeamleaderServiceProvider extends ServiceProvider
@@ -46,8 +50,27 @@ class TeamleaderServiceProvider extends ServiceProvider
             ]);
         }
 
+        $this->registerTrafficLogging();
+
         // Validate configuration on boot (if enabled)
         $this->validateConfigurationOnBoot();
+    }
+
+    /**
+     * Log request and response bodies when the configuration asks for it.
+     *
+     * Implemented as event listeners, so logging and any listener of your own
+     * see exactly the same (sanitised) data.
+     */
+    protected function registerTrafficLogging(): void
+    {
+        if (config('teamleader.logging.log_requests')) {
+            Event::listen(RequestSending::class, [LogApiTraffic::class, 'requestSending']);
+        }
+
+        if (config('teamleader.logging.log_responses')) {
+            Event::listen(ResponseReceived::class, [LogApiTraffic::class, 'responseReceived']);
+        }
     }
 
     /**
