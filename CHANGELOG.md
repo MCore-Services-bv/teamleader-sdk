@@ -15,6 +15,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.3.2] - 2026-09-30
+
+### Fixed
+
+- **`docs:check` failed on PHP 8.5 only.** The reference generator rendered
+  method signatures from reflection, and PHP 8.5 reports a `self` return type
+  differently from 8.2 – 8.4. Six pages with fluent `with…(): self` methods
+  (contacts, deals, quotations, products, meetings, time tracking) therefore
+  came out differently on 8.5, and `ReferenceDocsTest` failed in the 8.5 CI
+  jobs while passing everywhere else. `self`, `static` and `parent` — and the
+  declaring class's own name — are now rendered as `self` / `static` /
+  `parent` on every version. A regression test covers it.
+
+### Changed
+
+- The documentation is live at
+  [teamleader-sdk.mcore-services.dev](https://teamleader-sdk.mcore-services.dev/).
+  README (plus a docs badge), CONTRIBUTING and `docs/README.md` link to it,
+  and `composer.json` declares it as `homepage` and `support.docs`, so
+  Packagist shows it too.
+
+---
+
 ## [2.3.1] - 2026-09-30
 
 **Documentation release.** The documentation moves from the GitHub wiki into

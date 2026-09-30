@@ -445,7 +445,7 @@ class YourService
 ## 📚 Documentation
 
 Documentation lives in `docs/` and is published to GitBook from `main` through
-Git Sync. It has two parts:
+Git Sync, at [teamleader-sdk.mcore-services.dev](https://teamleader-sdk.mcore-services.dev/). It has two parts:
 
 - **Guides** (`docs/getting-started`, `docs/guides`, `docs/project`) are written
   by hand. Change them in the same PR as the behaviour they describe.
@@ -493,7 +493,7 @@ php artisan teamleader:export-uuids
 
 ## 🤔 Questions?
 
-- **Documentation**: [docs/](https://github.com/MCore-Services-bv/teamleader-sdk/tree/main/docs)
+- **Documentation**: [teamleader-sdk.mcore-services.dev](https://teamleader-sdk.mcore-services.dev/)
 - **Issues**: [Existing issues](https://github.com/MCore-Services-bv/teamleader-sdk/issues)
 - **Discussions**: [Start a discussion](https://github.com/MCore-Services-bv/teamleader-sdk/discussions)
 - **Email**: help@mcore-services.be

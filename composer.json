@@ -9,6 +9,13 @@
             "email": "help@mcore-services.be"
         }
     ],
+    "homepage": "https://teamleader-sdk.mcore-services.dev/",
+    "support": {
+        "docs": "https://teamleader-sdk.mcore-services.dev/",
+        "issues": "https://github.com/MCore-Services-bv/teamleader-sdk/issues",
+        "source": "https://github.com/MCore-Services-bv/teamleader-sdk",
+        "email": "help@mcore-services.be"
+    },
     "require": {
         "php": "^8.2",
         "guzzlehttp/guzzle": "^7.0",

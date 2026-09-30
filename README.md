@@ -6,6 +6,7 @@
 [![Laravel Version](https://img.shields.io/badge/Laravel-12%20%7C%2013-blue)](https://laravel.com)
 [![License](https://img.shields.io/github/license/MCore-Services-bv/teamleader-sdk)](https://github.com/MCore-Services-bv/teamleader-sdk/blob/main/LICENSE.md)
 [![Tests](https://github.com/MCore-Services-bv/teamleader-sdk/actions/workflows/tests.yml/badge.svg)](https://github.com/MCore-Services-bv/teamleader-sdk/actions/workflows/tests.yml)
+[![Docs](https://img.shields.io/badge/docs-teamleader--sdk.mcore--services.dev-blue)](https://teamleader-sdk.mcore-services.dev/)
 [![Teamleader API spec](https://img.shields.io/badge/Teamleader%20API%20spec-1.221.0-2ea44f)](#-specification-parity)
 
 A Laravel package for the Teamleader Focus API. Handles OAuth token management,
@@ -14,7 +15,7 @@ rate limiting, and around 70 API resources behind a consistent interface.
 **Quick Links:**
 - 📦 **Packagist:** [packagist.org/packages/mcore-services/teamleader-sdk](https://packagist.org/packages/mcore-services/teamleader-sdk)
 - 💻 **GitHub:** [github.com/MCore-Services-bv/teamleader-sdk](https://github.com/MCore-Services-bv/teamleader-sdk)
-- 📖 **Documentation:** [docs/](https://github.com/MCore-Services-bv/teamleader-sdk/tree/main/docs) — guides, and an API reference generated from the code
+- 📖 **Documentation:** [teamleader-sdk.mcore-services.dev](https://teamleader-sdk.mcore-services.dev/) — guides, and an API reference generated from the code
 
 ---
 
@@ -516,7 +517,7 @@ The MIT License (MIT). See [LICENSE.md](LICENSE.md).
 
 ## 💬 Support
 
-- **Documentation**: [docs/](https://github.com/MCore-Services-bv/teamleader-sdk/tree/main/docs)
+- **Documentation**: [teamleader-sdk.mcore-services.dev](https://teamleader-sdk.mcore-services.dev/)
 - **Email**: help@mcore-services.be
 - **Issues**: [GitHub Issues](https://github.com/MCore-Services-bv/teamleader-sdk/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/MCore-Services-bv/teamleader-sdk/discussions)
