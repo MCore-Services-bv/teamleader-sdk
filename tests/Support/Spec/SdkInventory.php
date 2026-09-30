@@ -99,6 +99,9 @@ final class SdkInventory
             'filters' => $this->names($defaults['commonFilters'] ?? []),
             'sort_fields' => $this->names($defaults['availableSortFields'] ?? []),
             'includes' => $defaults['availableIncludes'] ?? [],
+            // Resources whose .info endpoint takes a different include set
+            // from .list declare it separately; null means "same as list".
+            'info_includes' => $defaults['infoIncludes'] ?? null,
             'includes_is_list' => array_is_list($defaults['availableIncludes'] ?? []),
             'usage_examples' => $defaults['usageExamples'] ?? [],
             'public_methods' => $this->publicMethods($reflection),

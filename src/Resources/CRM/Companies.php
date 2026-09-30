@@ -4,9 +4,44 @@ namespace McoreServices\TeamleaderSDK\Resources\CRM;
 
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class Companies extends Resource
 {
+    use ValidatesWritePayload;
+
+    /**
+     * Body fields companies.add accepts. companies.update accepts the same
+     * set plus `id`. From @teamleader/focus-api-specification v1.221.0.
+     */
+    public const WRITE_FIELDS = [
+        'name', 'business_type_id', 'vat_number', 'national_identification_number',
+        'emails', 'telephones', 'website', 'addresses', 'iban', 'bic', 'language',
+        'preferred_currency', 'price_list_id', 'responsible_user_id', 'remarks',
+        'tags', 'custom_fields', 'marketing_mails_consent',
+    ];
+
+    /** `emails[].type` on companies.add / companies.update */
+    public const EMAIL_TYPES = ['primary', 'invoicing'];
+
+    /** `telephones[].type` on companies.add / companies.update */
+    public const TELEPHONE_TYPES = ['phone', 'fax'];
+
+    /** `addresses[].type` on companies.add / companies.update */
+    public const ADDRESS_TYPES = ['primary', 'invoicing', 'delivery', 'visiting'];
+
+    /** `preferred_currency` on companies.add / companies.update */
+    public const CURRENCIES = [
+        'BAM', 'CAD', 'CHF', 'CLP', 'CNY', 'COP', 'CZK', 'DKK', 'EUR', 'GBP', 'INR', 'ISK',
+        'JPY', 'MAD', 'MXN', 'NOK', 'PEN', 'PLN', 'RON', 'SEK', 'TRY', 'USD', 'ZAR',
+    ];
+
+    /** `filter.email.type` on companies.list — only primary addresses are searchable */
+    public const FILTER_EMAIL_TYPES = ['primary'];
+
+    /** `filter.status` on companies.list */
+    public const STATUSES = ['active', 'deactivated'];
+
     protected string $description = 'Manage companies in Teamleader Focus CRM';
 
     // Resource capabilities - Companies support full CRUD operations
@@ -29,7 +64,7 @@ class Companies extends Resource
     /**
      * Includes accepted by companies.list.
      *
-     * Verified against @teamleader/focus-api-specification v1.197.0. Only
+     * Verified against @teamleader/focus-api-specification v1.221.0. Only
      * `custom_fields` exists for list.
      *
      * Until v2.1.2 this declared seven values — addresses, business_type,
@@ -67,17 +102,35 @@ class Companies extends Resource
      */
     protected array $defaultIncludes = [];
 
-    // Common filters based on API documentation
+    /**
+     * Filters accepted by companies.list — the complete set the specification
+     * declares. Any other key throws; the API would ignore it and return every
+     * company.
+     */
     protected array $commonFilters = [
-        'ids' => 'Array of company UUIDs',
-        'email' => 'Email address (requires type and email fields)',
+        'ids' => 'Array of company UUIDs (a single UUID string is wrapped)',
+        'email' => 'Email address — a string, or ["type" => "primary", "email" => ...]. Only primary is searchable',
         'vat_number' => 'VAT number',
         'national_identification_number' => 'National identification number',
-        'term' => 'Search term (searches name, VAT, emails, phones)',
-        'tags' => 'Array of tag names',
+        'term' => 'Search term (searches name, VAT number, emails and telephones)',
+        'tags' => 'Array of tag names — companies coupled to all given tags',
         'updated_since' => 'ISO 8601 datetime',
-        'status' => 'Company status (active, deactivated)',
+        'status' => 'active or deactivated (a single value, not an array)',
         'marketing_mails_consent' => 'Marketing mails consent (boolean)',
+    ];
+
+    /**
+     * Sort fields accepted by companies.list. Order may be asc or desc.
+     *
+     * Declared here (rather than only returned by getAvailableSortFields())
+     * because this is the map normaliseSort() validates against. Before
+     * v2.2.4 no sort field was validated: an unsupported one was sent, ignored
+     * by the API, and the list came back in default order.
+     */
+    protected array $availableSortFields = [
+        'name' => 'Company name',
+        'added_at' => 'Date the company was added',
+        'updated_at' => 'Date the company was last updated',
     ];
 
     /**
@@ -92,19 +145,34 @@ class Companies extends Resource
     }
 
     /**
-     * List companies with enhanced filtering and sorting
+     * List companies
+     *
+     * @param  array  $filters  See $commonFilters; unknown keys throw
+     * @param  array  $options  page_size, page_number, sort, sort_order, include
+     *
+     * @throws InvalidArgumentException On an unknown filter, sort field or include
      */
     public function list(array $filters = [], array $options = []): array
     {
-        $params = $this->buildQueryParams(
-            [],
-            $filters,
-            $options['sort'] ?? null,
-            $options['sort_order'] ?? 'asc',
-            $options['page_size'] ?? 20,
-            $options['page_number'] ?? 1,
-            $options['include'] ?? null
+        // Fluent includes are consumed before validating, so a rejected call
+        // cannot leak them into the next one.
+        $pending = $this->getPendingIncludes();
+        $this->applyPendingIncludes([]);
+
+        $includes = $this->assertIncludes(
+            [...(array) ($this->resolveIncludesOption($options) ?? []), ...$pending],
+            $this->availableIncludes,
+            'companies.list'
         );
+
+        $params = $this->applyFilters([], $filters);
+
+        if (! empty($options['sort'])) {
+            $params['sort'] = $this->normaliseSort($options['sort'], $options['sort_order'] ?? 'asc');
+        }
+
+        $params = $this->applyPagination($params, $options['page_size'] ?? 20, $options['page_number'] ?? 1);
+        $params = $this->applyIncludes($params, $includes);
 
         return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
@@ -226,24 +294,16 @@ class Companies extends Resource
      */
     protected function validateInfoIncludes($includes): void
     {
-        $requested = is_array($includes)
-            ? $includes
-            : array_map('trim', explode(',', (string) $includes));
+        try {
+            $this->assertIncludes($includes, $this->infoIncludes, 'companies.info');
+        } catch (InvalidArgumentException $e) {
+            $requested = is_array($includes) ? $includes : explode(',', (string) $includes);
 
-        foreach ($requested as $include) {
-            if (in_array($include, $this->infoIncludes, true)) {
-                continue;
-            }
-
-            $message = "Invalid include for companies.info: {$include}. Accepts: "
-                .implode(', ', $this->infoIncludes).'.';
-
-            if ($include === 'custom_fields') {
-                $message .= ' custom_fields is a companies.list include; companies.info '
-                    .'returns custom fields automatically.';
-            }
-
-            throw new InvalidArgumentException($message);
+            throw new InvalidArgumentException(
+                $e->getMessage().(in_array('custom_fields', array_map('trim', $requested), true)
+                    ? ' custom_fields is a companies.list include; companies.info returns custom fields automatically.'
+                    : '')
+            );
         }
     }
 
@@ -259,14 +319,30 @@ class Companies extends Resource
 
     /**
      * Validate company data before sending to API
+     *
+     * Checked against companies.add / companies.update in the specification:
+     * `name` is required on create; unknown top-level fields throw (the API
+     * would drop them and report success); enum values are checked for email,
+     * telephone and address types and the preferred currency.
+     *
+     * Null is preserved — it tells the API to clear the field, e.g.
+     * `price_list_id => null`. Empty strings and empty arrays are stripped.
+     *
+     * @throws InvalidArgumentException
      */
     protected function validateCompanyData(array $data, string $operation = 'create'): array
     {
-        if ($operation === 'create') {
-            if (empty($data['name'])) {
-                throw new InvalidArgumentException('Company name is required');
-            }
+        $endpoint = $operation === 'create' ? 'companies.add' : 'companies.update';
+
+        if ($operation === 'create' && empty($data['name'])) {
+            throw new InvalidArgumentException('Company name is required');
         }
+
+        $this->rejectUnknownFields(
+            $data,
+            $operation === 'create' ? self::WRITE_FIELDS : [...self::WRITE_FIELDS, 'id'],
+            $endpoint
+        );
 
         // Strip empty strings and empty arrays, but preserve null — null signals a field clear to the API
         $data = array_filter($data, function ($value, $key) {
@@ -279,6 +355,11 @@ class Companies extends Resource
 
             return $value !== '' && $value !== [];
         }, ARRAY_FILTER_USE_BOTH);
+
+        $this->assertItemEnum($data, 'emails', 'type', self::EMAIL_TYPES, $endpoint);
+        $this->assertItemEnum($data, 'telephones', 'type', self::TELEPHONE_TYPES, $endpoint);
+        $this->assertItemEnum($data, 'addresses', 'type', self::ADDRESS_TYPES, $endpoint);
+        $this->assertEnum($data['preferred_currency'] ?? null, self::CURRENCIES, 'preferred_currency', $endpoint);
 
         if (isset($data['emails']) && is_array($data['emails'])) {
             foreach ($data['emails'] as $email) {
@@ -446,11 +527,7 @@ class Companies extends Resource
      */
     public function getAvailableSortFields(): array
     {
-        return [
-            'added_at' => 'Date company was added',
-            'updated_at' => 'Date company was last updated',
-            'name' => 'Company name',
-        ];
+        return $this->availableSortFields;
     }
 
     /**
@@ -471,23 +548,25 @@ class Companies extends Resource
 
             switch ($key) {
                 case 'ids':
-                    if (is_array($value)) {
-                        $apiFilters['ids'] = $value;
-                    }
+                    $apiFilters['ids'] = is_array($value) ? array_values($value) : [$value];
                     break;
 
                 case 'email':
-                    if (is_string($value)) {
-                        $apiFilters['email'] = [
-                            'type' => 'primary',
-                            'email' => $value,
-                        ];
-                    } elseif (is_array($value) && isset($value['email'])) {
-                        $apiFilters['email'] = [
-                            'type' => $value['type'] ?? 'primary',
-                            'email' => $value['email'],
-                        ];
+                    $email = is_array($value) ? $value : ['email' => $value];
+
+                    if (! isset($email['email']) || ! is_string($email['email'])) {
+                        throw new InvalidArgumentException(
+                            'The email filter takes an address string, or ["type" => "primary", "email" => "..."].'
+                        );
                     }
+
+                    $type = $email['type'] ?? 'primary';
+                    $this->assertEnum($type, self::FILTER_EMAIL_TYPES, 'filter.email.type', 'companies.list');
+
+                    $apiFilters['email'] = [
+                        'type' => $type,
+                        'email' => $email['email'],
+                    ];
                     break;
 
                 case 'vat_number':
@@ -504,7 +583,7 @@ class Companies extends Resource
 
                 case 'tags':
                     if (is_array($value)) {
-                        $apiFilters['tags'] = $value;
+                        $apiFilters['tags'] = array_values($value);
                     } elseif (is_string($value)) {
                         $apiFilters['tags'] = array_map('trim', explode(',', $value));
                     }
@@ -515,11 +594,18 @@ class Companies extends Resource
                     break;
 
                 case 'status':
+                    // The API declares a single string. Before v2.2.4 an array was
+                    // silently reduced to its first element, so ['active',
+                    // 'deactivated'] quietly returned active companies only.
                     if (is_array($value)) {
-                        $apiFilters['status'] = $value[0];
-                    } else {
-                        $apiFilters['status'] = $value;
+                        throw new InvalidArgumentException(
+                            'companies.list filters on one status at a time: pass "active" or "deactivated", '
+                            .'not an array. Omit the filter to get both.'
+                        );
                     }
+
+                    $this->assertEnum($value, self::STATUSES, 'filter.status', 'companies.list');
+                    $apiFilters['status'] = $value;
                     break;
 
                 case 'marketing_mails_consent':
