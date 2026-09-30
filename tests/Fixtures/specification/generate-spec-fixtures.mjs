@@ -53,7 +53,12 @@ const spec = yaml.load(
 
 // The dereferenced spec still uses allOf, both to attach an `example` block and
 // to mark a $ref'd object nullable. Merge the branches into one schema.
-function flatten(schema) {
+//
+// With `deep`, each allOf branch is itself resolved through branches(), so a
+// oneOf nested inside an allOf (expected_payment_method: allOf[oneOf[...]])
+// is merged too. Request-side extraction uses that; the response field map
+// does not, so polymorphic response fields stay visibly `unknown`.
+function flatten(schema, deep = false) {
     if (!schema || typeof schema !== 'object') {
         return {};
     }
@@ -66,7 +71,7 @@ function flatten(schema) {
     const required = new Set();
 
     for (const branch of schema.allOf) {
-        const resolved = flatten(branch);
+        const resolved = deep ? branches(branch) : flatten(branch);
         merged.type = resolved.type ?? merged.type;
         merged.items = resolved.items ?? merged.items;
         merged.enum = resolved.enum ?? merged.enum;
@@ -93,7 +98,7 @@ function flatten(schema) {
 // oneOf / anyOf branches (used for polymorphic filters such as `customer`)
 // are merged property-wise so every key any branch accepts is visible.
 function branches(schema) {
-    const node = flatten(schema);
+    const node = flatten(schema, true);
     const alternatives = node.oneOf ?? node.anyOf;
 
     if (!Array.isArray(alternatives)) {
@@ -104,9 +109,22 @@ function branches(schema) {
     const enums = new Set(node.enum ?? []);
 
     for (const alternative of alternatives) {
-        const resolved = flatten(alternative);
+        const resolved = branches(alternative);
         merged.type = merged.type ?? resolved.type;
-        Object.assign(merged.properties, resolved.properties ?? {});
+
+        if (resolved.items) {
+            merged.items = merged.items ? { anyOf: [merged.items, resolved.items] } : resolved.items;
+        }
+
+        // A property several alternatives declare (billing_cycle.periodicity:
+        // `unit` is week in one branch, month in another, year in the third)
+        // is kept as an anyOf of every version, so its enum is the union
+        // rather than whichever branch happened to come last.
+        for (const [name, child] of Object.entries(resolved.properties ?? {})) {
+            merged.properties[name] = name in merged.properties
+                ? { anyOf: [merged.properties[name], child] }
+                : child;
+        }
         (resolved.enum ?? []).forEach((value) => enums.add(value));
         if (resolved.nullable) {
             merged.nullable = true;

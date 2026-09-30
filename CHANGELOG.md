@@ -8,13 +8,98 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Category-by-category spec audit: Invoicing, Expenses, Projects,
+- Category-by-category spec audit: Expenses, Projects,
   Tasks, TimeTracking, Calendar, Tickets, General, Products, Planning, Files,
   Templates, Other — one patch release each, with the matching wiki pages
 - Bulk operations helper for processing large datasets
 - Enhanced caching strategies with tag-based invalidation
 - Laravel Pulse integration for monitoring
 - CLI tool for quick API exploration
+
+---
+
+## [2.2.7] - 2026-09-30
+
+The Invoicing category — Invoices, Credit Notes, Subscriptions, Tax Rates,
+Withholding Tax Rates, Payment Methods, Payment Terms, Commercial Discounts —
+brought in line with `@teamleader/focus-api-specification` **1.221.0**.
+
+Two crashes, three methods that silently returned everything, and several
+client-side checks that were **stricter** than the API and blocked valid
+calls. As before, values the API would silently ignore now throw.
+
+### Fixed — crashes
+
+- **`Subscriptions::list()` with a field-name sort was a `TypeError`.**
+  `['sort' => 'title']` reached `array_map()` as a string — the
+  `Projects::buildSort()` fatal of v2.2.2, on another resource.
+- **`Invoices::list()` and `TaxRates::list()` with a field-name sort** made
+  `foreach()` iterate a string: a warning, and no sort sent (Invoices) or the
+  string sent where the API expects objects (TaxRates). `sort_order` was
+  ignored on all three. All now go through `normaliseSort()`, which accepts a
+  name, a list of names or sort objects, and validates the field.
+
+### Fixed — silently returned everything
+
+- **`Creditnotes::paid()` and `unpaid()`** set an internal `_paid` flag that
+  `buildFilters()` stripped, so both returned every credit note. There is no
+  paid filter on `creditNotes.list`; both now throw pointing at client-side
+  filtering on `data[].paid`. Deprecated, removed in v3.0.
+- **`WithholdingTaxRates::list()` ignored its arguments.** The endpoint takes a
+  `department_id` filter; it is now sent, and `forDepartment()` is new.
+- **Unknown filter keys** were forwarded unchecked on Invoices, Credit Notes,
+  Subscriptions, Tax Rates and Payment Methods — the API ignores them and
+  returns every record. They now throw, via a new shared
+  `rejectUnknownFilters()` on the `ValidatesWritePayload` trait.
+- `status` given as a string was sent as a string on Subscriptions and Payment
+  Methods, where the API expects an array. It is wrapped and validated.
+
+### Fixed — checks stricter than the API
+
+- **`unit_price` was required on line items** (invoices, credit-partially,
+  subscriptions). The specification requires only `quantity`, `description`
+  and `tax_rate_id`; a product line can take the product's price. When
+  `unit_price` is given, `amount` and `tax: excluding` are still required.
+- **`Creditnotes::download()`** accepted only `pdf` and `ubl/e-fff`, rejecting
+  `ubl/peppol_bis_3` and `ubl/xrechnung` which the endpoint supports.
+
+### Fixed — checks the API makes that the SDK did not
+
+- **`Subscriptions::create()` did not require `department_id`**, which the API
+  requires.
+- **`sending_methods` must include `email`** when the action is
+  `book_and_send` — it is the fallback when Peppol or postal sending fails
+  (spec clarification, 2026-09-21). `sending_methods` is required for
+  `book_and_send` and rejected for `draft` / `book`.
+- **Billing cycle**: the allowed `period` depends on the unit (week 1–2; month
+  1, 2, 3, 4, 6; year 1–10) and `days_in_advance` is 0, 7, 14, 21 or 28.
+- **`Invoices::updateBooked()`** shared `update()`'s validator, so `currency`,
+  `discounts`, `delivery_date`, `document_template_id` and
+  `purchase_order_number` — which `invoices.updateBooked` does not accept — were
+  sent and dropped. Each write method now checks its own field list.
+- Unknown fields throw on `create()`, `update()` and `updateBooked()` for
+  Invoices and Subscriptions.
+- **`invoice_content`** (`goods`, `services`, `goods_and_services`, spec
+  2026-09-02) is enum-checked on invoices and subscriptions; also
+  `invoice_generation.payment_method` and `delivery_information.type`.
+
+### Fixed — includes
+
+- **Invoices** declared `$supportsSideloading = false` while `invoices.list` and
+  `invoices.info` both take `late_fees`, `totals.due_incasso_inclusive`,
+  `totals.fixed_late_fee` and `totals.interest`. All four are advertised and
+  validated on both methods; fluent `with()` works on `info()` too.
+
+### Changed — tooling
+
+- **The fixture generator merged `oneOf` alternatives wrongly.** A property
+  several alternatives declare kept only the last one's enum, so
+  `billing_cycle.periodicity.unit` read as `year` only. Alternatives are now
+  merged property by property (enums unioned, array items included), and a
+  `oneOf` nested in an `allOf` is resolved too — which surfaced the
+  `expected_payment_method.method` enum and two more on Meetings and
+  Quotations. Response fields are unaffected.
+- Tests: `InvoicingPayloadTest`, `InvoicingSpecContractTest`. Baseline 51 → 45.
 
 ---
 

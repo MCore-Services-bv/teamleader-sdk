@@ -3,9 +3,12 @@
 namespace McoreServices\TeamleaderSDK\Resources\Invoicing;
 
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class WithholdingTaxRates extends Resource
 {
+    use ValidatesWritePayload;
+
     protected string $description = 'Manage withholding tax rates in Teamleader Focus';
 
     // Resource capabilities - Withholding tax rates are read-only
@@ -21,7 +24,8 @@ class WithholdingTaxRates extends Resource
 
     protected bool $supportsSorting = false;
 
-    protected bool $supportsFiltering = false;
+    // withholdingTaxRates.list declares a department_id filter
+    protected bool $supportsFiltering = true;
 
     protected bool $supportsSideloading = false;
 
@@ -32,7 +36,9 @@ class WithholdingTaxRates extends Resource
     protected array $defaultIncludes = [];
 
     // Common filters - department_id appears to be optional based on docs
-    protected array $commonFilters = [];
+    protected array $commonFilters = [
+        'department_id' => 'Filter by department UUID',
+    ];
 
     // Usage examples specific to withholding tax rates
     protected array $usageExamples = [
@@ -63,14 +69,32 @@ class WithholdingTaxRates extends Resource
     }
 
     /**
-     * List all withholding tax rates
+     * List withholding tax rates
      *
-     * @param  array  $filters  Not used for withholding tax rates
-     * @param  array  $options  Not used for withholding tax rates
+     * `department_id` is the one filter. Before v2.2.7 list() ignored its
+     * arguments entirely, so a department filter returned every rate.
+     *
+     * @param  array  $filters  department_id
+     * @param  array  $options  Not supported — the endpoint has no paging or sorting
+     *
+     * @throws \InvalidArgumentException On an unknown filter, or any paging or sorting option
      */
     public function list(array $filters = [], array $options = []): array
     {
-        return $this->api->request('POST', $this->getBasePath().'.list', ['filter' => (object) []]);
+        $this->rejectUnsupportedListArguments([], $options);
+        $this->rejectUnknownFilters($filters, 'withholdingTaxRates.list');
+
+        $filter = array_filter($filters, fn ($value) => $value !== null && $value !== '');
+
+        return $this->api->request('POST', $this->getBasePath().'.list', ['filter' => $filter === [] ? (object) [] : $filter]);
+    }
+
+    /**
+     * List withholding tax rates for one department
+     */
+    public function forDepartment(string $departmentId): array
+    {
+        return $this->list(['department_id' => $departmentId]);
     }
 
     /**

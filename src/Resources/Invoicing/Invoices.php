@@ -4,6 +4,7 @@ namespace McoreServices\TeamleaderSDK\Resources\Invoicing;
 
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 /**
  * Invoices in Teamleader Focus.
@@ -30,6 +31,42 @@ use McoreServices\TeamleaderSDK\Resources\Resource;
  */
 class Invoices extends Resource
 {
+    use ValidatesWritePayload;
+
+    /** Body fields invoices.draft accepts. From specification v1.221.0. */
+    public const DRAFT_FIELDS = [
+        'invoicee', 'department_id', 'payment_term', 'grouped_lines', 'invoice_date', 'discounts',
+        'note', 'currency', 'purchase_order_number', 'project_id', 'quotation_id', 'expected_payment_method',
+        'custom_fields', 'document_template_id', 'delivery_date', 'invoice_content',
+    ];
+
+    /** Body fields invoices.update accepts, besides `id` */
+    public const UPDATE_FIELDS = [
+        'invoicee', 'payment_term', 'grouped_lines', 'invoice_date', 'discounts', 'note', 'currency',
+        'purchase_order_number', 'project_id', 'expected_payment_method', 'custom_fields',
+        'document_template_id', 'delivery_date', 'invoice_content',
+    ];
+
+    /**
+     * Body fields invoices.updateBooked accepts, besides `id` — a narrower set
+     * than invoices.update: no currency, discounts, delivery date, template or
+     * purchase order number on a booked invoice.
+     */
+    public const UPDATE_BOOKED_FIELDS = [
+        'invoicee', 'payment_term', 'grouped_lines', 'invoice_date', 'note', 'project_id',
+        'expected_payment_method', 'custom_fields', 'invoice_content',
+    ];
+
+    /**
+     * `invoice_content` on draft / update / updateBooked. Required by the API
+     * when the department and the customer's invoicing address are both in
+     * France and the account sends invoices via Peppol from France.
+     */
+    public const INVOICE_CONTENT = ['goods', 'services', 'goods_and_services'];
+
+    /** Includes accepted by invoices.list and invoices.info */
+    public const INCLUDES = ['late_fees', 'totals.due_incasso_inclusive', 'totals.fixed_late_fee', 'totals.interest'];
+
     protected string $description = 'Manage invoices in Teamleader Focus';
 
     // Resource capabilities
@@ -47,12 +84,16 @@ class Invoices extends Resource
 
     protected bool $supportsFiltering = true;
 
-    protected bool $supportsSideloading = false;
+    /**
+     * invoices.list and invoices.info both take the same four includes.
+     *
+     * Until v2.2.7 this was false while advertising `late_fees` only, and
+     * neither method checked what was requested: info() took any value and
+     * list() any value under either option key.
+     */
+    protected bool $supportsSideloading = true;
 
-    // Available includes for sideloading
-    protected array $availableIncludes = [
-        'late_fees',
-    ];
+    protected array $availableIncludes = self::INCLUDES;
 
     // Default includes
     protected array $defaultIncludes = [];
@@ -75,10 +116,11 @@ class Invoices extends Resource
         'customer' => 'Customer object with type and id',
     ];
 
-    // Available sort fields
+    // Sort fields accepted by invoices.list — a keyed map, so normaliseSort()
+    // validates against it
     protected array $availableSortFields = [
-        'invoice_number',
-        'invoice_date',
+        'invoice_number' => 'Invoice number',
+        'invoice_date' => 'Invoice date',
     ];
 
     // Valid invoice statuses
@@ -170,6 +212,10 @@ class Invoices extends Resource
             'description' => 'Get invoice with late fee calculations',
             'code' => '$invoice = $teamleader->invoices()->info(\'invoice-uuid\', \'late_fees\');',
         ],
+        'list_sorted' => [
+            'description' => 'Get the most recent invoices first',
+            'code' => '$invoices = $teamleader->invoices()->list([], [\'sort\' => \'invoice_date\', \'sort_order\' => \'desc\']);',
+        ],
         'book_invoice' => [
             'description' => 'Book a draft invoice',
             'code' => '$result = $teamleader->invoices()->book(\'invoice-uuid\', \'2024-01-15\');',
@@ -233,19 +279,22 @@ class Invoices extends Resource
      * document_template, delivery_date (nullable), peppol_status (nullable)
      *
      * @param  string  $id  Invoice UUID
-     * @param  mixed  $includes  Optional includes (e.g., 'late_fees')
+     * @param  mixed  $includes  late_fees, totals.due_incasso_inclusive, totals.fixed_late_fee, totals.interest
+     *
+     * @throws InvalidArgumentException When an include is not valid for this endpoint
      */
     public function info($id, $includes = null): array
     {
-        $params = ['id' => $id];
+        $pending = $this->getPendingIncludes();
+        $this->applyPendingIncludes([]);
 
-        if (! empty($includes)) {
-            $params['includes'] = is_array($includes)
-                ? implode(',', $includes)
-                : $includes;
-        }
+        $requested = $this->assertIncludes(
+            [...(array) ($includes ?? []), ...$pending],
+            $this->availableIncludes,
+            'invoices.info'
+        );
 
-        return $this->api->request('POST', $this->getBasePath().'.info', $params);
+        return $this->api->request('POST', $this->getBasePath().'.info', $this->applyIncludes(['id' => $id], $requested));
     }
 
     /**
@@ -294,6 +343,9 @@ class Invoices extends Resource
      */
     private function validateCreateData(array $data): void
     {
+        $this->rejectUnknownFields($data, self::DRAFT_FIELDS, 'invoices.draft');
+        $this->assertEnum($data['invoice_content'] ?? null, self::INVOICE_CONTENT, 'invoice_content', 'invoices.draft');
+
         // Required fields
         if (! isset($data['invoicee'])) {
             throw new InvalidArgumentException('invoicee is required');
@@ -430,16 +482,21 @@ class Invoices extends Resource
             throw new InvalidArgumentException('Line item description is required');
         }
 
-        if (! isset($item['unit_price']) || ! is_array($item['unit_price'])) {
-            throw new InvalidArgumentException('Line item unit_price is required and must be an object');
-        }
+        // unit_price is optional in the specification — a line for a product
+        // can take the product's price. Before v2.2.7 the SDK required it.
+        // When it is given, amount and tax are both required.
+        if (array_key_exists('unit_price', $item)) {
+            if (! is_array($item['unit_price'])) {
+                throw new InvalidArgumentException('Line item unit_price must be an object with amount and tax');
+            }
 
-        if (! isset($item['unit_price']['amount']) || ! is_numeric($item['unit_price']['amount'])) {
-            throw new InvalidArgumentException('Line item unit_price.amount is required and must be numeric');
-        }
+            if (! isset($item['unit_price']['amount']) || ! is_numeric($item['unit_price']['amount'])) {
+                throw new InvalidArgumentException('Line item unit_price.amount is required and must be numeric');
+            }
 
-        if (! isset($item['unit_price']['tax']) || $item['unit_price']['tax'] !== 'excluding') {
-            throw new InvalidArgumentException('Line item unit_price.tax is required and must be "excluding"');
+            if (! isset($item['unit_price']['tax']) || $item['unit_price']['tax'] !== 'excluding') {
+                throw new InvalidArgumentException('Line item unit_price.tax is required and must be "excluding"');
+            }
         }
 
         if (! isset($item['tax_rate_id']) || empty($item['tax_rate_id'])) {
@@ -515,7 +572,8 @@ class Invoices extends Resource
     public function update($id, array $data): array
     {
         $data['id'] = $id;
-        $this->validateUpdateData($data);
+        $this->rejectUnknownFields($data, [...self::UPDATE_FIELDS, 'id'], 'invoices.update');
+        $this->validateUpdateData($data, 'invoices.update');
 
         return $this->api->request('POST', $this->getBasePath().'.update', $data);
     }
@@ -525,8 +583,10 @@ class Invoices extends Resource
      *
      * @throws InvalidArgumentException
      */
-    private function validateUpdateData(array $data): void
+    private function validateUpdateData(array $data, string $endpoint = 'invoices.update'): void
     {
+        $this->assertEnum($data['invoice_content'] ?? null, self::INVOICE_CONTENT, 'invoice_content', $endpoint);
+
         // ID is required
         if (empty($data['id'])) {
             throw new InvalidArgumentException('Invoice ID is required for updates');
@@ -580,7 +640,13 @@ class Invoices extends Resource
     public function updateBooked(string $id, array $data): array
     {
         $data['id'] = $id;
-        $this->validateUpdateData($data);
+
+        // A narrower field set than update(). Before v2.2.7 both shared one
+        // validator, so currency, discounts, delivery_date, document_template_id
+        // or purchase_order_number sent to updateBooked() were dropped by the
+        // API without a word.
+        $this->rejectUnknownFields($data, [...self::UPDATE_BOOKED_FIELDS, 'id'], 'invoices.updateBooked');
+        $this->validateUpdateData($data, 'invoices.updateBooked');
 
         return $this->api->request('POST', $this->getBasePath().'.updateBooked', $data);
     }
@@ -660,6 +726,7 @@ class Invoices extends Resource
         }
 
         $this->validateGroupedLines($groupedLines);
+        $this->assertItemEnum($data, 'discounts', 'type', ['percentage'], 'invoices.creditPartially');
 
         return $this->api->request('POST', $this->getBasePath().'.creditPartially', $data);
     }
@@ -878,31 +945,58 @@ class Invoices extends Resource
             ];
         }
 
-        // Apply sorting
+        // Apply sorting — a field name, a list of names, or sort objects
         if (isset($options['sort'])) {
-            $params['sort'] = $this->buildSort($options['sort']);
+            $params['sort'] = $this->buildSort($options['sort'], $options['sort_order'] ?? 'desc');
         }
 
-        // Apply includes — accepts both the `include` and `includes` option keys
-        $params = $this->applyIncludes($params, $this->resolveIncludesOption($options));
+        // Apply includes — both option spellings plus fluent ones, checked
+        // against the endpoint's set
+        $pending = $this->getPendingIncludes();
+        $this->applyPendingIncludes([]);
+
+        $params = $this->applyIncludes($params, $this->assertIncludes(
+            [...(array) ($this->resolveIncludesOption($options) ?? []), ...$pending],
+            $this->availableIncludes,
+            'invoices.list'
+        ));
 
         return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
      * Build filters array for the API request
+     *
+     * Before v2.2.7 every key was forwarded unchecked, so an unknown filter —
+     * which the API ignores — returned every invoice.
+     *
+     * @throws InvalidArgumentException When a filter key, status or customer type is not supported
      */
     protected function buildFilters(array $filters): array
     {
+        $supported = array_keys($this->commonFilters);
+        $unknown = array_diff(array_keys($filters), $supported);
+
+        if ($unknown !== []) {
+            throw new InvalidArgumentException(
+                'Unsupported filter '.(count($unknown) > 1 ? 'keys' : 'key').' for invoices.list: '
+                .implode(', ', $unknown).'. Supported: '.implode(', ', $supported).'.'
+            );
+        }
+
         $apiFilters = [];
 
         foreach ($filters as $key => $value) {
+            if ($value === null) {
+                continue;
+            }
+
             if ($key === 'status') {
                 // status must be an array of valid statuses; coerce a lone string.
                 $statuses = is_array($value) ? $value : [$value];
 
                 foreach ($statuses as $status) {
-                    if (! in_array($status, $this->validStatuses)) {
+                    if (! in_array($status, $this->validStatuses, true)) {
                         throw new InvalidArgumentException(
                             "Invalid status '{$status}'. Must be one of: ".
                             implode(', ', $this->validStatuses)
@@ -911,6 +1005,15 @@ class Invoices extends Resource
                 }
 
                 $apiFilters[$key] = array_values($statuses);
+            } elseif ($key === 'ids') {
+                $apiFilters[$key] = is_array($value) ? array_values($value) : [$value];
+            } elseif ($key === 'customer') {
+                if (! is_array($value) || ! isset($value['type'], $value['id'])) {
+                    throw new InvalidArgumentException('The customer filter takes ["type" => "contact"|"company", "id" => "..."].');
+                }
+
+                $this->validateCustomerType($value['type']);
+                $apiFilters[$key] = ['type' => $value['type'], 'id' => $value['id']];
             } else {
                 $apiFilters[$key] = $value;
             }
@@ -921,31 +1024,19 @@ class Invoices extends Resource
 
     /**
      * Build sort array for the API request
+     *
+     * Before v2.2.7 this only understood a list of sort objects: a field name
+     * — `['sort' => 'invoice_date']`, the form every other resource takes —
+     * made foreach() iterate a string, raised a warning and sent no sort at
+     * all. sort_order was ignored too.
+     *
+     * @param  array|string  $sort  A field name, a list of names, or sort objects
+     *
+     * @throws InvalidArgumentException When a sort field or order is not supported
      */
     protected function buildSort($sort, string $order = 'desc'): array
     {
-        $apiSort = [];
-
-        foreach ($sort as $sortItem) {
-            if (! isset($sortItem['field'])) {
-                continue;
-            }
-
-            // Validate sort field
-            if (! in_array($sortItem['field'], $this->availableSortFields)) {
-                throw new InvalidArgumentException(
-                    "Invalid sort field '{$sortItem['field']}'. Available fields: ".
-                    implode(', ', $this->availableSortFields)
-                );
-            }
-
-            $apiSort[] = [
-                'field' => $sortItem['field'],
-                'order' => $sortItem['order'] ?? 'desc',
-            ];
-        }
-
-        return $apiSort;
+        return $this->normaliseSort($sort, $order);
     }
 
     /**

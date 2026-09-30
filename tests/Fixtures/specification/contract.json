@@ -6944,6 +6944,16 @@
             "services",
             "goods_and_services"
           ],
+          "expected_payment_method.method": [
+            "direct_debit",
+            "credit_card",
+            "cash",
+            "cheque",
+            "bankers_draft",
+            "bank_transfer",
+            "payment_card",
+            "sepa_direct_debit"
+          ],
           "custom_fields[].value.type": [
             "company",
             "contact",
@@ -7649,6 +7659,16 @@
           "discounts[].type": [
             "percentage"
           ],
+          "expected_payment_method.method": [
+            "direct_debit",
+            "credit_card",
+            "cash",
+            "cheque",
+            "bankers_draft",
+            "bank_transfer",
+            "payment_card",
+            "sepa_direct_debit"
+          ],
           "custom_fields[].value.type": [
             "company",
             "contact",
@@ -7720,6 +7740,16 @@
             "goods",
             "services",
             "goods_and_services"
+          ],
+          "expected_payment_method.method": [
+            "direct_debit",
+            "credit_card",
+            "cash",
+            "cheque",
+            "bankers_draft",
+            "bank_transfer",
+            "payment_card",
+            "sepa_direct_debit"
           ],
           "custom_fields[].value.type": [
             "company",
@@ -8309,6 +8339,10 @@
             "contact",
             "company"
           ],
+          "location.type": [
+            "contact",
+            "company"
+          ],
           "custom_fields[].value.type": [
             "company",
             "contact",
@@ -8369,6 +8403,10 @@
             "contact"
           ],
           "customer.type": [
+            "contact",
+            "company"
+          ],
+          "location.type": [
             "contact",
             "company"
           ],
@@ -14751,6 +14789,23 @@
             "USD",
             "ZAR"
           ],
+          "grouped_lines[].line_items[].periodicity.unit": [
+            "week",
+            "month",
+            "year"
+          ],
+          "grouped_lines[].line_items[].periodicity.period": [
+            1,
+            2,
+            3,
+            4,
+            6,
+            5,
+            7,
+            8,
+            9,
+            10
+          ],
           "discounts[].type": [
             "percentage"
           ],
@@ -15242,6 +15297,23 @@
             "TRY",
             "USD",
             "ZAR"
+          ],
+          "grouped_lines[].line_items[].periodicity.unit": [
+            "week",
+            "month",
+            "year"
+          ],
+          "grouped_lines[].line_items[].periodicity.period": [
+            1,
+            2,
+            3,
+            4,
+            6,
+            5,
+            7,
+            8,
+            9,
+            10
           ],
           "discounts[].type": [
             "percentage"
@@ -16178,6 +16250,8 @@
             "company"
           ],
           "billing_cycle.periodicity.unit": [
+            "week",
+            "month",
             "year"
           ],
           "billing_cycle.periodicity.period": [
@@ -16185,8 +16259,8 @@
             2,
             3,
             4,
-            5,
             6,
+            5,
             7,
             8,
             9,
@@ -16614,6 +16688,8 @@
         "includes_example": null,
         "enums": {
           "billing_cycle.periodicity.unit": [
+            "week",
+            "month",
             "year"
           ],
           "billing_cycle.periodicity.period": [
@@ -16621,8 +16697,8 @@
             2,
             3,
             4,
-            5,
             6,
+            5,
             7,
             8,
             9,

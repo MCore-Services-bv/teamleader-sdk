@@ -4,9 +4,47 @@ namespace McoreServices\TeamleaderSDK\Resources\Invoicing;
 
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class Subscriptions extends Resource
 {
+    use ValidatesWritePayload;
+
+    /** Body fields subscriptions.update accepts, besides `id`; subscriptions.create accepts the same set */
+    public const WRITE_FIELDS = [
+        'invoicee', 'department_id', 'deal_id', 'project_id', 'purchase_order_number', 'title', 'note',
+        'starts_on', 'ends_on', 'billing_cycle', 'payment_term', 'grouped_lines', 'invoice_generation',
+        'custom_fields', 'document_template_id', 'invoice_content', 'delivery_information',
+    ];
+
+    /** Fields subscriptions.create requires */
+    public const REQUIRED_ON_CREATE = [
+        'invoicee', 'department_id', 'starts_on', 'billing_cycle', 'title', 'grouped_lines',
+        'payment_term', 'invoice_generation',
+    ];
+
+    /**
+     * `billing_cycle.periodicity.period` per unit. The specification declares
+     * one alternative per unit, each with its own allowed periods.
+     */
+    public const PERIODS = [
+        'week' => [1, 2],
+        'month' => [1, 2, 3, 4, 6],
+        'year' => [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    ];
+
+    /** `billing_cycle.days_in_advance` */
+    public const DAYS_IN_ADVANCE = [0, 7, 14, 21, 28];
+
+    /** `invoice_content` — required for French departments sending via Peppol from France */
+    public const INVOICE_CONTENT = ['goods', 'services', 'goods_and_services'];
+
+    /** `invoice_generation.payment_method` */
+    public const INVOICE_PAYMENT_METHODS = ['direct_debit'];
+
+    /** `delivery_information.type` */
+    public const DELIVERY_TYPES = ['set_days_after_invoice_date'];
+
     protected string $description = 'Manage subscriptions in Teamleader Focus';
 
     // Resource capabilities based on API documentation
@@ -38,16 +76,16 @@ class Subscriptions extends Resource
         'invoice_id' => 'Find subscriptions that generated the given invoice',
         'deal_id' => 'Filter on subscriptions created from a deal',
         'department_id' => 'Filter on subscriptions of a specific department',
-        'customer.type' => 'Customer type (contact, company)',
-        'customer.id' => 'Customer UUID',
+        'customer' => 'Customer object: ["type" => "contact"|"company", "id" => "..."]',
         'status' => 'Array of statuses (active, deactivated)',
     ];
 
-    // Available sort fields
+    // Sort fields accepted by subscriptions.list — a keyed map, so
+    // normaliseSort() validates against it
     protected array $availableSortFields = [
-        'title',
-        'created_at',
-        'status',
+        'title' => 'Subscription title',
+        'created_at' => 'Creation date',
+        'status' => 'Status',
     ];
 
     // Valid billing cycle units
@@ -225,69 +263,132 @@ PHP,
     }
 
     /**
-     * Validate subscription data for create/update operations
+     * Validate subscription data against subscriptions.create / .update
+     *
+     * Before v2.2.7: `department_id` was not in the required list although the
+     * API requires it; the billing cycle's period and days_in_advance were not
+     * checked; `sending_methods` could omit `email` for book_and_send, which
+     * the API rejects; and unknown fields were sent and dropped.
+     *
+     * @throws InvalidArgumentException
      */
     protected function validateSubscriptionData(array $data, string $operation): void
     {
-        // Required fields for creation
-        if ($operation === 'create') {
-            $requiredFields = [
-                'invoicee',
-                'starts_on',
-                'billing_cycle',
-                'title',
-                'grouped_lines',
-                'payment_term',
-                'invoice_generation',
-            ];
+        $endpoint = "subscriptions.{$operation}";
 
-            foreach ($requiredFields as $field) {
+        $this->rejectUnknownFields(
+            $data,
+            $operation === 'create' ? self::WRITE_FIELDS : [...self::WRITE_FIELDS, 'id'],
+            $endpoint
+        );
+
+        if ($operation === 'create') {
+            foreach (self::REQUIRED_ON_CREATE as $field) {
                 if (! isset($data[$field])) {
                     throw new InvalidArgumentException("Field '{$field}' is required for subscription creation");
                 }
             }
 
-            // Validate invoicee structure
             if (! isset($data['invoicee']['customer']['type']) || ! isset($data['invoicee']['customer']['id'])) {
                 throw new InvalidArgumentException('Invoicee must include customer type and id');
             }
-
-            $this->validateCustomerType($data['invoicee']['customer']['type']);
         }
 
-        // Required field for update
         if ($operation === 'update' && ! isset($data['id'])) {
             throw new InvalidArgumentException('Subscription ID is required for update');
         }
 
-        // Validate customer type if provided
         if (isset($data['invoicee']['customer']['type'])) {
             $this->validateCustomerType($data['invoicee']['customer']['type']);
         }
 
-        // Validate billing cycle if provided
-        if (isset($data['billing_cycle']['periodicity']['unit'])) {
-            $this->validateBillingCycleUnit($data['billing_cycle']['periodicity']['unit']);
+        if (isset($data['billing_cycle'])) {
+            $this->validateBillingCycle($data['billing_cycle'], $endpoint);
         }
 
-        // Validate payment term type if provided
         if (isset($data['payment_term']['type'])) {
             $this->validatePaymentTermType($data['payment_term']['type']);
         }
 
-        // Validate invoice generation action if provided
-        if (isset($data['invoice_generation']['action'])) {
-            $this->validateInvoiceGenerationAction($data['invoice_generation']['action']);
+        if (isset($data['invoice_generation'])) {
+            $this->validateInvoiceGeneration($data['invoice_generation'], $endpoint);
         }
 
-        // Validate sending methods if provided (only used when action is 'book_and_send')
-        if (isset($data['invoice_generation']['sending_methods'])) {
-            $this->validateSendingMethods($data['invoice_generation']['sending_methods']);
-        }
-
-        // Validate grouped_lines structure if provided
         if (isset($data['grouped_lines'])) {
             $this->validateGroupedLines($data['grouped_lines']);
+        }
+
+        $this->assertEnum($data['invoice_content'] ?? null, self::INVOICE_CONTENT, 'invoice_content', $endpoint);
+
+        if (isset($data['delivery_information'])) {
+            $info = $data['delivery_information'];
+
+            if (! is_array($info) || ! isset($info['type'], $info['number_of_days_after_invoice_date'])) {
+                throw new InvalidArgumentException(
+                    'delivery_information needs type and number_of_days_after_invoice_date, or null to clear it'
+                );
+            }
+
+            $this->assertEnum($info['type'], self::DELIVERY_TYPES, 'delivery_information.type', $endpoint);
+        }
+    }
+
+    /**
+     * billing_cycle: periodicity {unit, period} and days_in_advance, both
+     * required. The allowed periods depend on the unit.
+     *
+     * @throws InvalidArgumentException
+     */
+    protected function validateBillingCycle(mixed $cycle, string $endpoint): void
+    {
+        if (! is_array($cycle) || ! isset($cycle['periodicity']) || ! array_key_exists('days_in_advance', $cycle)) {
+            throw new InvalidArgumentException('billing_cycle needs periodicity and days_in_advance');
+        }
+
+        $unit = $cycle['periodicity']['unit'] ?? null;
+        $period = $cycle['periodicity']['period'] ?? null;
+
+        if (! is_string($unit)) {
+            throw new InvalidArgumentException('billing_cycle.periodicity needs a unit: week, month or year');
+        }
+
+        $this->validateBillingCycleUnit($unit);
+
+        if (! in_array($period, self::PERIODS[$unit], true)) {
+            throw new InvalidArgumentException(
+                "Invalid billing_cycle.periodicity.period for {$endpoint}: a {$unit}ly cycle takes "
+                .implode(', ', self::PERIODS[$unit]).'.'
+            );
+        }
+
+        $this->assertEnum($cycle['days_in_advance'], self::DAYS_IN_ADVANCE, 'billing_cycle.days_in_advance', $endpoint);
+    }
+
+    /**
+     * invoice_generation: an action, an optional payment method, and — for
+     * book_and_send only — sending methods that always include `email`.
+     *
+     * @throws InvalidArgumentException
+     */
+    protected function validateInvoiceGeneration(mixed $generation, string $endpoint): void
+    {
+        if (! is_array($generation) || ! isset($generation['action'])) {
+            throw new InvalidArgumentException('invoice_generation needs an action: draft, book or book_and_send');
+        }
+
+        $this->validateInvoiceGenerationAction($generation['action']);
+        $this->assertEnum($generation['payment_method'] ?? null, self::INVOICE_PAYMENT_METHODS, 'invoice_generation.payment_method', $endpoint);
+
+        if ($generation['action'] === 'book_and_send') {
+            if (! isset($generation['sending_methods'])) {
+                throw new InvalidArgumentException('invoice_generation.sending_methods is required when action is book_and_send');
+            }
+
+            $this->validateSendingMethods($generation['sending_methods']);
+        } elseif (isset($generation['sending_methods'])) {
+            throw new InvalidArgumentException(
+                "invoice_generation.sending_methods only applies to book_and_send, not {$generation['action']}"
+            );
         }
     }
 
@@ -362,6 +463,15 @@ PHP,
                 );
             }
         }
+
+        // Specification 1.221.0: "Method email is always required; when peppol
+        // is used, email acts as the fallback for when Peppol sending fails."
+        if (! in_array('email', array_column($methods, 'method'), true)) {
+            throw new InvalidArgumentException(
+                'invoice_generation.sending_methods must always include email — it is the fallback when '
+                .'Peppol or postal sending fails. E.g. [["method" => "peppol"], ["method" => "email"]].'
+            );
+        }
     }
 
     /**
@@ -379,16 +489,17 @@ PHP,
             }
 
             foreach ($group['line_items'] as $item) {
-                $requiredItemFields = ['quantity', 'description', 'unit_price', 'tax_rate_id'];
-                foreach ($requiredItemFields as $field) {
+                // unit_price is optional in the specification; before v2.2.7
+                // the SDK required it.
+                foreach (['quantity', 'description', 'tax_rate_id'] as $field) {
                     if (! isset($item[$field])) {
                         throw new InvalidArgumentException("Line item missing required field: {$field}");
                     }
                 }
 
-                // Validate unit_price structure
-                if (! isset($item['unit_price']['amount']) || ! isset($item['unit_price']['tax'])) {
-                    throw new InvalidArgumentException('Unit price must include amount and tax fields');
+                if (array_key_exists('unit_price', $item)
+                    && (! isset($item['unit_price']['amount']) || ($item['unit_price']['tax'] ?? null) !== 'excluding')) {
+                    throw new InvalidArgumentException('Unit price must include amount, and tax "excluding"');
                 }
             }
         }
@@ -482,24 +593,38 @@ PHP,
 
         // Apply sorting
         if (isset($options['sort'])) {
-            $params['sort'] = $this->buildSort($options['sort']);
+            $params['sort'] = $this->buildSort($options['sort'], $options['sort_order'] ?? 'asc');
         }
 
         return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
-     * Build filters for the API request
+     * Build filters array for the API request
+     *
+     * Before v2.2.7 any key was forwarded unchecked, and a `status` string was
+     * sent as a string where the API expects an array.
+     *
+     * @throws InvalidArgumentException When a filter key, status or customer type is not supported
      */
     protected function buildFilters(array $filters): array
     {
+        $this->rejectUnknownFilters($filters, 'subscriptions.list');
+
         $built = [];
 
         foreach ($filters as $key => $value) {
-            // Validate status values
-            if ($key === 'status' && is_array($value)) {
+            if ($value === null) {
+                continue;
+            }
+
+            if ($key === 'status' || $key === 'ids') {
+                $value = is_array($value) ? array_values($value) : [$value];
+            }
+
+            if ($key === 'status') {
                 foreach ($value as $status) {
-                    if (! in_array($status, $this->statusValues)) {
+                    if (! in_array($status, $this->statusValues, true)) {
                         throw new InvalidArgumentException(
                             'Invalid status value. Must be one of: '.implode(', ', $this->statusValues)
                         );
@@ -507,8 +632,11 @@ PHP,
                 }
             }
 
-            // Validate customer type if provided
-            if ($key === 'customer' && isset($value['type'])) {
+            if ($key === 'customer') {
+                if (! is_array($value) || ! isset($value['type'], $value['id'])) {
+                    throw new InvalidArgumentException('The customer filter takes ["type" => "contact"|"company", "id" => "..."].');
+                }
+
                 $this->validateCustomerType($value['type']);
             }
 
@@ -519,27 +647,19 @@ PHP,
     }
 
     /**
-     * Build sort array for API request
+     * Build the sort array
      *
-     * @param  array  $sort
+     * Before v2.2.7 a field name — `['sort' => 'title']` — reached array_map()
+     * as a string and raised a TypeError: the Projects::buildSort() fatal of
+     * v2.2.2, on another resource. Fields are now validated too.
+     *
+     * @param  array|string  $sort  A field name, a list of names, or sort objects
+     *
+     * @throws InvalidArgumentException When a sort field or order is not supported
      */
-    protected function buildSort($sort, string $order = 'desc'): array
+    protected function buildSort($sort, string $order = 'asc'): array
     {
-        if (isset($sort['field'])) {
-            // Single sort field
-            return [[
-                'field' => $sort['field'],
-                'order' => $sort['order'] ?? 'asc',
-            ]];
-        }
-
-        // Multiple sort fields
-        return array_map(function ($item) {
-            return [
-                'field' => $item['field'],
-                'order' => $item['order'] ?? 'asc',
-            ];
-        }, $sort);
+        return $this->normaliseSort($sort, $order);
     }
 
     /**

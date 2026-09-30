@@ -15,10 +15,6 @@
         "expenses:sort.missing:due_date": "`expenses.list` declares sort field `due_date`; the resource does not advertise it.",
         "expenses:sort.missing:supplier_name": "`expenses.list` declares sort field `supplier_name`; the resource does not advertise it.",
         "groups:pagination.flag:supportsPagination": "$supportsPagination is false but `projects-v2/projectGroups.list` declares page.",
-        "invoices:include.flag:supportsSideloading": "$supportsSideloading is false but `.list` or `.info` declares includes.",
-        "invoices:include.missing:totals.due_incasso_inclusive": "The specification names include `totals.due_incasso_inclusive`; the resource does not advertise it.",
-        "invoices:include.missing:totals.fixed_late_fee": "The specification names include `totals.fixed_late_fee`; the resource does not advertise it.",
-        "invoices:include.missing:totals.interest": "The specification names include `totals.interest`; the resource does not advertise it.",
         "legacyMilestones:sort.missing:due_on": "`milestones.list` declares sort field `due_on`; the resource does not advertise it.",
         "legacyMilestones:sort.missing:starts_on": "`milestones.list` declares sort field `starts_on`; the resource does not advertise it.",
         "materials:endpoint.unwrapped:projects-v2/materials.assign": "`projects-v2/materials.assign` is in the specification but no resource calls it.",
@@ -50,8 +46,6 @@
         "users:sort.missing:first_name": "`users.list` declares sort field `first_name`; the resource does not advertise it.",
         "users:sort.missing:function": "`users.list` declares sort field `function`; the resource does not advertise it.",
         "users:sort.missing:last_name": "`users.list` declares sort field `last_name`; the resource does not advertise it.",
-        "withholdingTaxRates:filter.flag:supportsFiltering": "$supportsFiltering is false but `withholdingTaxRates.list` declares a filter object.",
-        "withholdingTaxRates:filter.missing:department_id": "`withholdingTaxRates.list` declares filter `department_id` (string); the resource does not advertise it.",
         "workTypes:sort.flag:supportsSorting": "$supportsSorting is true but `workTypes.list` does not declare sort."
     },
     "accepted": {}

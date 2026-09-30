@@ -44,6 +44,32 @@ trait ValidatesWritePayload
     }
 
     /**
+     * Reject filter keys the resource does not declare in $commonFilters.
+     *
+     * The API ignores a filter key it does not recognise and returns the full
+     * unfiltered set with a 200, so an unknown key is a silently wrong result.
+     *
+     * @param  list<string>  $aliases  Extra keys the resource translates itself
+     *
+     * @throws InvalidArgumentException
+     */
+    protected function rejectUnknownFilters(array $filters, string $endpoint, array $aliases = []): void
+    {
+        $supported = array_keys($this->commonFilters);
+        $unknown = array_values(array_diff(array_keys($filters), $supported, $aliases));
+
+        if ($unknown === []) {
+            return;
+        }
+
+        throw new InvalidArgumentException(
+            'Unsupported filter '.(count($unknown) > 1 ? 'keys' : 'key')." for {$endpoint}: "
+            .implode(', ', $unknown).'. Supported: '.implode(', ', $supported).'. '
+            .'The API ignores unknown filter keys and returns every record.'
+        );
+    }
+
+    /**
      * Reject a scalar value outside its enum. Null passes — it clears the field.
      *
      * @param  list<string>  $allowed

@@ -4,9 +4,12 @@ namespace McoreServices\TeamleaderSDK\Resources\Invoicing;
 
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class Creditnotes extends Resource
 {
+    use ValidatesWritePayload;
+
     protected string $description = 'Manage credit notes in Teamleader Focus';
 
     // Resource capabilities - Credit notes are read-only (created via invoice credit operations)
@@ -44,10 +47,14 @@ class Creditnotes extends Resource
         'credit_note_date_before' => 'Date (exclusive, YYYY-MM-DD)',
     ];
 
-    // Valid download formats
+    // Valid download formats — creditNotes.download accepts the same four as
+    // invoices.download. Until v2.2.7 only pdf and ubl/e-fff were allowed, so
+    // Peppol BIS 3 and XRechnung downloads were rejected client-side.
     protected array $validDownloadFormats = [
         'pdf',
         'ubl/e-fff',
+        'ubl/peppol_bis_3',
+        'ubl/xrechnung',
     ];
 
     // Valid customer types
@@ -133,13 +140,9 @@ PHP,
             'description' => 'Get only booked credit notes',
             'code' => '$creditNotes = $teamleader->creditNotes()->booked();',
         ],
-        'get_paid' => [
-            'description' => 'Get paid credit notes',
-            'code' => '$creditNotes = $teamleader->creditNotes()->paid();',
-        ],
         'get_unpaid' => [
-            'description' => 'Get unpaid credit notes',
-            'code' => '$creditNotes = $teamleader->creditNotes()->unpaid();',
+            'description' => 'Get unpaid credit notes (client-side — creditNotes.list has no paid filter)',
+            'code' => '$unpaid = array_filter($teamleader->creditNotes()->list()[\'data\'], fn ($note) => $note[\'paid\'] === false);',
         ],
     ];
 
@@ -251,29 +254,34 @@ PHP,
     /**
      * Get paid credit notes
      *
-     * @param  array  $additionalFilters  Additional filters to apply
-     * @param  array  $options  Pagination options
+     * @deprecated since v2.2.7 — creditNotes.list has no paid filter. This
+     * method set an internal `_paid` flag that buildFilters() then stripped, so
+     * it returned every credit note, paid or not. Filter client-side on
+     * `data[].paid`. Removed in v3.0.
+     *
+     * @throws InvalidArgumentException Always
      */
     public function paid(array $additionalFilters = [], array $options = []): array
     {
-        $filters = $additionalFilters;
-        $filters['_paid'] = true; // Custom filter flag for internal use
-
-        return $this->list($filters, $options);
+        throw new InvalidArgumentException(
+            'creditNotes.list has no paid filter — paid() returned every credit note. '
+            .'Fetch with list() and filter client-side on data[].paid.'
+        );
     }
 
     /**
      * Get unpaid credit notes
      *
-     * @param  array  $additionalFilters  Additional filters to apply
-     * @param  array  $options  Pagination options
+     * @deprecated since v2.2.7 — see paid(). Removed in v3.0.
+     *
+     * @throws InvalidArgumentException Always
      */
     public function unpaid(array $additionalFilters = [], array $options = []): array
     {
-        $filters = $additionalFilters;
-        $filters['_paid'] = false; // Custom filter flag for internal use
-
-        return $this->list($filters, $options);
+        throw new InvalidArgumentException(
+            'creditNotes.list has no paid filter — unpaid() returned every credit note. '
+            .'Fetch with list() and filter client-side on data[].paid === false.'
+        );
     }
 
     /**
@@ -379,16 +387,35 @@ PHP,
     }
 
     /**
-     * Build filters for the API request
+     * Build filters array for the API request
+     *
+     * Before v2.2.7 every key was forwarded unchecked, and keys starting with
+     * an underscore were silently dropped — which is how paid() and unpaid()
+     * came to return everything.
+     *
+     * @throws InvalidArgumentException When a filter key or customer type is not supported
      */
     protected function buildFilters(array $filters): array
     {
+        $this->rejectUnknownFilters($filters, 'creditNotes.list');
+
         $built = [];
 
         foreach ($filters as $key => $value) {
-            // Skip internal filter flags
-            if (strpos($key, '_') === 0) {
+            if ($value === null) {
                 continue;
+            }
+
+            if ($key === 'ids') {
+                $value = is_array($value) ? array_values($value) : [$value];
+            }
+
+            if ($key === 'customer') {
+                if (! is_array($value) || ! isset($value['type'], $value['id'])) {
+                    throw new InvalidArgumentException('The customer filter takes ["type" => "contact"|"company", "id" => "..."].');
+                }
+
+                $this->validateCustomerType($value['type']);
             }
 
             $built[$key] = $value;
