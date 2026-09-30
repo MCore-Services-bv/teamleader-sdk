@@ -7,6 +7,9 @@ use McoreServices\TeamleaderSDK\Resources\Resource;
 
 class Files extends Resource
 {
+    /** `sort[].order` on files.list — the API sorts newest first only */
+    public const SORT_ORDERS = ['desc'];
+
     protected string $description = 'Manage files in Teamleader Focus';
 
     // Resource capabilities
@@ -181,6 +184,17 @@ class Files extends Resource
 
         // The subject filter is required by the API — fail here rather than
         // sending a request that can only come back as a 400.
+        // Only `subject` exists; anything else was dropped without a word
+        // until v2.2.17.
+        $unknown = array_diff(array_keys($filters), ['subject']);
+
+        if ($unknown !== []) {
+            throw new InvalidArgumentException(
+                'Unsupported filter '.(count($unknown) > 1 ? 'keys' : 'key').' for files.list: '
+                .implode(', ', $unknown).'. files.list filters on subject only.'
+            );
+        }
+
         if (! isset($filters['subject'])) {
             throw new InvalidArgumentException(
                 'The subject filter is required for files.list. Pass '
@@ -212,22 +226,19 @@ class Files extends Resource
         // A string array such as ['-updated_at'] is silently ignored, so results
         // come back in the API's own order with no error.
         if ($sort !== null) {
-            if (! array_key_exists($sort, $this->availableSortFields)) {
-                throw new InvalidArgumentException(
-                    "Invalid sort field: {$sort}. files.list accepts: "
-                    .implode(', ', array_keys($this->availableSortFields)).'.'
-                );
-            }
+            // normaliseSort() accepts a field name, ['field' => ..., 'order' => ...]
+            // or a list of those; an array sort was a TypeError until v2.2.17.
+            $params['sort'] = $this->normaliseSort($sort, $sortOrder);
 
-            $params['sort'] = [
-                [
-                    'field' => $sort,
-                    'order' => strtolower($sortOrder) === 'asc' ? 'asc' : 'desc',
-                ],
-            ];
+            foreach ($params['sort'] as $entry) {
+                if (! in_array($entry['order'], self::SORT_ORDERS, true)) {
+                    throw new InvalidArgumentException(
+                        "Invalid sort order for files.list: {$entry['order']}. The API sorts updated_at in descending order only."
+                    );
+                }
+            }
         }
 
-        // Build page object
         if ($this->supportsPagination) {
             $params['page'] = [
                 'size' => $pageSize,
@@ -250,6 +261,13 @@ class Files extends Resource
      */
     public function list(array $filters = [], array $options = []): array
     {
+        $unknown = array_diff(array_keys($options), ['page_size', 'page_number', 'sort', 'sort_order', 'filters']);
+
+        if ($unknown !== []) {
+            throw new InvalidArgumentException(
+                'files.list does not support: '.implode(', ', $unknown).'. Supported: page_size, page_number, sort, sort_order.'
+            );
+        }
         $params = $this->buildQueryParams(
             [],
             $filters,

@@ -3,10 +3,21 @@
 namespace McoreServices\TeamleaderSDK\Resources\Other;
 
 use InvalidArgumentException;
+use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
 
 class Migrate extends Resource
 {
+    /** `type` on migrate.activityType */
+    public const ACTIVITY_TYPES = ['meeting', 'call', 'task'];
+
+    /** `type` on migrate.id */
+    public const RESOURCE_TYPES = [
+        'account', 'user', 'department', 'product', 'contact', 'company', 'deal', 'dealPhase', 'project',
+        'milestone', 'task', 'meeting', 'call', 'ticket', 'invoice', 'creditNote', 'subscription', 'quotation',
+        'timeTracking', 'customField',
+    ];
+
     protected string $description = 'Utility endpoints for migrating from the deprecated Teamleader API to the new UUID-based API';
 
     // Resource capabilities - Migration endpoints don't follow CRUD patterns
@@ -36,35 +47,10 @@ class Migrate extends Resource
     protected array $commonFilters = [];
 
     // Valid activity types for migration
-    protected array $activityTypes = [
-        'meeting',
-        'call',
-        'task',
-    ];
+    protected array $activityTypes = self::ACTIVITY_TYPES;
 
     // Valid resource types for ID migration
-    protected array $resourceTypes = [
-        'account',
-        'user',
-        'department',
-        'product',
-        'contact',
-        'company',
-        'deal',
-        'dealPhase',
-        'project',
-        'milestone',
-        'task',
-        'meeting',
-        'call',
-        'ticket',
-        'invoice',
-        'creditNote',
-        'subscription',
-        'quotation',
-        'timeTracking',
-        'customField',
-    ];
+    protected array $resourceTypes = self::RESOURCE_TYPES;
 
     // Valid response types for ID migration (some differ from request types)
     protected array $responseTypes = [
@@ -168,7 +154,9 @@ foreach ($oldIds as $oldId) {
             throw new InvalidArgumentException('Department ID is required');
         }
 
-        if (empty($taxRate)) {
+        // empty() treated "0" as missing until v2.2.17, so the 0% rate —
+        // exports and reverse charge — could not be looked up.
+        if (trim($taxRate) === '') {
             throw new InvalidArgumentException('Tax rate is required');
         }
 
@@ -238,6 +226,18 @@ foreach ($oldIds as $oldId) {
             }
 
             $result = $this->id($type, (int) $oldId);
+
+            if (! isset($result['data']['id'])) {
+                throw new TeamleaderException(
+                    "migrate.id returned no UUID for {$type} {$oldId}"
+                    .(isset($result['message']) ? ': '.$result['message'] : '.'),
+                    0,
+                    null,
+                    ['response' => $result, 'mapped_so_far' => $mapping],
+                    $result['status_code'] ?? null
+                );
+            }
+
             $mapping[$oldId] = $result['data']['id'];
         }
 
