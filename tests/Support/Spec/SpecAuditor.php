@@ -174,19 +174,23 @@ final class SpecAuditor
         // Some endpoints take their criteria as top-level request properties
         // rather than inside a `filter` object — levelTwoAreas.list takes
         // `country` and `language`. Resources expose those through list()'s
-        // $filters argument and send them top-level, which is correct. Treat
-        // them as declared, but only when the endpoint has no filter object,
-        // so a real filter can never be satisfied by a same-named parameter.
+        // $filters argument and send them top-level, which is correct.
+        //
+        // A resource may always advertise such a parameter (projectLines.list
+        // requires a top-level `project_id` beside its filter object). It is
+        // only *expected* to when the endpoint has no filter object, and a
+        // same-named key inside the filter object always wins, so a real
+        // filter can never be satisfied by a parameter.
+        $parameters = array_values(array_diff(
+            $request['properties'],
+            ['filter', 'page', 'sort', 'includes']
+        ));
+
+        foreach ($parameters as $parameter) {
+            $request['filters'][$parameter] ??= ['type' => 'parameter'];
+        }
+
         if (! $declaresFilter) {
-            $parameters = array_values(array_diff(
-                $request['properties'],
-                ['filter', 'page', 'sort', 'includes']
-            ));
-
-            foreach ($parameters as $parameter) {
-                $request['filters'][$parameter] = ['type' => 'parameter'];
-            }
-
             $declaredFilters = $parameters;
             $declaresFilter = $parameters !== [];
         }

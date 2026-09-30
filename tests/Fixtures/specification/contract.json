@@ -8619,11 +8619,14 @@
       "deprecated": false,
       "request": {
         "properties": [
+          "billing_method",
+          "budget",
           "custom_fields",
           "depends_on",
           "description",
           "due_on",
           "name",
+          "price",
           "project_id",
           "responsible_user_id",
           "starts_on"
@@ -8652,6 +8655,60 @@
             "contact",
             "product",
             "user"
+          ],
+          "billing_method": [
+            "non_invoiceable",
+            "time_and_materials"
+          ],
+          "budget.currency": [
+            "BAM",
+            "CAD",
+            "CHF",
+            "CLP",
+            "CNY",
+            "COP",
+            "CZK",
+            "DKK",
+            "EUR",
+            "GBP",
+            "INR",
+            "ISK",
+            "JPY",
+            "MAD",
+            "MXN",
+            "NOK",
+            "PEN",
+            "PLN",
+            "RON",
+            "SEK",
+            "TRY",
+            "USD",
+            "ZAR"
+          ],
+          "price.currency": [
+            "BAM",
+            "CAD",
+            "CHF",
+            "CLP",
+            "CNY",
+            "COP",
+            "CZK",
+            "DKK",
+            "EUR",
+            "GBP",
+            "INR",
+            "ISK",
+            "JPY",
+            "MAD",
+            "MXN",
+            "NOK",
+            "PEN",
+            "PLN",
+            "RON",
+            "SEK",
+            "TRY",
+            "USD",
+            "ZAR"
           ]
         }
       },
@@ -9850,7 +9907,21 @@
       ],
       "deprecated": false,
       "request": {
-        "properties": [],
+        "properties": [
+          "code",
+          "configuration",
+          "custom_fields",
+          "department_id",
+          "description",
+          "name",
+          "price_list_prices",
+          "product_category_id",
+          "purchase_price",
+          "selling_price",
+          "stock",
+          "tax_rate_id",
+          "unit_of_measure_id"
+        ],
         "required": [],
         "filters": {},
         "filter_keys": [],
@@ -18215,7 +18286,11 @@
       "request": {
         "properties": [
           "description",
+          "duration",
+          "ended_at",
           "invoiceable",
+          "started_at",
+          "started_on",
           "subject",
           "user_id",
           "work_type_id"
@@ -18596,6 +18671,8 @@
           "duration",
           "id",
           "invoiceable",
+          "started_at",
+          "started_on",
           "subject",
           "work_type_id"
         ],

@@ -5,9 +5,43 @@ namespace McoreServices\TeamleaderSDK\Resources\Projects;
 use DateTime;
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
+/**
+ * Milestones of the legacy project system — `milestones.*`.
+ *
+ * @see LegacyProjects
+ */
 class LegacyMilestones extends Resource
 {
+    use ValidatesWritePayload;
+
+    /** Body fields milestones.create accepts */
+    public const CREATE_FIELDS = [
+        'project_id', 'starts_on', 'due_on', 'name', 'description', 'responsible_user_id',
+        'depends_on', 'custom_fields', 'billing_method', 'budget', 'price',
+    ];
+
+    /** Body fields milestones.update accepts, besides `id` */
+    public const UPDATE_FIELDS = [
+        'starts_on', 'due_on', 'name', 'description', 'responsible_user_id', 'depends_on',
+        'propagate_date_changes', 'custom_fields',
+    ];
+
+    /**
+     * milestones.create takes either a budget (non_invoiceable or
+     * time_and_materials, the default) or a price (fixed_price).
+     */
+    public const BILLING_METHODS = ['non_invoiceable', 'time_and_materials', 'fixed_price'];
+
+    /** `filter.status` on milestones.list */
+    public const STATUSES = ['open', 'closed'];
+
+    public const CURRENCIES = [
+        'BAM', 'CAD', 'CHF', 'CLP', 'CNY', 'COP', 'CZK', 'DKK', 'EUR', 'GBP', 'INR', 'ISK',
+        'JPY', 'MAD', 'MXN', 'NOK', 'PEN', 'PLN', 'RON', 'SEK', 'TRY', 'USD', 'ZAR',
+    ];
+
     protected string $description = 'Manage legacy project milestones in Teamleader Focus';
 
     // Resource capabilities based on API documentation
@@ -29,6 +63,15 @@ class LegacyMilestones extends Resource
 
     // Available includes for sideloading
     protected array $availableIncludes = [];
+
+    /**
+     * Sort fields milestones.list accepts. Before v2.2.9 any other field was
+     * silently replaced by due_on, and a plain field name was a PHP warning.
+     */
+    protected array $availableSortFields = [
+        'due_on' => 'Due date',
+        'starts_on' => 'Start date',
+    ];
 
     // Common filters based on API documentation
     protected array $commonFilters = [
@@ -98,6 +141,7 @@ class LegacyMilestones extends Resource
     public function info($id, $includes = null): array
     {
         $this->validateId($id);
+        $this->assertIncludes($includes, [], 'milestones.info');
 
         $params = ['id' => $id];
 
@@ -154,23 +198,57 @@ class LegacyMilestones extends Resource
             }
         }
 
-        // Validate billing_method if provided
-        if (isset($data['billing_method'])) {
-            $validMethods = ['non_invoiceable', 'time_and_materials', 'fixed_price'];
-            if (! in_array($data['billing_method'], $validMethods)) {
-                throw new InvalidArgumentException(
-                    'Invalid billing_method. Must be one of: '.implode(', ', $validMethods)
-                );
+        $this->rejectUnknownFields($data, self::CREATE_FIELDS, 'milestones.create');
+        $this->assertEnum($data['billing_method'] ?? null, self::BILLING_METHODS, 'billing_method', 'milestones.create');
+
+        // "With price": fixed_price requires a price and takes no budget.
+        // "With budget": the other two take an optional budget and no price.
+        if (($data['billing_method'] ?? null) === 'fixed_price') {
+            if (empty($data['price'])) {
+                throw new InvalidArgumentException('price is required when billing_method is fixed_price');
             }
+            if (isset($data['budget'])) {
+                throw new InvalidArgumentException('budget is not accepted with billing_method fixed_price; use price');
+            }
+        } elseif (isset($data['price'])) {
+            throw new InvalidArgumentException('price is only accepted with billing_method fixed_price');
         }
 
-        // Validate date format for starts_on
+        $this->assertMilestoneMoney($data, ['budget', 'price']);
+        $this->assertMilestoneDates($data);
+    }
+
+    /**
+     * @param  list<string>  $fields
+     *
+     * @throws InvalidArgumentException
+     */
+    private function assertMilestoneMoney(array $data, array $fields): void
+    {
+        foreach ($fields as $field) {
+            if (! isset($data[$field])) {
+                continue;
+            }
+
+            if (! is_array($data[$field]) || ! isset($data[$field]['amount'], $data[$field]['currency'])) {
+                throw new InvalidArgumentException("{$field} must be ['amount' => number, 'currency' => code]");
+            }
+
+            $this->assertEnum($data[$field]['currency'], self::CURRENCIES, "{$field}.currency", 'milestones.create');
+        }
+    }
+
+    /**
+     * @throws InvalidArgumentException
+     */
+    private function assertMilestoneDates(array $data): void
+    {
+        // starts_on is nullable on both endpoints
         if (isset($data['starts_on']) && ! $this->isValidDate($data['starts_on'])) {
             throw new InvalidArgumentException('Invalid starts_on date format. Use Y-m-d format.');
         }
 
-        // Validate date format for due_on
-        if (! $this->isValidDate($data['due_on'])) {
+        if (isset($data['due_on']) && ! $this->isValidDate($data['due_on'])) {
             throw new InvalidArgumentException('Invalid due_on date format. Use Y-m-d format.');
         }
     }
@@ -198,6 +276,9 @@ class LegacyMilestones extends Resource
         $this->validateId($id);
 
         $data['id'] = $id;
+
+        $this->rejectUnknownFields($data, [...self::UPDATE_FIELDS, 'id'], 'milestones.update');
+        $this->assertMilestoneDates($data);
 
         return $this->api->request('POST', $this->getBasePath().'.update', $data);
     }
@@ -260,106 +341,80 @@ class LegacyMilestones extends Resource
     }
 
     /**
-     * List milestones with filtering and sorting
+     * List milestones
      *
-     * @param  array  $filters  Filters to apply
-     * @param  array  $options  Additional options (sorting, pagination)
+     * @param  array  $filters  ids, project_id, status (open|closed), due_before, due_after, term
+     * @param  array  $options  page_size, page_number, sort (due_on|starts_on), sort_order
+     *
+     * @throws InvalidArgumentException On an unknown filter key, option, value or sort field
      */
     public function list(array $filters = [], array $options = []): array
     {
+        $unknownOptions = array_diff(array_keys($options), ['page_size', 'page_number', 'sort', 'sort_order']);
+
+        if ($unknownOptions !== []) {
+            throw new InvalidArgumentException(
+                'milestones.list does not support: '.implode(', ', $unknownOptions)
+                .'. Supported: page_size, page_number, sort, sort_order.'
+            );
+        }
+
         $params = [];
 
-        // Apply filters
         if (! empty($filters)) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
-        // Apply pagination
         if (isset($options['page_size']) || isset($options['page_number'])) {
             $params['page'] = [
-                'size' => $options['page_size'] ?? 20,
-                'number' => $options['page_number'] ?? 1,
+                'size' => (int) ($options['page_size'] ?? 20),
+                'number' => (int) ($options['page_number'] ?? 1),
             ];
         }
 
-        // Apply sorting
-        if (isset($options['sort'])) {
-            $params['sort'] = $this->buildSort($options['sort']);
+        if (! empty($options['sort'])) {
+            $params['sort'] = $this->buildSort($options['sort'], $options['sort_order'] ?? 'asc');
         }
 
         return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
-     * Build filters array for the API request
+     * Build the filter object for milestones.list
+     *
+     * @throws InvalidArgumentException On an unknown key or value
      */
     protected function buildFilters(array $filters): array
     {
-        $apiFilters = [];
+        $this->rejectUnknownFilters($filters, 'milestones.list');
+        $this->assertEnum($filters['status'] ?? null, self::STATUSES, 'filter.status', 'milestones.list');
 
-        // Handle IDs filter
-        if (isset($filters['ids'])) {
-            $apiFilters['ids'] = is_array($filters['ids']) ? $filters['ids'] : [$filters['ids']];
+        foreach (['due_before', 'due_after'] as $field) {
+            if (isset($filters[$field]) && ! $this->isValidDate($filters[$field])) {
+                throw new InvalidArgumentException("{$field} must be a date in Y-m-d format.");
+            }
         }
 
-        // Handle project_id filter
-        if (isset($filters['project_id'])) {
-            $apiFilters['project_id'] = $filters['project_id'];
+        if (isset($filters['ids']) && ! is_array($filters['ids'])) {
+            $filters['ids'] = [$filters['ids']];
         }
 
-        // Handle status filter
-        if (isset($filters['status'])) {
-            $apiFilters['status'] = $filters['status'];
-        }
-
-        // Handle due_before filter
-        if (isset($filters['due_before'])) {
-            $apiFilters['due_before'] = $filters['due_before'];
-        }
-
-        // Handle due_after filter
-        if (isset($filters['due_after'])) {
-            $apiFilters['due_after'] = $filters['due_after'];
-        }
-
-        // Handle term filter (search)
-        if (isset($filters['term'])) {
-            $apiFilters['term'] = $filters['term'];
-        }
-
-        return $apiFilters;
+        return array_filter($filters, fn ($value) => $value !== null);
     }
 
     /**
-     * Build sort array for the API request
+     * Build the sort array for milestones.list
      *
-     * @param  array  $sort
+     * Accepts a field name, a list of names, ['field' => ..., 'order' => ...]
+     * or a list of those.
+     *
+     * @param  array|string  $sort
+     *
+     * @throws InvalidArgumentException On an unknown field or order
      */
-    protected function buildSort($sort, string $order = 'desc'): array
+    protected function buildSort($sort, string $order = 'asc'): array
     {
-        $apiSort = [];
-
-        foreach ($sort as $sortItem) {
-            $field = $sortItem['field'] ?? 'due_on';
-            $order = $sortItem['order'] ?? 'asc';
-
-            // Validate sort field
-            if (! in_array($field, ['starts_on', 'due_on'])) {
-                $field = 'due_on';
-            }
-
-            // Validate sort order
-            if (! in_array($order, ['asc', 'desc'])) {
-                $order = 'asc';
-            }
-
-            $apiSort[] = [
-                'field' => $field,
-                'order' => $order,
-            ];
-        }
-
-        return $apiSort;
+        return $this->normaliseSort($sort, $order);
     }
 
     /**
@@ -462,7 +517,7 @@ class LegacyMilestones extends Resource
      */
     public function getAvailableStatuses(): array
     {
-        return ['open', 'closed'];
+        return self::STATUSES;
     }
 
     /**
@@ -470,6 +525,6 @@ class LegacyMilestones extends Resource
      */
     public function getAvailableSortFields(): array
     {
-        return ['starts_on', 'due_on'];
+        return array_keys($this->availableSortFields);
     }
 }

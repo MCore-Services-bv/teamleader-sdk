@@ -4,9 +4,20 @@ namespace McoreServices\TeamleaderSDK\Resources\Projects;
 
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class ExternalParties extends Resource
 {
+    use ValidatesWritePayload;
+
+    /** Body fields externalParties.addToProject accepts */
+    public const ADD_FIELDS = ['project_id', 'customer', 'function', 'sub_function'];
+
+    /** Body fields externalParties.update accepts, besides `id` */
+    public const UPDATE_FIELDS = ['customer', 'function', 'sub_function'];
+
+    public const CUSTOMER_TYPES = ['contact', 'company'];
+
     protected string $description = 'Manage external parties on projects in Teamleader Focus';
 
     // Resource capabilities - External parties have specific add/update/delete operations
@@ -36,10 +47,7 @@ class ExternalParties extends Resource
     protected array $commonFilters = [];
 
     // Available customer types
-    protected array $customerTypes = [
-        'contact',
-        'company',
-    ];
+    protected array $customerTypes = self::CUSTOMER_TYPES;
 
     // Usage examples specific to external parties
     protected array $usageExamples = [
@@ -151,6 +159,8 @@ class ExternalParties extends Resource
             }
         }
 
+        $this->rejectUnknownFields($data, self::ADD_FIELDS, $this->getBasePath().'.addToProject');
+
         // Validate required fields
         if (empty($data['project_id'])) {
             throw new InvalidArgumentException('project_id is required');
@@ -186,6 +196,8 @@ class ExternalParties extends Resource
 
         // Ensure ID is in the data
         $data['id'] = $id;
+
+        $this->rejectUnknownFields($data, [...self::UPDATE_FIELDS, 'id'], $this->getBasePath().'.update');
 
         // Validate customer structure if provided
         if (isset($data['customer'])) {

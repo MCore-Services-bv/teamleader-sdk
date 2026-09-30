@@ -3,13 +3,39 @@
 namespace McoreServices\TeamleaderSDK\Resources\Projects;
 
 use InvalidArgumentException;
-use McoreServices\TeamleaderSDK\Resources\Resource;
 
-class Groups extends Resource
+/**
+ * Project groups in the current ("nextgen") project system — `projects-v2/projectGroups.*`.
+ */
+class Groups extends ProjectsV2Resource
 {
+    /** Body fields projectGroups.create accepts */
+    public const CREATE_FIELDS = [
+        'project_id', 'title', 'description', 'color', 'billing_method', 'fixed_price',
+        'external_budget', 'internal_budget', 'start_date', 'end_date', 'assignees',
+    ];
+
+    /** Body fields projectGroups.update accepts, besides `id` */
+    public const UPDATE_FIELDS = [
+        'title', 'description', 'color', 'billing_method', 'fixed_price',
+        'external_budget', 'internal_budget', 'start_date', 'end_date',
+    ];
+
+    public const BILLING_METHODS = ['time_and_materials', 'fixed_price', 'parent_fixed_price', 'non_billable'];
+
+    /** `billing_status` on info responses */
+    public const BILLING_STATUSES = ['not_billable', 'not_billed', 'partially_billed', 'fully_billed'];
+
+    public const DELETE_STRATEGIES = [
+        'ungroup_tasks_and_materials',
+        'delete_tasks_and_materials',
+        'delete_tasks_materials_and_unbilled_timetrackings',
+    ];
+
+    private const MONEY_FIELDS = ['fixed_price', 'external_budget', 'internal_budget'];
+
     protected string $description = 'Manage project groups in Teamleader Focus (New Projects API)';
 
-    // Resource capabilities - Groups support most operations
     protected bool $supportsCreation = true;
 
     protected bool $supportsUpdate = true;
@@ -18,7 +44,7 @@ class Groups extends Resource
 
     protected bool $supportsBatch = false;
 
-    protected bool $supportsPagination = false;
+    protected bool $supportsPagination = true;
 
     protected bool $supportsSorting = false;
 
@@ -26,52 +52,25 @@ class Groups extends Resource
 
     protected bool $supportsSideloading = false;
 
-    // Available includes for sideloading (none based on API docs)
     protected array $availableIncludes = [];
 
-    // Default includes
     protected array $defaultIncludes = [];
 
-    // Common filters based on API documentation
     protected array $commonFilters = [
         'ids' => 'Array of group UUIDs to filter by',
         'project_id' => 'Filter groups by project UUID',
     ];
 
-    // Available billing methods
-    protected array $billingMethods = [
-        'time_and_materials',
-        'fixed_price',
-        'parent_fixed_price',
-        'non_billable',
-    ];
+    // Kept for backwards compatibility — see the constants above
+    protected array $billingMethods = self::BILLING_METHODS;
 
-    // Available billing statuses
-    protected array $billingStatuses = [
-        'not_billable',
-        'not_billed',
-        'partially_billed',
-        'fully_billed',
-    ];
+    protected array $billingStatuses = self::BILLING_STATUSES;
 
-    // Available assignee types
-    protected array $assigneeTypes = [
-        'team',
-        'user',
-    ];
+    protected array $assigneeTypes = self::ASSIGNEE_TYPES;
 
-    // Available delete strategies
-    protected array $deleteStrategies = [
-        'ungroup_tasks_and_materials',
-        'delete_tasks_and_materials',
-        'delete_tasks_materials_and_unbilled_timetrackings',
-    ];
+    protected array $deleteStrategies = self::DELETE_STRATEGIES;
 
-    // Available update strategies for billing method
-    protected array $updateStrategies = [
-        'none',
-        'cascade',
-    ];
+    protected array $updateStrategies = self::UPDATE_STRATEGIES;
 
     // Usage examples specific to project groups
     protected array $usageExamples = [
@@ -112,46 +111,58 @@ class Groups extends Resource
         ],
     ];
 
-    /**
-     * Get the base path for the project groups resource
-     */
     protected function getBasePath(): string
     {
         return 'projects-v2/projectGroups';
     }
 
     /**
-     * List project groups with filtering
+     * List project groups
      *
-     * @param  array  $filters  Filters to apply (ids, project_id)
-     * @param  array  $options  Additional options (not used for this endpoint)
+     * Before v2.2.9 unknown filter keys and a string `ids` were dropped without
+     * a word, as were the paging options.
+     *
+     * @param  array  $filters  ids (a UUID or a list of UUIDs), project_id
+     * @param  array  $options  page_size, page_number
+     *
+     * @throws InvalidArgumentException On an unknown filter key or option
      */
     public function list(array $filters = [], array $options = []): array
     {
-        $params = [];
+        $endpoint = $this->getBasePath().'.list';
 
-        // Apply filters
-        if (! empty($filters)) {
-            $params['filter'] = $this->buildFilters($filters);
+        $this->rejectUnknownFilters($filters, $endpoint);
+        $this->rejectUnknownOptions($options, ['page_size', 'page_number'], $endpoint);
+
+        $params = [];
+        $filter = $this->wrapArrayFilters($filters, ['ids']);
+
+        if ($filter !== []) {
+            $params['filter'] = $filter;
+        }
+
+        if (($page = $this->pageFromOptions($options)) !== null) {
+            $params['page'] = $page;
         }
 
         return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
-     * Get all groups for a specific project
+     * Get all groups of a project
      *
      * @param  string  $projectId  Project UUID
+     * @param  array  $options  page_size, page_number
      */
-    public function forProject(string $projectId): array
+    public function forProject(string $projectId, array $options = []): array
     {
-        return $this->list(['project_id' => $projectId]);
+        return $this->list(['project_id' => $projectId], $options);
     }
 
     /**
-     * Get project groups by IDs
+     * Get project groups by ID
      *
-     * @param  array  $ids  Array of group UUIDs
+     * @param  array  $ids  Group UUIDs
      */
     public function byIds(array $ids): array
     {
@@ -159,70 +170,74 @@ class Groups extends Resource
     }
 
     /**
-     * Get detailed information about a specific group
+     * Get one group
      *
      * @param  string  $id  Group UUID
-     * @param  mixed  $includes  Not used for groups (included for parent compatibility)
+     * @param  mixed  $includes  projectGroups.info takes no includes; passing any throws
      */
     public function info($id, $includes = null): array
     {
+        $this->assertIncludes($includes, [], $this->getBasePath().'.info');
+
         return $this->api->request('POST', $this->getBasePath().'.info', ['id' => $id]);
     }
 
     /**
-     * Create a new project group
+     * Create a project group
      *
-     * @param  array  $data  Group data
+     * Requires project_id and title. fixed_price is only allowed with billing
+     * method fixed_price, external_budget only with time_and_materials.
+     *
+     * @throws InvalidArgumentException When a required field is missing, or a field or value is not accepted
      */
     public function create(array $data): array
     {
-        $validatedData = $this->validateCreateData($data);
-
-        return $this->api->request('POST', $this->getBasePath().'.create', $validatedData);
+        return $this->api->request('POST', $this->getBasePath().'.create', $this->validateCreateData($data));
     }
 
     /**
      * Update a project group
      *
+     * billing_method is sent as {value, update_strategy}. A plain method name
+     * is accepted and sent with update_strategy `none` (this group only);
+     * `cascade` applies it to the group's tasks and materials as well.
+     *
      * @param  string  $id  Group UUID
-     * @param  array  $data  Data to update
-     * @return array
+     *
+     * @throws InvalidArgumentException When a field or value is not accepted
      */
-    public function update($id, array $data)
+    public function update($id, array $data): array
     {
         $data['id'] = $id;
-        $validatedData = $this->validateUpdateData($data);
 
-        return $this->api->request('POST', $this->getBasePath().'.update', $validatedData);
+        return $this->api->request('POST', $this->getBasePath().'.update', $this->validateUpdateData($data));
     }
 
     /**
      * Delete a project group
      *
      * @param  string  $id  Group UUID
-     * @param  string  ...$additionalParams  First param should be delete strategy
+     * @param  string  ...$additionalParams  Delete strategy: ungroup_tasks_and_materials (default),
+     *                                       delete_tasks_and_materials or
+     *                                       delete_tasks_materials_and_unbilled_timetrackings
+     *
+     * @throws InvalidArgumentException
      */
     public function delete($id, ...$additionalParams): array
     {
-        // Get delete strategy from first additional param, default if not provided
-        $deleteStrategy = $additionalParams[0] ?? 'ungroup_tasks_and_materials';
-
-        if (! in_array($deleteStrategy, $this->deleteStrategies)) {
-            throw new InvalidArgumentException(
-                'Invalid delete strategy. Must be one of: '.implode(', ', $this->deleteStrategies)
-            );
-        }
+        $strategy = $additionalParams[0] ?? 'ungroup_tasks_and_materials';
+        $this->assertEnum($strategy, self::DELETE_STRATEGIES, 'delete_strategy', $this->getBasePath().'.delete');
 
         return $this->api->request('POST', $this->getBasePath().'.delete', [
             'id' => $id,
-            'delete_strategy' => $deleteStrategy,
+            'delete_strategy' => $strategy,
         ]);
     }
 
     /**
      * Duplicate a project group and its entities (without time trackings)
      *
-     * @param  string  $originId  The ID of the group to duplicate
+     * @param  string  $originId  UUID of the group to duplicate
      */
     public function duplicate(string $originId): array
     {
@@ -232,117 +247,12 @@ class Groups extends Resource
     }
 
     /**
-     * Assign a user or team to a group
-     *
-     * @param  string  $groupId  Group UUID
-     * @param  string  $assigneeType  Type of assignee ('user' or 'team')
-     * @param  string  $assigneeId  UUID of the user or team
-     */
-    public function assign(string $groupId, string $assigneeType, string $assigneeId): array
-    {
-        $this->validateAssigneeType($assigneeType);
-
-        return $this->api->request('POST', $this->getBasePath().'.assign', [
-            'id' => $groupId,
-            'assignee' => [
-                'type' => $assigneeType,
-                'id' => $assigneeId,
-            ],
-        ]);
-    }
-
-    /**
-     * Unassign a user or team from a group
-     *
-     * @param  string  $groupId  Group UUID
-     * @param  string  $assigneeType  Type of assignee ('user' or 'team')
-     * @param  string  $assigneeId  UUID of the user or team
-     */
-    public function unassign(string $groupId, string $assigneeType, string $assigneeId): array
-    {
-        $this->validateAssigneeType($assigneeType);
-
-        return $this->api->request('POST', $this->getBasePath().'.unassign', [
-            'id' => $groupId,
-            'assignee' => [
-                'type' => $assigneeType,
-                'id' => $assigneeId,
-            ],
-        ]);
-    }
-
-    /**
-     * Convenience method to assign a user to a group
-     *
-     * @param  string  $groupId  Group UUID
-     * @param  string  $userId  User UUID
-     */
-    public function assignUser(string $groupId, string $userId): array
-    {
-        return $this->assign($groupId, 'user', $userId);
-    }
-
-    /**
-     * Convenience method to assign a team to a group
-     *
-     * @param  string  $groupId  Group UUID
-     * @param  string  $teamId  Team UUID
-     */
-    public function assignTeam(string $groupId, string $teamId): array
-    {
-        return $this->assign($groupId, 'team', $teamId);
-    }
-
-    /**
-     * Convenience method to unassign a user from a group
-     *
-     * @param  string  $groupId  Group UUID
-     * @param  string  $userId  User UUID
-     */
-    public function unassignUser(string $groupId, string $userId): array
-    {
-        return $this->unassign($groupId, 'user', $userId);
-    }
-
-    /**
-     * Convenience method to unassign a team from a group
-     *
-     * @param  string  $groupId  Group UUID
-     * @param  string  $teamId  Team UUID
-     */
-    public function unassignTeam(string $groupId, string $teamId): array
-    {
-        return $this->unassign($groupId, 'team', $teamId);
-    }
-
-    /**
-     * Build filters array for the API request
-     */
-    protected function buildFilters(array $filters): array
-    {
-        $apiFilters = [];
-
-        // Handle ids filter
-        if (isset($filters['ids']) && is_array($filters['ids'])) {
-            $apiFilters['ids'] = $filters['ids'];
-        }
-
-        // Handle project_id filter
-        if (isset($filters['project_id'])) {
-            $apiFilters['project_id'] = $filters['project_id'];
-        }
-
-        return $apiFilters;
-    }
-
-    /**
-     * Validate data for group creation
-     *
      * @throws InvalidArgumentException
      */
     protected function validateCreateData(array $data): array
     {
-        // Required fields
+        $endpoint = $this->getBasePath().'.create';
+
         if (empty($data['project_id'])) {
             throw new InvalidArgumentException('project_id is required');
         }
@@ -351,151 +261,76 @@ class Groups extends Resource
             throw new InvalidArgumentException('title is required');
         }
 
-        // Validate billing method if provided
-        if (isset($data['billing_method']) && ! in_array($data['billing_method'], $this->billingMethods)) {
-            throw new InvalidArgumentException(
-                'Invalid billing_method. Must be one of: '.implode(', ', $this->billingMethods)
-            );
-        }
-
-        // Validate color if provided
-        if (isset($data['color'])) {
-            $this->validateColor($data['color']);
-        }
-
-        // Validate dates if provided
-        if (isset($data['start_date'])) {
-            $this->validateDate($data['start_date'], 'start_date');
-        }
-
-        if (isset($data['end_date'])) {
-            $this->validateDate($data['end_date'], 'end_date');
-        }
+        $this->rejectUnknownFields($data, self::CREATE_FIELDS, $endpoint);
+        $this->assertEnum($data['billing_method'] ?? null, self::BILLING_METHODS, 'billing_method', $endpoint);
+        $this->validateCommonFields($data, $endpoint);
+        $this->assertAssignees($data, $endpoint);
 
         return $data;
     }
 
     /**
-     * Validate data for group update
-     *
      * @throws InvalidArgumentException
      */
     protected function validateUpdateData(array $data): array
     {
-        // Required: id
+        $endpoint = $this->getBasePath().'.update';
+
         if (empty($data['id'])) {
             throw new InvalidArgumentException('id is required for update');
         }
 
-        // Validate billing method if provided
-        if (isset($data['billing_method'])) {
-            if (! is_array($data['billing_method'])) {
-                throw new InvalidArgumentException('billing_method must be an object with value and update_strategy');
-            }
-
-            if (empty($data['billing_method']['value']) ||
-                ! in_array($data['billing_method']['value'], $this->billingMethods)) {
-                throw new InvalidArgumentException(
-                    'Invalid billing_method value. Must be one of: '.implode(', ', $this->billingMethods)
-                );
-            }
-
-            if (empty($data['billing_method']['update_strategy']) ||
-                ! in_array($data['billing_method']['update_strategy'], $this->updateStrategies)) {
-                throw new InvalidArgumentException(
-                    'Invalid update_strategy. Must be one of: '.implode(', ', $this->updateStrategies)
-                );
-            }
-        }
-
-        // Validate color if provided
-        if (isset($data['color'])) {
-            $this->validateColor($data['color']);
-        }
-
-        // Validate dates if provided
-        if (isset($data['start_date'])) {
-            $this->validateDate($data['start_date'], 'start_date');
-        }
-
-        if (isset($data['end_date'])) {
-            $this->validateDate($data['end_date'], 'end_date');
-        }
+        $this->rejectUnknownFields($data, [...self::UPDATE_FIELDS, 'id'], $endpoint);
+        $data = $this->normaliseBillingMethodUpdate($data, self::BILLING_METHODS, $endpoint);
+        $this->validateCommonFields($data, $endpoint);
 
         return $data;
     }
 
+    private function validateCommonFields(array $data, string $endpoint): void
+    {
+        $this->assertEnum($data['color'] ?? null, self::COLORS, 'color', $endpoint);
+        $this->assertMoney($data, self::MONEY_FIELDS, $endpoint);
+        $this->assertDates($data, ['start_date', 'end_date'], $endpoint);
+    }
+
     /**
-     * Validate color format
-     *
      * @throws InvalidArgumentException
      */
     protected function validateColor(string $color): void
     {
-        $validColors = [
-            '#00B2B2', '#008A8C', '#992600', '#ED9E00', '#D157D3',
-            '#A400B2', '#0071F2', '#004DA6', '#64788F', '#C0C0C4',
-            '#82828C', '#1A1C20',
-        ];
-
-        if (! in_array($color, $validColors)) {
-            throw new InvalidArgumentException(
-                'Invalid color. Must be one of: '.implode(', ', $validColors)
-            );
-        }
+        $this->assertEnum($color, self::COLORS, 'color', $this->getBasePath().'.create');
     }
 
     /**
-     * Validate date format
-     *
      * @throws InvalidArgumentException
      */
     protected function validateDate(string $date, string $fieldName): void
     {
-        $parsed = date_parse($date);
-
-        if ($parsed === false || $parsed['error_count'] > 0 || $parsed['warning_count'] > 0) {
-            throw new InvalidArgumentException(
-                "{$fieldName} must be a valid date in format YYYY-MM-DD"
-            );
-        }
+        $this->assertDates([$fieldName => $date], [$fieldName], $this->getBasePath());
     }
 
     /**
-     * Validate assignee type
-     *
      * @throws InvalidArgumentException
      */
     protected function validateAssigneeType(string $type): void
     {
-        if (! in_array($type, $this->assigneeTypes)) {
-            throw new InvalidArgumentException(
-                'Invalid assignee type. Must be one of: '.implode(', ', $this->assigneeTypes)
-            );
-        }
+        $this->assertEnum($type, self::ASSIGNEE_TYPES, 'assignee.type', $this->getBasePath().'.assign');
     }
 
     /**
-     * Get available billing methods
+     * @return list<string>
      */
     public function getAvailableBillingMethods(): array
     {
-        return $this->billingMethods;
+        return self::BILLING_METHODS;
     }
 
     /**
-     * Get available delete strategies
+     * @return list<string>
      */
     public function getAvailableDeleteStrategies(): array
     {
-        return $this->deleteStrategies;
-    }
-
-    /**
-     * Get available assignee types
-     */
-    public function getAvailableAssigneeTypes(): array
-    {
-        return $this->assigneeTypes;
+        return self::DELETE_STRATEGIES;
     }
 }

@@ -5,6 +5,7 @@ namespace McoreServices\TeamleaderSDK\Resources\Projects;
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Other\Accounts;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 /**
  * LegacyProjects — the original project system in Teamleader Focus.
@@ -35,6 +36,33 @@ use McoreServices\TeamleaderSDK\Resources\Resource;
  */
 class LegacyProjects extends Resource
 {
+    use ValidatesWritePayload;
+
+    /** Body fields projects.create accepts */
+    public const CREATE_FIELDS = [
+        'title', 'description', 'starts_on', 'milestones', 'participants',
+        'customer', 'purchase_order_number', 'custom_fields',
+    ];
+
+    /** Body fields projects.update accepts, besides `id` */
+    public const UPDATE_FIELDS = [
+        'title', 'description', 'status', 'starts_on', 'customer', 'budget',
+        'purchase_order_number', 'custom_fields',
+    ];
+
+    /** `status` on projects.update and `filter.status` on projects.list */
+    public const STATUSES = ['active', 'on_hold', 'done', 'cancelled'];
+
+    /** `role` on participants */
+    public const ROLES = ['decision_maker', 'member'];
+
+    public const CUSTOMER_TYPES = ['contact', 'company'];
+
+    public const CURRENCIES = [
+        'BAM', 'CAD', 'CHF', 'CLP', 'CNY', 'COP', 'CZK', 'DKK', 'EUR', 'GBP', 'INR', 'ISK',
+        'JPY', 'MAD', 'MXN', 'NOK', 'PEN', 'PLN', 'RON', 'SEK', 'TRY', 'USD', 'ZAR',
+    ];
+
     protected string $description = 'Manage legacy projects in Teamleader Focus — the original project system (API path projects, webhook events project.*). See Projects for the current system.';
 
     // Resource capabilities
@@ -118,6 +146,8 @@ class LegacyProjects extends Resource
      */
     public function info($id, $includes = null)
     {
+        $this->assertIncludes($includes, [], 'projects.info');
+
         return $this->api->request('POST', $this->getBasePath().'.info', [
             'id' => $id,
         ]);
@@ -159,15 +189,54 @@ class LegacyProjects extends Resource
             }
         }
 
+        $this->rejectUnknownFields($data, self::CREATE_FIELDS, 'projects.create');
+
         // Validate milestones (at least one required)
         if (empty($data['milestones']) || ! is_array($data['milestones'])) {
             throw new InvalidArgumentException('At least one milestone is required');
+        }
+
+        foreach (array_values($data['milestones']) as $index => $milestone) {
+            foreach (['due_on', 'name', 'responsible_user_id'] as $field) {
+                if (empty($milestone[$field])) {
+                    throw new InvalidArgumentException("milestones[{$index}].{$field} is required");
+                }
+            }
         }
 
         // Validate participants (at least one decision maker required)
         if (empty($data['participants']) || ! is_array($data['participants'])) {
             throw new InvalidArgumentException('At least one participant is required');
         }
+
+        foreach (array_values($data['participants']) as $index => $participant) {
+            if (empty($participant['participant']['type']) || empty($participant['participant']['id'])) {
+                throw new InvalidArgumentException(
+                    "participants[{$index}] must be ['participant' => ['type' => 'user', 'id' => uuid], 'role' => ...]"
+                );
+            }
+        }
+
+        $this->assertItemEnum($data, 'participants', 'role', self::ROLES, 'projects.create');
+        $this->validateCustomer($data, 'projects.create');
+    }
+
+    /**
+     * `customer` is {type: contact|company, id}; null unlinks it on update.
+     *
+     * @throws InvalidArgumentException
+     */
+    private function validateCustomer(array $data, string $endpoint): void
+    {
+        if (! isset($data['customer'])) {
+            return;
+        }
+
+        if (! is_array($data['customer']) || empty($data['customer']['id']) || ! isset($data['customer']['type'])) {
+            throw new InvalidArgumentException("customer on {$endpoint} must be ['type' => contact|company, 'id' => uuid]");
+        }
+
+        $this->assertEnum($data['customer']['type'], self::CUSTOMER_TYPES, 'customer.type', $endpoint);
     }
 
     /**
@@ -179,6 +248,18 @@ class LegacyProjects extends Resource
     public function update($id, array $data): array
     {
         $data['id'] = $id;
+
+        $this->rejectUnknownFields($data, [...self::UPDATE_FIELDS, 'id'], 'projects.update');
+        $this->assertEnum($data['status'] ?? null, self::STATUSES, 'status', 'projects.update');
+        $this->validateCustomer($data, 'projects.update');
+
+        if (isset($data['budget'])) {
+            if (! is_array($data['budget']) || ! isset($data['budget']['amount'], $data['budget']['currency'])) {
+                throw new InvalidArgumentException("budget must be ['amount' => number, 'currency' => code]");
+            }
+
+            $this->assertEnum($data['budget']['currency'], self::CURRENCIES, 'budget.currency', 'projects.update');
+        }
 
         return $this->api->request('POST', $this->getBasePath().'.update', $data);
     }
@@ -229,6 +310,8 @@ class LegacyProjects extends Resource
      */
     public function addParticipant(string $id, array $participant, ?string $role = 'member'): array
     {
+        $this->assertEnum($role, self::ROLES, 'role', 'projects.addParticipant');
+
         $data = [
             'id' => $id,
             'participant' => $participant,
@@ -250,6 +333,8 @@ class LegacyProjects extends Resource
      */
     public function updateParticipant(string $id, array $participant, string $role): array
     {
+        $this->assertEnum($role, self::ROLES, 'role', 'projects.updateParticipant');
+
         return $this->api->request('POST', $this->getBasePath().'.updateParticipant', [
             'id' => $id,
             'participant' => $participant,
@@ -281,14 +366,21 @@ class LegacyProjects extends Resource
 
         // Apply filters
         if (! empty($filters)) {
-            $this->rejectUnknownFilters($filters);
+            $this->rejectUnknownFilters($filters, 'projects.list', ['customer']);
+            $this->assertEnum($filters['status'] ?? null, self::STATUSES, 'filter.status', 'projects.list');
 
             $params['filter'] = [];
 
             // Customer filter (nested object)
             if (isset($filters['customer'])) {
+                $this->validateCustomer($filters, 'projects.list');
                 $params['filter']['customer'] = $filters['customer'];
-            } elseif (isset($filters['customer.type']) && isset($filters['customer.id'])) {
+            } elseif (isset($filters['customer.type']) || isset($filters['customer.id'])) {
+                if (! isset($filters['customer.type'], $filters['customer.id'])) {
+                    throw new InvalidArgumentException('The customer filter needs both customer.type and customer.id.');
+                }
+
+                $this->assertEnum($filters['customer.type'], self::CUSTOMER_TYPES, 'filter.customer.type', 'projects.list');
                 $params['filter']['customer'] = [
                     'type' => $filters['customer.type'],
                     'id' => $filters['customer.id'],
@@ -328,94 +420,16 @@ class LegacyProjects extends Resource
         } elseif (isset($options['sort_field'])) {
             $params['sort'] = [[
                 'field' => $this->validateSortField($options['sort_field']),
-                'order' => $options['sort_order'] ?? 'asc',
+                'order' => $this->normaliseSortOrder($options['sort_order'] ?? 'asc'),
             ]];
         }
 
         return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
-    /**
-     * Reject filter keys projects.list does not accept
-     *
-     * The API ignores unrecognised filter keys and answers 200 with the full
-     * unfiltered set, so a mistyped key silently returns every project.
-     *
-     * `customer` may be passed either as a nested object or as the flattened
-     * `customer.type` / `customer.id` pair, so all three are accepted.
-     *
-     * @throws InvalidArgumentException When a filter key is not supported
-     */
-    protected function rejectUnknownFilters(array $filters): void
-    {
-        $supported = array_merge(['customer'], array_keys($this->commonFilters));
-
-        $unknown = array_diff(array_keys($filters), $supported);
-
-        if ($unknown !== []) {
-            throw new InvalidArgumentException(
-                'Unsupported filter '.(count($unknown) > 1 ? 'keys' : 'key')
-                .' for projects.list: '.implode(', ', $unknown)
-                .'. Supported: '.implode(', ', $supported).'.'
-            );
-        }
-    }
-
-    /**
-     * Normalise the sort option into the array-of-objects shape the API expects
-     *
-     * @param  array|string  $sort
-     *
-     * @throws InvalidArgumentException When a sort field is not supported
-     */
-    protected function normaliseSort($sort, string $order = 'asc'): array
-    {
-        if (is_string($sort)) {
-            return [['field' => $this->validateSortField($sort), 'order' => $order]];
-        }
-
-        if (is_array($sort) && isset($sort['field'])) {
-            return [[
-                'field' => $this->validateSortField($sort['field']),
-                'order' => $sort['order'] ?? $order,
-            ]];
-        }
-
-        if (is_array($sort)) {
-            return array_map(function ($entry) use ($order) {
-                if (is_array($entry)) {
-                    return [
-                        'field' => $this->validateSortField($entry['field'] ?? null),
-                        'order' => $entry['order'] ?? $order,
-                    ];
-                }
-
-                return ['field' => $this->validateSortField($entry), 'order' => $order];
-            }, array_values($sort));
-        }
-
-        throw new InvalidArgumentException(
-            'Unrecognised sort format. Pass a field name, '
-            ."['field' => ..., 'order' => ...], or a list of those."
-        );
-    }
-
-    /**
-     * Ensure a sort field is one projects.list accepts
-     *
-     * @throws InvalidArgumentException
-     */
-    protected function validateSortField(mixed $field): string
-    {
-        if (! is_string($field) || ! array_key_exists($field, $this->availableSortFields)) {
-            throw new InvalidArgumentException(
-                'Invalid sort field: '.(is_string($field) ? $field : gettype($field))
-                .'. projects.list accepts: '.implode(', ', array_keys($this->availableSortFields)).'.'
-            );
-        }
-
-        return $field;
-    }
+    // Sort validation (field and asc/desc order) is FilterTrait's
+    // normaliseSort() since v2.2.9. This class used to carry its own copy,
+    // which did not check the order.
 
     /**
      * Get projects by status

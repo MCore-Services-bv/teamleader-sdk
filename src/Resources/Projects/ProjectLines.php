@@ -4,13 +4,29 @@ namespace McoreServices\TeamleaderSDK\Resources\Projects;
 
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
+/**
+ * The lines of a project — its tasks, materials and groups, in order —
+ * `projects-v2/projectLines.*`.
+ *
+ * Lines are created through {@see ProjectTasks}, {@see Materials} and
+ * {@see Groups}; this resource lists them and moves tasks and materials in and
+ * out of groups.
+ */
 class ProjectLines extends Resource
 {
+    use ValidatesWritePayload;
+
+    /** `filter.types[]` on projectLines.list */
+    public const LINE_TYPES = ['nextgenTask', 'nextgenMaterial', 'nextgenProjectGroup'];
+
+    /** `filter.assignees[].type` on projectLines.list */
+    public const ASSIGNEE_TYPES = ['team', 'user'];
+
     protected string $description = 'Manage project lines (tasks, materials, groups) in Teamleader Focus projects';
 
-    // Resource capabilities - ProjectLines support listing and group management operations
-    protected bool $supportsCreation = false; // Use Tasks or Materials resources for creation
+    protected bool $supportsCreation = false; // Use ProjectTasks, Materials or Groups
 
     protected bool $supportsUpdate = false;
 
@@ -18,7 +34,7 @@ class ProjectLines extends Resource
 
     protected bool $supportsBatch = false;
 
-    protected bool $supportsPagination = false; // No pagination mentioned in API docs
+    protected bool $supportsPagination = false;
 
     protected bool $supportsSorting = false;
 
@@ -26,31 +42,27 @@ class ProjectLines extends Resource
 
     protected bool $supportsSideloading = false;
 
-    // Available includes for sideloading (none based on API docs)
     protected array $availableIncludes = [];
 
-    // Default includes
     protected array $defaultIncludes = [];
 
-    // Common filters based on API documentation
+    /**
+     * `project_id` is a required top-level parameter; `types` and `assignees`
+     * go into the filter object. All three are passed flat to list().
+     *
+     * Until v2.2.9 these were documented as `filter.types` / `filter.assignees`
+     * and had to be nested under a `filter` key; that form is still accepted.
+     */
     protected array $commonFilters = [
-        'project_id' => 'UUID of the project (required for list operation)',
-        'filter.types' => 'Array of line types to filter (nextgenTask, nextgenMaterial, nextgenProjectGroup)',
-        'filter.assignees' => 'Array of assignee objects to filter by (provide null for unassigned lines)',
+        'project_id' => 'UUID of the project (required)',
+        'types' => 'Line types: nextgenTask, nextgenMaterial, nextgenProjectGroup',
+        'assignees' => 'Assignees [{type: user|team, id}]; a null entry matches unassigned lines',
     ];
 
-    // Valid line types
-    protected array $lineTypes = [
-        'nextgenTask',
-        'nextgenMaterial',
-        'nextgenProjectGroup',
-    ];
+    // Kept for backwards compatibility — see the constants above
+    protected array $lineTypes = self::LINE_TYPES;
 
-    // Valid assignee types
-    protected array $assigneeTypes = [
-        'team',
-        'user',
-    ];
+    protected array $assigneeTypes = self::ASSIGNEE_TYPES;
 
     // Usage examples specific to project lines
     protected array $usageExamples = [
@@ -64,23 +76,16 @@ class ProjectLines extends Resource
             'description' => 'Get only tasks for a project',
             'code' => '$tasks = $teamleader->projectLines()->list([
                 "project_id" => "49b403be-a32e-0901-9b1c-25214f9027c6",
-                "filter" => [
-                    "types" => ["nextgenTask"]
-                ]
+                "types" => ["nextgenTask"],
             ]);',
         ],
         'filter_by_assignee' => [
             'description' => 'Get lines assigned to specific user',
             'code' => '$lines = $teamleader->projectLines()->list([
                 "project_id" => "49b403be-a32e-0901-9b1c-25214f9027c6",
-                "filter" => [
-                    "assignees" => [
-                        [
-                            "type" => "user",
-                            "id" => "66abace2-62af-0836-a927-fe3f44b9b47b"
-                        ]
-                    ]
-                ]
+                "assignees" => [
+                    ["type" => "user", "id" => "66abace2-62af-0836-a927-fe3f44b9b47b"],
+                ],
             ]);',
         ],
         'get_unassigned' => [
@@ -111,9 +116,118 @@ class ProjectLines extends Resource
     ];
 
     /**
-     * Property to store pending filters for fluent interface
+     * Pending filters for the fluent interface
      */
     protected array $pendingFilters = [];
+
+    protected function getBasePath(): string
+    {
+        return 'projects-v2/projectLines';
+    }
+
+    /**
+     * List a project's lines
+     *
+     *     list(['project_id' => $id])
+     *     list(['project_id' => $id, 'types' => ['nextgenTask']])
+     *     list(['project_id' => $id, 'assignees' => [['type' => 'user', 'id' => $userId]]])
+     *     list(['project_id' => $id, 'assignees' => [null]])   // unassigned lines
+     *
+     * @param  array  $filters  project_id (required), types, assignees — or the pre-2.2.9
+     *                          form with types / assignees nested under `filter`
+     * @param  array  $options  None; the endpoint takes no paging, sorting or includes
+     *
+     * @throws InvalidArgumentException When project_id is missing, or on an unknown key or value
+     */
+    public function list(array $filters = [], array $options = []): array
+    {
+        $endpoint = $this->getBasePath().'.list';
+
+        if ($options !== []) {
+            throw new InvalidArgumentException(
+                "{$endpoint} takes no paging, sorting or includes; got: ".implode(', ', array_keys($options)).'.'
+            );
+        }
+
+        if (isset($filters['filter'])) {
+            if (! is_array($filters['filter'])) {
+                throw new InvalidArgumentException('filter must be an array with types and/or assignees.');
+            }
+
+            $nested = $filters['filter'];
+            unset($filters['filter']);
+
+            $this->rejectUnknownFilters($nested, $endpoint.' filter', ['types', 'assignees']);
+            $filters = array_merge($nested, $filters);
+        }
+
+        $this->rejectUnknownFilters($filters, $endpoint);
+
+        if (empty($filters['project_id'])) {
+            throw new InvalidArgumentException(
+                'project_id is required. Use forProject() method or provide project_id in filters.'
+            );
+        }
+
+        $params = ['project_id' => $filters['project_id']];
+        $filter = $this->buildFilter($filters);
+
+        if ($filter !== []) {
+            $params['filter'] = $filter;
+        }
+
+        return $this->api->request('POST', $this->getBasePath().'.list', $params);
+    }
+
+    /**
+     * Build the filter object from `types` and `assignees`
+     *
+     * @throws InvalidArgumentException
+     */
+    protected function buildFilter(array $filter): array
+    {
+        $endpoint = $this->getBasePath().'.list';
+        $formatted = [];
+
+        if (isset($filter['types'])) {
+            if (! is_array($filter['types'])) {
+                throw new InvalidArgumentException('types must be an array');
+            }
+
+            foreach (array_values($filter['types']) as $index => $type) {
+                $this->assertEnum($type, self::LINE_TYPES, "filter.types[{$index}]", $endpoint);
+            }
+
+            $formatted['types'] = array_values($filter['types']);
+        }
+
+        if (array_key_exists('assignees', $filter)) {
+            // A bare null — the pre-2.2.9 way of asking for unassigned lines —
+            // is the same as a list holding one null entry.
+            $assignees = $filter['assignees'] === null ? [null] : $filter['assignees'];
+
+            if (! is_array($assignees)) {
+                throw new InvalidArgumentException('assignees must be an array of [type, id] entries or null');
+            }
+
+            foreach (array_values($assignees) as $index => $assignee) {
+                // "To fetch unassigned lines, provide null instead of the type/id object"
+                if ($assignee === null) {
+                    continue;
+                }
+
+                if (! is_array($assignee) || ! isset($assignee['type'], $assignee['id'])) {
+                    throw new InvalidArgumentException('Each assignee must have type and id fields, or be null for unassigned lines');
+                }
+
+                $this->assertEnum($assignee['type'], self::ASSIGNEE_TYPES, "filter.assignees[{$index}].type", $endpoint);
+            }
+
+            $formatted['assignees'] = array_values($assignees);
+        }
+
+        return $formatted;
+    }
 
     /**
      * Add an existing task or material to a group
@@ -123,20 +237,10 @@ class ProjectLines extends Resource
      */
     public function addToGroup(string $lineId, string $groupId): array
     {
-        $params = [
+        return $this->api->request('POST', $this->getBasePath().'.addToGroup', [
             'line_id' => $lineId,
             'group_id' => $groupId,
-        ];
-
-        return $this->api->request('POST', $this->getBasePath().'.addToGroup', $params);
-    }
-
-    /**
-     * Get the base path for the project lines resource
-     */
-    protected function getBasePath(): string
-    {
-        return 'projects-v2/projectLines';
+        ]);
     }
 
     /**
@@ -146,17 +250,14 @@ class ProjectLines extends Resource
      */
     public function removeFromGroup(string $lineId): array
     {
-        $params = [
+        return $this->api->request('POST', $this->getBasePath().'.removeFromGroup', [
             'line_id' => $lineId,
-        ];
-
-        return $this->api->request('POST', $this->getBasePath().'.removeFromGroup', $params);
+        ]);
     }
 
+    // -- fluent interface ------------------------------------------------------
+
     /**
-     * Get lines for a specific project (fluent interface starting point)
-     *
-     * @param  string  $projectId  The project UUID
      * @return static
      */
     public function forProject(string $projectId)
@@ -167,8 +268,17 @@ class ProjectLines extends Resource
     }
 
     /**
-     * Filter by tasks only (fluent interface)
-     *
+     * @param  array  $types  nextgenTask, nextgenMaterial and/or nextgenProjectGroup
+     * @return static
+     */
+    public function ofType(array $types)
+    {
+        $this->pendingFilters['types'] = $types;
+
+        return $this;
+    }
+
+    /**
      * @return static
      */
     public function tasksOnly()
@@ -177,24 +287,6 @@ class ProjectLines extends Resource
     }
 
     /**
-     * Filter by line types (fluent interface)
-     *
-     * @param  array  $types  Array of line types
-     * @return static
-     */
-    public function ofType(array $types)
-    {
-        if (! isset($this->pendingFilters['filter'])) {
-            $this->pendingFilters['filter'] = [];
-        }
-        $this->pendingFilters['filter']['types'] = $types;
-
-        return $this;
-    }
-
-    /**
-     * Filter by materials only (fluent interface)
-     *
      * @return static
      */
     public function materialsOnly()
@@ -203,8 +295,6 @@ class ProjectLines extends Resource
     }
 
     /**
-     * Filter by groups only (fluent interface)
-     *
      * @return static
      */
     public function groupsOnly()
@@ -213,140 +303,40 @@ class ProjectLines extends Resource
     }
 
     /**
-     * Filter by assignee (fluent interface)
+     * Add an assignee to match; call more than once to match any of several
      *
-     * @param  string  $type  Assignee type (user or team)
-     * @param  string  $id  Assignee UUID
+     * @param  string  $type  user or team
      * @return static
      */
     public function assignedTo(string $type, string $id)
     {
-        if (! isset($this->pendingFilters['filter'])) {
-            $this->pendingFilters['filter'] = [];
-        }
-        if (! isset($this->pendingFilters['filter']['assignees'])) {
-            $this->pendingFilters['filter']['assignees'] = [];
-        }
-
-        $this->pendingFilters['filter']['assignees'][] = [
-            'type' => $type,
-            'id' => $id,
-        ];
+        $this->pendingFilters['assignees'][] = ['type' => $type, 'id' => $id];
 
         return $this;
     }
 
     /**
-     * Get unassigned lines (fluent interface)
+     * Get lines nobody is assigned to
+     *
+     * Before v2.2.9 this sent no assignee filter at all and so returned every
+     * line: `assignees => null` was dropped by an isset() check. It now sends
+     * `assignees: [null]`, as the API documents. Combined with assignedTo(),
+     * it returns the unassigned lines plus that assignee's.
      *
      * @param  string|null  $projectId  Optional project ID if not already set
      */
     public function unassigned(?string $projectId = null): array
     {
-        $filters = $projectId ? ['project_id' => $projectId] : $this->pendingFilters;
-
-        if (! isset($filters['filter'])) {
-            $filters['filter'] = [];
-        }
-        $filters['filter']['assignees'] = null;
-
+        $filters = $this->pendingFilters;
         $this->clearPendingFilters();
 
+        if ($projectId !== null) {
+            $filters['project_id'] = $projectId;
+        }
+
+        $filters['assignees'] = [...($filters['assignees'] ?? []), null];
+
         return $this->list($filters);
-    }
-
-    /**
-     * Clear pending filters
-     */
-    protected function clearPendingFilters(): void
-    {
-        $this->pendingFilters = [];
-    }
-
-    /**
-     * List project lines with filtering
-     *
-     * @param  array  $filters  Filters containing project_id and optional filter object
-     * @param  array  $options  Not used for this endpoint
-     *
-     * @throws InvalidArgumentException
-     */
-    public function list(array $filters = [], array $options = []): array
-    {
-        if (empty($filters['project_id'])) {
-            throw new InvalidArgumentException(
-                'project_id is required. Use forProject() method or provide project_id in filters.'
-            );
-        }
-
-        $requestParams = [
-            'project_id' => $filters['project_id'],
-        ];
-
-        // Build filter object if provided
-        if (! empty($filters['filter'])) {
-            $requestParams['filter'] = $this->buildFilter($filters['filter']);
-        }
-
-        return $this->api->request('POST', $this->getBasePath().'.list', $requestParams);
-    }
-
-    /**
-     * Build filter object from provided filters
-     *
-     * @param  array  $filter  Raw filter data
-     * @return array Formatted filter object
-     */
-    protected function buildFilter(array $filter): array
-    {
-        $formatted = [];
-
-        // Handle types filter
-        if (isset($filter['types'])) {
-            if (! is_array($filter['types'])) {
-                throw new InvalidArgumentException('types must be an array');
-            }
-
-            // Validate line types
-            foreach ($filter['types'] as $type) {
-                if (! in_array($type, $this->lineTypes)) {
-                    throw new InvalidArgumentException(
-                        "Invalid line type: {$type}. Must be one of: ".implode(', ', $this->lineTypes)
-                    );
-                }
-            }
-
-            $formatted['types'] = $filter['types'];
-        }
-
-        // Handle assignees filter
-        if (isset($filter['assignees'])) {
-            // null means unassigned lines
-            if ($filter['assignees'] === null) {
-                $formatted['assignees'] = null;
-            } elseif (is_array($filter['assignees'])) {
-                // Validate assignee structure
-                foreach ($filter['assignees'] as $assignee) {
-                    if (! isset($assignee['type']) || ! isset($assignee['id'])) {
-                        throw new InvalidArgumentException(
-                            'Each assignee must have type and id fields'
-                        );
-                    }
-
-                    if (! in_array($assignee['type'], $this->assigneeTypes)) {
-                        throw new InvalidArgumentException(
-                            "Invalid assignee type: {$assignee['type']}. Must be one of: ".implode(', ', $this->assigneeTypes)
-                        );
-                    }
-                }
-
-                $formatted['assignees'] = $filter['assignees'];
-            } else {
-                throw new InvalidArgumentException('assignees must be an array or null');
-            }
-        }
-
-        return $formatted;
     }
 
     /**
@@ -358,6 +348,11 @@ class ProjectLines extends Resource
         $this->clearPendingFilters();
 
         return $this->list($filters);
+    }
+
+    protected function clearPendingFilters(): void
+    {
+        $this->pendingFilters = [];
     }
 
     /**
