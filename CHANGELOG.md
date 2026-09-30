@@ -8,12 +8,82 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Category-by-category spec audit: General, Products, Planning, Files,
-  Templates, Other — one patch release each, with the matching wiki pages
+- Category-by-category spec audit: Products, Planning, Files, Templates,
+  Other — one patch release each, with the matching wiki pages
 - Bulk operations helper for processing large datasets
 - Enhanced caching strategies with tag-based invalidation
 - Laravel Pulse integration for monitoring
 - CLI tool for quick API exploration
+
+---
+
+## [2.2.14] - 2026-09-30
+
+The General category — Users, Teams, Departments, Work Types, Custom Fields,
+Notes, Email Tracking, Document Templates, Closing Days, Days Off, Day Off
+Types, User Schedules and Currencies — brought in line with
+`@teamleader/focus-api-specification` **1.221.0**.
+
+### Fixed
+
+- **Sorting on users, teams and departments was passed through unchecked**,
+  and none of their valid sort fields were advertised. Sorting now goes
+  through `normaliseSort()`, which validates the field and order.
+- **Work types: the sort sent was malformed and ignored.** workTypes.list
+  takes no sort, and the SDK sent a single object where the API would expect
+  a list. The `sort` option now throws. `sortedByName()` sorts the page
+  client-side instead.
+- **Email tracking and notes ignored their advertised filters.**
+  `subject.type` and `subject.id` were listed but never read. Email tracking
+  without a subject was sent with an empty filter, which the API refuses.
+  Notes with an incomplete subject were sent with no filter at all. The
+  dotted keys now work, and a missing subject throws.
+- **Notes could be "created" on a legacy `project`.** notes.list accepts that
+  subject type but notes.create does not; the two lists are now separate.
+- **Unknown or mistyped filter keys were dropped without a word** on users,
+  teams, departments, work types, document templates, user schedules and
+  users.listDaysOff, so those calls returned unfiltered results. They now
+  throw. A string `ids` is wrapped, and status and document-type values are
+  checked.
+- **Days off: full-day imports were impossible.** daysOff.import accepts
+  `['date' => 'Y-m-d']` for a full day; the SDK accepted only timed days.
+  There is a new `importFullDays()` helper, which chunks at the API's
+  100-day limit. Imports over the limit throw, and `Z` datetimes are
+  accepted.
+- **Day off types rejected a single-day validity** (`until` equal to `from`).
+- **`closingDays()->getCommonHolidays()` returned the wrong holidays.** It
+  listed Boxing Day, which is not a Belgian public holiday, and missed six of
+  the ten legal ones. It now returns all ten, with Easter, Ascension and Whit
+  Monday computed by the SDK, so ext-calendar is no longer needed. A country
+  other than BE throws instead of returning Belgian dates.
+- `UserSchedules` could misjudge the seven-day range across a second
+  boundary: dates were parsed with the current time attached.
+
+### Changed
+
+- **`Users::$availableIncludes` is a flat list.** It was the only
+  name => description map. `external_rate` is now declared as an info-only
+  include (`$infoIncludes`), and users.list rejects includes.
+- **`users()->getWeekSchedule()` raises `E_USER_DEPRECATED`** once per
+  process; Teamleader deprecates the endpoint. Use
+  `userSchedules()->forUser()`. The method goes in v3.0.
+- **Unknown write fields throw** on the create and update calls of custom
+  fields, notes, email tracking, day off types and closing days. For
+  example, notes.update takes `content` only.
+- Includes are checked on users.info (`external_rate`); departments.info takes
+  none. Unknown list options throw.
+- `users.listDaysOff` and `userSchedules.list` send `includes=pagination`, so
+  the response carries the total count in `meta`.
+- Departments and document templates no longer claim paging, sorting or
+  includes the API does not offer.
+- `normaliseSort()` accepts a field => order map (`['name' => 'desc']`) on
+  every resource that uses it.
+- Constants for field lists and enums on Currencies, CustomFields,
+  DayOffTypes, DaysOff, Departments, DocumentTemplates, EmailTracking, Notes
+  and Users, each checked against the spec.
+- New tests: `GeneralPayloadTest` and `GeneralSpecContractTest`. The
+  deprecated users.getWeekSchedule wrapper is recorded in the baseline as
+  accepted, with its reason. Baseline 21 → 7 (6 open, 1 accepted).
 
 ---
 

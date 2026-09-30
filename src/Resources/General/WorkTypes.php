@@ -4,9 +4,12 @@ namespace McoreServices\TeamleaderSDK\Resources\General;
 
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class WorkTypes extends Resource
 {
+    use ValidatesWritePayload;
+
     protected string $description = 'Manage work types in Teamleader Focus';
 
     // Resource capabilities
@@ -22,7 +25,8 @@ class WorkTypes extends Resource
 
     protected bool $supportsFiltering = true;
 
-    protected bool $supportsSorting = true;
+    // workTypes.list takes no sort; sortedByName() sorts client-side
+    protected bool $supportsSorting = false;
 
     protected bool $supportsSideloading = false;
 
@@ -53,7 +57,7 @@ class WorkTypes extends Resource
         ],
         'sorted_list' => [
             'description' => 'Get work types sorted by name',
-            'code' => '$workTypes = $teamleader->workTypes()->list([], [\'sort\' => [[\'field\' => \'name\', \'order\' => \'asc\']]]);',
+            'code' => '$workTypes = $teamleader->workTypes()->sortedByName();',
         ],
         'paginated_list' => [
             'description' => 'Get work types with pagination',
@@ -72,30 +76,39 @@ class WorkTypes extends Resource
     }
 
     /**
-     * List work types with enhanced filtering and sorting
+     * List work types
      *
-     * @param  array  $filters  Filters to apply
-     * @param  array  $options  Additional options (sorting, pagination)
+     * @param  array  $filters  ids, term
+     * @param  array  $options  page_size, page_number (no sort — see sortedByName())
+     *
+     * @throws InvalidArgumentException On an unknown filter key or option
      */
     public function list(array $filters = [], array $options = []): array
     {
+        if (isset($options['sort'])) {
+            throw new InvalidArgumentException(
+                'workTypes.list takes no sort: the API would ignore it. Use sortedByName(), which sorts the page client-side.'
+            );
+        }
+
+        $unknown = array_diff(array_keys($options), ['page_size', 'page_number']);
+
+        if ($unknown !== []) {
+            throw new InvalidArgumentException(
+                'workTypes.list does not support: '.implode(', ', $unknown).'. Supported: page_size, page_number.'
+            );
+        }
+
         $params = [];
 
-        // Apply filters
-        if (! empty($filters)) {
+        if ($filters !== []) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
-        // Apply sorting - work types support name sorting
-        if (isset($options['sort'])) {
-            $params['sort'] = $this->buildSort($options['sort']);
-        }
-
-        // Apply pagination
         if (isset($options['page_size']) || isset($options['page_number'])) {
             $params['page'] = [
-                'size' => $options['page_size'] ?? 20,
-                'number' => $options['page_number'] ?? 1,
+                'size' => (int) ($options['page_size'] ?? 20),
+                'number' => (int) ($options['page_number'] ?? 1),
             ];
         }
 
@@ -103,70 +116,26 @@ class WorkTypes extends Resource
     }
 
     /**
-     * Build filters array for the API request
+     * Build the filter object for workTypes.list
+     *
+     * Until v2.2.14 unknown keys, a string `ids` and a non-string `term` were
+     * dropped without a word.
+     *
+     * @throws InvalidArgumentException
      */
     protected function buildFilters(array $filters): array
     {
-        $apiFilters = [];
+        $this->rejectUnknownFilters($filters, 'workTypes.list');
 
-        // Handle IDs filter
-        if (isset($filters['ids']) && is_array($filters['ids'])) {
-            $apiFilters['ids'] = $filters['ids'];
+        if (isset($filters['term']) && ! is_string($filters['term'])) {
+            throw new InvalidArgumentException('term must be a string.');
         }
 
-        // Handle search term filter
-        if (isset($filters['term']) && is_string($filters['term'])) {
-            $apiFilters['term'] = $filters['term'];
+        if (isset($filters['ids']) && ! is_array($filters['ids'])) {
+            $filters['ids'] = [$filters['ids']];
         }
 
-        return $apiFilters;
-    }
-
-    /**
-     * Build sort array for the API request
-     *
-     * @param  array|string  $sort
-     */
-    protected function buildSort($sort, string $order = 'desc'): array
-    {
-        // If already in correct format, return as-is
-        if (is_array($sort) && isset($sort['field'])) {
-            return $sort;
-        }
-
-        // If it's an array of sort objects, return as-is
-        if (is_array($sort) && isset($sort[0]) && is_array($sort[0]) && isset($sort[0]['field'])) {
-            return $sort;
-        }
-
-        // Handle simple string sort
-        if (is_string($sort)) {
-            return [
-                'field' => $sort,
-                'order' => 'asc',
-            ];
-        }
-
-        // Handle associative array
-        if (is_array($sort)) {
-            foreach ($sort as $field => $order) {
-                if (is_numeric($field) && is_array($order)) {
-                    // Already in correct format
-                    return $order;
-                } else {
-                    return [
-                        'field' => $field,
-                        'order' => $order,
-                    ];
-                }
-            }
-        }
-
-        // Default sort
-        return [
-            'field' => 'name',
-            'order' => 'asc',
-        ];
+        return array_filter($filters, fn ($value) => $value !== null);
     }
 
     /**
@@ -210,14 +179,21 @@ class WorkTypes extends Resource
      */
     public function sortedByName(string $order = 'asc', array $filters = []): array
     {
-        return $this->list($filters, [
-            'sort' => [
-                [
-                    'field' => 'name',
-                    'order' => $order,
-                ],
-            ],
-        ]);
+        $order = $this->normaliseSortOrder($order);
+
+        // workTypes.list declares no sort, so the API ignored the sort this
+        // method sent until v2.2.14. The page is sorted here instead.
+        $response = $this->list($filters, ['page_size' => 100]);
+
+        if (isset($response['data']) && is_array($response['data'])) {
+            usort($response['data'], fn ($a, $b) => strcasecmp((string) ($a['name'] ?? ''), (string) ($b['name'] ?? '')));
+
+            if ($order === 'desc') {
+                $response['data'] = array_reverse($response['data']);
+            }
+        }
+
+        return $response;
     }
 
     /**
@@ -225,9 +201,8 @@ class WorkTypes extends Resource
      */
     public function getAvailableSortFields(): array
     {
-        return [
-            'name' => 'Sorts by work type name (alphabetically)',
-        ];
+        // workTypes.list declares no sort fields; `name` was listed here until v2.2.14.
+        return [];
     }
 
     /**

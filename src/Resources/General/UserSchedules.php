@@ -40,6 +40,12 @@ class UserSchedules extends Resource
 
     protected bool $supportsSideloading = false;
 
+    /**
+     * `includes=pagination` adds a meta block with the total match count —
+     * userSchedules.list documents it, so it is requested on every call.
+     */
+    protected bool $requestsPaginationMeta = true;
+
     // Available includes for sideloading (none).
     protected array $availableIncludes = [];
 
@@ -105,6 +111,14 @@ class UserSchedules extends Resource
      */
     public function list(array $filters = [], array $options = []): array
     {
+        $unknownOptions = array_diff(array_keys($options), ['page_size', 'page_number']);
+
+        if ($unknownOptions !== []) {
+            throw new InvalidArgumentException(
+                'userSchedules.list does not support: '.implode(', ', $unknownOptions).'. Supported: page_size, page_number.'
+            );
+        }
+
         $this->validateListFilters($filters);
 
         $params = [
@@ -118,10 +132,12 @@ class UserSchedules extends Resource
         // Apply pagination when provided.
         if (isset($options['page_size']) || isset($options['page_number'])) {
             $params['page'] = [
-                'size' => $options['page_size'] ?? 20,
-                'number' => $options['page_number'] ?? 1,
+                'size' => (int) ($options['page_size'] ?? 20),
+                'number' => (int) ($options['page_number'] ?? 1),
             ];
         }
+
+        $params['includes'] = 'pagination';
 
         return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
@@ -133,6 +149,15 @@ class UserSchedules extends Resource
      */
     protected function validateListFilters(array $filters): void
     {
+        // Unknown keys were dropped without a word until v2.2.14.
+        $unknown = array_diff(array_keys($filters), array_keys($this->commonFilters));
+
+        if ($unknown !== []) {
+            throw new InvalidArgumentException(
+                'Unsupported filter key for userSchedules.list: '.implode(', ', $unknown)
+                .'. Supported: '.implode(', ', array_keys($this->commonFilters)).'.'
+            );
+        }
         // user_ids
         if (empty($filters['user_ids']) || ! is_array($filters['user_ids'])) {
             throw new InvalidArgumentException('userSchedules.list requires a non-empty "user_ids" array.');
@@ -178,7 +203,9 @@ class UserSchedules extends Resource
      */
     protected function parseDate(string $date): ?DateTime
     {
-        $d = DateTime::createFromFormat('Y-m-d', $date);
+        // `!` zeroes the time: without it both dates carry the current time,
+        // and a range checked across a second boundary can come out a day off.
+        $d = DateTime::createFromFormat('!Y-m-d', $date);
 
         return ($d && $d->format('Y-m-d') === $date) ? $d : null;
     }

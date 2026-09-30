@@ -9,6 +9,9 @@ use McoreServices\TeamleaderSDK\Resources\Resource;
 
 class DaysOff extends Resource
 {
+    /** daysOff.import takes at least one and at most 100 days per call */
+    public const MAX_DAYS_PER_IMPORT = 100;
+
     protected string $description = 'Manage days off for users in Teamleader Focus';
 
     // Resource capabilities - based on API docs, this resource only supports bulk operations
@@ -179,16 +182,35 @@ class DaysOff extends Resource
             throw new InvalidArgumentException('At least one day must be provided');
         }
 
-        foreach ($days as $index => $day) {
+        if (count($days) > self::MAX_DAYS_PER_IMPORT) {
+            throw new InvalidArgumentException(
+                'daysOff.import takes at most '.self::MAX_DAYS_PER_IMPORT.' days per call; got '.count($days).'. Split the import.'
+            );
+        }
+
+        foreach (array_values($days) as $index => $day) {
             if (! is_array($day)) {
                 throw new InvalidArgumentException("Day at index {$index} must be an array");
             }
 
-            if (! isset($day['starts_at']) || ! isset($day['ends_at'])) {
-                throw new InvalidArgumentException("Day at index {$index} must have both starts_at and ends_at");
+            // Full day off: ['date' => 'Y-m-d'] (new in v2.2.14)
+            if (array_keys($day) === ['date']) {
+                $parsed = is_string($day['date']) ? DateTime::createFromFormat('!Y-m-d', $day['date']) : false;
+
+                if ($parsed === false || $parsed->format('Y-m-d') !== $day['date']) {
+                    throw new InvalidArgumentException("Day at index {$index} has an invalid date. Expected YYYY-MM-DD.");
+                }
+
+                continue;
             }
 
-            // Validate datetime format
+            // Timed day off: ['starts_at' => ..., 'ends_at' => ...]
+            if (! isset($day['starts_at']) || ! isset($day['ends_at']) || count($day) !== 2) {
+                throw new InvalidArgumentException(
+                    "Day at index {$index} must be either ['date' => 'Y-m-d'] for a full day, or ['starts_at' => ..., 'ends_at' => ...]"
+                );
+            }
+
             if (! $this->isValidDatetime($day['starts_at'])) {
                 throw new InvalidArgumentException("Day at index {$index} has invalid starts_at format. Expected ISO 8601 format.");
             }
@@ -197,7 +219,6 @@ class DaysOff extends Resource
                 throw new InvalidArgumentException("Day at index {$index} has invalid ends_at format. Expected ISO 8601 format.");
             }
 
-            // Validate that start is before end
             if (strtotime($day['starts_at']) >= strtotime($day['ends_at'])) {
                 throw new InvalidArgumentException("Day at index {$index} has starts_at after or equal to ends_at");
             }
@@ -205,17 +226,36 @@ class DaysOff extends Resource
     }
 
     /**
-     * Validate datetime string format
+     * ISO 8601 with a timezone: an offset (+01:00) or Z. Z was rejected
+     * before v2.2.14.
      */
     private function isValidDatetime(string $datetime): bool
     {
-        // Check basic ISO 8601 format with timezone
-        if (! preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$/', $datetime)) {
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/', $datetime)) {
             return false;
         }
 
-        // Try to parse the datetime to ensure it's valid
         return strtotime($datetime) !== false;
+    }
+
+    /**
+     * Import full days off
+     *
+     * Each date is sent as a full day; the user must have a working schedule
+     * on it. Chunked into calls of at most 100 days, the API's limit.
+     *
+     * @param  list<string>  $dates  Y-m-d dates
+     * @return list<array> One response per call
+     */
+    public function importFullDays(string $userId, string $leaveTypeId, array $dates): array
+    {
+        $responses = [];
+
+        foreach (array_chunk(array_values($dates), self::MAX_DAYS_PER_IMPORT) as $chunk) {
+            $responses[] = $this->bulkImport($userId, $leaveTypeId, array_map(fn ($date) => ['date' => $date], $chunk));
+        }
+
+        return $responses;
     }
 
     /**

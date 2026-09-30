@@ -3,10 +3,14 @@
 namespace McoreServices\TeamleaderSDK\Resources\General;
 
 use BadMethodCallException;
+use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class Teams extends Resource
 {
+    use ValidatesWritePayload;
+
     protected string $description = 'Manage teams in Teamleader Focus';
 
     // Resource capabilities
@@ -28,6 +32,14 @@ class Teams extends Resource
 
     // Available includes for sideloading
     protected array $availableIncludes = [];
+
+    /**
+     * Sort fields teams.list accepts. Until v2.2.14 the sort was passed
+     * through unchecked.
+     */
+    protected array $availableSortFields = [
+        'name' => 'Team name',
+    ];
 
     // Common filters based on API documentation
     protected array $commonFilters = [
@@ -78,87 +90,55 @@ class Teams extends Resource
      */
     public function list(array $filters = [], array $options = []): array
     {
+        $unknown = array_diff(array_keys($options), ['sort', 'sort_order']);
+
+        if ($unknown !== []) {
+            throw new InvalidArgumentException(
+                'teams.list does not support: '.implode(', ', $unknown).'. Supported: sort, sort_order.'
+            );
+        }
+
         $params = [];
 
-        // Apply filters
-        if (! empty($filters)) {
+        if ($filters !== []) {
             $params['filter'] = $this->buildFilters($filters);
         }
 
-        // Apply sorting
-        if (isset($options['sort'])) {
-            $params['sort'] = $this->buildSort($options['sort']);
+        if (! empty($options['sort'])) {
+            $params['sort'] = $this->buildSort($options['sort'], $options['sort_order'] ?? 'asc');
         }
 
         return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
 
     /**
-     * Build filters array for the API request
+     * Build the filter object for teams.list
+     *
+     * Until v2.2.14 unknown keys and a string `ids` were dropped without a word.
+     *
+     * @throws InvalidArgumentException
      */
     protected function buildFilters(array $filters): array
     {
-        $apiFilters = [];
+        $this->rejectUnknownFilters($filters, 'teams.list');
 
-        // Handle IDs filter
-        if (isset($filters['ids']) && is_array($filters['ids'])) {
-            $apiFilters['ids'] = $filters['ids'];
+        if (isset($filters['ids']) && ! is_array($filters['ids'])) {
+            $filters['ids'] = [$filters['ids']];
         }
 
-        // Handle term filter (name search)
-        if (isset($filters['term'])) {
-            $apiFilters['term'] = $filters['term'];
-        }
-
-        // Handle team lead filter
-        if (isset($filters['team_lead_id'])) {
-            $apiFilters['team_lead_id'] = $filters['team_lead_id'];
-        }
-
-        return $apiFilters;
+        return array_filter($filters, fn ($value) => $value !== null);
     }
 
     /**
-     * Build sort array for the API request
+     * Build the sort array for teams.list (name only)
      *
      * @param  array|string  $sort
+     *
+     * @throws InvalidArgumentException On an unknown field or order
      */
-    protected function buildSort($sort, string $order = 'desc'): array
+    protected function buildSort($sort, string $order = 'asc'): array
     {
-        // If already in correct format, return as-is
-        if (is_array($sort) && isset($sort[0]['field'])) {
-            return $sort;
-        }
-
-        // Handle simple string sort
-        if (is_string($sort)) {
-            return [
-                [
-                    'field' => $sort,
-                    'order' => 'asc',
-                ],
-            ];
-        }
-
-        // Handle associative array
-        if (is_array($sort)) {
-            $sortArray = [];
-            foreach ($sort as $field => $order) {
-                if (is_numeric($field) && is_array($order)) {
-                    // Already in correct format
-                    $sortArray[] = $order;
-                } else {
-                    $sortArray[] = [
-                        'field' => $field,
-                        'order' => $order,
-                    ];
-                }
-            }
-
-            return $sortArray;
-        }
-
-        return [];
+        return $this->normaliseSort($sort, $order);
     }
 
     /**
@@ -211,9 +191,7 @@ class Teams extends Resource
      */
     public function getAvailableSortFields(): array
     {
-        return [
-            'name' => 'Sort by team name',
-        ];
+        return $this->availableSortFields;
     }
 
     /**

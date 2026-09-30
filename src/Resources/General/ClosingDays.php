@@ -338,35 +338,77 @@ class ClosingDays extends Resource
             throw new InvalidArgumentException('The "day" field must be a valid date in YYYY-MM-DD format');
         }
 
+        // closingDays.add takes `day` only; anything else would be ignored.
+        $unknown = array_diff(array_keys($data), ['day']);
+
+        if ($unknown !== []) {
+            throw new InvalidArgumentException('closingDays.add does not accept: '.implode(', ', $unknown).'. Accepted fields: day.');
+        }
+
         return $this->api->request('POST', $this->getBasePath().'.add', $data);
     }
 
     /**
-     * Get holidays for common countries (convenience method)
-     * Note: This would typically be combined with external holiday APIs
+     * Belgian public holidays for a year, as name => Y-m-d
      *
-     * @param  string  $country  Country code (for future extension)
-     * @return array Suggested dates for common holidays
+     * The ten legal holidays (wettelijke feestdagen). Until v2.2.14 this
+     * returned three fixed dates plus Easter Monday — and Boxing Day, which is
+     * not a Belgian public holiday — and Easter Monday was left out on PHP
+     * builds without ext-calendar. The movable feasts are now computed here,
+     * so no extension is needed.
+     *
+     * Only Belgium is supported; any other country code throws rather than
+     * returning Belgian dates under another name.
+     *
+     * @param  string  $country  BE
+     * @return array<string, string>
+     *
+     * @throws InvalidArgumentException For a country other than BE
      */
     public function getCommonHolidays(int $year, string $country = 'BE'): array
     {
-        // Belgium only. The $country parameter is accepted for forward
-        // compatibility but is not yet used — every date below is Belgian.
-        $holidays = [
-            'New Year\'s Day' => $year.'-01-01',
-            'Christmas Day' => $year.'-12-25',
-            'Boxing Day' => $year.'-12-26',
-        ];
-
-        // Easter Monday needs ext-calendar, which is not present in every PHP
-        // build. Without it this method used to raise
-        // "Call to undefined function easter_date()"; the fixed dates above are
-        // still returned.
-        if (function_exists('easter_date')) {
-            $holidays['Easter Monday'] = date('Y-m-d', easter_date($year) + 86400);
+        if (strtoupper($country) !== 'BE') {
+            throw new InvalidArgumentException("Holidays are only available for Belgium (BE); got '{$country}'.");
         }
 
-        return $holidays;
+        $easter = $this->easterSunday($year);
+        $offset = fn (int $days) => $easter->modify("+{$days} days")->format('Y-m-d');
+
+        return [
+            'New Year\'s Day' => "{$year}-01-01",
+            'Easter Monday' => $offset(1),
+            'Labour Day' => "{$year}-05-01",
+            'Ascension Day' => $offset(39),
+            'Whit Monday' => $offset(50),
+            'National Day' => "{$year}-07-21",
+            'Assumption Day' => "{$year}-08-15",
+            'All Saints\' Day' => "{$year}-11-01",
+            'Armistice Day' => "{$year}-11-11",
+            'Christmas Day' => "{$year}-12-25",
+        ];
+    }
+
+    /**
+     * Easter Sunday in the Gregorian calendar (anonymous Gregorian algorithm)
+     */
+    private function easterSunday(int $year): \DateTimeImmutable
+    {
+        $a = $year % 19;
+        $b = intdiv($year, 100);
+        $c = $year % 100;
+        $d = intdiv($b, 4);
+        $e = $b % 4;
+        $f = intdiv($b + 8, 25);
+        $g = intdiv($b - $f + 1, 3);
+        $h = (19 * $a + $b - $d - $g + 15) % 30;
+        $i = intdiv($c, 4);
+        $k = $c % 4;
+        $l = (32 + 2 * $e + 2 * $i - $h - $k) % 7;
+        $m = intdiv($a + 11 * $h + 22 * $l, 451);
+        $month = intdiv($h + $l - 7 * $m + 114, 31);
+        $day = (($h + $l - 7 * $m + 114) % 31) + 1;
+
+        return new \DateTimeImmutable(sprintf('%04d-%02d-%02d', $year, $month, $day));
     }
 
     /**

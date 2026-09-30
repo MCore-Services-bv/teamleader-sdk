@@ -5,9 +5,15 @@ namespace McoreServices\TeamleaderSDK\Resources\General;
 use Exception;
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class DayOffTypes extends Resource
 {
+    use ValidatesWritePayload;
+
+    /** Body fields dayOffTypes.create accepts; update takes the same plus `id` */
+    public const WRITE_FIELDS = ['name', 'color', 'date_validity'];
+
     protected string $description = 'Manage day off types in Teamleader Focus';
 
     // Resource capabilities based on API documentation
@@ -170,6 +176,9 @@ class DayOffTypes extends Resource
             return $value !== '' && $value !== [];
         }, ARRAY_FILTER_USE_BOTH);
 
+        $allowed = $operation === 'update' ? [...self::WRITE_FIELDS, 'id'] : self::WRITE_FIELDS;
+        $this->rejectUnknownFields($data, $allowed, 'dayOffTypes.'.$operation);
+
         // Validate color format if provided
         if (isset($data['color']) && ! empty($data['color'])) {
             if (! preg_match('/^#[0-9A-Fa-f]{6}$/', $data['color'])) {
@@ -179,6 +188,11 @@ class DayOffTypes extends Resource
 
         // Validate date validity format if provided
         if (isset($data['date_validity']) && is_array($data['date_validity'])) {
+            $this->rejectUnknownFields($data['date_validity'], ['from', 'until'], 'dayOffTypes.'.$operation.' date_validity');
+
+            if (! isset($data['date_validity']['from'])) {
+                throw new InvalidArgumentException('Date validity needs a "from" date');
+            }
             if (isset($data['date_validity']['from'])) {
                 if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $data['date_validity']['from'])) {
                     throw new InvalidArgumentException('Date validity "from" must be in YYYY-MM-DD format');
@@ -192,8 +206,9 @@ class DayOffTypes extends Resource
 
                 // Validate that until date is after from date
                 if (isset($data['date_validity']['from'])) {
-                    if (strtotime($data['date_validity']['until']) <= strtotime($data['date_validity']['from'])) {
-                        throw new InvalidArgumentException('Date validity "until" must be after "from" date');
+                    // A single-day validity (until = from) was rejected before v2.2.14.
+                    if (strtotime($data['date_validity']['until']) < strtotime($data['date_validity']['from'])) {
+                        throw new InvalidArgumentException('Date validity "until" must be on or after the "from" date');
                     }
                 }
             }
