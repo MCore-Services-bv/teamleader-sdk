@@ -8,12 +8,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Planned
-- Category-by-category spec audit: TimeTracking, Calendar, Tickets, General,
-  Products, Planning, Files, Templates, Other — one patch release each, with the matching wiki pages
+- Category-by-category spec audit: Calendar, Tickets, General, Products,
+  Planning, Files, Templates, Other — one patch release each, with the matching wiki pages
 - Bulk operations helper for processing large datasets
 - Enhanced caching strategies with tag-based invalidation
 - Laravel Pulse integration for monitoring
 - CLI tool for quick API exploration
+
+---
+
+## [2.2.11] - 2026-09-30
+
+The TimeTracking category — Time Tracking and Timers — brought in line with
+`@teamleader/focus-api-specification` **1.221.0**. The list side was
+hardened in v2.1.2; this release covers the write side, includes and timers.
+
+### Fixed
+
+- **`timers()->update()` did not exist.** The usage example called it, and
+  the method is `updateCurrent()`. `update()` is now an alias, and the example
+  uses `updateCurrent()`.
+- **`timers()->start()` was stricter than the API.** It required a subject and
+  a `work_type_id`; timers.start requires nothing.
+- **Updating a time entry without its timing was sent anyway.**
+  timeTracking.update requires `duration` and exactly one of `started_at` or
+  `started_on` on every call, so updating only the description failed at the
+  API. It now throws before sending.
+- **The `includes` option key was ignored** on `timeTracking()->list()`; only
+  `include` was read. Both work now.
+- The `subject_types` filter rejected `null`, which the API documents as the
+  way to match tracked time with no subject.
+
+### Changed
+
+- **Unknown write fields throw** on timeTracking.add/update and
+  timers.start/update. Examples: `ended_at` or `user_id` on an update (add
+  only) and `invoiced` anywhere.
+- Includes are checked on list and info: `materials` and `relates_to` only.
+  Unknown list options throw too.
+- Datetimes (`started_at`, `ended_at`, `resume()`'s start) must be ISO 8601
+  with a timezone. `started_on` must be a real date, and `ended_at` must come
+  after `started_at`.
+- A new entry that mixes the three timing shapes (for example `started_on`
+  plus `ended_at`) now throws.
+- Constants `ADD_FIELDS`, `UPDATE_FIELDS`, `INCLUDES` and `RELATES_TO_TYPES`
+  on TimeTracking; `WRITE_FIELDS` and `SUBJECT_TYPES` on Timers.
+- New tests: `TimeTrackingPayloadTest` and `TimeTrackingSpecContractTest`.
+  Baseline 26 → 25.
 
 ---
 

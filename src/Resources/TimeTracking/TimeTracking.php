@@ -4,9 +4,32 @@ namespace McoreServices\TeamleaderSDK\Resources\TimeTracking;
 
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class TimeTracking extends Resource
 {
+    use ValidatesWritePayload;
+
+    /** Body fields timeTracking.add accepts */
+    public const ADD_FIELDS = [
+        'started_at', 'started_on', 'ended_at', 'duration', 'work_type_id',
+        'description', 'subject', 'invoiceable', 'user_id',
+    ];
+
+    /**
+     * Body fields timeTracking.update accepts, besides `id`. No `ended_at` —
+     * an update gives the start and the duration — and no `user_id`.
+     */
+    public const UPDATE_FIELDS = [
+        'started_at', 'started_on', 'duration', 'work_type_id', 'description', 'subject', 'invoiceable',
+    ];
+
+    /** Includes timeTracking.list and timeTracking.info accept */
+    public const INCLUDES = ['materials', 'relates_to'];
+
+    /** `filter.relates_to.type` on timeTracking.list */
+    public const RELATES_TO_TYPES = ['milestone', 'project', 'nextgenProject', 'nextgenProjectGroup'];
+
     protected string $description = 'Manage time tracking entries in Teamleader Focus';
 
     // Resource capabilities
@@ -27,10 +50,7 @@ class TimeTracking extends Resource
     protected bool $supportsSideloading = true;
 
     // Available includes for sideloading
-    protected array $availableIncludes = [
-        'materials',
-        'relates_to',
-    ];
+    protected array $availableIncludes = self::INCLUDES;
 
     // Default includes
     protected array $defaultIncludes = [];
@@ -97,12 +117,7 @@ class TimeTracking extends Resource
     ];
 
     // Valid relates_to type values for the relates_to filter
-    protected array $validRelatesToTypes = [
-        'milestone',
-        'project',
-        'nextgenProject',
-        'nextgenProjectGroup',
-    ];
+    protected array $validRelatesToTypes = self::RELATES_TO_TYPES;
 
     // Usage examples
     protected array $usageExamples = [
@@ -148,6 +163,26 @@ class TimeTracking extends Resource
      */
     public function list(array $filters = [], array $options = []): array
     {
+        $allowed = ['page_size', 'page_number', 'sort', 'sort_order', 'include', 'includes', 'filters'];
+        $unknown = array_diff(array_keys($options), $allowed);
+
+        if ($unknown !== []) {
+            throw new InvalidArgumentException(
+                'timeTracking.list does not support: '.implode(', ', $unknown)
+                .'. Supported: page_size, page_number, sort, sort_order, include.'
+            );
+        }
+
+        // `includes` was ignored before v2.2.11; both keys are read now, and
+        // every include — option or fluent — is checked.
+        $pending = $this->getPendingIncludes();
+        $this->pendingIncludes = [];
+        $includes = $this->assertIncludes(
+            [...(array) ($this->resolveIncludesOption($options) ?? []), ...$pending],
+            self::INCLUDES,
+            'timeTracking.list'
+        );
+
         $params = $this->buildQueryParams(
             [],
             $filters,
@@ -155,7 +190,7 @@ class TimeTracking extends Resource
             $options['sort_order'] ?? 'asc',
             $options['page_size'] ?? 20,
             $options['page_number'] ?? 1,
-            $options['include'] ?? null
+            $includes === [] ? null : $includes
         );
 
         return $this->api->request('POST', $this->getBasePath().'.list', $params);
@@ -168,12 +203,15 @@ class TimeTracking extends Resource
     {
         $params = ['id' => $id];
 
-        if (! empty($includes)) {
-            $params = $this->applyIncludes($params, $includes);
-        }
+        $pending = $this->getPendingIncludes();
+        $this->pendingIncludes = [];
+        $includes = $this->assertIncludes(
+            [...(array) ($includes ?? []), ...$pending],
+            self::INCLUDES,
+            'timeTracking.info'
+        );
 
-        // Apply any pending includes from fluent interface
-        $params = $this->applyPendingIncludes($params);
+        $params = $this->applyIncludes($params, $includes);
 
         return $this->api->request('POST', $this->getBasePath().'.info', $params);
     }
@@ -219,6 +257,8 @@ class TimeTracking extends Resource
         $params = ['id' => $id];
 
         if ($startedAt !== null) {
+            $this->assertDateTime($startedAt, 'started_at');
+
             $params['started_at'] = $startedAt;
         }
 
@@ -266,7 +306,10 @@ class TimeTracking extends Resource
     public function forSubjectTypes(array $subjectTypes, array $options = []): array
     {
         foreach ($subjectTypes as $type) {
-            $this->validateFilterSubjectType($type);
+            // null matches tracked time without a subject
+            if ($type !== null) {
+                $this->validateFilterSubjectType($type);
+            }
         }
 
         return $this->list(
@@ -342,50 +385,98 @@ class TimeTracking extends Resource
     }
 
     /**
-     * Validate time tracking data
+     * Validate a create or update body against the specification
+     *
+     * @throws InvalidArgumentException
      */
     protected function validateTimeTrackingData(array $data, string $operation): array
     {
-        // ID is required for update
-        if ($operation === 'update' && ! isset($data['id'])) {
-            throw new InvalidArgumentException('ID is required for update operation');
-        }
+        if ($operation === 'update') {
+            if (! isset($data['id'])) {
+                throw new InvalidArgumentException('ID is required for update operation');
+            }
 
-        // Validate time tracking variant
-        if ($operation === 'create' || isset($data['started_at']) || isset($data['started_on']) || isset($data['ended_at'])) {
+            $this->rejectUnknownFields($data, [...self::UPDATE_FIELDS, 'id'], 'timeTracking.update');
+            $this->validateUpdateTiming($data);
+        } else {
+            $this->rejectUnknownFields($data, self::ADD_FIELDS, 'timeTracking.add');
             $this->validateTimeTrackingVariant($data);
         }
 
-        // Validate subject if provided
+        // subject is nullable on update: null unlinks it
         if (isset($data['subject'])) {
+            if (! is_array($data['subject'])) {
+                throw new InvalidArgumentException('Subject must contain both id and type');
+            }
+
             $this->validateSubject($data['subject']);
         }
 
-        // Validate work_type_id format if provided
         if (isset($data['work_type_id']) && ! $this->isValidUuid($data['work_type_id'])) {
             throw new InvalidArgumentException('Invalid work_type_id format. Must be a valid UUID');
         }
 
-        // Validate user_id format if provided
         if (isset($data['user_id']) && ! $this->isValidUuid($data['user_id'])) {
             throw new InvalidArgumentException('Invalid user_id format. Must be a valid UUID');
         }
 
-        // Validate invoiceable if provided
         if (isset($data['invoiceable']) && ! is_bool($data['invoiceable'])) {
             throw new InvalidArgumentException('Invoiceable must be a boolean value');
         }
 
-        // Validate duration if provided (must be positive integer)
         if (isset($data['duration']) && (! is_int($data['duration']) || $data['duration'] <= 0)) {
             throw new InvalidArgumentException('Duration must be a positive integer (seconds)');
+        }
+
+        foreach (['started_at', 'ended_at'] as $field) {
+            if (isset($data[$field])) {
+                $this->assertDateTime($data[$field], $field);
+            }
+        }
+
+        if (isset($data['started_on']) && ! $this->isDate($data['started_on'])) {
+            throw new InvalidArgumentException('started_on must be a date in YYYY-MM-DD format');
+        }
+
+        if (isset($data['started_at'], $data['ended_at']) && strtotime($data['ended_at']) <= strtotime($data['started_at'])) {
+            throw new InvalidArgumentException('ended_at must be after started_at');
         }
 
         return $data;
     }
 
     /**
-     * Validate time tracking variant
+     * timeTracking.update requires `duration` and exactly one of `started_at`
+     * or `started_on` on every call: an update restates the timing. Before
+     * v2.2.11 an update without them was sent, and the API refused it.
+     *
+     * @throws InvalidArgumentException
+     */
+    protected function validateUpdateTiming(array $data): void
+    {
+        if (! isset($data['duration'])) {
+            throw new InvalidArgumentException(
+                'timeTracking.update requires duration (in seconds) on every call, '
+                .'together with started_at or started_on.'
+            );
+        }
+
+        if (isset($data['started_at']) === isset($data['started_on'])) {
+            throw new InvalidArgumentException(
+                'timeTracking.update requires exactly one of started_at or started_on.'
+            );
+        }
+    }
+
+    /**
+     * Validate the timing of a new entry
+     *
+     * timeTracking.add takes one of three shapes:
+     * 1) started_at + duration
+     * 2) started_at + ended_at
+     * 3) started_on + duration (only with duration time tracking enabled)
+     *
+     * @throws InvalidArgumentException
      */
     protected function validateTimeTrackingVariant(array $data): void
     {
@@ -394,31 +485,41 @@ class TimeTracking extends Resource
         $hasStartedOn = isset($data['started_on']);
         $hasDuration = isset($data['duration']);
 
-        // Variant 1: started_at + duration
-        // Variant 2: started_at + ended_at
-        // Variant 3: started_on + duration
+        $valid = ($hasStartedAt && $hasEndedAt && ! $hasDuration && ! $hasStartedOn)
+            || ($hasStartedAt && $hasDuration && ! $hasEndedAt && ! $hasStartedOn)
+            || ($hasStartedOn && $hasDuration && ! $hasStartedAt && ! $hasEndedAt);
 
-        if ($hasStartedAt && $hasEndedAt && ! $hasDuration) {
-            // Variant 2: started_at + ended_at
-            return;
+        if (! $valid) {
+            throw new InvalidArgumentException(
+                'Invalid time tracking variant. Must provide either: '.
+                '1) started_at + duration, '.
+                '2) started_at + ended_at, or '.
+                '3) started_on + duration'
+            );
         }
+    }
 
-        if ($hasStartedAt && $hasDuration && ! $hasEndedAt) {
-            // Variant 1: started_at + duration
-            return;
+    /**
+     * An ISO 8601 datetime with a timezone (offset or Z)
+     *
+     * @throws InvalidArgumentException
+     */
+    protected function assertDateTime(mixed $value, string $field): void
+    {
+        $pattern = '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/';
+
+        if (! is_string($value) || ! preg_match($pattern, $value) || strtotime($value) === false) {
+            throw new InvalidArgumentException(
+                "{$field} must be an ISO 8601 datetime with a timezone, e.g. 2026-01-15T10:00:00+01:00"
+            );
         }
+    }
 
-        if ($hasStartedOn && $hasDuration && ! $hasStartedAt && ! $hasEndedAt) {
-            // Variant 3: started_on + duration
-            return;
-        }
+    protected function isDate(mixed $value): bool
+    {
+        $parsed = is_string($value) ? \DateTime::createFromFormat('!Y-m-d', $value) : false;
 
-        throw new InvalidArgumentException(
-            'Invalid time tracking variant. Must provide either: '.
-            '1) started_at + duration, '.
-            '2) started_at + ended_at, or '.
-            '3) started_on + duration'
-        );
+        return $parsed !== false && $parsed->format('Y-m-d') === $value;
     }
 
     /**
@@ -505,11 +606,14 @@ class TimeTracking extends Resource
                         throw new InvalidArgumentException('The subject_types filter must be an array.');
                     }
 
+                    // "For tracked time without a subject type, provide null"
                     foreach ($value as $type) {
-                        $this->validateFilterSubjectType($type);
+                        if ($type !== null) {
+                            $this->validateFilterSubjectType($type);
+                        }
                     }
 
-                    $apiFilters['subject_types'] = $value;
+                    $apiFilters['subject_types'] = array_values($value);
                     break;
 
                 case 'relates_to':
