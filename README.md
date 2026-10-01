@@ -124,16 +124,20 @@ use McoreServices\TeamleaderSDK\Facades\Teamleader;
 
 Route::get('/teamleader/connect', function () {
     return Teamleader::authorize();
-})->middleware('auth');
+});
 
 Route::get('/teamleader/callback', function (Request $request) {
     if (Teamleader::handleCallback($request->query('code'), $request->query('state'))) {
-        return redirect('/dashboard')->with('success', 'Connected to Teamleader!');
+        return response('Connected to Teamleader. You can close this tab and run: php artisan teamleader:status');
     }
 
-    return redirect('/settings')->with('error', 'Connecting to Teamleader failed.');
-})->middleware('auth');
+    return response('Connecting to Teamleader failed. Check storage/logs/laravel.log.', 500);
+});
 ```
+
+Once others can reach your application, put both routes behind your login
+(`->middleware('auth')`): anyone who can open `/teamleader/connect` can
+connect a Teamleader account to it.
 
 ### 5. Run the Scheduler
 

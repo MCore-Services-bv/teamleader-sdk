@@ -14,17 +14,29 @@ use McoreServices\TeamleaderSDK\Facades\Teamleader;
 // 1. Send the user to Teamleader to authorise your integration
 Route::get('/teamleader/connect', function () {
     return Teamleader::authorize();
-})->middleware('auth');
+});
 
 // 2. Teamleader sends the user back here with a code
 Route::get('/teamleader/callback', function (Request $request) {
     if (Teamleader::handleCallback($request->query('code'), $request->query('state'))) {
-        return redirect('/dashboard')->with('success', 'Connected to Teamleader.');
+        return response('Connected to Teamleader. You can close this tab and run: php artisan teamleader:status');
     }
 
-    return redirect('/settings')->with('error', 'Connecting to Teamleader failed.');
-})->middleware('auth');
+    return response('Connecting to Teamleader failed. Check storage/logs/laravel.log.', 500);
+});
 ```
+
+These work in a fresh Laravel application, without login or pages of your
+own. Open `/teamleader/connect` in the browser, approve the integration in
+Teamleader, and check the result with `php artisan teamleader:status`.
+
+{% hint style="warning" %}
+**Anyone who can open `/teamleader/connect` can connect a Teamleader account
+to your application.** Once the application is reachable by others, put both
+routes behind your login (`->middleware('auth')`) and redirect to a page of
+your own. Setting `expected_account_id` (see below) also stops the wrong
+account from being connected.
+{% endhint %}
 
 The callback path must match `TEAMLEADER_REDIRECT_URI` and the redirect URI of
 your integration exactly. Both routes need the `web` middleware group, for
@@ -54,13 +66,17 @@ on the connection and keep the one callback route:
 ```php
 Route::get('/teamleader/{connection}/connect', fn (string $connection) =>
     Teamleader::connection($connection)->authorize()
-)->middleware('auth');
+);
 
 Route::get('/teamleader/callback', function (Request $request) {
     $connected = Teamleader::handleCallback($request->query('code'), $request->query('state'));
 
-    return redirect('/settings')->with('success', "Connected {$connected->connectionName()}.");
-})->middleware('auth');
+    if ($connected) {
+        return response("Connected '{$connected->connectionName()}'. Run: php artisan teamleader:status --all");
+    }
+
+    return response('Connecting to Teamleader failed. Check storage/logs/laravel.log.', 500);
+});
 ```
 
 The state remembers which connection started the flow, so the callback stores
