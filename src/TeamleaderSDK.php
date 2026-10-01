@@ -9,6 +9,8 @@ use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Contracts\Session\Session;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
+use McoreServices\TeamleaderSDK\Bulk\BulkManager;
 use McoreServices\TeamleaderSDK\Connections\ConnectionConfig;
 use McoreServices\TeamleaderSDK\Connections\ConnectionManager;
 use McoreServices\TeamleaderSDK\Events\ConnectionAuthorized;
@@ -21,6 +23,7 @@ use McoreServices\TeamleaderSDK\Exceptions\ConfigurationException;
 use McoreServices\TeamleaderSDK\Exceptions\ConnectionNeedsReauthorizationException;
 use McoreServices\TeamleaderSDK\Exceptions\OAuthStateException;
 use McoreServices\TeamleaderSDK\Exceptions\RateLimitExceededException;
+use McoreServices\TeamleaderSDK\Resources\Resource;
 use McoreServices\TeamleaderSDK\Services\ApiRateLimiterService;
 use McoreServices\TeamleaderSDK\Services\TeamleaderErrorHandler;
 use McoreServices\TeamleaderSDK\Services\TokenService;
@@ -1005,6 +1008,31 @@ class TeamleaderSDK
     public function getRateLimitStats(): array
     {
         return $this->rateLimiter->getStatistics();
+    }
+
+    /**
+     * Bulk operations on this connection: export, and (from 3.0) bulk writes
+     */
+    public function bulk(): BulkManager
+    {
+        return new BulkManager($this);
+    }
+
+    /**
+     * A resource by its key — the same instance as `$sdk->{$key}()`.
+     *
+     * @throws InvalidArgumentException When no resource has that key
+     */
+    public function resource(string $key): Resource
+    {
+        if (! isset($this->resources[$key])) {
+            throw new InvalidArgumentException(
+                "Unknown Teamleader resource '{$key}'. Run `php artisan teamleader:resources` for the list, "
+                .'or see the API reference.'
+            );
+        }
+
+        return $this->{$key}();
     }
 
     public function __call($name, $arguments)

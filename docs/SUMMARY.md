@@ -13,6 +13,7 @@
 
 * [Filtering and Sorting](guides/filtering-and-sorting.md)
 * [Pagination](guides/pagination.md)
+* [Bulk Operations](guides/bulk-operations.md)
 * [Sideloading](guides/sideloading.md)
 * [Validation](guides/validation.md)
 * [Error Handling](guides/error-handling.md)

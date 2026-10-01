@@ -43,6 +43,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added (3.x branch)
 
+- **Bulk export.** `Teamleader::bulk()->export($resource, $filters)` with
+  `toCsv()` (dot-path columns, formula escaping), `toJsonLines()`, `each()`
+  and `onProgress()`. Pages through `cursor()`, writes to a temporary file
+  moved into place on completion. `TeamleaderSDK::resource($key)` resolves a
+  resource by key. See the new *Bulk Operations* guide.
 - **Connections stored in the database.** `teamleader:connections:add`
   (prompts for client ID and secret, or takes options), `:list` and
   `:remove` (also removes the tokens). Credentials are encrypted in a new

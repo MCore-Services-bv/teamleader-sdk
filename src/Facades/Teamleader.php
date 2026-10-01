@@ -202,6 +202,10 @@ use Psr\Log\LoggerInterface;
  * @method static Migrate migrate()
  * @method static Webhooks webhooks()
  *
+ * Bulk
+ * @method static \McoreServices\TeamleaderSDK\Bulk\BulkManager bulk()
+ * @method static \McoreServices\TeamleaderSDK\Resources\Resource resource(string $key)
+ *
  * Connections
  * @method static TeamleaderSDK connection(?string $name = null)
  * @method static string connectionName()
