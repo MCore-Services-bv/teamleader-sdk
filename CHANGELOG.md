@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Changes from the first full migration on 3.0 (527 leads, bulk create,
+update, delete and call, queued on Horizon).
+
+### Added
+
+- `files()->uploadFile($path, $subjectType, $subjectId, $folder, $name)`:
+  requests the upload link and sends the file's bytes to it, so an upload is
+  one call — and one bulk row: `bulk()->call('files', 'uploadFile', [[$path,
+  'deal', $id, 'Folder'], …])`. The extension must be one of the new
+  `Files::MIME_TYPES` (the types `files.info` documents); others are refused
+  before a link is requested. A failed upload throws.
+- `customFields()->options($id)` returns a select field's options as
+  `[label => option id]`, and `customFields()->selectValue($id, $labelOrId)`
+  returns the label to send. Teamleader takes the option label as a select
+  field's value and refuses the option id. New guide: Custom Fields.
+- `--subject=type:uuid` on `teamleader:list` and `teamleader:export`, for
+  `notes`, `emailTracking` and `files`, which only list one subject's records.
+  Without it, those commands now stop before any request and say what to add.
+
+### Changed
+
+- Deleting one of the four fixed phases every pipeline has throws a
+  `ValidationException` that says so, instead of Teamleader's bare "Unable to
+  delete fixed deal phase.".
+- "Giving up waiting for rate limit window" and "Rate limit exceeded …,
+  propagating to caller" are logged at INFO instead of WARNING. They are the
+  intended path for a queued chunk, which releases itself; a real 429 from
+  Teamleader is still a WARNING.
+
+### Documentation
+
+- Behaviour of the Teamleader API the SDK cannot change, stated where you meet
+  it: records are dated "now" and cannot be backdated; notes have no type;
+  e-mail tracking files every item as received and cannot update or delete
+  it; new pipelines get four fixed phases; queued bulk results carry only the
+  new id. The bulk guide gained Horizon setup and a "Migrating from another
+  system" section.
+
 ## [3.0.0-beta.2] - 2026-10-01
 
 ### Fixed

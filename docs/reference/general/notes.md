@@ -122,6 +122,12 @@ create(array $data)
 
 Create a new note
 
+A note has no type: in Teamleader every note shows as a plain note
+("Notitie" in a Dutch account), authored by the connected user and dated
+at the moment of the request. To carry a type or an original date over
+from another system, put it in the content, e.g. a first line
+"Simulatie — 12/03/2024".
+
 - `$data` — Note data
 
 ### `forContact()`

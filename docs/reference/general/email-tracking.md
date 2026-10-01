@@ -84,6 +84,12 @@ create(array $data): array
 
 Create new email tracking entry
 
+Teamleader files every item as a **received** e-mail, also when it was
+one you sent; the API has no direction field. Items cannot be updated or
+deleted through the API afterwards, so try one record before a bulk run.
+The item is dated at the moment of the request — keep the original date
+in the content when it matters.
+
 - `$data` — Email tracking data
 
 ### `createForCompany()`

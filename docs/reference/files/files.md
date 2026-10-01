@@ -83,12 +83,49 @@ Request upload link for a file
 Note that files.upload accepts a narrower set of subject types than
 files.list — see $uploadSubjectTypes.
 
+This only returns a temporary link; the contents still have to be POSTed
+to it. To upload a local file in one call, use uploadFile().
+
 - `$name` — File name with extension
 - `$subjectType` — Subject type — see $uploadSubjectTypes
 - `$subjectId` — Subject UUID — not required when subjectType is 'temporary'
 - `$folder` — Optional folder name (defaults to General in account language)
 
 **Throws** `InvalidArgumentException` When the name, subject type or subject id is missing or invalid
+
+### `uploadFile()`
+
+```php
+uploadFile(string $path, string $subjectType, ?string $subjectId = null, ?string $folder = null, ?string $name = null, bool $checkType = true): array
+```
+
+Upload a local file in one call: request the link, send the contents.
+
+upload() only returns a temporary link, which expires, so a bulk upload
+needs both steps per row. This does both, and works with bulk():
+
+    Teamleader::bulk()->call('files', 'uploadFile', [
+        'lead-12' => [storage_path('docs/offerte.pdf'), 'deal', $dealId, 'Offertes'],
+    ])->run();
+
+The file is sent as raw bytes (`application/octet-stream`). Its name in
+Teamleader is $name, or the file's own name, and its extension must be
+one of MIME_TYPES — anything else is refused before the link is
+requested. A failed upload throws, whatever throw_exceptions says, so a
+bulk run records it as a failed row.
+
+Queued bulk: the path is read by the worker, so it must exist there.
+
+- `$path` — Path to the local file
+- `$subjectType` — Subject type — see $uploadSubjectTypes
+- `$subjectId` — Subject UUID — not required when subjectType is 'temporary'
+- `$folder` — Folder in Teamleader (defaults to General in the account's language)
+- `$name` — Name in Teamleader, with extension; defaults to the file's own name
+- `$checkType` — False to skip the MIME_TYPES check
+
+**Throws** `InvalidArgumentException` When the file cannot be read, or its type is not accepted
+
+**Throws** `TeamleaderException` When Teamleader returns no link or refuses the contents
 
 ### `download()`
 

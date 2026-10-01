@@ -119,6 +119,11 @@ Create a new deal
 Optional pass-through fields include:
 - purchase_order_number (string|null): the customer's purchase order number
 
+A select custom field takes the option **label** as its value (a string,
+or a list of strings for multi select), not the option id: Teamleader
+refuses the id with "has an invalid single selection value". Resolve
+either form with customFields()->selectValue($fieldId, $labelOrId).
+
 - `$data` — Deal data
 
 **Throws** `InvalidArgumentException`

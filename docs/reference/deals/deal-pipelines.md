@@ -63,6 +63,13 @@ create(array $data): array
 
 Create a new deal pipeline
 
+Teamleader gives every new pipeline four fixed phases (in a Dutch
+account: Nieuw, Offerte verzonden, Aanvaard, Geweigerd). They exist as
+soon as this returns, can be renamed in Teamleader, and can never be
+deleted — dealPhases.delete refuses them. Add your own phases with
+dealPhases()->create(), and map onto the fixed ones rather than
+recreating them.
+
 - `$data` — Pipeline data
 
 ### `update()`

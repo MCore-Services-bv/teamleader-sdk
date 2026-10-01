@@ -103,8 +103,15 @@ exist — so every call was a fatal "Call to undefined method", and
 dealPhases.delete could not be reached at all. The same defect was fixed
 on Pipelines in v2.2.2.
 
+Every pipeline has four fixed phases (in a Dutch account: Nieuw,
+Offerte verzonden, Aanvaard, Geweigerd). They can be renamed in
+Teamleader, never deleted: Teamleader answers "Unable to delete fixed
+deal phase.", which this turns into a ValidationException that says so.
+
 - `$id` — Phase UUID to delete
 - `$additionalParams` — Optional UUID of the phase that takes over the deals
+
+**Throws** `ValidationException` When the phase is one of the fixed phases
 
 ### `duplicate()`
 

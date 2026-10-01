@@ -155,6 +155,11 @@ create(array $data)
 
 Create a new company
 
+A select custom field takes the option **label** as its value (a string,
+or a list of strings for multi select), not the option id: Teamleader
+refuses the id with "has an invalid single selection value". Resolve
+either form with customFields()->selectValue($fieldId, $labelOrId).
+
 ### `update()`
 
 ```php

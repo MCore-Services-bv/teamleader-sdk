@@ -286,6 +286,48 @@ Check if a field type is a reference type (links to another entity)
 
 - `$type` — Field type
 
+### `options()`
+
+```php
+options(string $id): array
+```
+
+The options of a single or multi select field, as [label => option id].
+
+Read once per field and kept for the lifetime of this resource instance,
+so mapping many rows costs one request per field.
+
+- `$id` — Custom field UUID
+
+**Throws** `InvalidArgumentException` When the field is not a select field
+
+**Throws** `TeamleaderException` When the definition cannot be read
+
+### `selectValue()`
+
+```php
+selectValue(string $id, array|string $value): array|string
+```
+
+The value to send for a select field: the option label.
+
+Teamleader takes the option's **label** as a select field's value on
+create and update (a string, or a list of strings for multi select) and
+refuses the option id with "has an invalid single selection value". This
+accepts either the label or the option id and returns the label(s), so
+mapping code can keep working with ids. An unknown value throws here,
+before any request is sent, naming the labels that exist.
+
+    'custom_fields' => [[
+        'id' => $fieldId,
+        'value' => Teamleader::customFields()->selectValue($fieldId, 'Woonkrediet'),
+    ]],
+
+- `$id` — Custom field UUID
+- `$value` — Label(s) or option id(s)
+
+**Throws** `InvalidArgumentException` When a value matches no option
+
 ### `getAllSupportedContexts()`
 
 ```php
