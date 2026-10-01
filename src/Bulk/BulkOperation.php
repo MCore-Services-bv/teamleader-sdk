@@ -5,7 +5,13 @@ declare(strict_types=1);
 namespace McoreServices\TeamleaderSDK\Bulk;
 
 use Closure;
+use Illuminate\Bus\Batch;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
+use LogicException;
+use McoreServices\TeamleaderSDK\Bulk\Jobs\RunBulkChunk;
+use McoreServices\TeamleaderSDK\Events\BulkBatchFinished;
 use McoreServices\TeamleaderSDK\Exceptions\ConnectionNeedsReauthorizationException;
 use McoreServices\TeamleaderSDK\Exceptions\RateLimitExceededException;
 use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
@@ -30,6 +36,8 @@ use Throwable;
  */
 final class BulkOperation
 {
+    public const ALREADY_SUCCEEDED = 'Already succeeded in an earlier run.';
+
     private bool $validateFirst = true;
 
     private bool $continueOnError = false;
@@ -217,6 +225,100 @@ final class BulkOperation
     }
 
     /**
+     * Send the rows from queue workers, in chunks, as one Laravel job batch.
+     *
+     * Validation (validateFirst), uniqueBy() and resumeFrom() are applied here,
+     * before anything is queued: an invalid row throws now, in the request
+     * that dispatches, and nothing is queued.
+     *
+     * Each chunk is one job on this connection. On a rate limit a job
+     * releases itself for as long as Teamleader asks instead of holding the
+     * worker, and resumes after the rows it already sent. Without
+     * continueOnError(), the first refusal cancels the remaining chunks.
+     *
+     * When every chunk has run, BulkBatchFinished is fired with the result;
+     * Teamleader::bulk()->result($batch->id) reads it at any time.
+     *
+     * Needs a real queue (not `sync`) and Laravel's job_batches table
+     * (`php artisan make:queue-batches-table && php artisan migrate`).
+     *
+     * @param  int  $chunk  Rows per job
+     * @param  string|null  $queueConnection  Queue connection; null uses the default
+     * @param  string|null  $queue  Queue name
+     *
+     * @throws BulkValidationException When validateFirst() is on and any row is invalid — nothing is queued
+     * @throws LogicException On the sync queue driver
+     */
+    public function dispatch(int $chunk = 50, ?string $queueConnection = null, ?string $queue = null): Batch
+    {
+        if ($chunk < 1) {
+            throw new InvalidArgumentException("chunk must be at least 1, {$chunk} given.");
+        }
+
+        $queueConnection ??= (string) config('queue.default');
+
+        if (config("queue.connections.{$queueConnection}.driver") === 'sync') {
+            throw new LogicException(
+                "Queue connection '{$queueConnection}' uses the sync driver: the whole bulk operation would run "
+                .'inside this request. Use run() here, or dispatch on a real queue (database, redis, sqs).'
+            );
+        }
+
+        $result = new BulkResult($this->resource, $this->operation);
+        [$toSend] = $this->plan($result);
+
+        if ($this->validateFirst) {
+            $failures = $this->validate($toSend);
+
+            if ($failures !== []) {
+                throw new BulkValidationException($this->resource, $failures, count($this->rows));
+            }
+        }
+
+        $runId = (string) Str::uuid();
+        $connection = $this->sdk->connectionName();
+        $chunks = array_chunk($toSend, $chunk, true);
+        $chunkIds = array_map('strval', array_keys($chunks));
+
+        $results = new QueuedResults($runId);
+        $results->start($connection, $this->resource, $this->operation, ['planned', ...$chunkIds]);
+
+        // Rows skipped while planning (duplicates, earlier runs) belong in the result too
+        foreach ($result->skipped() as $index => $reason) {
+            if ($reason !== self::ALREADY_SUCCEEDED) {
+                $results->skip('planned', [$index], $reason);
+            }
+        }
+
+        $jobs = [];
+
+        foreach ($chunks as $id => $rows) {
+            $jobs[] = new RunBulkChunk($runId, (string) $id, $connection, $this->resource, $this->operation, $rows, $this->continueOnError);
+        }
+
+        $batch = Bus::batch($jobs)
+            ->name("Teamleader {$this->operation} {$this->resource} ({$connection})")
+            ->allowFailures()
+            ->onConnection($queueConnection)
+            ->finally(function (Batch $batch) use ($runId, $connection) {
+                $result = (new QueuedResults($runId))->collect();
+
+                if ($result !== null) {
+                    event(new BulkBatchFinished($batch->id, $connection, $result, $batch->cancelled()));
+                }
+            });
+
+        if ($queue !== null) {
+            $batch->onQueue($queue);
+        }
+
+        $dispatched = $batch->dispatch();
+        $results->linkBatch($dispatched->id);
+
+        return $dispatched;
+    }
+
+    /**
      * The rows to send, after recording duplicates and already-done rows as skipped.
      *
      * @return array{0: array<int|string, mixed>}
@@ -228,7 +330,7 @@ final class BulkOperation
 
         foreach ($this->rows as $index => $row) {
             if (isset($this->alreadySucceeded[$index])) {
-                $result->recordSkip($index, 'Already succeeded in an earlier run.');
+                $result->recordSkip($index, self::ALREADY_SUCCEEDED);
 
                 continue;
             }
@@ -286,6 +388,10 @@ final class BulkOperation
 
         // Exceptions are forced on, but an error array must never count as a success
         if (is_array($response) && ! empty($response['error'])) {
+            if ((int) ($response['status_code'] ?? 0) === 429) {
+                throw new RateLimitExceededException((string) ($response['message'] ?? 'Rate limit exceeded'));
+            }
+
             throw new TeamleaderException(
                 (string) ($response['message'] ?? 'The API refused the row'),
                 (int) ($response['status_code'] ?? 0),

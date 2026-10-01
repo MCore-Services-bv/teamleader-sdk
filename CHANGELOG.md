@@ -43,6 +43,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added (3.x branch)
 
+- **Queued bulk.** `BulkOperation::dispatch(chunk: 50)` validates in the
+  request, then sends the rows as a `Bus::batch()` of `RunBulkChunk` jobs on
+  the dispatching connection. A job releases itself on a rate limit and
+  resumes after the rows it already sent (progress is recorded in the cache,
+  so a retry never resends a row); without `continueOnError()` a refusal
+  cancels the batch. `BulkBatchFinished` carries the result;
+  `Teamleader::bulk()->result($batchId)` reads it any time. The `sync` driver
+  is refused.
 - **Bulk writes.** `Teamleader::bulk()->create() / update() / delete() /
   call()` return a `BulkOperation`: every row is validated before any is sent
   (`BulkValidationException` lists all invalid rows), rows go through the

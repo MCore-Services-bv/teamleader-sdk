@@ -76,6 +76,15 @@ final class BulkManager
         return $this->operation($resource, "call:{$method}", $argumentsPerRow);
     }
 
+    /**
+     * What a queued bulk operation has done so far — or in total, once its
+     * batch has finished. Null for an unknown or expired batch (kept a week).
+     */
+    public function result(string $batchId): ?BulkResult
+    {
+        return QueuedResults::forBatch($batchId)?->collect();
+    }
+
     private function operation(string $resource, string $operation, iterable $rows): BulkOperation
     {
         // Resolve now: a typo fails here, not after validating every row

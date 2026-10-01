@@ -170,3 +170,63 @@ of `TEAMLEADER_RATE_LIMIT_MAX_WAIT_MS`), which suits a command or a job. At
 200 requests a minute, **10,000 rows take about 50 minutes.**
 `->waitForRateLimit(false)` keeps your normal limit — in a web request,
 say, where waiting a minute is not an option.
+
+## Queued bulk
+
+For anything that would run longer than a request, or that should survive a
+deploy, send the rows from queue workers:
+
+```php
+$batch = Teamleader::bulk()
+    ->create('companies', $rows)
+    ->continueOnError()
+    ->dispatch(chunk: 50);
+
+$batch->id;   // keep it: Bus::findBatch($batch->id) for progress, Horizon shows it too
+```
+
+- **Validation, `uniqueBy()` and `resumeFrom()` happen in `dispatch()`**, in
+  your request: an invalid row throws `BulkValidationException` and nothing is
+  queued.
+- Each chunk is one job, on the connection you dispatched from
+  (`Teamleader::connection('antwerp')->bulk()->...`).
+- **Rate limits.** A job that meets the rate limit releases itself for as long
+  as Teamleader asks, instead of blocking the worker, and resumes after the
+  rows it already sent — a retried chunk never sends a row twice. Jobs retry
+  for up to a day.
+- **Stopping.** Without `continueOnError()`, the first refusal cancels the
+  batch: chunks that had not started yet report their rows as skipped.
+- Chunks may run in parallel on several workers. They share the connection's
+  rate-limit window, so this does not make the import faster than 200 rows a
+  minute — it only frees your workers while waiting.
+
+### The result
+
+```php
+use McoreServices\TeamleaderSDK\Events\BulkBatchFinished;
+
+Event::listen(function (BulkBatchFinished $event) {
+    $event->result->counts();    // ['succeeded' => 9998, 'failed' => 2, 'skipped' => 0]
+    $event->result->failed();    // [row key => BulkFailure]
+    $event->cancelled;
+});
+
+// Or at any time, also while it runs:
+Teamleader::bulk()->result($batch->id);
+```
+
+Succeeded rows carry the record's id: `['data' => ['id' => '...']]`. Results
+are kept in the cache for a week.
+
+### Requirements
+
+- A real queue — `database`, `redis`, `sqs`. `dispatch()` refuses the `sync`
+  driver, which would run everything inside the request.
+- Laravel's batches table, once per application:
+
+  ```bash
+  php artisan make:queue-batches-table
+  php artisan migrate
+  ```
+- A cache store shared by the workers (Redis, database) — the chunks record
+  their progress there.
