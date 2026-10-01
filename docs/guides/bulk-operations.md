@@ -215,8 +215,11 @@ Event::listen(function (BulkBatchFinished $event) {
 Teamleader::bulk()->result($batch->id);
 ```
 
-Succeeded rows carry the record's id: `['data' => ['id' => '...']]`. Results
-are kept in the cache for a week.
+Succeeded rows carry only the record's id: `['data' => ['id' => '...']]`,
+whatever else the API answered. When a later step needs more than the id,
+keep your own mapping table — your row key to the new id, stored from the
+`BulkBatchFinished` listener — and read the rest with `info()`. Results are
+kept in the cache for a week.
 
 ### Requirements
 
@@ -230,3 +233,47 @@ are kept in the cache for a week.
   ```
 - A cache store shared by the workers, such as Redis or the database. The
   chunks record their progress there.
+
+### With Horizon
+
+Horizon only works queues on a `redis` connection, so dispatch to one:
+
+```php
+Teamleader::bulk()->create('contacts', $rows)->dispatch(chunk: 50, queueConnection: 'redis', queue: 'teamleader');
+```
+
+The 200 requests a minute are per Teamleader account, not per worker. A
+dedicated supervisor with one or two processes is enough; more processes
+only wait for the same window.
+
+```php
+// config/horizon.php, under 'environments'
+'teamleader' => [
+    'connection' => 'redis',
+    'queue' => ['teamleader'],
+    'maxProcesses' => 2,
+],
+```
+
+The jobs set their own retry window (a day), which takes precedence over the
+supervisor's `tries`.
+
+## Migrating from another system
+
+Teamleader dates every record at the moment it is created. A deal, note,
+e-mail or file cannot be backdated through the API, so put the original date
+in the content or in a custom field when it matters. Some other behaviour to
+plan for:
+
+- **Select custom fields** take the option label, not the option id. See
+  [Custom Fields](custom-fields.md).
+- **Pipelines** come with four fixed phases that cannot be deleted. Map onto
+  them instead of deleting and recreating.
+- **Notes** have no type and are authored by the connected user.
+- **E-mail tracking** files every item as a received e-mail, and items cannot
+  be updated or deleted afterwards. Try one record before a bulk run.
+- **Files**: `call('files', 'uploadFile', [[$path, 'deal', $dealId, 'Folder'], …])`
+  uploads local files, one row per file.
+
+Check every step with `dryRun()` first. It shows the exact request bodies,
+and it is where a wrong value format shows up before any data is touched.

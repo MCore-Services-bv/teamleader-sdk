@@ -192,6 +192,10 @@ $resource->delete(string $id);
 `$filters` maps to the API's `filter` object. `$options` carries `page_size`,
 `page_number`, `sort`, `sort_order` and `include`.
 
+> Teamleader dates every record at the moment it is created: a deal, note,
+> e-mail or file cannot be backdated through the API. When you migrate data,
+> keep original dates in the content or in a custom field.
+
 ### Companies
 
 ```php
@@ -295,20 +299,15 @@ $entries = Teamleader::timeTracking()->betweenDates(
 ### Files
 
 ```php
-// upload() returns a signed URL — you POST the file content to it yourself
-$upload = Teamleader::files()->upload('contract.pdf', 'deal', 'deal-uuid');
-
-$ch = curl_init($upload['data']['location']);
-curl_setopt_array($ch, [
-    CURLOPT_POST           => true,
-    CURLOPT_POSTFIELDS     => file_get_contents('/local/contract.pdf'),
-    CURLOPT_RETURNTRANSFER => true,
-]);
-curl_exec($ch);
-curl_close($ch);
+// Requests the upload link and sends the file to it
+Teamleader::files()->uploadFile(storage_path('contract.pdf'), 'deal', 'deal-uuid', 'Contracts');
 
 $files = Teamleader::files()->forDeal('deal-uuid');
 ```
+
+The extension must be a type Teamleader knows (`Files::MIME_TYPES`: pdf, docx,
+xlsx, jpg, png and so on); others are refused before anything is sent.
+`upload()` on its own only returns the temporary link.
 
 ### Custom Fields
 
@@ -321,6 +320,9 @@ $field = Teamleader::customFields()->create([
 
 // Every definition, paging handled for you
 $all = Teamleader::customFields()->all();
+
+// A select field takes the option label, not the option id
+$value = Teamleader::customFields()->selectValue('field-uuid', 'option-uuid-or-label');
 ```
 
 ---
@@ -452,7 +454,12 @@ Teamleader::bulk()->update('deals', $rows)->dispatch(chunk: 50);
 
 `dryRun()` shows exactly what would be sent, and `resumeFrom($result)` skips
 the rows that already succeeded. `call('deals', 'win', $rows)` runs any
-method once per row.
+method once per row, and `call('files', 'uploadFile', $rows)` uploads local
+files.
+
+`dispatch()` needs a real queue; Horizon only works the `redis` connection.
+The 200 requests a minute are per Teamleader account, so one or two worker
+processes are enough.
 
 ---
 
