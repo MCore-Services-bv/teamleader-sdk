@@ -12,6 +12,7 @@ use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Connections\ConnectionManager;
 use McoreServices\TeamleaderSDK\Connections\DatabaseConnectionStore;
 use McoreServices\TeamleaderSDK\Facades\Teamleader;
+use McoreServices\TeamleaderSDK\TeamleaderSDK;
 use McoreServices\TeamleaderSDK\Tests\TestCase;
 use McoreServices\TeamleaderSDK\Tokens\StoredTokens;
 use McoreServices\TeamleaderSDK\Tokens\TokenStore;
@@ -166,5 +167,101 @@ final class DatabaseConnectionsTest extends TestCase
         $this->artisan('teamleader:connections:remove', ['name' => 'antwerp', '--force' => true])
             ->expectsOutputToContain('Remove it there')
             ->assertExitCode(1);
+    }
+
+    // -- add without a shared redirect URI --------------------------------------
+
+    public function test_add_asks_for_the_redirect_uri_when_none_is_shared(): void
+    {
+        config(['teamleader.redirect_uri' => null]);
+
+        $this->artisan('teamleader:connections:add', ['name' => 'bruges'])
+            ->expectsQuestion('Client ID', 'bruges-client')
+            ->expectsQuestion('Client secret', 'bruges-secret')
+            ->expectsQuestion('Redirect URI (as registered in the integration)', 'https://bruges.test/teamleader/callback')
+            ->expectsOutputToContain("Connection 'bruges' stored.")
+            ->assertExitCode(0);
+
+        $this->assertSame('https://bruges.test/teamleader/callback', $this->store->get('bruges')['redirect_uri']);
+        $this->assertSame(
+            'https://bruges.test/teamleader/callback',
+            Teamleader::connection('bruges')->getConnectionConfig()->redirectUri
+        );
+    }
+
+    public function test_an_invalid_redirect_uri_stores_nothing(): void
+    {
+        config(['teamleader.redirect_uri' => null]);
+
+        $this->artisan('teamleader:connections:add', [
+            'name' => 'bruges',
+            '--client-id' => 'bruges-client',
+            '--client-secret' => 'bruges-secret',
+            '--redirect-uri' => 'teamleader/callback',
+        ])
+            ->expectsOutputToContain('is not a full URL')
+            ->assertExitCode(1);
+
+        $this->assertFalse($this->store->has('bruges'));
+    }
+
+    public function test_without_any_redirect_uri_a_non_interactive_run_fails_and_stores_nothing(): void
+    {
+        config(['teamleader.redirect_uri' => null]);
+
+        $this->artisan('teamleader:connections:add', [
+            'name' => 'bruges',
+            '--client-id' => 'bruges-client',
+            '--client-secret' => 'bruges-secret',
+            '--no-interaction' => true,
+        ])
+            ->expectsOutputToContain('No redirect URI')
+            ->assertExitCode(1);
+
+        $this->assertFalse($this->store->has('bruges'));
+    }
+
+    public function test_the_default_connection_can_live_in_the_database(): void
+    {
+        config(['teamleader.client_id' => null, 'teamleader.client_secret' => null, 'teamleader.redirect_uri' => null]);
+        app(ConnectionManager::class)->purge();
+
+        $this->artisan('teamleader:connections:add', [
+            'name' => 'default',
+            '--client-id' => 'db-client',
+            '--client-secret' => 'db-secret',
+            '--redirect-uri' => 'https://app.test/teamleader/callback',
+        ])->assertExitCode(0);
+
+        $this->assertSame('database', app(ConnectionManager::class)->sourceOf('default'));
+        $this->assertSame('db-client', Teamleader::connection('default')->getConnectionConfig()->clientId);
+    }
+
+    public function test_add_suggests_making_a_named_connection_the_default(): void
+    {
+        $this->artisan('teamleader:connections:add', [
+            'name' => 'bruges',
+            '--client-id' => 'bruges-client',
+            '--client-secret' => 'bruges-secret',
+        ])
+            ->expectsOutputToContain('TEAMLEADER_CONNECTION=bruges')
+            ->assertExitCode(0);
+    }
+
+    public function test_a_named_connection_works_through_the_facade_without_a_default(): void
+    {
+        // An application with only stored, named connections: nothing in .env
+        config(['teamleader.client_id' => null, 'teamleader.client_secret' => null, 'teamleader.redirect_uri' => null]);
+        app(ConnectionManager::class)->purge();
+        app()->forgetInstance(TeamleaderSDK::class);
+        Teamleader::clearResolvedInstances();
+
+        $this->store->put('bruges', [
+            'client_id' => 'bruges-client',
+            'client_secret' => 'bruges-secret',
+            'redirect_uri' => 'https://bruges.test/teamleader/callback',
+        ]);
+
+        $this->assertSame('bruges-client', Teamleader::connection('bruges')->getConnectionConfig()->clientId);
     }
 }

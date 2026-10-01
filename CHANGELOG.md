@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `teamleader:connections:add` stored the credentials before checking them.
+  Without `TEAMLEADER_REDIRECT_URI` it saved an incomplete connection and then
+  failed with a `ConfigurationException`. It now validates first and stores
+  nothing on failure, asks for the redirect URI when there is no shared one
+  (`--redirect-uri` in scripts), rejects one that is not a full URL, and says
+  how to make the new connection the default.
+- `Teamleader::connection()`, `extend()`, `resolveConnectionsUsing()` and
+  `handleCallback()` built the default connection first, so an application
+  with only named connections (and nothing in `.env`) could not reach them
+  through the facade. They now go to the connection manager directly.
+
 ## [3.0.0-beta.1] - 2026-10-01
 
 **First beta of 3.0.** One application can now talk to several Teamleader

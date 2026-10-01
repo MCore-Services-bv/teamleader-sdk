@@ -495,6 +495,32 @@ class TeamleaderSDK
      *
      * @throws OAuthStateException
      */
+    /**
+     * The connection an authorisation with this state was started on, or null
+     * when the session holds no such state. Does not consume the state: the
+     * facade uses it to route a callback before any connection is built.
+     */
+    public static function pendingConnectionFor(?string $state): ?string
+    {
+        if (! is_string($state) || $state === '' || ! function_exists('app') || ! app()->bound('session')) {
+            return null;
+        }
+
+        $pending = app('session')->driver()->get(self::OAUTH_STATE_SESSION_KEY, []);
+
+        if (! is_array($pending)) {
+            return null;
+        }
+
+        foreach ($pending as $candidate => $connection) {
+            if (hash_equals((string) $candidate, $state) && is_string($connection) && $connection !== '') {
+                return $connection;
+            }
+        }
+
+        return null;
+    }
+
     private function resolveCallbackConnection(?string $state): self
     {
         $session = $this->session();

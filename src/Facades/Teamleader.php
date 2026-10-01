@@ -2,8 +2,10 @@
 
 namespace McoreServices\TeamleaderSDK\Facades;
 
+use Closure;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Facade;
+use McoreServices\TeamleaderSDK\Connections\ConnectionManager;
 use McoreServices\TeamleaderSDK\Resources\Calendar\ActivityTypes;
 use McoreServices\TeamleaderSDK\Resources\Calendar\CallOutcomes;
 use McoreServices\TeamleaderSDK\Resources\Calendar\Calls;
@@ -84,7 +86,6 @@ use Psr\Log\LoggerInterface;
  *
  * @method static string getAuthorizationUrl(?string $state = null)
  * @method static RedirectResponse authorize(?string $state = null)
- * @method static bool handleCallback(string $code, ?string $state = null)
  * @method static bool isAuthenticated()
  * @method static TeamleaderSDK setAccessToken(string $accessToken)
  * @method static string|null getToken()
@@ -207,10 +208,7 @@ use Psr\Log\LoggerInterface;
  * @method static \McoreServices\TeamleaderSDK\Resources\Resource resource(string $key)
  *
  * Connections
- * @method static TeamleaderSDK connection(?string $name = null)
  * @method static string connectionName()
- * @method static TeamleaderSDK extend(string $name, \Closure $config)
- * @method static TeamleaderSDK resolveConnectionsUsing(\Closure $resolver)
  *
  * @see McoreServices\TeamleaderSDK\TeamleaderSDK
  */
@@ -224,5 +222,55 @@ class Teamleader extends Facade
     protected static function getFacadeAccessor()
     {
         return 'teamleader';
+    }
+
+    /*
+     * The methods below go to the ConnectionManager directly instead of
+     * through the default connection's instance. Resolving that instance
+     * builds the default connection, which throws when it is not configured —
+     * an application that only uses named connections could otherwise never
+     * reach them through the facade.
+     */
+
+    /** The SDK for a connection; the default connection when no name is given */
+    public static function connection(?string $name = null): TeamleaderSDK
+    {
+        return static::manager()->connection($name);
+    }
+
+    /**
+     * Define a connection at runtime — see ConnectionManager::extend()
+     *
+     * @param  Closure(): array<string, mixed>  $config
+     */
+    public static function extend(string $name, Closure $config): ConnectionManager
+    {
+        return static::manager()->extend($name, $config);
+    }
+
+    /**
+     * Resolve unknown connection names through your own lookup — see
+     * ConnectionManager::resolveConnectionsUsing()
+     *
+     * @param  Closure(string): (array<string, mixed>|null)  $resolver
+     */
+    public static function resolveConnectionsUsing(Closure $resolver): ConnectionManager
+    {
+        return static::manager()->resolveConnectionsUsing($resolver);
+    }
+
+    /**
+     * Complete the OAuth flow on the connection that started it. Returns that
+     * connection's SDK, or false when the code exchange failed and
+     * TEAMLEADER_THROW_EXCEPTIONS is off.
+     */
+    public static function handleCallback(string $code, ?string $state = null): TeamleaderSDK|false
+    {
+        return static::connection(TeamleaderSDK::pendingConnectionFor($state))->handleCallback($code, $state);
+    }
+
+    private static function manager(): ConnectionManager
+    {
+        return static::getFacadeApplication()->make(ConnectionManager::class);
     }
 }

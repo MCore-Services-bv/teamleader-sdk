@@ -68,9 +68,30 @@ Client ID and secret are encrypted with `APP_KEY` in the
 pass `--client-id=`, `--client-secret=` and optionally `--redirect-uri=` and
 `--expected-account=`.
 
+Without `--redirect-uri`, a stored connection uses `TEAMLEADER_REDIRECT_URI`.
+When that is not set either, the command asks for the redirect URI. Nothing is
+stored until every value checks out, so a failed run leaves the table as it
+was.
+
 Adding an account then takes three steps: create the integration in that
 Teamleader account, run `connections:add`, and connect it through your OAuth
 route.
+
+### Without any credentials in `.env`
+
+The first connection can be stored too. Either name it `default`:
+
+```bash
+php artisan teamleader:connections:add default
+```
+
+or give it a name and make that the default connection:
+
+```dotenv
+TEAMLEADER_CONNECTION=nova-credit
+```
+
+Either way, `Teamleader::companies()` then uses it without a name.
 
 A connection in `config/teamleader.php` always wins over one with the same
 name in the database; the commands refuse to add or remove such a name.

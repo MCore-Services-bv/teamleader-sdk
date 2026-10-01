@@ -17,15 +17,16 @@ class TeamleaderStatusCommand extends Command
 
     protected $description = 'Check Teamleader SDK connection status and statistics';
 
-    public function handle(TeamleaderSDK $sdk, HealthCheckService $healthCheck, ConnectionManager $manager)
+    public function handle(ConnectionManager $manager)
     {
         if ($this->option('all')) {
             return $this->displayAllConnections($manager);
         }
 
-        if ($this->option('connection')) {
-            $sdk = $manager->connection((string) $this->option('connection'));
-        }
+        // Resolved here rather than injected: injecting TeamleaderSDK builds the
+        // default connection, which fails when only named connections exist
+        $name = $this->option('connection');
+        $sdk = $manager->connection(is_string($name) && $name !== '' ? $name : null);
 
         $this->info('🔍 Checking Teamleader SDK Status...');
         $this->newLine();
@@ -63,7 +64,7 @@ class TeamleaderStatusCommand extends Command
         if ($this->option('verbose')) {
             $this->newLine();
             $this->line('<fg=yellow>Running quick health check...</>');
-            $result = $healthCheck->check();
+            $result = app(HealthCheckService::class)->check();
             $this->displayHealthSummary($result);
         }
 

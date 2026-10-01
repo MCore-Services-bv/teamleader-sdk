@@ -284,7 +284,7 @@ class ConnectionManager
     }
 
     /** redirect_uri shared by every connection that sets none */
-    private function defaultRedirectUri(): ?string
+    public function defaultRedirectUri(): ?string
     {
         $uri = config('teamleader.connections.default.redirect_uri') ?: config('teamleader.redirect_uri');
 
