@@ -50,10 +50,39 @@ final class BulkManager
     /**
      * Delete one record per id.
      *
+     * The one bulk operation that cannot be undone, so the list is checked up
+     * front: an empty list, or one naming the same record twice, is refused —
+     * both usually mean the ids came from the wrong place.
+     *
      * @param  iterable<int|string, string|array{id: string}>  $ids
+     *
+     * @throws InvalidArgumentException When the list is empty or has duplicates
      */
     public function delete(string $resource, iterable $ids): BulkOperation
     {
+        $ids = is_array($ids) ? $ids : iterator_to_array($ids, true);
+
+        if ($ids === []) {
+            throw new InvalidArgumentException("No ids given to delete from {$resource}.");
+        }
+
+        $seen = [];
+
+        foreach ($ids as $key => $id) {
+            $value = is_array($id) ? ($id['id'] ?? null) : $id;
+
+            if (is_string($value) && isset($seen[$value])) {
+                throw new InvalidArgumentException(
+                    "Id {$value} appears twice in the delete list (rows {$seen[$value]} and {$key}). "
+                    .'Nothing was deleted; check where the list came from.'
+                );
+            }
+
+            if (is_string($value)) {
+                $seen[$value] = $key;
+            }
+        }
+
         return $this->operation($resource, 'delete', $ids);
     }
 

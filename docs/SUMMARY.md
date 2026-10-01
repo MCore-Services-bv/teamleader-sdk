@@ -23,6 +23,7 @@
 * [Token Storage and Security](guides/token-storage-and-security.md)
 * [Multiple Connections](guides/multiple-connections.md)
 * [Artisan Commands](guides/artisan-commands.md)
+* [Command Line](guides/cli.md)
 
 ## Project
 

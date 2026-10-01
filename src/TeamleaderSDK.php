@@ -1019,6 +1019,16 @@ class TeamleaderSDK
     }
 
     /**
+     * Every resource key and its class, including ones added with addResource()
+     *
+     * @return array<string, class-string>
+     */
+    public function registeredResources(): array
+    {
+        return $this->resources;
+    }
+
+    /**
      * A resource by its key — the same instance as `$sdk->{$key}()`.
      *
      * @throws InvalidArgumentException When no resource has that key

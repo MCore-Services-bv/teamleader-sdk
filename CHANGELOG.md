@@ -43,6 +43,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added (3.x branch)
 
+- **Read-only CLI.** `teamleader:resources`, `teamleader:describe {resource}`,
+  `teamleader:list {resource}` (`--filter=key=value` with `[]` lists and
+  dotted objects, `--sort=field:desc`, `--include`, `--all`, `--limit`,
+  `--fields`, `--format=table|json|csv`) and `teamleader:info {resource} {id}`,
+  all with `--connection=`. They go through the resources' own methods, so
+  validation errors list what the endpoint accepts. See the new *Command
+  Line* guide.
+- `bulk()->delete()` refuses an empty id list and one naming a record twice.
 - **Queued bulk.** `BulkOperation::dispatch(chunk: 50)` validates in the
   request, then sends the rows as a `Bus::batch()` of `RunBulkChunk` jobs on
   the dispatching connection. A job releases itself on a rate limit and

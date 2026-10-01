@@ -140,6 +140,22 @@ final class BulkOperationTest extends ResourceTestCase
         $this->assertSame(['id' => 'deal-2'], $this->api->lastBody());
     }
 
+    public function test_an_empty_delete_list_is_refused(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('No ids given to delete from deals');
+
+        $this->api->bulk()->delete('deals', []);
+    }
+
+    public function test_a_delete_list_with_duplicates_is_refused(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Id deal-1 appears twice in the delete list (rows 0 and 2)');
+
+        $this->api->bulk()->delete('deals', ['deal-1', 'deal-2', ['id' => 'deal-1']]);
+    }
+
     public function test_call_runs_any_method_per_row(): void
     {
         $this->api->bulk()->call('deals', 'win', ['deal-1', 'deal-2'])->run();
