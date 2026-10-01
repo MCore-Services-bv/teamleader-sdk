@@ -2,12 +2,69 @@
 
 ## From 2.3 to 3.0
 
-> 3.0 is in development on the `3.x` branch. This section grows as the
-> breaking changes land.
+Most applications need four steps. Do them in this order:
+
+1. **Check PHP** — 3.0 needs PHP 8.4 or higher. See [Requirements](#requirements).
+2. **Update the package and run the migrations:**
+
+   ```bash
+   composer require mcore-services/teamleader-sdk:^3.0
+   php artisan migrate
+   ```
+
+   The migration upgrades your existing token table in place; you stay
+   connected. See [Run the migrations](#run-the-migrations).
+3. **Decide on exceptions.** They are on by default now. Either add
+   `TEAMLEADER_THROW_EXCEPTIONS=false` to `.env`, or replace your
+   `['error']` checks with `catch` blocks. See
+   [Exceptions are on by default](#exceptions-are-on-by-default).
+4. **Run the Laravel scheduler**, so tokens are renewed before they expire.
+   See [Token renewal](#token-renewal).
+
+Then check `php artisan teamleader:health` and
+`php artisan teamleader:status`. The remaining sections only matter if your
+code uses what they describe.
+
+New in 3.0, nothing to change for: [multiple connections](../guides/multiple-connections.md),
+[events and logging](../guides/events-and-logging.md),
+[`lazy()` pagination](../guides/pagination.md#fetching-everything),
+[bulk operations](../guides/bulk-operations.md) and the
+[command line](../guides/cli.md).
+
+### Requirements
+
+**PHP 8.4 or higher.** 3.0 drops PHP 8.2 and 8.3. Laravel 12 and 13 are both
+still supported.
+
+| | 2.3 | 3.0 |
+|---|---|---|
+| PHP | 8.2 – 8.5 | 8.4 – 8.5 |
+| Laravel | 12, 13 | 12, 13 |
+
+Check your version with `php -v`. If you are on 8.2 or 8.3, stay on
+`^2.3` until you have upgraded PHP; 2.x receives security fixes for three
+months after 3.0 is released.
+
+### Run the migrations
+
+```bash
+php artisan migrate
+```
+
+2.x created the `teamleader_tokens` table itself on first use. 3.0 ships
+migrations instead, and one of them upgrades your existing table in place: its
+row becomes the `default` connection, and the tokens you have keep working.
+**Without this step the SDK cannot read its tokens**; `teamleader:health`
+reports it.
+
+The tokens are then encrypted with `APP_KEY` — in the table the first time the
+SDK reads them, and in the cache under new keys (`teamleader:default:tokens`).
+The old plain-text cache keys are removed. If you ever rotate `APP_KEY`, see
+[Token storage and security](../guides/token-storage-and-security.md).
 
 ### Exceptions are on by default
 
-**The one change that affects every 2.x user.** `TEAMLEADER_THROW_EXCEPTIONS`
+**The change most likely to affect your code.** `TEAMLEADER_THROW_EXCEPTIONS`
 now defaults to `true`: a failed request throws a typed exception instead of
 returning an array with `error => true`.
 
@@ -79,49 +136,66 @@ If you already had `TEAMLEADER_THROW_EXCEPTIONS=true`, nothing changes.
 
 `false` stays supported throughout 3.x.
 
-### Run the migrations
+### Token renewal
 
-```bash
-php artisan migrate
-```
+- **Run the Laravel scheduler.** The package schedules
+  `teamleader:tokens:refresh` every ten minutes. Without the scheduler nothing
+  breaks — tokens are still refreshed when a request needs one — but an idle
+  connection can expire unnoticed. `TEAMLEADER_TOKENS_AUTO_REFRESH=false`
+  turns the schedule off.
+- **A refused refresh token no longer deletes the tokens.** The connection is
+  marked `needs_reauthorization`, and requests throw
+  `ConnectionNeedsReauthorizationException` (a subclass of
+  `AuthenticationException`) instead of returning a 401 error array. Code that
+  detected a lost connection by an empty `getTokenInfo()` should check
+  `needsReauthorization()` or the `status` key.
 
-2.x created the `teamleader_tokens` table itself on first use. 3.0 ships
-migrations instead, and one of them upgrades your existing table in place: its
-row becomes the `default` connection, and the tokens you have keep working.
-**Without this step the SDK cannot read its tokens**; `teamleader:health`
-reports it.
+### Everything else
 
-The tokens are then encrypted with `APP_KEY` — in the table the first time the
-SDK reads them, and in the cache under new keys (`teamleader:default:tokens`).
-The old plain-text cache keys are removed. If you ever rotate `APP_KEY`, see
-[Token storage and security](../guides/token-storage-and-security.md).
+In rough order of how many applications they affect.
 
-### Requirements
+#### OAuth
 
-**PHP 8.4 or higher.** 3.0 drops PHP 8.2 and 8.3. Laravel 12 and 13 are both
-still supported.
+- **`authorize()` without an argument now generates the `state`**, remembers
+  it in the session, and `handleCallback()` checks it. If you generated and
+  checked a state yourself, you can delete that code — or keep passing your
+  own state to `authorize($state)`, which works as in 2.x.
+- `getAuthorizationUrl()` without an argument generates a state too.
+- `handleCallback()` returns the connected `TeamleaderSDK` instance instead of
+  `true` (still `false` on failure). `if (Teamleader::handleCallback(...))`
+  keeps working; `=== true` does not.
+- A callback with a state this session did not issue throws
+  `OAuthStateException`.
 
-| | 2.3 | 3.0 |
+#### Configuration
+
+If you published `config/teamleader.php`, compare it with the package's copy
+(`vendor/mcore-services/teamleader-sdk/config/teamleader.php`). The keys below
+were in the file but had no effect; they are removed. Deleting them from your
+copy and from `.env` changes nothing about how the SDK behaves.
+
+| Removed key | `.env` variable | Why |
 |---|---|---|
-| PHP | 8.2 – 8.5 | 8.4 – 8.5 |
-| Laravel | 12, 13 | 12, 13 |
+| `sideloading.*` | `TEAMLEADER_SIDELOADING_ENABLED`, `TEAMLEADER_VALIDATE_INCLUDES`, `TEAMLEADER_MAX_INCLUDES` | Include validation is always on |
+| `caching.*` | `TEAMLEADER_CACHING_ENABLED`, `TEAMLEADER_CACHE_TTL`, `TEAMLEADER_CACHE_STORE` | The SDK caches no API responses. The flag only cached the boot-time validation result, which nothing read |
+| `development.*` | `TEAMLEADER_SANDBOX_MODE`, `TEAMLEADER_MOCK_RESPONSES`, `TEAMLEADER_DEBUG_MODE`, `TEAMLEADER_LOG_ALL_REQUESTS` | Only the configuration validator mentioned them |
+| `rate_limiting.requests_per_minute`, `throttle_threshold`, `aggressive_throttling`, `respect_retry_after` | `TEAMLEADER_RATE_LIMIT`, `TEAMLEADER_THROTTLE_THRESHOLD`, `TEAMLEADER_AGGRESSIVE_THROTTLING`, `TEAMLEADER_RESPECT_RETRY_AFTER` | The limit is Teamleader's; the throttle steps are fixed |
+| `logging.enabled`, `sanitize_logs`, `log_rate_limits`, `log_token_refresh` | `TEAMLEADER_LOGGING_ENABLED`, `TEAMLEADER_SANITIZE_LOGS`, `TEAMLEADER_LOG_RATE_LIMITS`, `TEAMLEADER_LOG_TOKEN_REFRESH` | Sanitising is always on; silence the SDK through its log channel |
+| `error_handling.log_errors`, `include_stack_trace`, `parse_teamleader_errors` | `TEAMLEADER_LOG_ERRORS`, `TEAMLEADER_INCLUDE_STACK_TRACE`, `TEAMLEADER_PARSE_TL_ERRORS` | Only shown by the health check, never applied |
 
-Check your version with `php -v`. If you are on 8.2 or 8.3, stay on
-`^2.3` until you have upgraded PHP; 2.x receives security fixes for three
-months after 3.0 is released.
+Three keys that were documented but ignored **now work**. Check your `.env`
+for them before upgrading — a value you set long ago takes effect:
 
-### Sorting
+| Key | `.env` variable | Effect |
+|---|---|---|
+| `base_url` | `TEAMLEADER_BASE_URL` | API host |
+| `auth_url` | `TEAMLEADER_AUTH_URL` | OAuth host for authorize, code exchange and token refresh |
+| `api.retry_delay` | `TEAMLEADER_API_RETRY_DELAY` | First retry delay in ms (was fixed at 1000) |
 
-No code changes are needed. Two small differences:
+`logging.channel` defaults to `null` (your default channel) instead of
+`config('logging.default')`.
 
-- Sort validation messages name the endpoint:
-  `Invalid sort field: title. deals.list accepts: created_at, weighted_value.`
-  If you match on the old `Accepted:` wording, match on `Invalid sort field`
-  instead.
-- `timeTracking()->list()` now also accepts a list of field names and a
-  `['starts_on' => 'desc']` map, like every other resource.
-
-### Removed methods and resource keys
+#### Removed methods and resource keys
 
 Everything deprecated during the 2.2.x audit is gone. Each of these now fails
 with "Call to undefined method" (or, for a resource key, an exception naming
@@ -151,41 +225,7 @@ In 2.3 all of these still ran, most of them with an `E_USER_DEPRECATED`
 notice in your log. If you upgrade to 2.3 first and clear those notices, this
 step is a no-op.
 
-### Removed classes
-
-`McoreServices\TeamleaderSDK\Constants\TeamleaderConstants` and
-`McoreServices\TeamleaderSDK\Constants\ErrorMessages` are removed. Nothing in
-the SDK read them. If your code used one of their constants, inline the value.
-
-### Configuration
-
-If you published `config/teamleader.php`, compare it with the package's copy
-(`vendor/mcore-services/teamleader-sdk/config/teamleader.php`). The keys below
-were in the file but had no effect; they are removed. Deleting them from your
-copy and from `.env` changes nothing about how the SDK behaves.
-
-| Removed key | `.env` variable | Why |
-|---|---|---|
-| `sideloading.*` | `TEAMLEADER_SIDELOADING_ENABLED`, `TEAMLEADER_VALIDATE_INCLUDES`, `TEAMLEADER_MAX_INCLUDES` | Include validation is always on |
-| `caching.*` | `TEAMLEADER_CACHING_ENABLED`, `TEAMLEADER_CACHE_TTL`, `TEAMLEADER_CACHE_STORE` | The SDK caches no API responses. The flag only cached the boot-time validation result, which nothing read |
-| `development.*` | `TEAMLEADER_SANDBOX_MODE`, `TEAMLEADER_MOCK_RESPONSES`, `TEAMLEADER_DEBUG_MODE`, `TEAMLEADER_LOG_ALL_REQUESTS` | Only the configuration validator mentioned them |
-| `rate_limiting.requests_per_minute`, `throttle_threshold`, `aggressive_throttling`, `respect_retry_after` | `TEAMLEADER_RATE_LIMIT`, `TEAMLEADER_THROTTLE_THRESHOLD`, `TEAMLEADER_AGGRESSIVE_THROTTLING`, `TEAMLEADER_RESPECT_RETRY_AFTER` | The limit is Teamleader's; the throttle steps are fixed |
-| `logging.enabled`, `sanitize_logs`, `log_rate_limits`, `log_token_refresh` | `TEAMLEADER_LOGGING_ENABLED`, `TEAMLEADER_SANITIZE_LOGS`, `TEAMLEADER_LOG_RATE_LIMITS`, `TEAMLEADER_LOG_TOKEN_REFRESH` | Sanitising is always on; silence the SDK through its log channel |
-| `error_handling.log_errors`, `include_stack_trace`, `parse_teamleader_errors` | `TEAMLEADER_LOG_ERRORS`, `TEAMLEADER_INCLUDE_STACK_TRACE`, `TEAMLEADER_PARSE_TL_ERRORS` | Only shown by the health check, never applied |
-
-Three keys that were documented but ignored **now work**. Check your `.env`
-for them before upgrading — a value you set long ago takes effect:
-
-| Key | `.env` variable | Effect |
-|---|---|---|
-| `base_url` | `TEAMLEADER_BASE_URL` | API host |
-| `auth_url` | `TEAMLEADER_AUTH_URL` | OAuth host for authorize, code exchange and token refresh |
-| `api.retry_delay` | `TEAMLEADER_API_RETRY_DELAY` | First retry delay in ms (was fixed at 1000) |
-
-`logging.channel` defaults to `null` (your default channel) instead of
-`config('logging.default')`.
-
-### Connections
+#### Connections
 
 Single-account applications need no change: the flat `client_id`,
 `client_secret` and `redirect_uri` are the `default` connection.
@@ -202,34 +242,7 @@ Single-account applications need no change: the flat `client_id`,
   `Teamleader connection 'default' is missing: client_secret.` instead of
   `Missing required configuration: teamleader.client_secret`.
 
-### Token renewal
-
-- **Run the Laravel scheduler.** The package schedules
-  `teamleader:tokens:refresh` every ten minutes. Without the scheduler nothing
-  breaks — tokens are still refreshed when a request needs one — but an idle
-  connection can expire unnoticed. `TEAMLEADER_TOKENS_AUTO_REFRESH=false`
-  turns the schedule off.
-- **A refused refresh token no longer deletes the tokens.** The connection is
-  marked `needs_reauthorization`, and requests throw
-  `ConnectionNeedsReauthorizationException` (a subclass of
-  `AuthenticationException`) instead of returning a 401 error array. Code that
-  detected a lost connection by an empty `getTokenInfo()` should check
-  `needsReauthorization()` or the `status` key.
-
-### OAuth
-
-- **`authorize()` without an argument now generates the `state`**, remembers
-  it in the session, and `handleCallback()` checks it. If you generated and
-  checked a state yourself, you can delete that code — or keep passing your
-  own state to `authorize($state)`, which works as in 2.x.
-- `getAuthorizationUrl()` without an argument generates a state too.
-- `handleCallback()` returns the connected `TeamleaderSDK` instance instead of
-  `true` (still `false` on failure). `if (Teamleader::handleCallback(...))`
-  keeps working; `=== true` does not.
-- A callback with a state this session did not issue throws
-  `OAuthStateException`.
-
-### Token storage
+#### Token storage
 
 - `TokenService` stores through a `TokenStore` (the table, by default) and
   takes the connection name: `new TokenService($store, 'default')`. Calling
@@ -239,7 +252,7 @@ Single-account applications need no change: the flat `client_id`,
 - `storeTokens()` takes a second argument, `bool $refreshed`, used by the
   refresh.
 
-### Logging and the call log
+#### Logging and the call log
 
 - `TEAMLEADER_LOG_CHANNEL`, `TEAMLEADER_LOG_REQUESTS` and
   `TEAMLEADER_LOG_RESPONSES` now work. If you set them in 2.x, where they did
@@ -250,7 +263,7 @@ Single-account applications need no change: the flat `client_id`,
   `headers`. Listen to `RequestSending` / `ResponseReceived` if you used them.
 - The refresh token is no longer logged, not even its first 20 characters.
 
-### Health and validation commands
+#### Health and validation commands
 
 - `teamleader:health` checks your default cache store — the one tokens live
   in — instead of a `caching.store` setting. `--fix` no longer runs
@@ -258,6 +271,23 @@ Single-account applications need no change: the flat `client_id`,
 - `teamleader:config:validate` no longer suggests enabling caching or debug
   mode, and no longer warns "Laravel 11 detected" on every Laravel 12 and 13
   install.
+
+#### Sorting
+
+No code changes are needed. Two small differences:
+
+- Sort validation messages name the endpoint:
+  `Invalid sort field: title. deals.list accepts: created_at, weighted_value.`
+  If you match on the old `Accepted:` wording, match on `Invalid sort field`
+  instead.
+- `timeTracking()->list()` now also accepts a list of field names and a
+  `['starts_on' => 'desc']` map, like every other resource.
+
+#### Removed classes
+
+`McoreServices\TeamleaderSDK\Constants\TeamleaderConstants` and
+`McoreServices\TeamleaderSDK\Constants\ErrorMessages` are removed. Nothing in
+the SDK read them. If your code used one of their constants, inline the value.
 
 ## From 2.2 to 2.3
 

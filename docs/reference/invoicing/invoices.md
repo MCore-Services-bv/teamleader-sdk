@@ -34,7 +34,7 @@ Teamleader::invoices()
 |---|---|
 | Class | `McoreServices\TeamleaderSDK\Resources\Invoicing\Invoices` |
 | Create / update / delete | ✓ / ✓ / ✓ |
-| Pagination | `page_size` / `page_number`; no totals — a short page is the last one |
+| Pagination | `page_size` / `page_number`; no totals — a short page is the last one. Every page: [`lazy()` / `cursor()`](../../guides/pagination.md#fetching-everything) |
 
 ## Endpoints
 

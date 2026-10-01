@@ -9,8 +9,9 @@
 [![Docs](https://img.shields.io/badge/docs-teamleader--sdk.mcore--services.dev-blue)](https://teamleader-sdk.mcore-services.dev/)
 [![Teamleader API spec](https://img.shields.io/badge/Teamleader%20API%20spec-1.221.0-2ea44f)](#-specification-parity)
 
-A Laravel package for the Teamleader Focus API. Handles OAuth token management,
-rate limiting, and around 70 API resources behind a consistent interface.
+A Laravel package for the Teamleader Focus API. Handles OAuth, encrypted token
+storage and renewal, rate limiting, and around 70 API resources behind a
+consistent interface — for one Teamleader account or many.
 
 **Quick Links:**
 - 📦 **Packagist:** [packagist.org/packages/mcore-services/teamleader-sdk](https://packagist.org/packages/mcore-services/teamleader-sdk)
@@ -22,20 +23,32 @@ rate limiting, and around 70 API resources behind a consistent interface.
 ## ✨ Key Features
 
 ### 🔐 Authentication & Security
-- **Complete OAuth 2.0 Flow** — Authorization URL generation and secure callback handling
-- **Automatic Token Management** — Smart token refresh with database and cache layers
-- **Concurrent Request Safety** — Distributed locking prevents token refresh race conditions
+- **Complete OAuth 2.0 Flow** — `Teamleader::authorize()` and one callback route; the `state` is generated and checked for you
+- **Encrypted Token Storage** — tokens encrypted with `APP_KEY` in the database and the cache
+- **Scheduled Token Renewal** — tokens are renewed every ten minutes before they expire, so an idle connection stays connected
+- **Right-Account Check** — `expected_account_id` refuses a callback that connects the wrong Teamleader account
+- **Concurrent Request Safety** — a per-connection lock prevents token refresh race conditions
+
+### 🏢 Multiple Accounts
+- **Connections** — one application, several Teamleader accounts, each with its own credentials, tokens and rate-limit window
+- **Stored in config or the database** — add an account with `php artisan teamleader:connections:add`, no deploy needed
 
 ### 🚀 Performance & Reliability
 - **Proactive Rate Limiting** — Redis-backed sliding window that waits for a free slot rather than letting you hit the 200 req/min limit
-- **Response Caching** — Configurable caching for static data endpoints
 - **Retry Logic** — Automatic retry with backoff for transient failures
+- **Lazy Pagination** — `lazy()` and `cursor()` page through any list with flat memory use
 
-### 📦 Developer Experience
+### 📦 Bulk & Command Line
+- **Bulk Export** — any list to CSV or JSON Lines, safe against spreadsheet formula injection
+- **Bulk Writes** — create, update, delete or call any method for many rows: validated first, resumable, with a dry run, in-process or on the queue
+- **Artisan CLI** — explore, list, export, import and call the API from the terminal; nothing writes without `--write`
+
+### 🧰 Developer Experience
 - **Resource-Based Architecture** — Organised access to all API endpoints
 - **Fluent Sideloading** — Reduce API calls by including related resources
 - **Fail-Fast Validation** — Unsupported filters, sort fields and includes throw before the request is sent, rather than being silently ignored by the API
-- **Rich Error Handling** — Typed exceptions with actionable messages
+- **Typed Exceptions by Default** — a failed request throws an exception with an actionable message
+- **Events** — for every request, response, failure, rate-limit wait and token refresh, plus optional request logging
 - **Resource Introspection** — Query any resource's capabilities programmatically
 
 ### 🎯 API Coverage
@@ -83,10 +96,11 @@ rate limiting, and around 70 API resources behind a consistent interface.
 composer require mcore-services/teamleader-sdk
 ```
 
-### 2. Publish the Configuration
+### 2. Publish the Configuration and Run the Migrations
 
 ```bash
-php artisan vendor:publish --provider="McoreServices\TeamleaderSDK\TeamleaderServiceProvider"
+php artisan vendor:publish --tag=teamleader-config
+php artisan migrate
 ```
 
 ### 3. Configure Environment Variables
@@ -94,8 +108,12 @@ php artisan vendor:publish --provider="McoreServices\TeamleaderSDK\TeamleaderSer
 ```env
 TEAMLEADER_CLIENT_ID=your_client_id
 TEAMLEADER_CLIENT_SECRET=your_client_secret
-TEAMLEADER_REDIRECT_URI=https://your-app.com/teamleader/callback
+TEAMLEADER_REDIRECT_URI="${APP_URL}/teamleader/callback"
 ```
+
+The redirect URI must match the one registered on your integration in the
+[Teamleader developer portal](https://developer.focus.teamleader.eu/) exactly —
+`http` versus `https` included.
 
 ### 4. Set Up OAuth Routes
 
@@ -104,19 +122,27 @@ TEAMLEADER_REDIRECT_URI=https://your-app.com/teamleader/callback
 use Illuminate\Http\Request;
 use McoreServices\TeamleaderSDK\Facades\Teamleader;
 
-Route::get('/teamleader/auth', function () {
-    return redirect(Teamleader::getAuthorizationUrl());
-});
+Route::get('/teamleader/connect', function () {
+    return Teamleader::authorize();
+})->middleware('auth');
 
 Route::get('/teamleader/callback', function (Request $request) {
-    Teamleader::handleCallback($request->code, $request->state);
+    if (Teamleader::handleCallback($request->query('code'), $request->query('state'))) {
+        return redirect('/dashboard')->with('success', 'Connected to Teamleader!');
+    }
 
-    return redirect('/dashboard')->with('success', 'Connected to Teamleader!');
-});
+    return redirect('/settings')->with('error', 'Connecting to Teamleader failed.');
+})->middleware('auth');
 ```
 
-> **Note:** No `php artisan migrate` is required. The SDK creates the
-> `teamleader_tokens` table on first use.
+### 5. Run the Scheduler
+
+The package schedules `teamleader:tokens:refresh` every ten minutes. Run
+`php artisan schedule:work` locally, and a cron entry for
+`php artisan schedule:run` in production (Laravel Forge: *Scheduler*).
+
+> Upgrading from 2.x? See the
+> [upgrade guide](https://teamleader-sdk.mcore-services.dev/project/upgrading).
 
 ---
 
@@ -125,10 +151,10 @@ Route::get('/teamleader/callback', function (Request $request) {
 ```php
 use McoreServices\TeamleaderSDK\Facades\Teamleader;
 
-// 1. Redirect the user to Teamleader for authorization
-return redirect(Teamleader::getAuthorizationUrl());
+// 1. Redirect the user to Teamleader — a state is generated and remembered
+return Teamleader::authorize();
 
-// 2. Handle the callback — tokens are stored automatically
+// 2. Handle the callback — the state is checked, tokens are encrypted and stored
 Teamleader::handleCallback($code, $state);
 
 // 3. Check authentication status
@@ -136,6 +162,14 @@ if (Teamleader::isAuthenticated()) {
     // Ready to make API calls
 }
 ```
+
+```bash
+php artisan teamleader:status --all   # every connection, its account and token expiry
+```
+
+When Teamleader refuses a refresh token, the connection is marked
+`needs_reauthorization` and its requests throw
+`ConnectionNeedsReauthorizationException` until it is connected again.
 
 ---
 
@@ -289,24 +323,23 @@ $all = Teamleader::customFields()->all();
 
 ## 📄 Pagination
 
-**The API returns no total count.** Most endpoints send no `meta` block, so the
-only end-of-list signal is a page shorter than the requested page size — meaning
-a full final page costs one extra empty request.
+`lazy()` pages through any list for you and returns a `LazyCollection`: pages
+of 100 are fetched only as you consume them.
 
 ```php
-$all  = [];
-$page = 1;
+Teamleader::companies()
+    ->lazy(['status' => 'active'])
+    ->each(function (array $company) {
+        // one record at a time
+    });
 
-do {
-    $response = Teamleader::companies()->list(
-        ['status' => 'active'],
-        ['page_size' => 100, 'page_number' => $page]
-    );
-
-    $all = array_merge($all, $response['data']);
-    $page++;
-} while (count($response['data']) === 100);
+Teamleader::deals()->lazy(['status' => 'open'])->take(10)->all();   // one request
 ```
+
+**The API returns no total count** on most endpoints, so the end of a list is
+a page shorter than the page size. `cursor()` gives you the pager itself —
+`total()` where the endpoint reports one, and `lastPage()` to resume an
+interrupted export.
 
 ---
 
@@ -365,6 +398,97 @@ $capabilities = Teamleader::companies()->getCapabilities();
 
 ---
 
+## 🏢 Multiple Connections
+
+```php
+// config/teamleader.php
+'connections' => [
+    'antwerp' => [
+        'client_id' => env('TEAMLEADER_ANTWERP_CLIENT_ID'),
+        'client_secret' => env('TEAMLEADER_ANTWERP_CLIENT_SECRET'),
+    ],
+],
+```
+
+```php
+Teamleader::connection('antwerp')->companies()->list();
+```
+
+Or store a connection in the database, without a deploy:
+
+```bash
+php artisan teamleader:connections:add antwerp
+```
+
+Each connection has its own integration, tokens, refresh lock and rate-limit
+window; one callback route serves them all.
+
+---
+
+## 📦 Bulk Operations
+
+```php
+// Any list to a file
+Teamleader::bulk()
+    ->export('contacts', ['tags' => ['customer']])
+    ->toCsv(storage_path('contacts.csv'), ['id', 'first_name', 'last_name', 'emails.0.email']);
+
+// Many writes: every row validated before the first is sent
+$result = Teamleader::bulk()
+    ->create('companies', $rows)
+    ->continueOnError()
+    ->run();
+
+$result->succeeded();   // [row key => API response]
+$result->failed();      // [row key => BulkFailure]
+
+// Or on the queue, in chunks
+Teamleader::bulk()->update('deals', $rows)->dispatch(chunk: 50);
+```
+
+`dryRun()` shows exactly what would be sent, and `resumeFrom($result)` skips
+the rows that already succeeded. `call('deals', 'win', $rows)` runs any
+method once per row.
+
+---
+
+## 💻 Command Line
+
+```bash
+php artisan teamleader:describe deals
+php artisan teamleader:list deals --filter=status[]=open --sort=created_at:desc --fields=id,title
+php artisan teamleader:export contacts --filter=tags[]=customer --output=storage/customers.csv
+php artisan teamleader:import companies companies.csv --dry-run
+php artisan teamleader:call users.me
+```
+
+Every command validates filters, sort fields and includes the same way your
+code does, and takes `--connection=`. **Nothing writes without `--write`**,
+and in production `--force` is required as well.
+
+---
+
+## 📡 Events
+
+```php
+use Illuminate\Support\Facades\Event;
+use McoreServices\TeamleaderSDK\Events\TokenRefreshFailed;
+
+Event::listen(function (TokenRefreshFailed $event) {
+    if ($event->reauthorizationRequired) {
+        // tell someone to reconnect $event->connection
+    }
+});
+```
+
+`RequestSending`, `ResponseReceived`, `RequestFailed`, `RateLimitWaited`,
+`TokenRefreshed`, `TokenRefreshFailed`, `ConnectionAuthorized` and
+`BulkBatchFinished` are fired only when something listens. Set
+`TEAMLEADER_LOG_REQUESTS=true` to log every request to a channel of your
+choice.
+
+---
+
 ## 🪝 Webhooks
 
 ```php
@@ -397,7 +521,9 @@ Route::post('/webhooks/teamleader', function (Request $request) {
 
 ## 🛠️ Error Handling
 
-All API exceptions extend `TeamleaderException`.
+A failed request throws a typed exception — the default since v3.0. Set
+`TEAMLEADER_THROW_EXCEPTIONS=false` for the 2.x behaviour of returning an
+array with `error => true`. All API exceptions extend `TeamleaderException`.
 
 ```php
 use McoreServices\TeamleaderSDK\Exceptions\AuthenticationException;
@@ -440,11 +566,19 @@ returns the complete unfiltered set, so silence is the more dangerous outcome.
 ## 🖥️ Artisan Commands
 
 ```bash
-php artisan teamleader:status            # Connection and token status
-php artisan teamleader:config:validate   # Validate configuration
-php artisan teamleader:health            # Health check
-php artisan teamleader:export-uuids      # Export reference UUIDs
+php artisan teamleader:status --all          # Every connection: account, status, token expiry
+php artisan teamleader:health                # Health check
+php artisan teamleader:config:validate       # Validate configuration
+php artisan teamleader:tokens:refresh        # Renew tokens that expire soon (scheduled)
+php artisan teamleader:connections:add       # Store a connection in the database
+php artisan teamleader:connections:list
+php artisan teamleader:connections:remove
+php artisan teamleader:resources             # Every resource and what it supports
+php artisan teamleader:export-uuids          # Export reference UUIDs
 ```
+
+Plus `describe`, `list`, `info`, `export`, `import` and `call` — see
+[Command Line](#-command-line).
 
 ---
 
@@ -527,10 +661,12 @@ The MIT License (MIT). See [LICENSE.md](LICENSE.md).
 
 - [x] Spec-derived filter parity across every resource, enforced by a test (v2.3.0)
 - [x] Payload tests for all resources (v2.3.0)
-- [ ] Bulk operations helper (v3.0)
-- [ ] CLI tool for quick API exploration (v3.0)
-- [ ] Enhanced caching strategies with tag-based invalidation
-- [ ] Laravel Pulse integration
+- [x] Multiple connections, encrypted token storage and scheduled renewal (v3.0)
+- [x] Bulk operations: export, writes and queued bulk (v3.0)
+- [x] CLI for exploring and querying the API (v3.0)
+- [x] Events and request logging (v3.0)
+- [ ] Laravel Pulse recorder (v3.1)
+- [ ] Upsert helper for bulk writes (v3.1)
 
 ---
 

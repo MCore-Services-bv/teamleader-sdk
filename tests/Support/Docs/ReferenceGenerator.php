@@ -463,9 +463,11 @@ final class ReferenceGenerator
             return 'No';
         }
 
-        return $supports['pagination_meta']
+        $label = $supports['pagination_meta']
             ? '`page_size` / `page_number`; the response includes `meta` with totals'
             : '`page_size` / `page_number`; no totals — a short page is the last one';
+
+        return $label.'. Every page: [`lazy()` / `cursor()`](../../guides/pagination.md#fetching-everything)';
     }
 
     /**

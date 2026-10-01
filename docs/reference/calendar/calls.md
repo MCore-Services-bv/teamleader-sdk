@@ -12,7 +12,7 @@ Teamleader::calls()
 |---|---|
 | Class | `McoreServices\TeamleaderSDK\Resources\Calendar\Calls` |
 | Create / update / delete | ✓ / ✓ / ✓ |
-| Pagination | `page_size` / `page_number`; the response includes `meta` with totals |
+| Pagination | `page_size` / `page_number`; the response includes `meta` with totals. Every page: [`lazy()` / `cursor()`](../../guides/pagination.md#fetching-everything) |
 
 ## Endpoints
 

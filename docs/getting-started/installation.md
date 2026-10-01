@@ -28,8 +28,33 @@ Publish the configuration file:
 php artisan vendor:publish --tag=teamleader-config
 ```
 
-This creates `config/teamleader.php`. No migration is needed: the SDK creates
-its `teamleader_tokens` table on first use.
+This creates `config/teamleader.php`.
+
+Run the migrations:
+
+```bash
+php artisan migrate
+```
+
+This creates two tables: `teamleader_tokens`, which holds each connection's
+tokens (encrypted with `APP_KEY`), and `teamleader_connections`, for
+[connections stored in the database](../guides/multiple-connections.md). To
+change the migrations before running them, publish them with
+`php artisan vendor:publish --tag=teamleader-migrations`.
+
+## Run the scheduler
+
+The package schedules `teamleader:tokens:refresh` every ten minutes, which
+renews tokens before they run out — including on connections nobody has used
+in a while. That needs the Laravel scheduler:
+
+- **Locally:** `php artisan schedule:work`
+- **In production:** a cron entry for `php artisan schedule:run` every minute
+  (Laravel Forge sets one up under *Scheduler*)
+
+Without it, tokens are still refreshed when a request finds them close to
+expiry, and `teamleader:health` warns that the scheduler is not running. See
+[Authentication](authentication.md#token-refresh).
 
 ## Create a Teamleader integration
 

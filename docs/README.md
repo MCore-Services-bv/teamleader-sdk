@@ -32,13 +32,24 @@ lock, the rate limiter waits for a free slot instead of spending requests on
 429s, and a rate-limit error hands control back to your job so it can
 `release()` rather than block the worker.
 
+**It runs many accounts as easily as one.** Each Teamleader account is a
+[connection](guides/multiple-connections.md) with its own tokens, encrypted
+with `APP_KEY` and renewed on a schedule, and a callback that connects the
+wrong account is refused. See [Token storage and security](guides/token-storage-and-security.md).
+
+**It moves data in bulk.** Export any list to CSV or JSON Lines, and create,
+update or delete thousands of records — validated before the first request,
+resumable after a failure, on the queue if you like. See
+[Bulk operations](guides/bulk-operations.md) and the
+[command line](guides/cli.md).
+
 ## Where to start
 
 | | |
 |---|---|
 | New to the SDK | [Installation](getting-started/installation.md), then [Quick start](getting-started/quick-start.md) |
 | Looking up a resource | [API reference](reference/README.md) — one page per resource, generated from the code |
-| Upgrading | [Upgrading](project/upgrading.md) |
+| Upgrading from 2.x | [Upgrading](project/upgrading.md) — four steps for most applications |
 | Something went wrong | [Error handling](guides/error-handling.md) |
 
 ## Requirements
