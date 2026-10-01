@@ -107,6 +107,20 @@ final class BulkResult
     }
 
     /**
+     * Nothing is left to do: no failures, and no row left unsent because the
+     * run stopped. Rows skipped on purpose — duplicates, or rows an earlier
+     * run already did — do not count against it.
+     */
+    public function isFinished(): bool
+    {
+        return $this->failed === [] && ! in_array(BulkOperation::STOPPED, $this->skipped, true)
+            && ! in_array(self::CANCELLED, $this->skipped, true);
+    }
+
+    /** @internal Recorded for rows of a queued batch that was cancelled */
+    public const CANCELLED = 'Not sent: the batch was cancelled after a failure.';
+
+    /**
      * @return array{succeeded: int, failed: int, skipped: int}
      */
     public function counts(): array

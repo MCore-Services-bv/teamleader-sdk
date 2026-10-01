@@ -111,6 +111,9 @@ final class BulkOperationTest extends ResourceTestCase
 
         $this->assertSame([1, 2], array_keys($second->succeeded()));
         $this->assertSame([0], array_keys($second->skipped()));
+        $this->assertFalse($first->isFinished());
+        $this->assertTrue($second->isFinished(), 'A row skipped because it already succeeded is not unfinished work');
+        $this->assertFalse($second->isComplete());
         $this->assertSame(2, $this->api->callCount());
     }
 

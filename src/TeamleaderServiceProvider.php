@@ -76,6 +76,9 @@ class TeamleaderServiceProvider extends ServiceProvider
                 Console\Commands\DescribeCommand::class,
                 Console\Commands\ListCommand::class,
                 Console\Commands\InfoCommand::class,
+                Console\Commands\ExportCommand::class,
+                Console\Commands\ImportCommand::class,
+                Console\Commands\CallCommand::class,
             ]);
         }
 

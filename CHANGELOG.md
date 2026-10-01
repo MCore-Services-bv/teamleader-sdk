@@ -43,6 +43,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added (3.x branch)
 
+- **`teamleader:export`** (CSV / JSON Lines, progress bar), **`teamleader:import`**
+  (CSV, JSON Lines or JSON; create, `--update` or `--method=`; every line
+  validated first; `--dry-run` prints the bodies; a results file for
+  `--resume`; `--queue`) and **`teamleader:call`** (raw, unvalidated;
+  read-only endpoints only without `--write`). Every write needs `--write` and
+  a confirmation; in production `--force` too.
+- `BulkResult::isFinished()` — no failures and nothing left unsent, ignoring
+  rows skipped on purpose (duplicates, already done).
 - **Read-only CLI.** `teamleader:resources`, `teamleader:describe {resource}`,
   `teamleader:list {resource}` (`--filter=key=value` with `[]` lists and
   dotted objects, `--sort=field:desc`, `--include`, `--all`, `--limit`,

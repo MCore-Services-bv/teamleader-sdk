@@ -38,6 +38,8 @@ final class BulkOperation
 {
     public const ALREADY_SUCCEEDED = 'Already succeeded in an earlier run.';
 
+    public const STOPPED = 'Not sent: the operation stopped at an earlier row.';
+
     private bool $validateFirst = true;
 
     private bool $continueOnError = false;
@@ -197,7 +199,7 @@ final class BulkOperation
 
             foreach ($toSend as $index => $row) {
                 if ($stopped) {
-                    $result->recordSkip($index, 'Not sent: the operation stopped at an earlier row.');
+                    $result->recordSkip($index, self::STOPPED);
                     $this->report($result, $index);
 
                     continue;

@@ -11,6 +11,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use McoreServices\TeamleaderSDK\Bulk\BulkOperation;
+use McoreServices\TeamleaderSDK\Bulk\BulkResult;
 use McoreServices\TeamleaderSDK\Bulk\QueuedResults;
 use McoreServices\TeamleaderSDK\Connections\ConnectionManager;
 use McoreServices\TeamleaderSDK\Exceptions\RateLimitExceededException;
@@ -56,7 +57,7 @@ final class RunBulkChunk implements ShouldQueue
         $results = new QueuedResults($this->runId);
 
         if ($this->batch()?->cancelled()) {
-            $results->skip($this->chunk, array_keys($this->rows), 'Not sent: the batch was cancelled after a failure.');
+            $results->skip($this->chunk, array_keys($this->rows), BulkResult::CANCELLED);
 
             return;
         }
