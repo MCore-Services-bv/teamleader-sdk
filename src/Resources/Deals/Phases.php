@@ -3,6 +3,8 @@
 namespace McoreServices\TeamleaderSDK\Resources\Deals;
 
 use InvalidArgumentException;
+use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
+use McoreServices\TeamleaderSDK\Exceptions\ValidationException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
 use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
@@ -201,8 +203,15 @@ class Phases extends Resource
      * dealPhases.delete could not be reached at all. The same defect was fixed
      * on Pipelines in v2.2.2.
      *
+     * Every pipeline has four fixed phases (in a Dutch account: Nieuw,
+     * Offerte verzonden, Aanvaard, Geweigerd). They can be renamed in
+     * Teamleader, never deleted: Teamleader answers "Unable to delete fixed
+     * deal phase.", which this turns into a ValidationException that says so.
+     *
      * @param  string  $id  Phase UUID to delete
      * @param  mixed  ...$additionalParams  Optional UUID of the phase that takes over the deals
+     *
+     * @throws ValidationException When the phase is one of the fixed phases
      */
     public function delete($id, ...$additionalParams): array
     {
@@ -218,7 +227,35 @@ class Phases extends Resource
             $params['new_phase_id'] = $newPhaseId;
         }
 
-        return $this->api->request('POST', $this->getBasePath().'.delete', $params);
+        try {
+            $response = $this->api->request('POST', $this->getBasePath().'.delete', $params);
+        } catch (TeamleaderException $e) {
+            if ($this->isFixedPhaseRefusal($e->getMessage().' '.json_encode($e->getAllErrors()))) {
+                throw new ValidationException(
+                    $this->fixedPhaseMessage((string) $id), $e->getCode(), $e, $e->getContext(), $e->getStatusCode(), $e->getErrors()
+                );
+            }
+
+            throw $e;
+        }
+
+        // With throw_exceptions off the refusal comes back as an error array
+        if (($response['error'] ?? false) && $this->isFixedPhaseRefusal((string) ($response['message'] ?? ''))) {
+            $response['message'] = $this->fixedPhaseMessage((string) $id);
+        }
+
+        return $response;
+    }
+
+    private function isFixedPhaseRefusal(string $message): bool
+    {
+        return stripos($message, 'fixed deal phase') !== false;
+    }
+
+    private function fixedPhaseMessage(string $id): string
+    {
+        return "Deal phase {$id} is one of the four fixed phases every pipeline has, and cannot be deleted. "
+            .'Rename it in Teamleader instead, or leave it unused.';
     }
 
     /**
