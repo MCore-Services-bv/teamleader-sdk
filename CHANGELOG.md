@@ -36,8 +36,24 @@ update, delete and call, queued on Horizon).
   intended path for a queued chunk, which releases itself; a real 429 from
   Teamleader is still a WARNING.
 
+### Fixed
+
+Found upgrading a 2.3.2 application to 3.0.0-rc.1:
+
+- A token table upgraded from 2.x has no account recorded, so
+  `teamleader:status --all` showed `—` and `expected_account_id` had no id to
+  copy. `teamleader:tokens:refresh` now looks the account up once
+  (`users.me`, `departments.list`) for a connection that has none.
+- `teamleader:health` warned under *Dependencies* whenever the memcached or
+  redis extension was missing, without saying why. Memcached is never used;
+  the redis extension is now checked only when rate limiting is on and Laravel
+  uses the phpredis client, with a message naming the fix. The PHP and Laravel
+  minimums it reports are 8.4 and 12.
+
 ### Documentation
 
+- Upgrading: a published `config/teamleader.php` keeps
+  `throw_exceptions` off, because its own default (`false`) wins.
 - Behaviour of the Teamleader API the SDK cannot change, stated where you meet
   it: records are dated "now" and cannot be backdated; notes have no type;
   e-mail tracking files every item as received and cannot update or delete

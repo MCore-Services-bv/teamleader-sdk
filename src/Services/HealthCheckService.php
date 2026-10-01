@@ -315,24 +315,31 @@ class HealthCheckService
             }
         }
 
-        // Check recommended PHP extensions
-        $recommendedExtensions = ['redis', 'memcached'];
-        foreach ($recommendedExtensions as $ext) {
-            $loaded = extension_loaded($ext);
-            $checks['php_extension_'.$ext.'_optional'] = $loaded;
-            if (! $loaded && $overallStatus === 'healthy') {
-                $overallStatus = 'warning';
+        // The rate limiter talks to Redis. With Laravel's phpredis client that
+        // needs the redis extension; predis needs none. Memcached is never
+        // used — until 3.0 its absence alone turned this check into a warning.
+        if (config('teamleader.rate_limiting.enabled', true)) {
+            $client = (string) config('database.redis.client', 'phpredis');
+            $checks['redis_client'] = $client;
+
+            if ($client === 'phpredis') {
+                $checks['php_extension_redis'] = extension_loaded('redis');
+
+                if (! $checks['php_extension_redis'] && $overallStatus === 'healthy') {
+                    $overallStatus = 'warning';
+                    $checks['message'] = 'Rate limiting uses the phpredis client, but the redis extension is not loaded. '
+                        .'Install it, or set REDIS_CLIENT=predis and require predis/predis.';
+                }
             }
         }
 
-        // Check PHP version
-        $phpVersion = PHP_VERSION;
-        $checks['php_version'] = version_compare($phpVersion, '8.2.0', '>=');
-        $checks['php_version_current'] = $phpVersion;
+        // Versions this release supports — composer enforces them, so these
+        // only report what is running
+        $checks['php_version'] = version_compare(PHP_VERSION, '8.4.0', '>=');
+        $checks['php_version_current'] = PHP_VERSION;
 
-        // Check Laravel version
         $laravelVersion = app()->version();
-        $checks['laravel_version'] = version_compare($laravelVersion, '10.0', '>=');
+        $checks['laravel_version'] = version_compare($laravelVersion, '12.0', '>=');
         $checks['laravel_version_current'] = $laravelVersion;
 
         // Check Guzzle availability

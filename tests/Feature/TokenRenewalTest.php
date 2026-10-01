@@ -156,6 +156,34 @@ final class TokenRenewalTest extends TestCase
             ->assertExitCode(1);
     }
 
+    public function test_the_command_records_the_account_of_a_connection_upgraded_from_2x(): void
+    {
+        // A 2.x token table has no account: the refresh run looks it up once
+        $this->answerRefresh('antwerp', []);
+        $this->connect('antwerp', expiresIn: 3600, accountId: null);
+
+        $history = [];
+        $stack = HandlerStack::create(new MockHandler([
+            new Response(200, [], json_encode(['data' => ['account' => ['type' => 'account', 'id' => 'account-antwerp']]])),
+            new Response(200, [], json_encode(['data' => [['id' => 'dep-1', 'name' => 'Klant Antwerpen BV']]])),
+        ]));
+        $stack->push(Middleware::history($history));
+        (new ReflectionProperty(Teamleader::connection('antwerp'), 'client'))
+            ->setValue(Teamleader::connection('antwerp'), new Client(['handler' => $stack]));
+
+        $this->artisan('teamleader:tokens:refresh', ['--connection' => ['antwerp']])->assertExitCode(0);
+
+        $info = $this->tokens('antwerp')->getTokenInfo();
+        $this->assertSame('account-antwerp', $info['account_id']);
+        $this->assertSame('Klant Antwerpen BV', $info['account_name']);
+        $this->assertSame('antwerp-access', $this->tokens('antwerp')->getValidAccessToken());
+        $this->assertCount(2, $history);
+
+        // Known from now on: the next run asks nothing
+        $this->artisan('teamleader:tokens:refresh', ['--connection' => ['antwerp']])->assertExitCode(0);
+        $this->assertCount(2, $history);
+    }
+
     public function test_the_refresh_is_scheduled(): void
     {
         $commands = array_map(fn ($event) => $event->command, app(Schedule::class)->events());
@@ -201,13 +229,21 @@ final class TokenRenewalTest extends TestCase
      * token is due: building its SDK checks the token, and would otherwise
      * refresh it against the real Teamleader.
      */
-    private function connect(string $connection, int $expiresIn, string $status = StoredTokens::CONNECTED, ?string $accountName = null): void
-    {
+    private function connect(
+        string $connection,
+        int $expiresIn,
+        string $status = StoredTokens::CONNECTED,
+        ?string $accountName = null,
+        ?string $accountId = 'account-known',
+    ): void {
+        // An account id by default: without one, the refresh command looks the
+        // account up, which would reach the real Teamleader
         app(TokenStore::class)->put($connection, new StoredTokens(
             accessToken: "{$connection}-access",
             refreshToken: "{$connection}-refresh",
             expiresAt: CarbonImmutable::now()->addSeconds($expiresIn),
             status: $status,
+            accountId: $accountId,
             accountName: $accountName,
         ));
     }

@@ -175,6 +175,35 @@ class TokenService
     }
 
     /**
+     * Store which Teamleader account the tokens belong to, keeping the tokens
+     * as they are. For connections made before the account was recorded — a
+     * token table upgraded from 2.x has none.
+     */
+    public function rememberAccount(string $accountId, ?string $accountName): void
+    {
+        $existing = $this->readStore();
+
+        if ($existing === null) {
+            return;
+        }
+
+        $tokens = new StoredTokens(
+            accessToken: $existing->accessToken,
+            refreshToken: $existing->refreshToken,
+            expiresAt: $existing->expiresAt,
+            expiresIn: $existing->expiresIn,
+            tokenType: $existing->tokenType,
+            status: $existing->status,
+            accountId: $accountId,
+            accountName: $accountName ?? $existing->accountName,
+            lastRefreshedAt: $existing->lastRefreshedAt,
+        );
+
+        $this->store->put($this->connection, $tokens);
+        $this->writeCache($tokens);
+    }
+
+    /**
      * Clear all stored tokens (cache and store)
      */
     public function clearTokens(): void

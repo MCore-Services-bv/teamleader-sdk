@@ -57,6 +57,10 @@ row becomes the `default` connection, and the tokens you have keep working.
 **Without this step the SDK cannot read its tokens**; `teamleader:health`
 reports it.
 
+2.x did not record which Teamleader account was connected, so
+`teamleader:status --all` shows `—` under *Account* at first. The next run of
+`teamleader:tokens:refresh` (scheduled every ten minutes) looks it up once.
+
 The tokens are then encrypted with `APP_KEY`: in the table the first time the
 SDK reads them, and in the cache under new keys (`teamleader:default:tokens`).
 The old plain-text cache keys are removed. If you ever rotate `APP_KEY`, see
@@ -67,6 +71,13 @@ The old plain-text cache keys are removed. If you ever rotate `APP_KEY`, see
 **The change most likely to affect your code.** `TEAMLEADER_THROW_EXCEPTIONS`
 now defaults to `true`: a failed request throws a typed exception instead of
 returning an array with `error => true`.
+
+{% hint style="warning" %}
+**Published `config/teamleader.php`?** Your copy still says
+`env('TEAMLEADER_THROW_EXCEPTIONS', false)`, and it wins over the package's
+default. Exceptions then stay off until you change that line, or set the
+variable in `.env`.
+{% endhint %}
 
 If you never set it, choose one:
 
@@ -169,10 +180,17 @@ In rough order of how many applications they affect.
 
 #### Configuration
 
-If you published `config/teamleader.php`, compare it with the package's copy
-(`vendor/mcore-services/teamleader-sdk/config/teamleader.php`). The keys below
-were in the file but had no effect; they are removed. Deleting them from your
-copy and from `.env` changes nothing about how the SDK behaves.
+If you published `config/teamleader.php`, compare it with the package's copy:
+
+```bash
+diff config/teamleader.php vendor/mcore-services/teamleader-sdk/config/teamleader.php
+```
+
+Your copy keeps working: keys it lacks (`default`, `connections`, `tokens`,
+`expected_account_id`) come from the package. Keys of your own, such as a
+default department id, stay where they are. The keys below were in the file
+but had no effect; they are removed. Deleting them from your copy and from
+`.env` changes nothing about how the SDK behaves.
 
 | Removed key | `.env` variable | Why |
 |---|---|---|

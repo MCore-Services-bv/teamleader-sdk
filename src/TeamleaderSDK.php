@@ -676,6 +676,36 @@ class TeamleaderSDK
     }
 
     /**
+     * Look up and store the connected account's id and name when they are not
+     * known yet — on a token table upgraded from 2.x, say. Two requests
+     * (users.me, departments.list), only while the account is unknown.
+     *
+     * @return bool True when the account was identified and stored now
+     */
+    public function identifyAccountIfUnknown(): bool
+    {
+        if (($this->tokenService->getTokenInfo()['account_id'] ?? null) !== null) {
+            return false;
+        }
+
+        $token = $this->tokenService->getValidAccessToken();
+
+        if (! is_string($token) || $token === '') {
+            return false;
+        }
+
+        [$accountId, $accountName] = $this->identifyAccount($token);
+
+        if ($accountId === null) {
+            return false;
+        }
+
+        $this->tokenService->rememberAccount($accountId, $accountName);
+
+        return true;
+    }
+
+    /**
      * Make a request to the Teamleader API with automatic error handling
      */
     public function request($method, $endpoint, $data = [])

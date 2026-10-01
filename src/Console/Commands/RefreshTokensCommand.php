@@ -55,6 +55,13 @@ class RefreshTokensCommand extends Command
 
             if (str_starts_with($result, TokenService::FAILED) || $result === TokenService::NEEDS_REAUTHORIZATION) {
                 $problems++;
+            } elseif ($result !== TokenService::NOT_CONNECTED) {
+                // A connection upgraded from 2.x has no account recorded yet
+                try {
+                    $manager->connection($name)->identifyAccountIfUnknown();
+                } catch (Throwable) {
+                    // Not worth failing the refresh over; tried again next run
+                }
             }
 
             $rows[] = [$name, $this->label($result)];
