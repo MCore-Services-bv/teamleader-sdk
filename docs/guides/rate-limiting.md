@@ -9,7 +9,7 @@ requests are spent on data rather than on 429 responses.
 1. Every request is recorded in a Redis sorted set covering the last 60 seconds.
 2. From 70% usage the SDK adds a delay before each request: 200 ms from 70%,
    500 ms from 80%, 1 second from 90% and 2 seconds from 95%.
-3. When the window is full, the SDK waits for a slot — up to `max_wait_ms`
+3. When the window is full, the SDK waits for a slot, for up to `max_wait_ms`
    (5 seconds by default).
 4. If no slot frees up in time, it throws `RateLimitExceededException` instead of
    sending a request that can only fail.

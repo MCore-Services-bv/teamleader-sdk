@@ -92,7 +92,7 @@ pages. Either means the endpoint is not honouring the page parameters, and
 paging it would never end.
 
 Some resources also have an `all()` helper that fetches every page into one
-array — `customFields()->all()`, for example. `lazy()` works everywhere and
+array, such as `customFields()->all()`. `lazy()` works everywhere and
 keeps memory flat.
 
 ## Large exports

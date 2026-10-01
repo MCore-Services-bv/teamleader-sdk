@@ -7,41 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned
-- v3.0: bulk operations helper for processing large datasets, CLI tool, and
-  the removals deprecated during the audit
-- Enhanced caching strategies with tag-based invalidation
-- Laravel Pulse integration for monitoring
+## [3.0.0-beta.1] - 2026-10-01
 
-### Removed (3.x branch)
+**First beta of 3.0.** One application can now talk to several Teamleader
+accounts, tokens are encrypted and renewed on a schedule, and there are
+lazy pagination, bulk operations, events and an Artisan CLI. Everything
+deprecated during the 2.2.x audit is removed.
 
-- **Everything deprecated during the 2.2.x audit.** 15 methods —
-  `users()->getWeekSchedule()`, `plannableItems()->active()`,
-  `invoices()->draft()`, `lostReasons()->search()`, `companies()->byName()`,
-  `quotations()->byStatus()`, `creditNotes()->paid()` / `unpaid()`,
-  `products()->withCustomFields()` and six no-op `deals()->with…()` methods —
-  and the seven resource keys renamed in v2.2.6 (`calenderEvents`,
-  `creditnotes`, `payment_methods`, `payment_terms`, `external_parties`,
-  `plannable_items`, `user_availability`). An old key throws an exception
-  naming its replacement. `TeamleaderSDK::getDeprecatedResourceAliases()` is
-  removed with them. See *From 2.3 to 3.0* in the upgrade guide.
-- `users.getWeekSchedule` is no longer wrapped. Teamleader deprecated it;
-  `userSchedules()->forUser()` wraps its successor. The spec-audit baseline
-  records this as an accepted `endpoint.unwrapped`.
+### Upgrading
 
-- **Configuration keys that had no effect.** `sideloading.*`, `caching.*`,
-  `development.*`, four `rate_limiting.*` keys, four `logging.*` keys and
-  three `error_handling.*` keys. The upgrade guide lists each with its `.env`
-  variable. With them: `Resource::invalidateCache()` / `clearCache()` /
-  `getCacheKey()`, which nothing called.
-- `teamleader:health --fix` no longer calls `Cache::flush()`. A failing cache
-  check cleared the application's entire cache — sessions and other packages'
-  data included, if they share the store.
+Most applications need four steps — see *From 2.3 to 3.0* in the
+[upgrade guide](docs/project/upgrading.md):
 
-- The `McoreServices\TeamleaderSDK\Constants` namespace:
-  `TeamleaderConstants` and `ErrorMessages`. Nothing in the SDK used either.
+1. **PHP 8.4 or higher.** PHP 8.2 and 8.3 are no longer supported.
+2. **`php artisan migrate`.** The token table is now created and upgraded by
+   migrations; your existing tokens keep working.
+3. **Exceptions are on by default.** Set `TEAMLEADER_THROW_EXCEPTIONS=false`
+   to keep the 2.x error arrays.
+4. **Run the Laravel scheduler**, which renews tokens every ten minutes.
 
-### Added (3.x branch)
+This is a beta: please report anything that breaks on upgrade. Install it with
+`composer require mcore-services/teamleader-sdk:^3.0@beta`.
+
+### Added
 
 - **`teamleader:export`** (CSV / JSON Lines, progress bar), **`teamleader:import`**
   (CSV, JSON Lines or JSON; create, `--update` or `--method=`; every line
@@ -136,34 +124,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   audit and the generated API reference already used it (as the test-only
   `SdkInventory`); it moved to `src/` for the CLI.
 
-### Fixed (3.x branch)
-
-- **With rate limiting disabled, every successful request still called
-  Redis** — to store the rate-limit headers and to put limiter statistics in a
-  debug log line — so an application without Redis failed on every call. The
-  headers are only stored when rate limiting is on, and the statistics are no
-  longer computed per request (`getRateLimitStats()` still returns them).
-
-### Security (3.x branch)
-
-- **The OAuth `state` is generated and checked by the SDK.** `authorize()`
-  remembers a random state in the session; `handleCallback()` accepts only a
-  state it issued, once, and throws `OAuthStateException` otherwise. Passing
-  your own state keeps the 2.x behaviour.
-- **`expected_account_id`** per connection: a callback that connects a
-  different Teamleader account throws `AccountMismatchException` and stores
-  nothing.
-- **Tokens are encrypted at rest** with `APP_KEY`, in the `teamleader_tokens`
-  table and in the cache, which now holds one encrypted entry per connection
-  instead of the plain-text access and refresh token. v2.x rows are encrypted
-  on first read; the old cache keys are removed.
-- The first 20 characters of the refresh token were logged at info level on
-  every refresh. Nothing from the token is logged now.
-- A token response without an access token was quoted in full in the
-  exception message, which could include a refresh token. It now lists the
-  keys received.
-
-### Changed (3.x branch)
+### Changed
 
 - **`throw_exceptions` defaults to `true`.** A failed request throws a typed
   exception — after server and connection errors are retried — instead of
@@ -199,6 +160,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sort validation messages name the endpoint on every resource:
   `Invalid sort field: title. deals.list accepts: created_at, weighted_value.`
   (previously `… Accepted: …` on most resources).
+
+### Removed
+
+- **Everything deprecated during the 2.2.x audit.** 15 methods —
+  `users()->getWeekSchedule()`, `plannableItems()->active()`,
+  `invoices()->draft()`, `lostReasons()->search()`, `companies()->byName()`,
+  `quotations()->byStatus()`, `creditNotes()->paid()` / `unpaid()`,
+  `products()->withCustomFields()` and six no-op `deals()->with…()` methods —
+  and the seven resource keys renamed in v2.2.6 (`calenderEvents`,
+  `creditnotes`, `payment_methods`, `payment_terms`, `external_parties`,
+  `plannable_items`, `user_availability`). An old key throws an exception
+  naming its replacement. `TeamleaderSDK::getDeprecatedResourceAliases()` is
+  removed with them. See *From 2.3 to 3.0* in the upgrade guide.
+- `users.getWeekSchedule` is no longer wrapped. Teamleader deprecated it;
+  `userSchedules()->forUser()` wraps its successor. The spec-audit baseline
+  records this as an accepted `endpoint.unwrapped`.
+
+- **Configuration keys that had no effect.** `sideloading.*`, `caching.*`,
+  `development.*`, four `rate_limiting.*` keys, four `logging.*` keys and
+  three `error_handling.*` keys. The upgrade guide lists each with its `.env`
+  variable. With them: `Resource::invalidateCache()` / `clearCache()` /
+  `getCacheKey()`, which nothing called.
+- `teamleader:health --fix` no longer calls `Cache::flush()`. A failing cache
+  check cleared the application's entire cache — sessions and other packages'
+  data included, if they share the store.
+
+- The `McoreServices\TeamleaderSDK\Constants` namespace:
+  `TeamleaderConstants` and `ErrorMessages`. Nothing in the SDK used either.
+
+### Fixed
+
+- **With rate limiting disabled, every successful request still called
+  Redis** — to store the rate-limit headers and to put limiter statistics in a
+  debug log line — so an application without Redis failed on every call. The
+  headers are only stored when rate limiting is on, and the statistics are no
+  longer computed per request (`getRateLimitStats()` still returns them).
+
+### Security
+
+- **The OAuth `state` is generated and checked by the SDK.** `authorize()`
+  remembers a random state in the session; `handleCallback()` accepts only a
+  state it issued, once, and throws `OAuthStateException` otherwise. Passing
+  your own state keeps the 2.x behaviour.
+- **`expected_account_id`** per connection: a callback that connects a
+  different Teamleader account throws `AccountMismatchException` and stores
+  nothing.
+- **Tokens are encrypted at rest** with `APP_KEY`, in the `teamleader_tokens`
+  table and in the cache, which now holds one encrypted entry per connection
+  instead of the plain-text access and refresh token. v2.x rows are encrypted
+  on first read; the old cache keys are removed.
+- The first 20 characters of the refresh token were logged at info level on
+  every refresh. Nothing from the token is logged now.
+- A token response without an access token was quoted in full in the
+  exception message, which could include a refresh token. It now lists the
+  keys received.
 
 ---
 

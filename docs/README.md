@@ -38,8 +38,9 @@ with `APP_KEY` and renewed on a schedule, and a callback that connects the
 wrong account is refused. See [Token storage and security](guides/token-storage-and-security.md).
 
 **It moves data in bulk.** Export any list to CSV or JSON Lines, and create,
-update or delete thousands of records — validated before the first request,
-resumable after a failure, on the queue if you like. See
+update or delete thousands of records. Every row is validated before the
+first request, a failed run can be resumed, and the work can run on the
+queue. See
 [Bulk operations](guides/bulk-operations.md) and the
 [command line](guides/cli.md).
 
@@ -57,7 +58,7 @@ resumable after a failure, on the queue if you like. See
 - PHP 8.4 or higher (tested on 8.4 – 8.5)
 - Laravel 12.x or 13.x
 - A database for the token table (MySQL, PostgreSQL or SQLite)
-- Redis, when rate limiting is enabled — it is by default
+- Redis, for rate limiting (enabled by default)
 
 ## Links
 

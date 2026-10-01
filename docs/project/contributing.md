@@ -21,8 +21,8 @@ These docs live in the repository's `docs/` folder and are published from
 - The **guides** are written by hand; change them in the same pull request as
   the behaviour they describe.
 - The **API reference** is generated from the resource classes. To improve a
-  reference page, improve the code it comes from — a filter description, a
-  docblock, a usage example — and run:
+  reference page, improve the code it comes from (a filter description, a
+  docblock, a usage example) and run:
 
 ```bash
 composer docs:build

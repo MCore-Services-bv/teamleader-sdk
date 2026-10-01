@@ -81,7 +81,7 @@ consistent interface — for one Teamleader account or many.
 - **Laravel**: 12.x or 13.x
 - **Extensions**: `ext-json`, `ext-mbstring`
 - **Database**: MySQL 5.7+, PostgreSQL 10+, or SQLite 3.8+
-- **Redis**: required only if rate limiting is enabled — it is, by default
+- **Redis**: required for rate limiting, which is enabled by default
 
 > Laravel 10 and 11 were dropped in v2.0. Both are EOL with unpatched CVEs, and
 > Composer's security advisories block installing them.
@@ -355,8 +355,8 @@ echo "Remaining: {$stats['remaining']} / {$stats['rate_limit']}";
 ```
 
 The wait is capped by `teamleader.rate_limiting.max_wait_ms` (default 5000). Once
-the cap is reached a `RateLimitExceededException` is thrown and the decision
-returns to you — which in a queue worker usually means releasing the job:
+the cap is reached, a `RateLimitExceededException` is thrown and the decision
+is yours. In a queue worker, that usually means releasing the job:
 
 ```php
 use McoreServices\TeamleaderSDK\Exceptions\RateLimitExceededException;
@@ -368,8 +368,8 @@ try {
 }
 ```
 
-Set `max_wait_ms` to `65000` if you would rather the SDK sit out a full window
-itself — sensible for a CLI import, less so for a web request.
+Set `max_wait_ms` to `65000` to have the SDK wait out a full window itself.
+That suits a CLI import, but not a web request.
 
 ---
 
@@ -521,9 +521,9 @@ Route::post('/webhooks/teamleader', function (Request $request) {
 
 ## 🛠️ Error Handling
 
-A failed request throws a typed exception — the default since v3.0. Set
-`TEAMLEADER_THROW_EXCEPTIONS=false` for the 2.x behaviour of returning an
-array with `error => true`. All API exceptions extend `TeamleaderException`.
+Since v3.0, a failed request throws a typed exception by default. Set
+`TEAMLEADER_THROW_EXCEPTIONS=false` to get the 2.x behaviour back: an array
+with `error => true`. All API exceptions extend `TeamleaderException`.
 
 ```php
 use McoreServices\TeamleaderSDK\Exceptions\AuthenticationException;
@@ -542,20 +542,20 @@ try {
     // 429 — always thrown, never swallowed
     $this->release($e->getRetryAfter());
 } catch (AuthenticationException $e) {
-    // Token expired and refresh failed — re-authenticate
-    return redirect('/teamleader/auth');
+    // Includes ConnectionNeedsReauthorizationException — connect again
+    return redirect('/teamleader/connect');
 } catch (TeamleaderException $e) {
     logger()->error('Teamleader API error', ['message' => $e->getMessage()]);
 }
 ```
 
-Client-side validation throws `InvalidArgumentException` **before** the request is
-sent — for unsupported filter keys, sort fields, includes and subject types:
+Unsupported filter keys, sort fields, includes and subject types throw an
+`InvalidArgumentException` **before** the request is sent:
 
 ```php
 Teamleader::timeTracking()->list(['updated_since' => '2026-08-01T00:00:00+02:00']);
-// InvalidArgumentException: Invalid filter key 'updated_since' for
-// timeTracking.list. Supported filters: ids, user_id, started_after, ...
+// InvalidArgumentException: Unsupported filter key for timeTracking.list:
+// updated_since. Supported: ids, user_id, started_after, ...
 ```
 
 This is deliberate. The API answers `200` to filters it does not recognise and

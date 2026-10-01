@@ -14,8 +14,8 @@ Please be considerate and constructive in all interactions.
 
 Bug reports have been the single most valuable contribution to this project.
 Several fixes in v2.2.0 came directly from reports that explained what was
-expected, what happened, and how the reporter worked around it — that last part
-in particular often reveals more than a stack trace.
+expected, what happened, and how the reporter worked around it. That last part
+often reveals more than a stack trace.
 
 Before filing, please check existing issues to avoid duplicates.
 
@@ -48,8 +48,8 @@ Workarounds tried, related endpoints, anything that narrowed it down
 **A note on silent bugs.** The Teamleader API answers `200` to filters, includes
 and sort fields it does not recognise, returning the complete unfiltered set. If
 a call returns *more* than you expected, or ignores something you passed, that is
-worth reporting even without an error message — it is the most common defect
-class in this SDK's history.
+worth reporting even without an error message. It is the most common kind of
+defect in this SDK's history.
 
 ### Suggesting Features
 
@@ -102,7 +102,7 @@ vendor/bin/phpunit --filter=test_unknown_filter_keys_throw
 ```
 
 Redis defaults to `127.0.0.1:6379`, database 15. Override with environment
-variables if yours lives elsewhere — Laravel Herd, for example, serves it on
+variables if yours lives elsewhere. Laravel Herd, for example, serves it on
 6380:
 
 ```bash
@@ -198,7 +198,7 @@ shape (a sort string array instead of objects), or a filter that was dropped
 without warning. The API answers `200` to all of these, so the only way to catch
 them is to assert on what the SDK *builds*.
 
-`ResourceTestCase` wires up a `RecordingApiClient` — a `TeamleaderSDK` subclass
+`ResourceTestCase` wires up a `RecordingApiClient`, a `TeamleaderSDK` subclass
 that records the call instead of sending it. No network, no token, no Redis.
 
 ```php
@@ -221,7 +221,7 @@ Available assertions: `assertLastEndpoint()`, `assertEndpointCalled()`,
 `assertLastBodyHas()`, `assertLastBodyMissing()`, `assertLastBody()`,
 `assertLastBodyKeys()`, `assertRequestCount()`, `assertNoRequestMade()`.
 
-Prefer `assertLastBodyHas()` over `assertLastBody()` — an exact match couples the
+Prefer `assertLastBodyHas()` over `assertLastBody()`. An exact match couples the
 test to every default the SDK applies, so a change to pagination defaults breaks
 a test about sorting.
 
@@ -247,8 +247,8 @@ This is the guideline that matters most here.
 
 A test written from the current implementation locks in whatever that
 implementation happens to do. `CompaniesResourceTest` once asserted that
-`addresses` and `responsible_user` were valid sideload includes. They never were —
-the API had never accepted them — and the test kept six phantom includes alive
+`addresses` and `responsible_user` were valid sideload includes. The API had
+never accepted them, and the test kept six phantom includes alive
 until someone checked the specification.
 
 So: verify against
@@ -400,15 +400,15 @@ class YourResource extends Resource
 ```
 
 Then register it in `TeamleaderSDK::$resources` **and** add a matching `@method`
-annotation to `Facades\Teamleader`. The two are checked for parity — a resource
-without an annotation gets no IDE completion.
+annotation to `Facades\Teamleader`. The two are checked for parity, because a
+resource without an annotation gets no IDE completion.
 
 ### Three rules from experience
 
 **Capability flags must match reality.** If `supportsSorting` is `true`, `list()`
 must actually build a sort parameter. Several resources have declared a
 capability they did not implement, and `getCapabilities()` is part of the public
-API — people build on it.
+API that people build on.
 
 **Reject what the endpoint cannot use.** If a resource takes no filters, call
 `rejectUnsupportedListArguments()` rather than accepting and discarding them. A

@@ -2,17 +2,17 @@
 
 Explore and query Teamleader from the terminal, without writing code. Every
 command goes through the same resource methods your code uses, so filters,
-sort fields and includes are validated the same way — and the error tells you
+sort fields and includes are validated the same way, and an error tells you
 what the endpoint accepts.
 
 {% hint style="info" %}
 Available from v3.0.
 {% endhint %}
 
-**Nothing writes without `--write`.** With it, you are asked to confirm — the
-question names the endpoint and the number of requests. `--force` skips the
-question, for scripts; in production `--force` is required as well, and a run
-with `-n` (cron, CI) is refused rather than left waiting.
+**Nothing writes without `--write`.** With it, you are asked to confirm, and
+the question names the endpoint and the number of requests. `--force` skips
+the question, for scripts. In production `--force` is required as well, and a
+run with `-n` (cron, CI) is refused rather than left waiting.
 
 Every command takes `--connection=antwerp` for a connection other than the
 default.
@@ -89,7 +89,7 @@ php artisan teamleader:import deals won.csv --method=win --write     # any metho
 ```
 
 **Every line is validated before any is sent.** An invalid line stops the
-import with the line numbers and what is wrong — nothing has been sent:
+import with the line numbers and what is wrong. Nothing is sent:
 
 ```
 2 of 1200 rows are invalid. Nothing was sent.
@@ -111,11 +111,11 @@ import with the line numbers and what is wrong — nothing has been sent:
 
 ### Files
 
-- **CSV**: the header names the fields as dot paths — `address.city`,
-  `lead.customer.id`. Cells are text, except `true`, `false`, `null` and JSON
+- **CSV**: the header names the fields as dot paths, such as `address.city`
+  or `lead.customer.id`. Cells are text, except `true`, `false`, `null` and JSON
   (`["vip","b2b"]`). **Empty cells are left out**, so on `--update` an empty
-  cell leaves the field alone. Numbers stay text — a postal code or phone
-  number looks like a number — unless named in `--numeric`.
+  cell leaves the field alone. Numbers stay text unless the column is named
+  in `--numeric`, because a postal code or phone number looks like a number.
 - **JSON Lines** (`.jsonl`): one JSON object per line, sent as it is. The
   format for typed or nested data.
 - **JSON** (`.json`): an array of objects.

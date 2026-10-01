@@ -2,7 +2,7 @@
 
 The SDK fires Laravel events for every request it sends, every answer it gets,
 every failure, every rate-limit wait and every token refresh. Listen to them to
-log, measure or alert — without wrapping the SDK.
+log, measure or alert, without wrapping the SDK.
 
 {% hint style="info" %}
 Available from v3.0.
@@ -10,7 +10,8 @@ Available from v3.0.
 
 ## The events
 
-All are in `McoreServices\TeamleaderSDK\Events`. Every event has a `connection` property — `default` for a single account; see
+All are in `McoreServices\TeamleaderSDK\Events`. Every event has a
+`connection` property, which is `default` for a single account. See
 [Multiple Connections](multiple-connections.md). None carries a token value,
 and request and response bodies have tokens, secrets and other sensitive keys
 redacted before the event is created.
@@ -28,8 +29,8 @@ redacted before the event is created.
 listener sees every failure either way.
 
 An error status fires `ResponseReceived` and then `RequestFailed`. A request the
-SDK refuses to build — an unknown filter, a missing required field — throws
-before anything is sent and fires nothing.
+SDK refuses to build, because of an unknown filter or a missing required
+field, throws before anything is sent and fires nothing.
 
 ## Listening
 
@@ -103,6 +104,6 @@ so the log shows exactly what your own listeners receive.
 ## Recent calls
 
 `TeamleaderSDK::getApiCalls()` returns the last 100 calls in the current
-process — method, endpoint, status, response size and duration. It is meant
+process, with the method, endpoint, status, response size and duration. It is meant
 for a quick look in Tinker. For anything you keep, listen to
 `ResponseReceived`.

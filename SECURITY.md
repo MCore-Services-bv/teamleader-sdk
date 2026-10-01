@@ -36,7 +36,7 @@ working days. If the report is valid, you will be told when a fix is released an
 credited in the changelog unless you would rather not be.
 
 This is a community package maintained alongside client work, not a funded
-security programme — response times are best-effort, and there is no bounty.
+security programme. Response times are best-effort, and there is no bounty.
 
 ## Scope
 
@@ -44,7 +44,7 @@ security programme — response times are best-effort, and there is no bounty.
 through logs or exceptions, and any path where SDK code could be made to send
 data somewhere it should not.
 
-**Out of scope:** vulnerabilities in the Teamleader Focus API itself — report
+**Out of scope:** vulnerabilities in the Teamleader Focus API itself. Report
 those to Teamleader. Also out of scope: issues that require an attacker to
 already control your application's configuration or database.
 

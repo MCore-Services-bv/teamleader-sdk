@@ -59,8 +59,8 @@ encrypted the same way.
 
 ### Storing tokens elsewhere
 
-The table is the default `TokenStore`. To keep tokens somewhere else — a
-secrets manager, your own tenants table — implement
+The table is the default `TokenStore`. To keep tokens somewhere else, such as
+a secrets manager or your own tenants table, implement
 `McoreServices\TeamleaderSDK\Tokens\TokenStore` and bind it:
 
 ```php
@@ -96,7 +96,7 @@ across workers.
 If Teamleader answers the refresh with a 400 or 401, the refresh token has been
 revoked. The connection is marked `needs_reauthorization` and its tokens are
 kept but never used; a user has to connect it again. Tokens are also renewed on
-a schedule — see [Authentication](../getting-started/authentication.md#token-refresh).
+a schedule; see [Authentication](../getting-started/authentication.md#token-refresh).
 
 ## `APP_KEY` protects the tokens
 
@@ -107,7 +107,7 @@ it is revoked. So:
 - Keep `APP_KEY` out of version control and different per environment.
 - **Rotating `APP_KEY` makes the stored tokens unreadable.** The SDK reports a
   `TokenStorageException` naming the connection. Either connect the account
-  again, or add the old key to `APP_PREVIOUS_KEYS` during the rotation — the
+  again, or add the old key to `APP_PREVIOUS_KEYS` during the rotation. The
   SDK re-encrypts each token with the new key the next time it is refreshed.
 - A database backup is only as sensitive as the key it can be combined with:
   store backups and `.env` apart.

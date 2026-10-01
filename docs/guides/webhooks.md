@@ -1,6 +1,6 @@
 # Webhooks
 
-Teamleader can call a URL of yours when something happens — an invoice is
+Teamleader can call a URL of yours when something happens: an invoice is
 booked, a deal is won, a contact is added.
 
 ## Registering

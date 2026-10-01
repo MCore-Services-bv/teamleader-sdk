@@ -3,8 +3,9 @@
 A few Teamleader endpoints accept `includes`, which adds optional data to the
 response: custom field values on a list, related contacts on a company,
 supplier details on a product. **Far fewer than you might expect.** Most related
-records — responsible user, addresses, tags, price list — are returned as a
-`{type, id}` reference by default and cannot be sideloaded at all.
+records, such as the responsible user, addresses, tags and the price list,
+are returned as a `{type, id}` reference by default and cannot be sideloaded
+at all.
 
 The complete list is the [**Includes** table in the API reference](../reference/README.md#includes).
 No other resource accepts includes.

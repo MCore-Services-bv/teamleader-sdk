@@ -8,7 +8,7 @@
 | Laravel | 12.x or 13.x |
 | Database | MySQL 5.7+, PostgreSQL 10+ or SQLite 3.8+ |
 | Cache | Any Laravel store; Redis for production |
-| Redis | Required while rate limiting is enabled (the default) |
+| Redis | Required for rate limiting, which is enabled by default |
 
 Laravel 10 and 11 were dropped in v2.0: both are end of life, and Composer's
 security advisories block installing them.
@@ -44,9 +44,9 @@ change the migrations before running them, publish them with
 
 ## Run the scheduler
 
-The package schedules `teamleader:tokens:refresh` every ten minutes, which
-renews tokens before they run out — including on connections nobody has used
-in a while. That needs the Laravel scheduler:
+The package schedules `teamleader:tokens:refresh` every ten minutes. It
+renews tokens before they run out, also on connections nobody has used in a
+while. This needs the Laravel scheduler:
 
 - **Locally:** `php artisan schedule:work`
 - **In production:** a cron entry for `php artisan schedule:run` every minute

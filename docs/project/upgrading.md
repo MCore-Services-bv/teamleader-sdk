@@ -4,7 +4,7 @@
 
 Most applications need four steps. Do them in this order:
 
-1. **Check PHP** — 3.0 needs PHP 8.4 or higher. See [Requirements](#requirements).
+1. **Check PHP.** 3.0 needs PHP 8.4 or higher. See [Requirements](#requirements).
 2. **Update the package and run the migrations:**
 
    ```bash
@@ -57,7 +57,7 @@ row becomes the `default` connection, and the tokens you have keep working.
 **Without this step the SDK cannot read its tokens**; `teamleader:health`
 reports it.
 
-The tokens are then encrypted with `APP_KEY` — in the table the first time the
+The tokens are then encrypted with `APP_KEY`: in the table the first time the
 SDK reads them, and in the cache under new keys (`teamleader:default:tokens`).
 The old plain-text cache keys are removed. If you ever rotate `APP_KEY`, see
 [Token storage and security](../guides/token-storage-and-security.md).
@@ -70,8 +70,8 @@ returning an array with `error => true`.
 
 If you never set it, choose one:
 
-**Keep 2.x behaviour for now** — add one line to `.env`, and upgrade nothing
-else yet:
+**Keep 2.x behaviour for now.** Add one line to `.env`, and leave your error
+handling as it is:
 
 ```dotenv
 TEAMLEADER_THROW_EXCEPTIONS=false
@@ -129,8 +129,8 @@ covers everything; `$e->getStatusCode()` and `$e->getAllErrors()` give what
 `status_code` and `errors` gave.
 
 With exceptions on, server and connection errors are **retried** before the
-exception reaches you — three attempts with backoff. In 2.x's default they
-were not retried at all.
+exception reaches you: three attempts, with a growing wait in between. With
+the 2.x default they were not retried at all.
 
 If you already had `TEAMLEADER_THROW_EXCEPTIONS=true`, nothing changes.
 
@@ -140,8 +140,8 @@ If you already had `TEAMLEADER_THROW_EXCEPTIONS=true`, nothing changes.
 
 - **Run the Laravel scheduler.** The package schedules
   `teamleader:tokens:refresh` every ten minutes. Without the scheduler nothing
-  breaks — tokens are still refreshed when a request needs one — but an idle
-  connection can expire unnoticed. `TEAMLEADER_TOKENS_AUTO_REFRESH=false`
+  breaks, because tokens are still refreshed when a request needs one, but an
+  idle connection can expire unnoticed. `TEAMLEADER_TOKENS_AUTO_REFRESH=false`
   turns the schedule off.
 - **A refused refresh token no longer deletes the tokens.** The connection is
   marked `needs_reauthorization`, and requests throw
@@ -158,7 +158,7 @@ In rough order of how many applications they affect.
 
 - **`authorize()` without an argument now generates the `state`**, remembers
   it in the session, and `handleCallback()` checks it. If you generated and
-  checked a state yourself, you can delete that code — or keep passing your
+  checked a state yourself, you can delete that code, or keep passing your
   own state to `authorize($state)`, which works as in 2.x.
 - `getAuthorizationUrl()` without an argument generates a state too.
 - `handleCallback()` returns the connected `TeamleaderSDK` instance instead of
@@ -184,7 +184,7 @@ copy and from `.env` changes nothing about how the SDK behaves.
 | `error_handling.log_errors`, `include_stack_trace`, `parse_teamleader_errors` | `TEAMLEADER_LOG_ERRORS`, `TEAMLEADER_INCLUDE_STACK_TRACE`, `TEAMLEADER_PARSE_TL_ERRORS` | Only shown by the health check, never applied |
 
 Three keys that were documented but ignored **now work**. Check your `.env`
-for them before upgrading — a value you set long ago takes effect:
+for them before upgrading, because a value you set long ago now takes effect:
 
 | Key | `.env` variable | Effect |
 |---|---|---|
@@ -237,15 +237,15 @@ Single-account applications need no change: the flat `client_id`,
   request. Code that changes `config('teamleader.client_id')` at runtime should
   define a connection with `Teamleader::extend()` instead.
 - The rate-limit window moved to Redis keys per client ID. Its count starts at
-  zero on the first request after the upgrade — the window is a minute long.
+  zero on the first request after the upgrade. The window is a minute long.
 - Configuration errors name the connection:
   `Teamleader connection 'default' is missing: client_secret.` instead of
   `Missing required configuration: teamleader.client_secret`.
 
 #### Token storage
 
-- `TokenService` stores through a `TokenStore` (the table, by default) and
-  takes the connection name: `new TokenService($store, 'default')`. Calling
+- `TokenService` stores through a `TokenStore`, which is the table unless you
+  bind another, and takes the connection name: `new TokenService($store, 'default')`. Calling
   `new TokenService` without arguments still works.
 - `getTokenInfo()` has new keys: `connection`, `status`, `account_id`,
   `account_name`, `last_refreshed_at`.
@@ -265,8 +265,8 @@ Single-account applications need no change: the flat `client_id`,
 
 #### Health and validation commands
 
-- `teamleader:health` checks your default cache store — the one tokens live
-  in — instead of a `caching.store` setting. `--fix` no longer runs
+- `teamleader:health` checks your default cache store, where the tokens live,
+  instead of a `caching.store` setting. `--fix` no longer runs
   `Cache::flush()`, which cleared your **whole** application cache.
 - `teamleader:config:validate` no longer suggests enabling caching or debug
   mode, and no longer warns "Laravel 11 detected" on every Laravel 12 and 13
@@ -296,8 +296,8 @@ PHP and Laravel versions. What does change across 2.2.4 – 2.3.0 is that
 requests which used to be silently wrong now throw.
 
 **Silent no-ops now throw `InvalidArgumentException`.** An unsupported filter,
-sort field, include, option or body field used to be passed to the API — which
-ignored it — or dropped by the SDK. Either way the call returned unfiltered
+sort field, include, option or body field used to be dropped by the SDK, or
+passed to the API, which ignored it. Either way the call returned unfiltered
 data, or an update changed nothing. Now it throws, naming the accepted values.
 
 If upgrading surfaces one of these, the call was not doing what it appeared
@@ -315,8 +315,8 @@ The most common cases:
 | A sort on a field the endpoint does not sort by | a field from the resource's **Sorting** section |
 
 **Stricter-than-API checks were relaxed** at the same time, where the SDK
-demanded fields the API does not — meeting customers, timer subjects, expense
-totals, task work types on update. Code that worked around those can be
+demanded fields the API does not: meeting customers, timer subjects, expense
+totals, and task work types on update. Code that worked around those can be
 simplified.
 
 The full list, release by release, is in the

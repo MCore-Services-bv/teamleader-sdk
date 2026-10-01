@@ -41,8 +41,8 @@ store.
 `true` by default since v3.0: a failed request throws a typed exception, after
 the SDK has retried server and connection errors. `false` returns failures as
 an array with `error => true`, as 2.x did by default; it is kept for one major
-version to ease upgrading, and turns the retries off. Some failures throw
-whatever this says — see [Error handling](../guides/error-handling.md).
+version to ease upgrading, and turns the retries off. Some failures always
+throw, whatever this setting says. See [Error handling](../guides/error-handling.md).
 
 ### `TEAMLEADER_RATE_LIMIT_MAX_WAIT_MS`
 

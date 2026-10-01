@@ -17,10 +17,10 @@ Teamleader::bulk()
     ->toCsv(storage_path('contacts.csv'), ['id', 'first_name', 'last_name', 'emails.0.email']);
 ```
 
-`export()` takes a resource key — the name you use as `Teamleader::{key}()` —
-and the same filters and options as that resource's `list()`. They are
-validated the same way. Paginated resources are read 100 records a page;
-others in a single `list()` call. Each returns the number of records.
+`export()` takes a resource key, which is the name you use in
+`Teamleader::{key}()`, and the same filters and options as that resource's
+`list()`. They are validated the same way. Paginated resources are read 100
+records a page, others in a single `list()` call. Each returns the number of records.
 
 | Method | Writes |
 |---|---|
@@ -32,8 +32,8 @@ For another connection: `Teamleader::connection('antwerp')->bulk()->export(...)`
 
 ### CSV details
 
-- **Columns.** Name them. Without, the first record's fields are used,
-  flattened — and a field missing from the first record is missing from the
+- **Columns.** Name them. Without them, the first record's fields are used,
+  flattened, so a field missing from the first record is missing from the
   file.
 - **Values.** Arrays become JSON, booleans `true` / `false`, null an empty cell.
 - **Formulas.** Text starting with `=`, `+`, `-` or `@` gets a leading `'`, so
@@ -46,8 +46,8 @@ For another connection: `Teamleader::connection('antwerp')->bulk()->export(...)`
 ### Safe to fail
 
 The file is written under a temporary name and moved into place when
-complete. A failed page throws — even with `TEAMLEADER_THROW_EXCEPTIONS=false`
-— and leaves no partial file behind.
+complete. A failed page throws, even with `TEAMLEADER_THROW_EXCEPTIONS=false`,
+and leaves no partial file behind.
 
 ### Progress
 
@@ -78,7 +78,7 @@ $result->skipped();     // [row key => reason]
 ```
 
 Every row ends up in exactly one of the three, under the key it had in your
-input — so a string key such as a line number or your own id maps results
+input. A string key, such as a line number or your own id, maps results
 straight back.
 
 | Operation | Each row |
@@ -95,7 +95,7 @@ a single call gets.
 
 By default, `run()` first passes every row through the resource's
 validation without sending anything. If any row is invalid, it throws a
-`BulkValidationException` listing **all** invalid rows — and nothing has been
+`BulkValidationException` listing **all** invalid rows, and nothing is
 sent:
 
 ```
@@ -147,11 +147,11 @@ $done = $first->succeededIndices();           // store this (json_encode) betwee
 Teamleader::bulk()->create('companies', $rows)->resumeFrom($done)->run();
 ```
 
-Resuming relies on the row keys staying the same between runs — use stable
-keys, or the same input file.
+Resuming relies on the row keys staying the same between runs, so use stable
+keys or the same input file.
 
 For imports that may meet records that already exist in Teamleader, look them
-up first — `lazy()` with a filter — and split your rows into creates and
+up first with `lazy()` and a filter, and split your rows into creates and
 updates.
 
 ### Progress
@@ -168,8 +168,8 @@ Rows are sent one at a time through the rate limiter. During `run()` the SDK
 waits out a full rate-limit window rather than giving up (65 seconds instead
 of `TEAMLEADER_RATE_LIMIT_MAX_WAIT_MS`), which suits a command or a job. At
 200 requests a minute, **10,000 rows take about 50 minutes.**
-`->waitForRateLimit(false)` keeps your normal limit — in a web request,
-say, where waiting a minute is not an option.
+`->waitForRateLimit(false)` keeps your normal limit. Use it in a web request,
+for example, where waiting a minute is not an option.
 
 ## Queued bulk
 
@@ -192,13 +192,13 @@ $batch->id;   // keep it: Bus::findBatch($batch->id) for progress, Horizon shows
   (`Teamleader::connection('antwerp')->bulk()->...`).
 - **Rate limits.** A job that meets the rate limit releases itself for as long
   as Teamleader asks, instead of blocking the worker, and resumes after the
-  rows it already sent — a retried chunk never sends a row twice. Jobs retry
+  rows it already sent, so a retried chunk never sends a row twice. Jobs retry
   for up to a day.
 - **Stopping.** Without `continueOnError()`, the first refusal cancels the
   batch: chunks that had not started yet report their rows as skipped.
 - Chunks may run in parallel on several workers. They share the connection's
   rate-limit window, so this does not make the import faster than 200 rows a
-  minute — it only frees your workers while waiting.
+  minute. It only frees your workers while they wait.
 
 ### The result
 
@@ -220,7 +220,7 @@ are kept in the cache for a week.
 
 ### Requirements
 
-- A real queue — `database`, `redis`, `sqs`. `dispatch()` refuses the `sync`
+- A real queue, such as `database`, `redis` or `sqs`. `dispatch()` refuses the `sync`
   driver, which would run everything inside the request.
 - Laravel's batches table, once per application:
 
@@ -228,5 +228,5 @@ are kept in the cache for a week.
   php artisan make:queue-batches-table
   php artisan migrate
   ```
-- A cache store shared by the workers (Redis, database) — the chunks record
-  their progress there.
+- A cache store shared by the workers, such as Redis or the database. The
+  chunks record their progress there.

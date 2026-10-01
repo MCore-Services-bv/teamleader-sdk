@@ -27,8 +27,8 @@ Route::get('/teamleader/callback', function (Request $request) {
 ```
 
 The callback path must match `TEAMLEADER_REDIRECT_URI` and the redirect URI of
-your integration exactly. Both routes need the `web` middleware group (for the
-session) — routes in `routes/web.php` have it.
+your integration exactly. Both routes need the `web` middleware group, for
+the session. Routes in `routes/web.php` have it already.
 
 ### The `state` check
 
@@ -39,12 +39,12 @@ sends it to Teamleader. `handleCallback()` only accepts a callback whose
 from completing the flow with its own authorization code and connecting your
 application to the wrong Teamleader account.
 
-`authorize('your-state')` and `getAuthorizationUrl('your-state')` keep the 2.x
-behaviour — the SDK does not store or check a state you pass in.
+`authorize('your-state')` and `getAuthorizationUrl('your-state')` work as in
+2.x: the SDK does not store or check a state you pass in.
 
-`authorize()` returns a redirect response. For the URL itself — to render a
-button, say — use `Teamleader::getAuthorizationUrl()`, which generates and
-remembers a state the same way.
+`authorize()` returns a redirect response. When you need the URL itself, for
+a button for example, use `Teamleader::getAuthorizationUrl()`. It generates
+and remembers a state the same way.
 
 ### Several accounts, one callback
 
@@ -71,7 +71,7 @@ integration.
 
 `handleCallback()` identifies the account that was connected (`users.me`) and
 stores its id and name with the tokens. Set `expected_account_id` on a
-connection — `TEAMLEADER_EXPECTED_ACCOUNT_ID` for the default one — and a
+connection (`TEAMLEADER_EXPECTED_ACCOUNT_ID` for the default one), and a
 callback that connects any other account throws `AccountMismatchException`
 without storing anything. With several environments, the easy mistake is being
 logged into the wrong Teamleader account in the browser while connecting; this
@@ -82,8 +82,8 @@ The first time, connect without it, then read the id from
 
 ### What `handleCallback()` returns
 
-The SDK instance of the connection that was connected — truthy, so the `if`
-above works — or `false` when the code exchange failed and
+The SDK instance of the connection that was connected, which is truthy, so
+the `if` above works. It returns `false` when the code exchange failed and
 `TEAMLEADER_THROW_EXCEPTIONS` is off. A `ConnectionAuthorized` event is fired
 on success.
 
@@ -114,7 +114,7 @@ Access tokens are refreshed before they run out, two ways:
 - **On demand**, when a request finds less than 15 minutes left.
 
 Both use the same per-connection lock, so they never refresh a connection
-twice — which matters, because each refresh returns a new refresh token.
+twice. That matters, because each refresh returns a new refresh token.
 
 ```bash
 php artisan teamleader:tokens:refresh                     # every connection that is due
@@ -128,14 +128,14 @@ php artisan teamleader:tokens:refresh --force             # even when not due
 ### When Teamleader refuses the refresh token
 
 A revoked or long-unused refresh token cannot be renewed. The connection is
-marked **`needs_reauthorization`** — the tokens are kept for inspection, not
-deleted — and a `TokenRefreshFailed` event with `reauthorizationRequired` is
-fired. From then on, every request on that connection throws
+marked **`needs_reauthorization`** and a `TokenRefreshFailed` event with
+`reauthorizationRequired` is fired. The tokens are kept for inspection, not
+deleted. From then on, every request on that connection throws
 `ConnectionNeedsReauthorizationException` naming it, whatever
 `TEAMLEADER_THROW_EXCEPTIONS` says. Send a user through `authorize()` for that
 connection to fix it.
 
-Listen for the event to be told — see
+To be alerted, listen for the event. See
 [Events and Logging](../guides/events-and-logging.md#alert-when-an-account-needs-reconnecting).
 
 ### Status
@@ -153,8 +153,8 @@ php artisan teamleader:status --all
 
 It exits with 1 when any connection needs to be connected again, so it can
 run in a deploy check. `teamleader:health` reports the same, and warns when a
-token expired without being renewed — the sign that the scheduler is not
-running.
+token expired without being renewed. That usually means the scheduler is
+not running.
 
 How tokens are stored, and how to harden that for production, is covered in
 [Token storage and security](../guides/token-storage-and-security.md).

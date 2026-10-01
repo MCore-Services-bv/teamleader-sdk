@@ -2,7 +2,8 @@
 
 Teamleader publishes a machine-readable description of the Focus API:
 [`@teamleader/focus-api-specification`](https://www.npmjs.com/package/@teamleader/focus-api-specification).
-The SDK is checked against it — currently version **1.221.0** — on every push.
+The SDK is checked against it on every push. The pinned version is currently
+**1.221.0**.
 
 ## Why it matters
 
@@ -28,7 +29,7 @@ fields, includes and pagination are compared with the specification.
 Differences are recorded in a baseline; CI fails on anything not in it, and on
 any baseline entry that no longer applies. One difference is recorded as
 accepted: `users.getWeekSchedule` is not wrapped, because Teamleader deprecated
-it — `userSchedules()->forUser()` wraps its successor.
+it. `userSchedules()->forUser()` wraps its successor.
 
 **Fixture freshness.** CI regenerates the fixtures from the pinned
 specification and fails if they differ from what is committed.
@@ -44,9 +45,9 @@ changes arrive as a list of findings rather than as bug reports.
 ## When the specification and the API disagree
 
 The specification is treated as authoritative until the live API is shown to
-behave differently. Where it has been — an undeclared filter the API honours, an
-include the specification mentions only in a response description — the
-resource says so in its docblock, the reference page carries that note, and the
+behave differently. Where it has been, such as an undeclared filter the API
+honours or an include the specification mentions only in a response
+description, the resource says so in its docblock, the reference page carries that note, and the
 decision is recorded in the audit baseline with a reason.
 
 If you find a call that behaves differently from its reference page, please

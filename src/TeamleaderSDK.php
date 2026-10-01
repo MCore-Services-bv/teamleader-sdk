@@ -1011,7 +1011,7 @@ class TeamleaderSDK
     }
 
     /**
-     * Bulk operations on this connection: export, and (from 3.0) bulk writes
+     * Bulk operations on this connection: export, and bulk writes in-process or queued
      */
     public function bulk(): BulkManager
     {

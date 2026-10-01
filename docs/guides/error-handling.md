@@ -66,8 +66,8 @@ Every exception extends `McoreServices\TeamleaderSDK\Exceptions\TeamleaderExcept
 | — | `OAuthStateException`, `AccountMismatchException` | No — from `handleCallback()` |
 
 Server and connection errors are attempted three times in total
-(`TEAMLEADER_API_RETRY_ATTEMPTS`), with exponential backoff between attempts —
-1 second, then 2, then 4, capped at 30 — before the exception reaches you.
+(`TEAMLEADER_API_RETRY_ATTEMPTS`) before the exception reaches you. The wait
+between attempts doubles each time (1 second, then 2, then 4), up to 30.
 Retries happen only with `throw_exceptions` on.
 
 ### Methods

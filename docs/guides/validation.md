@@ -6,8 +6,8 @@ so. A typo looks like success:
 
 - a mistyped **filter** returns every record, unfiltered
 - a mistyped **sort field** returns the default order
-- a mistyped **include** returns the response without the extra data — or, when
-  the field is returned by default anyway, looks like it worked
+- a mistyped **include** returns the response without the extra data, or
+  looks like it worked when the field is returned by default anyway
 - a mistyped **body field** on an update changes nothing, and reports success
 
 The SDK checks those names, and the values of enumerated fields, before the
@@ -40,8 +40,8 @@ Teamleader::timeTracking()->list(['updated_since' => '2026-08-01T00:00:00+02:00'
 | Required fields | Fields the endpoint requires, including "one of" rules |
 
 All of it comes from `@teamleader/focus-api-specification`, and the lists are
-public constants on each resource class — `Companies::WRITE_FIELDS`,
-`ProjectTasks::STATUSES` and so on. Each [reference page](../reference/README.md)
+public constants on each resource class, such as `Companies::WRITE_FIELDS`
+and `ProjectTasks::STATUSES`. Each [reference page](../reference/README.md)
 shows them under **Accepted values**, so you can build a form or a mapping
 against the same list the SDK checks.
 
@@ -78,5 +78,5 @@ it('syncs active companies', function () {
 
 Between v2.2.4 and v2.3.0 these checks were added resource by resource. Code
 that passed an unsupported name now throws where it used to be silently
-ignored. In every such case the call was not doing what it appeared to — fix
-the name rather than catching the exception. See [Upgrading](../project/upgrading.md).
+ignored. In every such case the call was not doing what it appeared to, so
+fix the name rather than catching the exception. See [Upgrading](../project/upgrading.md).

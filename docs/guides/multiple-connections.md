@@ -1,7 +1,7 @@
 # Multiple Connections
 
-One Laravel application can talk to several Teamleader accounts — six
-environments, a handful of clients, one per tenant. Each account is a
+One Laravel application can talk to several Teamleader accounts: six
+environments, a handful of clients, or one per tenant. Each account is a
 **connection** with its own credentials, tokens, refresh lock and rate-limit
 window.
 

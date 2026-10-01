@@ -32,7 +32,7 @@ Teamleader::contacts()->list(['term' => 'janssens']);
 ```
 
 Several filters that the API types as a list accept a single value too, and
-the SDK wraps it — `'ids' => 'uuid-1'` is sent as `['uuid-1']`. The reference
+the SDK wraps it: `'ids' => 'uuid-1'` is sent as `['uuid-1']`. The reference
 notes where that applies.
 
 ### Unknown filters throw
@@ -61,13 +61,13 @@ Teamleader::companies()->list([
 ```
 
 The exception is a filter where `null` itself means something. On contacts,
-`company_id => null` finds contacts linked to no company — use
+`company_id => null` finds contacts linked to no company. Use
 `Teamleader::contacts()->withoutCompany()` to make that explicit.
 
 ### Helpers
 
-Most resources have named helpers for their common filters — `search()`,
-`byIds()`, `updatedSince()`, `forUser()` and so on. They build the same filter
+Most resources have named helpers for their common filters, such as
+`search()`, `byIds()`, `updatedSince()` and `forUser()`. They build the same filter
 array and are listed under **Methods** on each reference page.
 
 ## Sorting
@@ -103,8 +103,8 @@ Teamleader::companies()->list([], ['sort' => 'created_at']);
 
 The API would have ignored it and returned its default order.
 
-Some endpoints accept only one direction — `files.list` sorts on `updated_at`,
-descending only — and the reference page says so where it applies.
+Some endpoints accept only one direction. `files.list`, for example, sorts on
+`updated_at` descending only. The reference page says so where it applies.
 
 ## Options
 
