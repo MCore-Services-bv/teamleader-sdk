@@ -4,18 +4,18 @@
 
 | Version | Supported | Notes |
 | ------- | --------- | ----- |
-| 2.3.x | ✅ Active | Current release — receives every fix |
-| 2.2.x | ❌ Unsupported | Upgrade to 2.3.x — same requirements, no breaking changes |
-| 2.1.x | ❌ Unsupported | Upgrade to 2.3.x — same requirements, no breaking changes |
-| 2.0.x | ❌ Unsupported | Upgrade to 2.3.x — same requirements, no breaking changes |
+| 3.0.x | ✅ Active | Current release — receives every fix |
+| 2.3.x | ⚠️ Security fixes only | Until 1 January 2027. See the upgrade guide |
+| 2.0.x – 2.2.x | ❌ Unsupported | Upgrade to 2.3.x — same requirements, no breaking changes |
 | < 2.0 | ❌ Unsupported | Requires Laravel 10 or 11 — both EOL with unpatched CVEs |
 
-Only the latest minor of the current major is supported. Fixes land as patch
-releases on 2.3.x, which runs on the same PHP and Laravel versions as 2.0, 2.1
-and 2.2, so there is no reason to stay on an older minor.
+Only the latest minor of each supported major is supported. 3.0 needs PHP
+8.4 or higher and Laravel 12 or 13; the
+[upgrade guide](docs/project/upgrading.md) takes most applications four steps.
 
-When 3.0.0 is released, 2.x moves to security fixes only for **three months**
-and is unsupported after that. The date will be stated here on release.
+2.3.x receives security fixes only, on the `2.x` branch, until
+**1 January 2027**, and is unsupported after that. Stay on `^2.3` until you
+are on PHP 8.4 — but no longer than that.
 
 Versions below 2.0 depend on Laravel 10 or 11. Composer's security advisories
 block installing those, so there is no supported upgrade path that keeps them.

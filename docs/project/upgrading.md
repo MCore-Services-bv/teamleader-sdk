@@ -42,8 +42,8 @@ still supported.
 | Laravel | 12, 13 | 12, 13 |
 
 Check your version with `php -v`. If you are on 8.2 or 8.3, stay on
-`^2.3` until you have upgraded PHP; 2.x receives security fixes for three
-months after 3.0 is released.
+`^2.3` until you have upgraded PHP; 2.x receives security fixes until
+1 January 2027.
 
 ### Run the migrations
 

@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-10-01
+
+**One Laravel application, any number of Teamleader accounts.** 3.0 adds
+connections with encrypted token storage and scheduled renewal, lazy
+pagination, bulk export and writes (in-process or queued), events and request
+logging, and an Artisan CLI. Everything deprecated during the 2.2.x audit is
+removed, and exceptions are on by default.
+
+3.0.0 is 3.0.0-rc.2 without changes. Before release it carried a full client
+migration (527 leads, bulk create, update, delete and call on Horizon) and the
+upgrade of a 2.3.2 application. The entries below, from 3.0.0-beta.1 up, list
+every change.
+
+### Upgrading from 2.3
+
+1. **PHP 8.4 or higher.**
+2. **`php artisan migrate`.** Your token table is upgraded in place; you stay
+   connected.
+3. **Exceptions are on by default.** Set `TEAMLEADER_THROW_EXCEPTIONS=false`
+   to keep the 2.x error arrays. A published `config/teamleader.php` keeps
+   them off already.
+4. **Run the Laravel scheduler**, which renews tokens every ten minutes.
+
+The [upgrade guide](docs/project/upgrading.md) covers the rest.
+
+2.x receives security fixes until 1 January 2027.
+
+## [3.0.0-rc.2] - 2026-10-01
+
+### Fixed
+
+Found upgrading a 2.3.2 application to 3.0.0-rc.1:
+
+- A token table upgraded from 2.x has no account recorded, so
+  `teamleader:status --all` showed `—` and `expected_account_id` had no id to
+  copy. `teamleader:tokens:refresh` now looks the account up once
+  (`users.me`, `departments.list`) for a connection that has none.
+- `teamleader:health` warned under *Dependencies* whenever the memcached or
+  redis extension was missing, without saying why. Memcached is never used;
+  the redis extension is now checked only when rate limiting is on and Laravel
+  uses the phpredis client, with a message naming the fix. The PHP and Laravel
+  minimums it reports are 8.4 and 12.
+- `files()->uploadFile()` was refused with HTTP 400 in a real upload, and the
+  error did not say why. It now sends the file the way the working uploads in
+  the Nova Credit migration did (the bytes as a string body), refuses an empty
+  file before requesting a link, and a refusal includes what the upload host
+  answered.
+
+### Documentation
+
+- Upgrading: a published `config/teamleader.php` keeps
+  `throw_exceptions` off, because its own default (`false`) wins.
+
+## [3.0.0-rc.1] - 2026-10-01
+
 Changes from the first full migration on 3.0 (527 leads, bulk create,
 update, delete and call, queued on Horizon).
 
@@ -36,29 +91,8 @@ update, delete and call, queued on Horizon).
   intended path for a queued chunk, which releases itself; a real 429 from
   Teamleader is still a WARNING.
 
-### Fixed
-
-Found upgrading a 2.3.2 application to 3.0.0-rc.1:
-
-- A token table upgraded from 2.x has no account recorded, so
-  `teamleader:status --all` showed `—` and `expected_account_id` had no id to
-  copy. `teamleader:tokens:refresh` now looks the account up once
-  (`users.me`, `departments.list`) for a connection that has none.
-- `teamleader:health` warned under *Dependencies* whenever the memcached or
-  redis extension was missing, without saying why. Memcached is never used;
-  the redis extension is now checked only when rate limiting is on and Laravel
-  uses the phpredis client, with a message naming the fix. The PHP and Laravel
-  minimums it reports are 8.4 and 12.
-- `files()->uploadFile()` was refused with HTTP 400 in a real upload, and the
-  error did not say why. It now sends the file the way the working uploads in
-  the Nova Credit migration did (the bytes as a string body), refuses an empty
-  file before requesting a link, and a refusal includes what the upload host
-  answered.
-
 ### Documentation
 
-- Upgrading: a published `config/teamleader.php` keeps
-  `throw_exceptions` off, because its own default (`false`) wins.
 - Behaviour of the Teamleader API the SDK cannot change, stated where you meet
   it: records are dated "now" and cannot be backdated; notes have no type;
   e-mail tracking files every item as received and cannot update or delete
