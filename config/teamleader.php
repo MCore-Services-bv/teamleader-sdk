@@ -157,14 +157,14 @@ return [
     | Error Handling Configuration
     |--------------------------------------------------------------------------
     |
-    | Configure how errors are handled by the SDK.
-    |
-    | throw_exceptions: When false, errors are returned in response arrays.
-    |                   When true, exceptions are thrown and must be caught.
+    | throw_exceptions: true (the default since v3.0) throws a typed
+    | exception for a failed request; server and connection errors are
+    | retried first. false returns failures as arrays with `error => true`,
+    | as v2.x did by default — kept for one major version to ease upgrading.
     |
     */
     'error_handling' => [
-        'throw_exceptions' => env('TEAMLEADER_THROW_EXCEPTIONS', false),
+        'throw_exceptions' => env('TEAMLEADER_THROW_EXCEPTIONS', true),
     ],
 
     /*

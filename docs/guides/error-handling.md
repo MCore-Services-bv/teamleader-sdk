@@ -10,15 +10,23 @@ TEAMLEADER_THROW_EXCEPTIONS=true
 
 | Setting | A failed request… |
 |---|---|
-| `true` (recommended) | throws a typed exception |
-| `false` (default) | is logged and returned as an array with `error => true` |
+| `true` (default since v3.0) | throws a typed exception — after retrying server and connection errors |
+| `false` | is logged and returned as an array with `error => true`, without retries |
 
-Two things throw whatever the setting:
+`false` was the default in 2.x. It is kept in 3.x to ease upgrading and will
+be removed in a later major version.
+
+These throw whatever the setting:
 
 - **`RateLimitExceededException`**. Swallowing a 429 would hand back an empty
   result with no sign that anything went wrong.
 - **`InvalidArgumentException`** from client-side [validation](validation.md).
   Nothing was sent, so there is no response to return.
+- **`ConnectionNeedsReauthorizationException`** — the connection lost its
+  refresh token; see [Authentication](../getting-started/authentication.md#when-teamleader-refuses-the-refresh-token).
+- **`OAuthStateException`** and **`AccountMismatchException`** from
+  `handleCallback()`.
+- A failed page during `lazy()` / `cursor()` — see [Pagination](pagination.md).
 
 The setting can also be changed at runtime:
 
@@ -53,7 +61,9 @@ Every exception extends `McoreServices\TeamleaderSDK\Exceptions\TeamleaderExcept
 | 429 | `RateLimitExceededException` | No — see below |
 | 500, 502, 503, 504 | `ServerException` | Yes |
 | no response | `ConnectionException` | Yes |
+| 401, connection flagged | `ConnectionNeedsReauthorizationException` (extends `AuthenticationException`) | No — nothing is sent |
 | — | `ConfigurationException` | No |
+| — | `OAuthStateException`, `AccountMismatchException` | No — from `handleCallback()` |
 
 Server and connection errors are attempted three times in total
 (`TEAMLEADER_API_RETRY_ATTEMPTS`), with exponential backoff between attempts —

@@ -121,7 +121,7 @@ first time the SDK reads them after the upgrade.
 - [ ] Redis has a password and TLS
 - [ ] `php artisan migrate` has run after installing or upgrading the SDK
 - [ ] `.env` is not in version control, and `APP_KEY` differs per environment
-- [ ] `TEAMLEADER_THROW_EXCEPTIONS=true`, so a failed refresh is noticed
+- [ ] `TEAMLEADER_THROW_EXCEPTIONS` is not set to `false` (the default is `true`), so failures are noticed
 - [ ] Token refresh log entries are monitored
 
 ## Diagnostics

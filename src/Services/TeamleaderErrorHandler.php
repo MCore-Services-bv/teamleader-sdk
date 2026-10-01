@@ -27,7 +27,7 @@ class TeamleaderErrorHandler
     public function __construct(?LoggerInterface $logger = null, ?bool $throwExceptions = null)
     {
         $this->logger = $logger ?: new NullLogger;
-        $this->throwExceptions = $throwExceptions ?? config('teamleader.error_handling.throw_exceptions', false);
+        $this->throwExceptions = $throwExceptions ?? (bool) config('teamleader.error_handling.throw_exceptions', true);
     }
 
     /**

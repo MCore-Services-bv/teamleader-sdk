@@ -18,7 +18,7 @@ three OAuth credentials are required.
 | `TEAMLEADER_API_RETRY_DELAY` | `1000` | First retry delay, milliseconds; doubles per attempt, capped at 30 s |
 | `TEAMLEADER_BASE_URL` | `https://api.focus.teamleader.eu` | API host — change only for a proxy or a sandbox |
 | `TEAMLEADER_AUTH_URL` | `https://focus.teamleader.eu` | OAuth host (authorize, token exchange and refresh) |
-| `TEAMLEADER_THROW_EXCEPTIONS` | `false` | Throw typed exceptions on failure |
+| `TEAMLEADER_THROW_EXCEPTIONS` | `true` | Throw typed exceptions on failure; `false` returns error arrays |
 | `TEAMLEADER_RATE_LIMITING_ENABLED` | `true` | Track and throttle requests in Redis |
 | `TEAMLEADER_RATE_LIMIT_REDIS_CONNECTION` | `default` | Redis connection used by the limiter |
 | `TEAMLEADER_RATE_LIMIT_MAX_WAIT_MS` | `5000` | Longest wait for a free slot before throwing |
@@ -38,10 +38,11 @@ store.
 
 ### `TEAMLEADER_THROW_EXCEPTIONS`
 
-`false` by default for backwards compatibility: a failed request is logged and
-returned as an array with `error => true`. Set it to `true` in new projects so
-failures surface as typed exceptions. A 429 always throws, whatever this is set
-to. See [Error handling](../guides/error-handling.md).
+`true` by default since v3.0: a failed request throws a typed exception, after
+the SDK has retried server and connection errors. `false` returns failures as
+an array with `error => true`, as 2.x did by default; it is kept for one major
+version to ease upgrading, and turns the retries off. Some failures throw
+whatever this says — see [Error handling](../guides/error-handling.md).
 
 ### `TEAMLEADER_RATE_LIMIT_MAX_WAIT_MS`
 

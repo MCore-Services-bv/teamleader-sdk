@@ -5,6 +5,80 @@
 > 3.0 is in development on the `3.x` branch. This section grows as the
 > breaking changes land.
 
+### Exceptions are on by default
+
+**The one change that affects every 2.x user.** `TEAMLEADER_THROW_EXCEPTIONS`
+now defaults to `true`: a failed request throws a typed exception instead of
+returning an array with `error => true`.
+
+If you never set it, choose one:
+
+**Keep 2.x behaviour for now** — add one line to `.env`, and upgrade nothing
+else yet:
+
+```dotenv
+TEAMLEADER_THROW_EXCEPTIONS=false
+```
+
+**Or move to exceptions.** Search for `['error']` and `status_code` in your
+code; each check becomes a `catch`:
+
+```php
+// 2.x
+$result = Teamleader::companies()->info($id);
+
+if ($result['error'] ?? false) {
+    if ($result['status_code'] === 404) {
+        return null;
+    }
+
+    Log::warning('Teamleader failed', ['message' => $result['message']]);
+
+    return null;
+}
+
+return $result['data'];
+```
+
+```php
+// 3.0
+use McoreServices\TeamleaderSDK\Exceptions\NotFoundException;
+use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
+
+try {
+    return Teamleader::companies()->info($id)['data'];
+} catch (NotFoundException) {
+    return null;
+} catch (TeamleaderException $e) {
+    Log::warning('Teamleader failed', ['message' => $e->getMessage()]);
+
+    return null;
+}
+```
+
+| 2.x `status_code` | 3.0 exception |
+|---|---|
+| 401 | `AuthenticationException` |
+| 403 | `AuthorizationException` |
+| 404 | `NotFoundException` |
+| 422 | `ValidationException` |
+| 429 | `RateLimitExceededException` (threw in 2.x as well) |
+| 500, 502, 503, 504 | `ServerException` |
+| 0 (no response) | `ConnectionException` |
+| any other | `TeamleaderException` |
+
+All extend `TeamleaderException`, so one `catch (TeamleaderException $e)`
+covers everything; `$e->getStatusCode()` and `$e->getAllErrors()` give what
+`status_code` and `errors` gave.
+
+With exceptions on, server and connection errors are **retried** before the
+exception reaches you — three attempts with backoff. In 2.x's default they
+were not retried at all.
+
+If you already had `TEAMLEADER_THROW_EXCEPTIONS=true`, nothing changes.
+
+`false` stays supported throughout 3.x.
+
 ### Run the migrations
 
 ```bash

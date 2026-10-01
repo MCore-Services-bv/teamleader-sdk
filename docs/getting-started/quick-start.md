@@ -64,13 +64,19 @@ class CompanySync
 }
 ```
 
-## Turn on exceptions
+## Failures throw
 
-By default a failed request is logged and returned as an array with
-`error => true`. For new code, turn exceptions on:
+A failed request throws a typed exception — `NotFoundException`,
+`ValidationException` and so on, all extending `TeamleaderException`:
 
-```env
-TEAMLEADER_THROW_EXCEPTIONS=true
+```php
+use McoreServices\TeamleaderSDK\Exceptions\NotFoundException;
+
+try {
+    $company = Teamleader::companies()->info($id)['data'];
+} catch (NotFoundException) {
+    $company = null;
+}
 ```
 
 See [Error handling](../guides/error-handling.md) for what is thrown when.

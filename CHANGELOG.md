@@ -129,6 +129,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed (3.x branch)
 
+- **`throw_exceptions` defaults to `true`.** A failed request throws a typed
+  exception — after server and connection errors are retried — instead of
+  returning an error array. `TEAMLEADER_THROW_EXCEPTIONS=false` keeps the 2.x
+  behaviour throughout 3.x. The upgrade guide maps each `status_code` to its
+  exception.
 - `TeamleaderSDK::getApiCalls()` is bounded to the last 100 calls and no longer
   stores request bodies or response headers. It grew for the life of the
   process — without limit in a queue worker — and held personal data.
