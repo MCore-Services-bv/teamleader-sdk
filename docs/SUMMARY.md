@@ -15,6 +15,7 @@
 * [Pagination](guides/pagination.md)
 * [Bulk Operations](guides/bulk-operations.md)
 * [Sideloading](guides/sideloading.md)
+* [Custom Fields](guides/custom-fields.md)
 * [Validation](guides/validation.md)
 * [Error Handling](guides/error-handling.md)
 * [Rate Limiting](guides/rate-limiting.md)

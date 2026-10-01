@@ -193,6 +193,11 @@ class Contacts extends Resource
 
     /**
      * Create a new contact
+     *
+     * A select custom field takes the option **label** as its value (a string,
+     * or a list of strings for multi select), not the option id: Teamleader
+     * refuses the id with "has an invalid single selection value". Resolve
+     * either form with customFields()->selectValue($fieldId, $labelOrId).
      */
     public function create(array $data): array
     {

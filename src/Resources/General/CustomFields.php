@@ -3,6 +3,7 @@
 namespace McoreServices\TeamleaderSDK\Resources\General;
 
 use InvalidArgumentException;
+use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
 
 class CustomFields extends Resource
@@ -14,6 +15,9 @@ class CustomFields extends Resource
      * Safety limit on the number of pages all() will fetch.
      */
     protected const MAX_PAGES = 50;
+
+    /** @var array<string, array<string, string>> options() per field id */
+    private array $optionCache = [];
 
     protected string $description = 'Manage custom field definitions in Teamleader Focus';
 
@@ -739,6 +743,96 @@ class CustomFields extends Resource
     public function typeIsReference(string $type): bool
     {
         return in_array($type, ['company', 'contact', 'product', 'user'], true);
+    }
+
+    /**
+     * The options of a single or multi select field, as [label => option id].
+     *
+     * Read once per field and kept for the lifetime of this resource instance,
+     * so mapping many rows costs one request per field.
+     *
+     * @param  string  $id  Custom field UUID
+     * @return array<string, string>
+     *
+     * @throws InvalidArgumentException When the field is not a select field
+     * @throws TeamleaderException When the definition cannot be read
+     */
+    public function options(string $id): array
+    {
+        if (isset($this->optionCache[$id])) {
+            return $this->optionCache[$id];
+        }
+
+        $response = $this->info($id);
+
+        if (($response['error'] ?? false) || ! isset($response['data'])) {
+            throw new TeamleaderException(
+                "Could not read custom field {$id}: ".($response['message'] ?? 'no data in the response')
+            );
+        }
+
+        $type = $response['data']['type'] ?? null;
+
+        if (! in_array($type, ['single_select', 'multi_select'], true)) {
+            throw new InvalidArgumentException(
+                "Custom field {$id} is a {$type} field; only single_select and multi_select fields have options."
+            );
+        }
+
+        $options = [];
+
+        foreach ($response['data']['configuration']['options'] ?? [] as $option) {
+            if (isset($option['value'], $option['id'])) {
+                $options[(string) $option['value']] = (string) $option['id'];
+            }
+        }
+
+        return $this->optionCache[$id] = $options;
+    }
+
+    /**
+     * The value to send for a select field: the option label.
+     *
+     * Teamleader takes the option's **label** as a select field's value on
+     * create and update (a string, or a list of strings for multi select) and
+     * refuses the option id with "has an invalid single selection value". This
+     * accepts either the label or the option id and returns the label(s), so
+     * mapping code can keep working with ids. An unknown value throws here,
+     * before any request is sent, naming the labels that exist.
+     *
+     *     'custom_fields' => [[
+     *         'id' => $fieldId,
+     *         'value' => Teamleader::customFields()->selectValue($fieldId, 'Woonkrediet'),
+     *     ]],
+     *
+     * @param  string  $id  Custom field UUID
+     * @param  string|list<string>  $value  Label(s) or option id(s)
+     * @return string|list<string> The label, or the labels for a list
+     *
+     * @throws InvalidArgumentException When a value matches no option
+     */
+    public function selectValue(string $id, string|array $value): string|array
+    {
+        $options = $this->options($id);
+
+        $resolve = function (string $candidate) use ($options, $id): string {
+            if (isset($options[$candidate])) {
+                return $candidate;
+            }
+
+            $label = array_search($candidate, $options, true);
+
+            if ($label !== false) {
+                return (string) $label;
+            }
+
+            throw new InvalidArgumentException(
+                "'{$candidate}' is not an option of custom field {$id}. Options: "
+                .implode(', ', array_map(fn ($l) => "'{$l}'", array_keys($options))).'.'
+            );
+        };
+
+        return is_array($value) ? array_values(array_map($resolve, $value)) : $resolve($value);
     }
 
     /**
