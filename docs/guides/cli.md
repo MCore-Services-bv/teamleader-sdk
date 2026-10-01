@@ -32,8 +32,8 @@ terminal, read from the same source.
 
 ```bash
 php artisan teamleader:list companies
-php artisan teamleader:list deals --filter=status[]=open --sort=created_at:desc --fields=id,title,estimated_value.amount
-php artisan teamleader:list contacts --filter=tags[]=customer --all --format=csv > customers.csv
+php artisan teamleader:list deals --filter='status[]=open' --sort=created_at:desc --fields=id,title,estimated_value.amount
+php artisan teamleader:list contacts --filter='tags[]=customer' --all --format=csv > customers.csv
 ```
 
 | Option | |
@@ -48,6 +48,12 @@ php artisan teamleader:list contacts --filter=tags[]=customer --all --format=csv
 
 Filter values are cast: `true`, `false`, `null` and numbers become their type.
 Quote a value to keep it a string: `--filter='term="2024"'`.
+
+{% hint style="warning" %}
+Put a filter with `[]` in single quotes: `--filter='status[]=open'`. Without
+them, zsh (the default shell on macOS) reads the brackets as a file pattern
+and stops with `no matches found`.
+{% endhint %}
 
 An unknown filter is refused before anything is sent, with the accepted list:
 
@@ -69,7 +75,7 @@ some.
 ## Export
 
 ```bash
-php artisan teamleader:export contacts --filter=tags[]=customer --fields=id,first_name,last_name,emails.0.email
+php artisan teamleader:export contacts --filter='tags[]=customer' --fields=id,first_name,last_name,emails.0.email
 php artisan teamleader:export deals --format=jsonl --output=storage/deals.jsonl
 php artisan teamleader:export companies --delimiter=';'            # Excel with a Belgian locale
 ```

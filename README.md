@@ -456,8 +456,8 @@ method once per row.
 
 ```bash
 php artisan teamleader:describe deals
-php artisan teamleader:list deals --filter=status[]=open --sort=created_at:desc --fields=id,title
-php artisan teamleader:export contacts --filter=tags[]=customer --output=storage/customers.csv
+php artisan teamleader:list deals --filter='status[]=open' --sort=created_at:desc --fields=id,title
+php artisan teamleader:export contacts --filter='tags[]=customer' --output=storage/customers.csv
 php artisan teamleader:import companies companies.csv --dry-run
 php artisan teamleader:call users.me
 ```
