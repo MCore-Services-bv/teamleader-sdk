@@ -436,6 +436,15 @@ class Files extends Resource
             }
         }
 
+        // Sent the way the uploads in the Nova Credit migration were: the
+        // bytes as a string body, application/octet-stream, no token. Read
+        // before the link is requested, so an unreadable file costs nothing.
+        $contents = file_get_contents($path);
+
+        if ($contents === false || $contents === '') {
+            throw new InvalidArgumentException("File could not be read, or is empty: {$path}");
+        }
+
         $link = $this->upload($name, $subjectType, $subjectId, $folder);
         $location = $link['data']['location'] ?? null;
 
@@ -445,21 +454,7 @@ class Files extends Resource
             );
         }
 
-        $stream = fopen($path, 'rb');
-
-        if ($stream === false) {
-            throw new InvalidArgumentException("File could not be opened: {$path}");
-        }
-
-        try {
-            $response = $this->api->sendFileContents($location, $stream);
-        } finally {
-            if (is_resource($stream)) {
-                fclose($stream);
-            }
-        }
-
-        return $response + ['data' => []];
+        return $this->api->sendFileContents($location, $contents) + ['data' => []];
     }
 
     /**

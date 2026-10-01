@@ -49,6 +49,11 @@ Found upgrading a 2.3.2 application to 3.0.0-rc.1:
   the redis extension is now checked only when rate limiting is on and Laravel
   uses the phpredis client, with a message naming the fix. The PHP and Laravel
   minimums it reports are 8.4 and 12.
+- `files()->uploadFile()` was refused with HTTP 400 in a real upload, and the
+  error did not say why. It now sends the file the way the working uploads in
+  the Nova Credit migration did (the bytes as a string body), refuses an empty
+  file before requesting a link, and a refusal includes what the upload host
+  answered.
 
 ### Documentation
 

@@ -116,6 +116,20 @@ final class UploadFileTest extends ResourceTestCase
         $this->files->uploadFile('/nowhere/offerte.pdf', 'deal', self::DEAL);
     }
 
+    public function test_an_empty_file_is_refused_before_a_link_is_requested(): void
+    {
+        $path = $this->localFile('empty.pdf', '');
+
+        try {
+            $this->files->uploadFile($path, 'deal', self::DEAL);
+            $this->fail('Expected InvalidArgumentException.');
+        } catch (InvalidArgumentException $e) {
+            $this->assertStringContainsString('is empty', $e->getMessage());
+        }
+
+        $this->assertSame(0, $this->api->callCount());
+    }
+
     public function test_no_link_in_the_response_throws(): void
     {
         $path = $this->localFile('offerte.pdf');

@@ -1098,9 +1098,14 @@ class TeamleaderSDK
         $decoded = $body === '' ? [] : json_decode($body, true);
 
         if ($status < 200 || $status >= 300) {
+            // The upload host does not always answer in the API's error format:
+            // include what it said, so a refusal can be diagnosed
+            $reason = is_array($decoded) && isset($decoded['errors'][0]['title'])
+                ? (string) $decoded['errors'][0]['title']
+                : trim(mb_strimwidth(strip_tags($body), 0, 300, '…'));
+
             throw new TeamleaderException(
-                "Teamleader refused the file upload (HTTP {$status})"
-                .(is_array($decoded) && isset($decoded['errors'][0]['title']) ? ': '.$decoded['errors'][0]['title'] : '.'),
+                "Teamleader refused the file upload (HTTP {$status})".($reason !== '' ? ': '.$reason : '.'),
                 $status,
                 null,
                 [],
