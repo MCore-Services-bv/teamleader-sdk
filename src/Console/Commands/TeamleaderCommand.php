@@ -20,6 +20,49 @@ abstract class TeamleaderCommand extends Command
     /** Appended to every data command's signature */
     protected const CONNECTION_OPTION = '{--connection= : The Teamleader connection (default: the default connection)}';
 
+    /** For the list and export commands */
+    protected const SUBJECT_OPTION = '{--subject= : type:uuid, e.g. deal:3f6c… — required for notes, emailTracking and files}';
+
+    /** Resources whose list endpoint refuses to run without a subject filter */
+    protected const SUBJECT_REQUIRED = [
+        'notes' => 'notes.list',
+        'emailTracking' => 'emailTracking.list',
+        'files' => 'files.list',
+    ];
+
+    /**
+     * The filters with --subject added as `subject: {type, id}`.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return array<string, mixed>
+     *
+     * @throws InvalidArgumentException When --subject is malformed, or missing where the endpoint requires one
+     */
+    protected function withSubject(string $resource, array $filters): array
+    {
+        $subject = $this->option('subject');
+
+        if (is_string($subject) && $subject !== '') {
+            [$type, $id] = array_pad(explode(':', $subject, 2), 2, '');
+
+            if ($type === '' || $id === '') {
+                throw new InvalidArgumentException("--subject takes type:uuid, e.g. --subject=deal:3f6c…; got '{$subject}'.");
+            }
+
+            $filters['subject'] = ['type' => $type, 'id' => $id];
+        }
+
+        $endpoint = self::SUBJECT_REQUIRED[$resource] ?? null;
+
+        if ($endpoint !== null && ! isset($filters['subject']) && ! isset($filters['subject.type'])) {
+            throw new InvalidArgumentException(
+                "{$endpoint} only lists records of one subject. Add --subject=<type>:<uuid>, e.g. --subject=deal:3f6c…"
+            );
+        }
+
+        return $filters;
+    }
+
     protected function sdk(): TeamleaderSDK
     {
         $name = $this->option('connection');

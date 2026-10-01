@@ -20,6 +20,7 @@ class ExportCommand extends TeamleaderCommand
                             {--fields= : CSV columns as dot paths, e.g. id,name,emails.0.email}
                             {--delimiter=, : CSV delimiter — ; for Excel with a Belgian or Dutch locale}
                             {--no-formula-escape : Do not prefix text starting with = + - @ (for files only code reads)}
+                            '.self::SUBJECT_OPTION.'
                             '.self::CONNECTION_OPTION;
 
     protected $description = 'Export every record of a Teamleader resource to CSV or JSON Lines';
@@ -45,7 +46,8 @@ class ExportCommand extends TeamleaderCommand
             }
 
             $path = (string) ($this->option('output') ?: storage_path('app/teamleader/'.$resource.'-'.now()->format('Ymd-His').'.'.$format));
-            $export = $this->sdk()->bulk()->export($resource, FilterParser::parse((array) $this->option('filter')), $options);
+            $filters = $this->withSubject($resource, FilterParser::parse((array) $this->option('filter')));
+            $export = $this->sdk()->bulk()->export($resource, $filters, $options);
 
             $bar = $this->output->createProgressBar();
             $bar->setFormat(' %current% records [%bar%] %elapsed:6s%');

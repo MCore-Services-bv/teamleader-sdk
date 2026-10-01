@@ -45,6 +45,7 @@ php artisan teamleader:list contacts --filter='tags[]=customer' --all --format=c
 | `--all` | Every page, 100 records a request — with `--limit=` to stop early |
 | `--fields=id,name` | Dot paths: `emails.0.email`, `address.city` |
 | `--format=table` | `table`, `json` or `csv` |
+| `--subject=deal:uuid` | The subject, for resources that list one subject's records |
 
 Filter values are cast: `true`, `false`, `null` and numbers become their type.
 Quote a value to keep it a string: `--filter='term="2024"'`.
@@ -61,6 +62,19 @@ An unknown filter is refused before anything is sent, with the accepted list:
 $ php artisan teamleader:list deals --filter=colour=blue
 Unsupported filter key for deals.list: colour. Supported: ids, term, customer, phase_id, …
 ```
+
+### Notes, e-mail tracking and files
+
+`notes`, `emailTracking` and `files` only list the records of one subject — a
+deal, contact, company and so on. Name it with `--subject=type:uuid`:
+
+```bash
+php artisan teamleader:list notes --subject=deal:3f6c… --all
+php artisan teamleader:list files --subject=company:3f6c…
+php artisan teamleader:export emailTracking --subject=contact:3f6c… --format=jsonl
+```
+
+Without it, the command stops before any request and says so.
 
 ## One record
 

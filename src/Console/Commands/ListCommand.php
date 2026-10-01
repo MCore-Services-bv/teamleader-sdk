@@ -20,6 +20,7 @@ class ListCommand extends TeamleaderCommand
                             {--limit= : At most this many records}
                             {--fields= : Comma-separated dot paths, e.g. id,name,emails.0.email}
                             {--format=table : table, json or csv}
+                            '.self::SUBJECT_OPTION.'
                             '.self::CONNECTION_OPTION;
 
     protected $description = 'List Teamleader records, with the resource\'s own filter, sort and include validation';
@@ -30,8 +31,9 @@ class ListCommand extends TeamleaderCommand
             $format = (string) $this->option('format');
             OutputFormatter::assertFormat($format);
 
-            $resource = $this->sdk()->resource((string) $this->argument('resource'));
-            $filters = FilterParser::parse((array) $this->option('filter'));
+            $key = (string) $this->argument('resource');
+            $resource = $this->sdk()->resource($key);
+            $filters = $this->withSubject($key, FilterParser::parse((array) $this->option('filter')));
             $options = ['page_size' => (int) $this->option('page-size'), 'page_number' => (int) $this->option('page')];
 
             if ($sort = $this->option('sort')) {

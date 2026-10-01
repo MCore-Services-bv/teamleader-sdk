@@ -168,4 +168,47 @@ final class ReadCommandsTest extends ResourceTestCase
             ->expectsOutputToContain('Deal not found (HTTP 404)')
             ->assertExitCode(1);
     }
+
+    // -- --subject ----------------------------------------------------------------
+
+    public function test_subject_option_sets_the_subject_filter(): void
+    {
+        $this->api->queueListResponse([['id' => 'n1', 'content' => 'Simulatie']]);
+
+        $this->artisan('teamleader:list', ['resource' => 'notes', '--subject' => 'deal:0b9a4c8e-1f2d-4e3a-9b5c-6d7e8f901234'])
+            ->expectsOutputToContain('Simulatie')
+            ->assertExitCode(0);
+
+        $this->assertSame('notes.list', $this->api->lastEndpoint());
+        $this->assertSame(
+            ['type' => 'deal', 'id' => '0b9a4c8e-1f2d-4e3a-9b5c-6d7e8f901234'],
+            $this->api->lastBody()['filter']['subject']
+        );
+    }
+
+    public function test_a_resource_that_needs_a_subject_says_so_before_any_request(): void
+    {
+        foreach (['notes' => 'notes.list', 'emailTracking' => 'emailTracking.list', 'files' => 'files.list'] as $resource => $endpoint) {
+            $this->artisan('teamleader:list', ['resource' => $resource])
+                ->expectsOutputToContain("{$endpoint} only lists records of one subject. Add --subject=<type>:<uuid>")
+                ->assertExitCode(2);
+        }
+
+        $this->assertSame(0, $this->api->callCount());
+    }
+
+    public function test_a_malformed_subject_is_refused(): void
+    {
+        $this->artisan('teamleader:list', ['resource' => 'notes', '--subject' => 'deal'])
+            ->expectsOutputToContain('--subject takes type:uuid')
+            ->assertExitCode(2);
+    }
+
+    public function test_the_subject_filter_still_works_without_the_option(): void
+    {
+        $this->artisan('teamleader:list', ['resource' => 'notes', '--filter' => ['subject.type=deal', 'subject.id=0b9a4c8e-1f2d-4e3a-9b5c-6d7e8f901234']])
+            ->assertExitCode(0);
+
+        $this->assertSame('deal', $this->api->lastBody()['filter']['subject']['type']);
+    }
 }
