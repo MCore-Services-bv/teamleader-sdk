@@ -62,7 +62,6 @@ yarn-error.log*
 
 # Node modules (if using for docs or build tools)
 /node_modules/
-package-lock.json
 yarn.lock
 
 # Documentation build files

@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main, develop, 3.x ]
 
+# Read-only token for every job: nothing here writes to the repository.
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -35,10 +39,12 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
           php-version: ${{ matrix.php }}
           extensions: mbstring, json, curl, redis
@@ -51,7 +57,7 @@ jobs:
         run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
 
       - name: Cache Composer dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ${{ steps.composer-cache.outputs.dir }}
           key: ${{ runner.os }}-php-${{ matrix.php }}-laravel-${{ matrix.laravel }}-${{ hashFiles('**/composer.json') }}
@@ -81,6 +87,11 @@ jobs:
         run: vendor/bin/pint --test
         if: matrix.php == '8.4' && matrix.laravel == '13.*'
 
+      # Fails on any installed dependency with a published security advisory.
+      - name: Check dependencies for security advisories
+        run: composer audit
+        if: matrix.php == '8.4' && matrix.laravel == '13.*'
+
   specification:
     # Runs once rather than per matrix cell: the checks below compare the SDK
     # with the pinned @teamleader/focus-api-specification and do not depend on
@@ -89,25 +100,27 @@ jobs:
     name: Specification parity
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
           php-version: '8.4'
           extensions: mbstring, json, curl
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
 
-      # package-lock.json is not committed; the specification itself is pinned
-      # to an exact version in package.json, which is what the fixtures depend on.
+      # npm ci installs exactly what package-lock.json records, and
+      # --ignore-scripts keeps package install scripts from running.
       - name: Install dependencies
         run: |
           composer install --prefer-dist --no-progress --no-interaction
-          npm install --no-audit --no-fund
+          npm ci --ignore-scripts --no-audit --no-fund
 
       # The committed fixtures must be exactly what the generator produces from
       # the pinned specification. A hand edit, a generator change without a

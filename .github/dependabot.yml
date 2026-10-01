@@ -1,0 +1,31 @@
+# Weekly pull requests for outdated or vulnerable dependencies.
+# Actions are pinned to commit SHAs; Dependabot updates the SHA and the
+# version comment together.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: composer
+    directory: /
+    schedule:
+      interval: weekly
+    # The package declares version ranges; only security fixes and
+    # dev-tool updates are worth a pull request.
+    versioning-strategy: increase-if-necessary
+    groups:
+      dev-dependencies:
+        dependency-type: development
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    # The specification is bumped deliberately (see spec-watch.yml).
+    ignore:
+      - dependency-name: "@teamleader/focus-api-specification"
