@@ -228,7 +228,10 @@ class TeamleaderErrorHandler
             } catch (RateLimitExceededException $e) {
                 // Always re-throw immediately — let the caller decide how to handle
                 // (queue release, user-facing error, manual sleep, etc.)
-                $this->logger->warning("Rate limit exceeded in {$context}, propagating to caller", [
+                // INFO: the caller decides what happens next (a queued job
+                // releases itself). The 429 itself, when it came from
+                // Teamleader, was already logged as a WARNING.
+                $this->logger->info("Rate limit exceeded in {$context}, propagating to caller", [
                     'retry_after' => $e->getRetryAfter(),
                 ]);
 

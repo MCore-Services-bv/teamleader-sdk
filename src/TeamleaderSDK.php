@@ -755,7 +755,10 @@ class TeamleaderSDK
                         // core request path is a hang waiting to happen, and a
                         // long one changes the SDK's behaviour under load in a
                         // way a patch release should not impose.
-                        $this->logger->warning('TeamleaderSDK: Giving up waiting for rate limit window', [
+                        // INFO, not WARNING: handing the decision back is the intended
+                        // path (a queued bulk chunk releases itself and succeeds). A
+                        // real 429 from Teamleader is logged as a WARNING elsewhere.
+                        $this->logger->info('TeamleaderSDK: Giving up waiting for rate limit window', [
                             'waited_ms' => $waitedMs,
                             'max_wait_ms' => $maxWaitMs,
                             'usage_percentage' => $rateLimitCheck['usage_percentage'],
