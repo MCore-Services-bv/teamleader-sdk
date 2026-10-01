@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0-beta.2] - 2026-10-01
+
 ### Fixed
 
 - `teamleader:connections:add` stored the credentials before checking them.
@@ -19,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `handleCallback()` built the default connection first, so an application
   with only named connections (and nothing in `.env`) could not reach them
   through the facade. They now go to the connection manager directly.
+  `teamleader:status --connection=` no longer builds the default connection
+  first either.
 
 ## [3.0.0-beta.1] - 2026-10-01
 
