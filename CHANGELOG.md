@@ -43,6 +43,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added (3.x branch)
 
+- **Bulk writes.** `Teamleader::bulk()->create() / update() / delete() /
+  call()` return a `BulkOperation`: every row is validated before any is sent
+  (`BulkValidationException` lists all invalid rows), rows go through the
+  resource's own methods one by one, the first refusal stops the run unless
+  `continueOnError()`, and `uniqueBy()` / `resumeFrom()` prevent duplicates.
+  `dryRun()` records the exact bodies without sending. A `BulkResult` accounts
+  for every row under its input key.
 - **Bulk export.** `Teamleader::bulk()->export($resource, $filters)` with
   `toCsv()` (dot-path columns, formula escaping), `toJsonLines()`, `each()`
   and `onProgress()`. Pages through `cursor()`, writes to a temporary file
