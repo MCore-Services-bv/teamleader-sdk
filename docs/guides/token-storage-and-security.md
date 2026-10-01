@@ -46,6 +46,10 @@ teamleader_tokens
 To change the migrations, publish them first:
 `php artisan vendor:publish --tag=teamleader-migrations`.
 
+Credentials of connections added with `teamleader:connections:add` are kept in
+a second table, `teamleader_connections`, with the client ID and secret
+encrypted the same way.
+
 ### Cache keys
 
 | Key | Holds | Lifetime |

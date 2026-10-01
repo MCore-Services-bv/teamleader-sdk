@@ -51,6 +51,30 @@ A connection missing its `client_id` or `client_secret` fails with a
 
 A single-account application changes nothing.
 
+## Connections stored in the database
+
+Twelve environment variables for six accounts works, but adding a seventh
+account then means a deploy. Instead, store a connection's credentials in the
+database:
+
+```bash
+php artisan teamleader:connections:add bruges     # prompts for client ID and secret
+php artisan teamleader:connections:list
+php artisan teamleader:connections:remove bruges  # also removes its tokens
+```
+
+Client ID and secret are encrypted with `APP_KEY` in the
+`teamleader_connections` table (created by `php artisan migrate`). For scripts,
+pass `--client-id=`, `--client-secret=` and optionally `--redirect-uri=` and
+`--expected-account=`.
+
+Adding an account then takes three steps: create the integration in that
+Teamleader account, run `connections:add`, and connect it through your OAuth
+route.
+
+A connection in `config/teamleader.php` always wins over one with the same
+name in the database; the commands refuse to add or remove such a name.
+
 ## Usage
 
 ```php

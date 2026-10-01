@@ -3,6 +3,7 @@
 | Command | |
 |---|---|
 | `teamleader:status` | Connection, token and rate-limit status; `--all` for every connection, `--connection=` for one |
+| `teamleader:connections:add` / `list` / `remove` | Manage connections whose credentials are stored in the database |
 | `teamleader:tokens:refresh` | Renew tokens that expire soon — scheduled every ten minutes by the package |
 | `teamleader:health` | Health checks: configuration, authentication, tokens, every connection, API connectivity, rate limits, database, the token cache and dependencies |
 | `teamleader:config:validate` | Validate the configuration and environment |

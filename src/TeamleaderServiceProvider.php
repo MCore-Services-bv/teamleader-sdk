@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
 use McoreServices\TeamleaderSDK\Connections\ConnectionManager;
+use McoreServices\TeamleaderSDK\Connections\DatabaseConnectionStore;
 use McoreServices\TeamleaderSDK\Events\RequestSending;
 use McoreServices\TeamleaderSDK\Events\ResponseReceived;
 use McoreServices\TeamleaderSDK\Listeners\LogApiTraffic;
@@ -27,6 +28,9 @@ class TeamleaderServiceProvider extends ServiceProvider
 
         // Where tokens are kept. Bind your own TokenStore to replace it.
         $this->app->singletonIf(TokenStore::class, fn () => new DatabaseTokenStore);
+
+        // Credentials added with teamleader:connections:add
+        $this->app->singletonIf(DatabaseConnectionStore::class, fn () => new DatabaseConnectionStore);
 
         // One SDK instance per connection, built on first use
         $this->app->singleton(ConnectionManager::class, fn () => new ConnectionManager);
@@ -65,6 +69,9 @@ class TeamleaderServiceProvider extends ServiceProvider
                 Console\Commands\TeamleaderConfigValidateCommand::class,
                 Console\Commands\TeamleaderExportUuidsCommand::class,
                 Console\Commands\RefreshTokensCommand::class,
+                Console\Commands\ConnectionsAddCommand::class,
+                Console\Commands\ConnectionsListCommand::class,
+                Console\Commands\ConnectionsRemoveCommand::class,
             ]);
         }
 

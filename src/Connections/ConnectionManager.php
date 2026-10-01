@@ -26,7 +26,8 @@ use Throwable;
  *   1. extend()                       — defined at runtime
  *   2. config('teamleader.connections')
  *   3. the flat 2.x keys, for `default` — client_id, client_secret, redirect_uri
- *   4. resolveConnectionsUsing()      — your own lookup for any other name
+ *   4. the teamleader_connections table — `php artisan teamleader:connections:add`
+ *   5. resolveConnectionsUsing()      — your own lookup for any other name
  */
 class ConnectionManager
 {
@@ -100,13 +101,19 @@ class ConnectionManager
             return ConnectionConfig::fromArray($name, $configured, $fallbackRedirect);
         }
 
+        if ($name === 'default' && config('teamleader.client_id')) {
+            return $this->flatDefault();
+        }
+
+        $stored = $this->connectionStore()->get($name);
+
+        if ($stored !== null) {
+            return ConnectionConfig::fromArray($name, $stored, $fallbackRedirect);
+        }
+
         if ($name === 'default') {
-            return ConnectionConfig::fromArray('default', [
-                'client_id' => config('teamleader.client_id'),
-                'client_secret' => config('teamleader.client_secret'),
-                'redirect_uri' => config('teamleader.redirect_uri'),
-                'expected_account_id' => config('teamleader.expected_account_id'),
-            ]);
+            // Throws, naming the missing keys
+            return $this->flatDefault();
         }
 
         $resolved = $this->resolver ? ($this->resolver)($name) : null;
@@ -117,12 +124,42 @@ class ConnectionManager
 
         throw new ConfigurationException(
             "Teamleader connection '{$name}' is not configured. Add it to 'connections' in config/teamleader.php, "
-            .'or define it with Teamleader::extend().'
+            .'run `php artisan teamleader:connections:add '.$name.'`, or define it with Teamleader::extend().'
         );
     }
 
     /**
-     * The connections that are defined in configuration or with extend().
+     * Where a connection is defined: config, database, runtime, or null
+     */
+    public function sourceOf(string $name): ?string
+    {
+        return match (true) {
+            isset($this->extensions[$name]) => 'runtime',
+            is_array(config("teamleader.connections.{$name}")),
+            $name === 'default' && (bool) config('teamleader.client_id') => 'config',
+            $this->connectionStore()->has($name) => 'database',
+            default => null,
+        };
+    }
+
+    private function flatDefault(): ConnectionConfig
+    {
+        return ConnectionConfig::fromArray('default', [
+            'client_id' => config('teamleader.client_id'),
+            'client_secret' => config('teamleader.client_secret'),
+            'redirect_uri' => config('teamleader.redirect_uri'),
+            'expected_account_id' => config('teamleader.expected_account_id'),
+        ]);
+    }
+
+    public function connectionStore(): DatabaseConnectionStore
+    {
+        return app()->bound(DatabaseConnectionStore::class) ? app(DatabaseConnectionStore::class) : new DatabaseConnectionStore;
+    }
+
+    /**
+     * The connections that are defined in configuration, in the
+     * teamleader_connections table, or with extend().
      * Names only reachable through resolveConnectionsUsing() are not listed.
      *
      * @return list<string>
@@ -135,7 +172,7 @@ class ConnectionManager
             $names[] = 'default';
         }
 
-        $names = array_values(array_unique([...$names, ...array_keys($this->extensions)]));
+        $names = array_values(array_unique([...$names, ...$this->connectionStore()->names(), ...array_keys($this->extensions)]));
         sort($names);
 
         return $names;

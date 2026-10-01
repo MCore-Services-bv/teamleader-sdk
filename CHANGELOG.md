@@ -43,6 +43,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added (3.x branch)
 
+- **Connections stored in the database.** `teamleader:connections:add`
+  (prompts for client ID and secret, or takes options), `:list` and
+  `:remove` (also removes the tokens). Credentials are encrypted in a new
+  `teamleader_connections` table; configuration wins on a name clash. Adding
+  a Teamleader account no longer needs a deploy.
 - **Scheduled token renewal.** `teamleader:tokens:refresh` renews every
   connection whose token expires within `tokens.refresh_before` (30 minutes),
   under the same lock as a request-time refresh; the package schedules it
