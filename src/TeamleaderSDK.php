@@ -20,9 +20,11 @@ use McoreServices\TeamleaderSDK\Events\RequestSending;
 use McoreServices\TeamleaderSDK\Events\ResponseReceived;
 use McoreServices\TeamleaderSDK\Exceptions\AccountMismatchException;
 use McoreServices\TeamleaderSDK\Exceptions\ConfigurationException;
+use McoreServices\TeamleaderSDK\Exceptions\ConnectionException;
 use McoreServices\TeamleaderSDK\Exceptions\ConnectionNeedsReauthorizationException;
 use McoreServices\TeamleaderSDK\Exceptions\OAuthStateException;
 use McoreServices\TeamleaderSDK\Exceptions\RateLimitExceededException;
+use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
 use McoreServices\TeamleaderSDK\Services\ApiRateLimiterService;
 use McoreServices\TeamleaderSDK\Services\TeamleaderErrorHandler;
@@ -1026,6 +1028,59 @@ class TeamleaderSDK
     public function getRateLimiter(): ApiRateLimiterService
     {
         return $this->rateLimiter;
+    }
+
+    /**
+     * Send a file's contents to the upload link files.upload returned.
+     *
+     * The one request that does not go through request(): the link is a
+     * temporary URL on Teamleader's file host, it takes the raw bytes (not JSON,
+     * not form data) and no access token. Resources reach it only through
+     * Files::uploadFile(), and the dry-run client records it instead of
+     * sending it.
+     *
+     * @param  string  $location  data.location from files.upload
+     * @param  resource|string  $contents  An open stream, or the bytes
+     * @return array The decoded response, `data` holding the new file where Teamleader returns it
+     *
+     * @throws ConnectionException When the host cannot be reached
+     * @throws TeamleaderException When the upload is refused; thrown whatever throw_exceptions says
+     */
+    public function sendFileContents(string $location, mixed $contents): array
+    {
+        try {
+            $response = $this->client->request('POST', $location, [
+                'headers' => ['Content-Type' => 'application/octet-stream'],
+                'body' => $contents,
+                // A large file can take longer than an API call
+                'timeout' => max((float) config('teamleader.api.timeout', 30), 120.0),
+                'read_timeout' => max((float) config('teamleader.api.read_timeout', 25), 120.0),
+            ]);
+        } catch (GuzzleException $e) {
+            throw new ConnectionException('The file upload could not reach Teamleader: '.$e->getMessage(), 0, $e);
+        }
+
+        $status = $response->getStatusCode();
+        $body = (string) $response->getBody();
+        $decoded = $body === '' ? [] : json_decode($body, true);
+
+        if ($status < 200 || $status >= 300) {
+            throw new TeamleaderException(
+                "Teamleader refused the file upload (HTTP {$status})"
+                .(is_array($decoded) && isset($decoded['errors'][0]['title']) ? ': '.$decoded['errors'][0]['title'] : '.'),
+                $status,
+                null,
+                [],
+                $status,
+            );
+        }
+
+        $this->logger->info('TeamleaderSDK: File contents uploaded', [
+            'connection' => $this->connectionConfig->name,
+            'status' => $status,
+        ]);
+
+        return is_array($decoded) ? $decoded : [];
     }
 
     /**

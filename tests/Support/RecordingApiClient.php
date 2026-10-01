@@ -90,6 +90,29 @@ class RecordingApiClient extends TeamleaderSDK
     }
 
     /**
+     * Record a file upload's second step like any other call — endpoint
+     * `files.upload (contents)`, body with the location and the bytes read
+     * from the stream — and return the next queued response.
+     */
+    public function sendFileContents(string $location, mixed $contents): array
+    {
+        $this->calls[] = [
+            'method' => 'POST',
+            'endpoint' => 'files.upload (contents)',
+            'body' => [
+                'location' => $location,
+                'contents' => is_resource($contents) ? (string) stream_get_contents($contents) : (string) $contents,
+            ],
+        ];
+
+        if ($this->queuedResponses !== []) {
+            return array_shift($this->queuedResponses);
+        }
+
+        return $this->defaultResponse;
+    }
+
+    /**
      * Queue a single response to be returned by the next request().
      */
     public function queueResponse(array $response): static

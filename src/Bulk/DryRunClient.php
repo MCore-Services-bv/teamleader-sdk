@@ -32,7 +32,18 @@ final class DryRunClient extends TeamleaderSDK
 
         // Shaped like a successful answer, so code that reads the response
         // (an id after a create) keeps going
-        return ['data' => ['id' => 'dry-run', 'type' => 'dry-run'], 'headers' => [], 'dry_run' => true];
+        // `location` lets Files::uploadFile() continue to its second step
+        return ['data' => ['id' => 'dry-run', 'type' => 'dry-run', 'location' => 'dry-run'], 'headers' => [], 'dry_run' => true];
+    }
+
+    /**
+     * Record the file upload instead of sending it. The contents are not read.
+     */
+    public function sendFileContents(string $location, mixed $contents): array
+    {
+        $this->recorded[] = ['method' => 'POST', 'endpoint' => 'files.upload (contents)', 'body' => ['location' => $location]];
+
+        return ['data' => ['id' => 'dry-run', 'type' => 'file'], 'dry_run' => true];
     }
 
     /**
