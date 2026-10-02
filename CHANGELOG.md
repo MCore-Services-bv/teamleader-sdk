@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0] - 2026-10-02
+
+### Added
+
+- **`teamleader:connections:rename {from} {to}`** — moves a stored
+  connection's credentials and tokens to a new name in one transaction, so it
+  stays connected. Refuses while a token refresh for it is running, and
+  refuses a name that exists. `--tokens-only` moves just the tokens, for a
+  connection renamed in `config/teamleader.php`.
+- **`teamleader:connections:expect {name} --current`** — sets the account a
+  stored connection must connect to without entering its credentials again.
+  `--current` takes the account it is connected to now; `--all --current`
+  does every stored connection; an id or `--clear` also work.
+- An *Account ID* column in `teamleader:status --all` and
+  `teamleader:connections:list`, which also shows the expected account.
+
+### Fixed
+
+- An application with only named connections — no flat
+  `TEAMLEADER_CLIENT_ID` — no longer meets "connection 'default' is
+  missing" errors from the SDK's own tooling:
+  - `teamleader:status` shows every connection instead of failing.
+  - `teamleader:health` checks each named connection under *Connections* and
+    skips the single-connection checks, instead of failing to start.
+  - `teamleader:list`, `info`, `export`, `import`, `call` and
+    `export-uuids` (which gained `--connection`) say which connections exist
+    and to pass `--connection=`.
+  - `teamleader:config:validate` and the boot-time validation check each
+    named connection instead of requiring the flat keys.
+
+### Changed
+
+- `teamleader:connections:list --json`: `account` holds the account name
+  only; the id moved to `account_id`, next to the new `expected_account_id`.
+
+### Documentation
+
+- The package tables use an auto-increment `id` the SDK never reads; a note
+  for applications with a UUID-only convention.
+- Connecting a new account is four steps, ending with `connections:expect`.
+
 ## [3.1.0] - 2026-10-02
 
 ### Added

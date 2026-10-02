@@ -6,6 +6,8 @@
 | `teamleader:resources`, `describe`, `list`, `info` | Explore and query the API from the terminal — see [Command Line](cli.md) |
 | `teamleader:export`, `import`, `call` | Export to a file, import from one (validated first, `--dry-run`), raw calls |
 | `teamleader:connections:add` / `list` / `remove` | Manage connections whose credentials are stored in the database |
+| `teamleader:connections:rename {from} {to}` | Rename a connection, keeping its credentials and tokens |
+| `teamleader:connections:expect {name} --current` | Pin the account a stored connection must connect to; `--all`, an id, or `--clear` |
 | `teamleader:tokens:refresh` | Renew tokens that expire soon — scheduled every ten minutes by the package |
 | `teamleader:health` | Health checks: configuration, authentication, tokens, every connection, API connectivity, rate limits, database, the token cache and dependencies |
 | `teamleader:config:validate` | Validate the configuration and environment |

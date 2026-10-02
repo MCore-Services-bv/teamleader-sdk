@@ -46,6 +46,12 @@ teamleader_tokens
 To change the migrations, publish them first:
 `php artisan vendor:publish --tag=teamleader-migrations`.
 
+Both tables use an auto-increment `id`. The SDK never reads it: rows are
+found by `connection` (tokens) and `name` (connections), both unique. An
+application with a UUID-only convention can leave the package's tables as
+they are, or publish the migrations and change the `id` column, as long as
+every insert still gets an id without the SDK providing one.
+
 Credentials of connections added with `teamleader:connections:add` are kept in
 a second table, `teamleader_connections`, with the client ID and secret
 encrypted the same way.

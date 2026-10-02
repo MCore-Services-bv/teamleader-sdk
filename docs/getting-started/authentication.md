@@ -94,7 +94,9 @@ logged into the wrong Teamleader account in the browser while connecting; this
 makes that mistake impossible to save.
 
 The first time, connect without it, then read the id from
-`php artisan teamleader:status` and add it.
+`php artisan teamleader:status --all` and add it. For a connection stored with
+`teamleader:connections:add`, one command does both:
+`php artisan teamleader:connections:expect {name} --current`.
 
 ### What `handleCallback()` returns
 

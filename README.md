@@ -609,6 +609,8 @@ php artisan teamleader:tokens:refresh        # Renew tokens that expire soon (sc
 php artisan teamleader:connections:add       # Store a connection in the database
 php artisan teamleader:connections:list
 php artisan teamleader:connections:remove
+php artisan teamleader:connections:rename    # Keeps credentials and tokens
+php artisan teamleader:connections:expect    # Pin the account a connection must connect to
 php artisan teamleader:resources             # Every resource and what it supports
 php artisan teamleader:export-uuids          # Export reference UUIDs
 ```

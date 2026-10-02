@@ -59,7 +59,8 @@ database:
 
 ```bash
 php artisan teamleader:connections:add bruges     # prompts for client ID and secret
-php artisan teamleader:connections:list
+php artisan teamleader:connections:list           # with each account and its id
+php artisan teamleader:connections:rename bruges brugge   # keeps credentials and tokens
 php artisan teamleader:connections:remove bruges  # also removes its tokens
 ```
 
@@ -73,9 +74,31 @@ When that is not set either, the command asks for the redirect URI. Nothing is
 stored until every value checks out, so a failed run leaves the table as it
 was.
 
-Adding an account then takes three steps: create the integration in that
-Teamleader account, run `connections:add`, and connect it through your OAuth
-route.
+Adding an account then takes four steps: create the integration in that
+Teamleader account, run `connections:add`, connect it through your OAuth
+route, and pin the account it connected to:
+
+```bash
+php artisan teamleader:connections:expect bruges --current
+php artisan teamleader:connections:expect --all --current   # every stored connection
+```
+
+From then on a callback that connects any other account for `bruges` is
+refused and nothing is stored. `--current` reads the account from the
+connection's tokens, so the credentials are not asked again. Pass an id
+instead (`connections:expect bruges 0ab6c2…`) or `--clear` to remove it.
+
+### Renaming
+
+`teamleader:connections:rename {from} {to}` moves the stored credentials and
+the tokens in one transaction, so the connection stays connected. The
+rate-limit window belongs to the integration, not the name, and is
+unaffected. Update what names the connection yourself: code that calls
+`Teamleader::connection('old')`, `TEAMLEADER_CONNECTION`, scheduled commands
+with `--connection`, and queued bulk jobs that have not run yet.
+
+A connection defined in `config/teamleader.php` is renamed there. Then run
+`connections:rename old new --tokens-only` to move its tokens along.
 
 ### Without any credentials in `.env`
 
@@ -92,6 +115,14 @@ TEAMLEADER_CONNECTION=antwerp
 ```
 
 Either way, `Teamleader::companies()` then uses it without a name.
+
+### Only named connections
+
+An application can also have no default at all. Then `teamleader:status`
+shows every connection, `teamleader:health` checks each named connection
+under *Connections*, and the data commands (`list`, `info`, `export`, …) ask
+for `--connection=`. `Teamleader::connection('name')` works as always; code
+that uses `Teamleader::` without a name needs `TEAMLEADER_CONNECTION`.
 
 A connection in `config/teamleader.php` always wins over one with the same
 name in the database; the commands refuse to add or remove such a name.
