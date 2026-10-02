@@ -25,6 +25,7 @@
 * [Multiple Connections](guides/multiple-connections.md)
 * [Artisan Commands](guides/artisan-commands.md)
 * [Command Line](guides/cli.md)
+* [Testing Your Integration](guides/testing.md)
 
 ## Project
 

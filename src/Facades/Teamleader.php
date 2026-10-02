@@ -79,7 +79,11 @@ use McoreServices\TeamleaderSDK\Services\ApiRateLimiterService;
 use McoreServices\TeamleaderSDK\Services\TeamleaderErrorHandler;
 use McoreServices\TeamleaderSDK\Services\TokenService;
 use McoreServices\TeamleaderSDK\TeamleaderSDK;
+use McoreServices\TeamleaderSDK\Testing\FakeConnectionManager;
+use McoreServices\TeamleaderSDK\Testing\FakeResponse;
+use McoreServices\TeamleaderSDK\Testing\ResponseSequence;
 use Psr\Log\LoggerInterface;
+use RuntimeException;
 
 /**
  * Authentication
@@ -272,5 +276,113 @@ class Teamleader extends Facade
     private static function manager(): ConnectionManager
     {
         return static::getFacadeApplication()->make(ConnectionManager::class);
+    }
+
+    // -- testing ----------------------------------------------------------------
+
+    /**
+     * Replace every connection with a fake that records requests instead of
+     * sending them. Resources still validate what they build.
+     *
+     *     Teamleader::fake([
+     *         'deals.create' => ['data' => ['id' => 'deal-1', 'type' => 'deal']],
+     *         'deals.info'   => fn (array $body) => ['data' => ['id' => $body['id']]],
+     *         'contacts.*'   => Teamleader::response()->status(404),
+     *     ]);
+     *
+     *     Teamleader::assertSent('deals.create', fn (array $body) => $body['title'] === 'Big deal');
+     *
+     * Calling it again adds stubs to the same fake; recorded calls are kept.
+     *
+     * @param  array<string, mixed>  $responses  endpoint or pattern => array, FakeResponse, closure or sequence
+     */
+    public static function fake(array $responses = []): FakeConnectionManager
+    {
+        $app = static::getFacadeApplication();
+        $current = $app->bound(ConnectionManager::class) ? $app->make(ConnectionManager::class) : null;
+
+        if ($current instanceof FakeConnectionManager) {
+            return $current->stub($responses);
+        }
+
+        $manager = new FakeConnectionManager($responses);
+        $app->instance(ConnectionManager::class, $manager);
+        $app->instance(TeamleaderSDK::class, $manager->connection());
+        static::clearResolvedInstance(static::getFacadeAccessor());
+
+        return $manager;
+    }
+
+    /** A response for a stub: a success by default; status() >= 400 makes it a refusal */
+    public static function response(array $body = [], int $status = 200, array $headers = []): FakeResponse
+    {
+        return new FakeResponse($body, $status, $headers);
+    }
+
+    /**
+     * Successive responses for one endpoint
+     *
+     * @param  list<array|FakeResponse|Closure|string>  $responses
+     */
+    public static function sequence(array $responses = []): ResponseSequence
+    {
+        return new ResponseSequence($responses);
+    }
+
+    /** Throw on any request no stub answers, instead of an empty success */
+    public static function preventStrayRequests(bool $prevent = true): FakeConnectionManager
+    {
+        return static::fakeManager()->preventStrayRequests($prevent);
+    }
+
+    /**
+     * Assert a request to an endpoint (or pattern) was sent, on any connection
+     *
+     * @param  (Closure(array $body, array $call): bool)|null  $callback
+     */
+    public static function assertSent(string $endpoint, ?Closure $callback = null): FakeConnectionManager
+    {
+        return static::fakeManager()->assertSent($endpoint, $callback);
+    }
+
+    /**
+     * @param  (Closure(array $body, array $call): bool)|null  $callback
+     */
+    public static function assertNotSent(string $endpoint, ?Closure $callback = null): FakeConnectionManager
+    {
+        return static::fakeManager()->assertNotSent($endpoint, $callback);
+    }
+
+    public static function assertSentCount(string $endpoint, int $count): FakeConnectionManager
+    {
+        return static::fakeManager()->assertSentCount($endpoint, $count);
+    }
+
+    public static function assertNothingSent(): FakeConnectionManager
+    {
+        return static::fakeManager()->assertNothingSent();
+    }
+
+    /**
+     * The recorded calls on every connection, optionally only those to an
+     * endpoint and passing a check
+     *
+     * @param  (Closure(array $body, array $call): bool)|null  $callback
+     * @return list<array{method: string, endpoint: string, body: array, connection: string}>
+     */
+    public static function recorded(?string $endpoint = null, ?Closure $callback = null): array
+    {
+        return static::fakeManager()->recorded($endpoint, $callback);
+    }
+
+    private static function fakeManager(): FakeConnectionManager
+    {
+        $manager = static::manager();
+
+        if (! $manager instanceof FakeConnectionManager) {
+            throw new RuntimeException('Call Teamleader::fake() before asserting on Teamleader requests.');
+        }
+
+        return $manager;
     }
 }
