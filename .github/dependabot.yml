@@ -15,9 +15,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
-    # The package declares version ranges; only security fixes and
-    # dev-tool updates are worth a pull request.
-    versioning-strategy: increase-if-necessary
+    # A library declares ranges for its users: a new major is added to the
+    # range (^7.0 || ^8.0), never put in place of the old one, which would
+    # make the SDK uninstallable next to anything still on the old major.
+    versioning-strategy: widen
     groups:
       dev-dependencies:
         dependency-type: development
