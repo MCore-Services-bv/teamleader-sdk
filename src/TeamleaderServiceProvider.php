@@ -72,6 +72,8 @@ class TeamleaderServiceProvider extends ServiceProvider
                 Console\Commands\ConnectionsAddCommand::class,
                 Console\Commands\ConnectionsListCommand::class,
                 Console\Commands\ConnectionsRemoveCommand::class,
+                Console\Commands\ConnectionsRenameCommand::class,
+                Console\Commands\ConnectionsExpectCommand::class,
                 Console\Commands\ResourcesCommand::class,
                 Console\Commands\DescribeCommand::class,
                 Console\Commands\ListCommand::class,

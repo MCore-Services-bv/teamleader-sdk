@@ -23,7 +23,9 @@ class ConnectionsListCommand extends Command
                 'connection' => $name,
                 'defined_in' => $manager->sourceOf($name) ?? '—',
                 'status' => $status['status'],
-                'account' => $status['account_name'] ?? $status['account_id'] ?? '—',
+                'account' => $status['account_name'] ?? '—',
+                'account_id' => $status['account_id'] ?? '—',
+                'expected_account_id' => $this->expectedAccount($manager, $name),
             ];
         }
 
@@ -39,8 +41,20 @@ class ConnectionsListCommand extends Command
             return self::SUCCESS;
         }
 
-        $this->table(['Connection', 'Defined in', 'Status', 'Account'], array_map('array_values', $rows));
+        $this->table(['Connection', 'Defined in', 'Status', 'Account', 'Account ID', 'Expected account'], array_map('array_values', $rows));
 
         return self::SUCCESS;
+    }
+
+    /** The expected_account_id set on a connection, or `—` when none */
+    private function expectedAccount(ConnectionManager $manager, string $name): string
+    {
+        if (! $manager->isConfigured($name)) {
+            return '—';
+        }
+
+        $expected = $manager->config($name)->expectedAccountId;
+
+        return $expected ?? '—';
     }
 }

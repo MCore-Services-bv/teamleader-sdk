@@ -72,6 +72,34 @@ class DatabaseConnectionStore
         }
     }
 
+    /**
+     * Rename a stored connection, keeping its credentials
+     *
+     * @return bool False when no connection by that name is stored
+     */
+    public function rename(string $from, string $to): bool
+    {
+        self::assertValidName($to);
+
+        return $this->table()->where('name', $from)->update([
+            'name' => $to,
+            'updated_at' => CarbonImmutable::now()->toDateTimeString(),
+        ]) > 0;
+    }
+
+    /**
+     * Set or clear a stored connection's expected account, keeping its credentials
+     *
+     * @return bool False when no connection by that name is stored
+     */
+    public function setExpectedAccount(string $name, ?string $accountId): bool
+    {
+        return $this->table()->where('name', $name)->update([
+            'expected_account_id' => $accountId,
+            'updated_at' => CarbonImmutable::now()->toDateTimeString(),
+        ]) > 0;
+    }
+
     public function forget(string $name): bool
     {
         return $this->table()->where('name', $name)->delete() > 0;
