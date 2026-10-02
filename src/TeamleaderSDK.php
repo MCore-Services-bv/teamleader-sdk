@@ -1122,6 +1122,63 @@ class TeamleaderSDK
     }
 
     /**
+     * Fetch a document from the temporary link a `download()` call returned.
+     *
+     * The counterpart of sendFileContents(), and like it not sent through
+     * request(): the link is a temporary URL on Teamleader's file host, fetched
+     * without the access token. Resources reach it through downloadContents()
+     * and downloadTo(); the dry-run client and the fake record it instead.
+     *
+     * @param  string  $location  data.location from a download() call
+     * @return string The document's bytes
+     *
+     * @throws ConnectionException When the host cannot be reached
+     * @throws TeamleaderException When the download is refused; thrown whatever throw_exceptions says
+     */
+    public function fetchFileContents(string $location): string
+    {
+        try {
+            $response = $this->client->request('GET', $location, [
+                'timeout' => max((float) config('teamleader.api.timeout', 30), 120.0),
+                'read_timeout' => max((float) config('teamleader.api.read_timeout', 25), 120.0),
+            ]);
+        } catch (GuzzleException $e) {
+            throw new ConnectionException('The download could not reach Teamleader: '.$e->getMessage(), 0, $e);
+        }
+
+        $status = $response->getStatusCode();
+        $body = (string) $response->getBody();
+
+        if ($status < 200 || $status >= 300) {
+            $reason = trim(mb_strimwidth(strip_tags($body), 0, 300, '…'));
+
+            throw new TeamleaderException(
+                "Teamleader refused the download (HTTP {$status})".($reason !== '' ? ': '.$reason : '.'),
+                $status,
+                null,
+                [],
+                $status,
+            );
+        }
+
+        $this->logger->info('TeamleaderSDK: Document downloaded', [
+            'connection' => $this->connectionConfig->name,
+            'bytes' => strlen($body),
+        ]);
+
+        return $body;
+    }
+
+    /**
+     * True for the client bulk validation and --dry-run use: it records, sends
+     * nothing, and side effects (writing a downloaded file) are skipped.
+     */
+    public function isDryRun(): bool
+    {
+        return false;
+    }
+
+    /**
      * Get rate limit statistics
      */
     public function getRateLimitStats(): array

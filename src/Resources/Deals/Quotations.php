@@ -4,10 +4,12 @@ namespace McoreServices\TeamleaderSDK\Resources\Deals;
 
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\DownloadsDocuments;
 use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class Quotations extends Resource
 {
+    use DownloadsDocuments;
     use ValidatesWritePayload;
 
     /**
@@ -317,6 +319,9 @@ class Quotations extends Resource
 
     /**
      * Download a quotation in a specific format
+     *
+     * Returns a temporary link, which expires. For the document itself use
+     * downloadContents(), or downloadTo() to store it on a Laravel disk.
      *
      * @param  string  $id  Quotation UUID
      * @param  string  $format  Download format (default: 'pdf')

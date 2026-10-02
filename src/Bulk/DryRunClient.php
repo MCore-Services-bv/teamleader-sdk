@@ -47,6 +47,22 @@ final class DryRunClient extends TeamleaderSDK
     }
 
     /**
+     * Record the download instead of fetching it. Returns no bytes; downloadTo()
+     * writes nothing on a dry run.
+     */
+    public function fetchFileContents(string $location): string
+    {
+        $this->recorded[] = ['method' => 'GET', 'endpoint' => 'download (contents)', 'body' => ['location' => $location]];
+
+        return '';
+    }
+
+    public function isDryRun(): bool
+    {
+        return true;
+    }
+
+    /**
      * What has been recorded since the last call, and forget it.
      *
      * @return list<array{method: string, endpoint: string, body: array}>

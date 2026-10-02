@@ -5,9 +5,12 @@ namespace McoreServices\TeamleaderSDK\Resources\Files;
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Exceptions\TeamleaderException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\DownloadsDocuments;
 
 class Files extends Resource
 {
+    use DownloadsDocuments;
+
     /** `sort[].order` on files.list — the API sorts newest first only */
     public const SORT_ORDERS = ['desc'];
 
@@ -436,7 +439,7 @@ class Files extends Resource
             }
         }
 
-        // Sent the way the uploads in the Nova Credit migration were: the
+        // Sent the way uploads were proven to work in production: the
         // bytes as a string body, application/octet-stream, no token. Read
         // before the link is requested, so an unreadable file costs nothing.
         $contents = file_get_contents($path);
@@ -459,6 +462,9 @@ class Files extends Resource
 
     /**
      * Request download link for a file
+     *
+     * Returns a temporary link, which expires. For the document itself use
+     * downloadContents(), or downloadTo() to store it on a Laravel disk.
      *
      * @param  string  $id  File UUID
      * @return array Download location and expires_at

@@ -4,10 +4,12 @@ namespace McoreServices\TeamleaderSDK\Resources\Invoicing;
 
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\DownloadsDocuments;
 use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 class Creditnotes extends Resource
 {
+    use DownloadsDocuments;
     use ValidatesWritePayload;
 
     protected string $description = 'Manage credit notes in Teamleader Focus';
@@ -206,6 +208,9 @@ PHP,
 
     /**
      * Download a credit note in a specific format
+     *
+     * Returns a temporary link, which expires. For the document itself use
+     * downloadContents(), or downloadTo() to store it on a Laravel disk.
      *
      * @param  string  $id  Credit note UUID
      * @param  string  $format  Format (pdf, ubl/e-fff)

@@ -4,6 +4,7 @@ namespace McoreServices\TeamleaderSDK\Resources\Invoicing;
 
 use InvalidArgumentException;
 use McoreServices\TeamleaderSDK\Resources\Resource;
+use McoreServices\TeamleaderSDK\Traits\DownloadsDocuments;
 use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
 
 /**
@@ -31,6 +32,7 @@ use McoreServices\TeamleaderSDK\Traits\ValidatesWritePayload;
  */
 class Invoices extends Resource
 {
+    use DownloadsDocuments;
     use ValidatesWritePayload;
 
     /** Body fields invoices.draft accepts. From specification v1.221.0. */
@@ -694,6 +696,9 @@ class Invoices extends Resource
     /**
      * Credit an invoice completely
      *
+     * The credit note takes its layout from the invoice it credits; the API
+     * has no way to choose another.
+     *
      * @param  string  $id  Invoice UUID
      * @param  string  $creditNoteDate  Credit note date (YYYY-MM-DD format)
      */
@@ -707,6 +712,9 @@ class Invoices extends Resource
 
     /**
      * Credit an invoice partially
+     *
+     * The credit note takes its layout from the invoice it credits; the API
+     * has no way to choose another.
      *
      * @param  string  $id  Invoice UUID
      * @param  string  $creditNoteDate  Credit note date (YYYY-MM-DD format)
@@ -733,6 +741,9 @@ class Invoices extends Resource
 
     /**
      * Download an invoice in a specific format
+     *
+     * Returns a temporary link, which expires. For the document itself use
+     * downloadContents(), or downloadTo() to store it on a Laravel disk.
      *
      * @param  string  $id  Invoice UUID
      * @param  string  $format  Format (pdf, ubl/e-fff, ubl/peppol_bis_3, ubl/xrechnung)
