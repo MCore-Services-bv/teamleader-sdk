@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-10-02
+
 ### Added
 
 - **`Teamleader::fake()`** — every connection records requests instead of
@@ -24,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   at once, as bytes or onto a Laravel disk. Bulk-able with `call()`; a dry run
   writes nothing.
 - `ArrayTokenStore`, an in-memory `TokenStore` for tests.
+
+### Changed
+
+- Guzzle 8 is allowed alongside Guzzle 7 (`^7.0 || ^8.0`), so the SDK
+  installs next to whichever version the rest of the application uses.
 
 ### Documentation
 
