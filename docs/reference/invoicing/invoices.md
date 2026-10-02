@@ -232,6 +232,9 @@ credit(string $id, string $creditNoteDate): array
 
 Credit an invoice completely
 
+The credit note takes its layout from the invoice it credits; the API
+has no way to choose another.
+
 - `$id` — Invoice UUID
 - `$creditNoteDate` — Credit note date (YYYY-MM-DD format)
 
@@ -242,6 +245,9 @@ creditPartially(string $id, string $creditNoteDate, array $groupedLines, ?array 
 ```
 
 Credit an invoice partially
+
+The credit note takes its layout from the invoice it credits; the API
+has no way to choose another.
 
 - `$id` — Invoice UUID
 - `$creditNoteDate` — Credit note date (YYYY-MM-DD format)
@@ -255,6 +261,9 @@ download(string $id, string $format = 'pdf'): array
 ```
 
 Download an invoice in a specific format
+
+Returns a temporary link, which expires. For the document itself use
+downloadContents(), or downloadTo() to store it on a Laravel disk.
 
 - `$id` — Invoice UUID
 - `$format` — Format (pdf, ubl/e-fff, ubl/peppol_bis_3, ubl/xrechnung)
@@ -447,6 +456,38 @@ Get the possible Peppol submission statuses.
 These are the values that may appear in the (nullable) `peppol_status`
 field of info()/list() responses. Peppol status is read-only — it is not
 a request parameter or a list filter.
+
+### `downloadContents()`
+
+```php
+downloadContents(string $id, string $format = 'pdf'): string
+```
+
+The document's bytes, in one call.
+
+    $pdf = Teamleader::invoices()->downloadContents($invoiceId);
+
+- `$id` — The record's UUID
+- `$format` — The format download() accepts, e.g. pdf
+
+**Throws** `TeamleaderException` When no link comes back, or the download is refused
+
+### `downloadTo()`
+
+```php
+downloadTo(string $id, string $disk, string $path, string $format = 'pdf'): string
+```
+
+Download the document onto a Laravel disk, and return the path.
+
+    Teamleader::invoices()->downloadTo($invoiceId, 's3', "invoices/{$number}.pdf");
+
+Bulk-able: `bulk()->call('invoices', 'downloadTo', [[$id, 's3', $path], …])`.
+On a dry run nothing is written.
+
+**Throws** `TeamleaderException` When no link comes back, or the download is refused
+
+**Throws** `RuntimeException` When the disk refuses the file
 
 ## Examples
 

@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`Teamleader::fake()`** — every connection records requests instead of
+  sending them; no account, token, Redis or network. Stubs per endpoint or
+  pattern (`deals.*`): an array, a closure, `Teamleader::response()` (a
+  refusal throws the typed exception, or returns the error array with
+  exceptions off) or `Teamleader::sequence()`. Assertions on the facade (every
+  connection) and per connection: `assertSent`, `assertNotSent`,
+  `assertSentCount`, `assertNothingSent`, `recorded`. `preventStrayRequests()`
+  fails on anything unstubbed. Resources still validate what they build.
+  Covers uploads, downloads, bulk and `handleCallback()`. New guide: Testing
+  Your Integration.
+- **`downloadContents($id)` and `downloadTo($id, $disk, $path)`** on invoices,
+  credit notes, quotations and files: request the temporary link and fetch it
+  at once, as bytes or onto a Laravel disk. Bulk-able with `call()`; a dry run
+  writes nothing.
+- `ArrayTokenStore`, an in-memory `TokenStore` for tests.
+
+### Documentation
+
+- API behaviour stated where you meet it: a credit note takes its invoice's
+  layout; a product's department comes from its product category's ledgers;
+  `subscription.updated` does not fire for line changes, so pair webhooks
+  with a periodic re-sync.
+
 ## [3.0.0] - 2026-10-01
 
 **One Laravel application, any number of Teamleader accounts.** 3.0 adds
@@ -51,7 +76,7 @@ Found upgrading a 2.3.2 application to 3.0.0-rc.1:
   minimums it reports are 8.4 and 12.
 - `files()->uploadFile()` was refused with HTTP 400 in a real upload, and the
   error did not say why. It now sends the file the way the working uploads in
-  the Nova Credit migration did (the bytes as a string body), refuses an empty
+  a client migration did (the bytes as a string body), refuses an empty
   file before requesting a link, and a refusal includes what the upload host
   answered.
 

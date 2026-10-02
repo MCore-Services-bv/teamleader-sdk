@@ -79,6 +79,9 @@ download(string $id, string $format = 'pdf'): array
 
 Download a credit note in a specific format
 
+Returns a temporary link, which expires. For the document itself use
+downloadContents(), or downloadTo() to store it on a Laravel disk.
+
 - `$id` — Credit note UUID
 - `$format` — Format (pdf, ubl/e-fff)
 
@@ -187,6 +190,38 @@ getResponseStructure(): array
 ```
 
 Get response structure documentation
+
+### `downloadContents()`
+
+```php
+downloadContents(string $id, string $format = 'pdf'): string
+```
+
+The document's bytes, in one call.
+
+    $pdf = Teamleader::invoices()->downloadContents($invoiceId);
+
+- `$id` — The record's UUID
+- `$format` — The format download() accepts, e.g. pdf
+
+**Throws** `TeamleaderException` When no link comes back, or the download is refused
+
+### `downloadTo()`
+
+```php
+downloadTo(string $id, string $disk, string $path, string $format = 'pdf'): string
+```
+
+Download the document onto a Laravel disk, and return the path.
+
+    Teamleader::invoices()->downloadTo($invoiceId, 's3', "invoices/{$number}.pdf");
+
+Bulk-able: `bulk()->call('invoices', 'downloadTo', [[$id, 's3', $path], …])`.
+On a dry run nothing is written.
+
+**Throws** `TeamleaderException` When no link comes back, or the download is refused
+
+**Throws** `RuntimeException` When the disk refuses the file
 
 ## Examples
 

@@ -88,7 +88,7 @@ php artisan teamleader:connections:add default
 or give it a name and make that the default connection:
 
 ```dotenv
-TEAMLEADER_CONNECTION=nova-credit
+TEAMLEADER_CONNECTION=antwerp
 ```
 
 Either way, `Teamleader::companies()` then uses it without a name.

@@ -49,6 +49,7 @@ consistent interface — for one Teamleader account or many.
 - **Fail-Fast Validation** — Unsupported filters, sort fields and includes throw before the request is sent, rather than being silently ignored by the API
 - **Typed Exceptions by Default** — a failed request throws an exception with an actionable message
 - **Events** — for every request, response, failure, rate-limit wait and token refresh, plus optional request logging
+- **Test Fake** — `Teamleader::fake()` records requests instead of sending them, with assertions per endpoint and connection
 - **Resource Introspection** — Query any resource's capabilities programmatically
 
 ### 🎯 API Coverage
@@ -303,11 +304,17 @@ $entries = Teamleader::timeTracking()->betweenDates(
 Teamleader::files()->uploadFile(storage_path('contract.pdf'), 'deal', 'deal-uuid', 'Contracts');
 
 $files = Teamleader::files()->forDeal('deal-uuid');
+
+// Downloads: the bytes, or straight onto a Laravel disk
+$pdf = Teamleader::invoices()->downloadContents('invoice-uuid');
+Teamleader::invoices()->downloadTo('invoice-uuid', 's3', 'invoices/2026-0042.pdf');
 ```
 
 The extension must be a type Teamleader knows (`Files::MIME_TYPES`: pdf, docx,
 xlsx, jpg, png and so on); others are refused before anything is sent.
-`upload()` on its own only returns the temporary link.
+`upload()` and `download()` on their own only return a temporary link.
+`downloadContents()` and `downloadTo()` work on invoices, credit notes,
+quotations and files.
 
 ### Custom Fields
 
@@ -476,6 +483,24 @@ php artisan teamleader:call users.me
 Every command validates filters, sort fields and includes the same way your
 code does, and takes `--connection=`. **Nothing writes without `--write`**,
 and in production `--force` is required as well.
+
+---
+
+## 🧪 Testing
+
+```php
+Teamleader::fake([
+    'deals.create' => ['data' => ['id' => 'deal-1', 'type' => 'deal']],
+    'deals.info'   => Teamleader::response()->status(404),
+]);
+
+// … your code …
+
+Teamleader::assertSent('deals.create', fn (array $body) => $body['title'] === 'Big deal');
+```
+
+No account, token or network needed, and the resources still validate what
+they build. See [Testing your integration](https://teamleader-sdk.mcore-services.dev/guides/testing).
 
 ---
 

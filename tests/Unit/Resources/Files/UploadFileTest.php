@@ -13,7 +13,7 @@ use McoreServices\TeamleaderSDK\Tests\ResourceTestCase;
 /**
  * files.upload only returns a temporary link; the bytes are POSTed to it in a
  * second request. uploadFile() does both, so a bulk upload needs no custom
- * code — the one write the Nova Credit migration could not do end to end.
+ * code — the one write a full data migration could not do end to end.
  */
 final class UploadFileTest extends ResourceTestCase
 {

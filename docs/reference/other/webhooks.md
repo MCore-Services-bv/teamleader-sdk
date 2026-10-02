@@ -60,6 +60,10 @@ register(string $url, array $types): array
 
 Register a new webhook
 
+Webhooks are not a complete record of changes: `subscription.updated`,
+for one, fires for the subscription's own fields but not for its lines.
+Pair them with a periodic re-sync.
+
 - `$url` — Your webhook URL (must be a valid HTTPS URL)
 - `$types` — Array of event types that should trigger this webhook
 

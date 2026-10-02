@@ -11,7 +11,7 @@ use McoreServices\TeamleaderSDK\Tests\Support\RecordingApiClient;
 
 /**
  * Every pipeline has four fixed phases that cannot be deleted. A bulk delete
- * in the Nova Credit migration failed four times with Teamleader's bare
+ * in a client migration failed four times with Teamleader's bare
  * "Unable to delete fixed deal phase."; the SDK now says what that means.
  */
 final class FixedPhasesTest extends ResourceTestCase
