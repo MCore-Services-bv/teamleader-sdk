@@ -3,17 +3,29 @@
 namespace McoreServices\TeamleaderSDK\Console\Commands;
 
 use Illuminate\Console\Command;
-use McoreServices\TeamleaderSDK\Facades\Teamleader;
+use McoreServices\TeamleaderSDK\Connections\ConnectionManager;
+use McoreServices\TeamleaderSDK\TeamleaderSDK;
 
 class TeamleaderExportUuidsCommand extends Command
 {
-    protected $signature = 'teamleader:export-uuids {--resource=all}';
+    protected $signature = 'teamleader:export-uuids {--resource=all} {--connection= : The Teamleader connection (default: the default connection)}';
+
+    private TeamleaderSDK $sdk;
 
     protected $description = 'Export Teamleader UUIDs for config file';
 
-    public function handle()
+    public function handle(ConnectionManager $manager)
     {
         $resource = $this->option('resource');
+        $connection = $this->option('connection');
+
+        if ((! is_string($connection) || $connection === '') && ! $manager->hasDefaultConnection()) {
+            $this->error($manager->missingDefaultMessage());
+
+            return self::INVALID;
+        }
+
+        $this->sdk = $manager->connection(is_string($connection) && $connection !== '' ? $connection : null);
 
         $this->info('Fetching UUIDs from Teamleader...');
         $this->newLine();
@@ -102,7 +114,7 @@ class TeamleaderExportUuidsCommand extends Command
     protected function exportDepartments()
     {
         $this->info('=== Departments ===');
-        $response = Teamleader::departments()->list();
+        $response = $this->sdk->departments()->list();
         $this->exportResource($response, 'name');
         $this->newLine();
     }
@@ -110,7 +122,7 @@ class TeamleaderExportUuidsCommand extends Command
     protected function exportUsers()
     {
         $this->info('=== Users ===');
-        $response = Teamleader::users()->list();
+        $response = $this->sdk->users()->list();
         foreach ($response['data'] as $item) {
             $name = $this->formatName($item['first_name'].' '.$item['last_name']);
             $this->line("'{$name}' => '{$item['id']}',");
@@ -121,7 +133,7 @@ class TeamleaderExportUuidsCommand extends Command
     protected function exportTeams()
     {
         $this->info('=== Teams ===');
-        $response = Teamleader::teams()->list();
+        $response = $this->sdk->teams()->list();
         $this->exportResource($response, 'name');
         $this->newLine();
     }
@@ -129,7 +141,7 @@ class TeamleaderExportUuidsCommand extends Command
     protected function exportWorkTypes()
     {
         $this->info('=== Work Types ===');
-        $response = Teamleader::workTypes()->list();
+        $response = $this->sdk->workTypes()->list();
         $this->exportResource($response, 'name');
         $this->newLine();
     }
@@ -137,7 +149,7 @@ class TeamleaderExportUuidsCommand extends Command
     protected function exportPipelines()
     {
         $this->info('=== Deal Pipelines ===');
-        $response = Teamleader::dealPipelines()->list();
+        $response = $this->sdk->dealPipelines()->list();
         $this->exportResource($response, 'name');
         $this->newLine();
     }
@@ -145,11 +157,11 @@ class TeamleaderExportUuidsCommand extends Command
     protected function exportDealPhases()
     {
         $this->info('=== Deal Phases ===');
-        $pipelines = Teamleader::dealPipelines()->list();
+        $pipelines = $this->sdk->dealPipelines()->list();
 
         foreach ($pipelines['data'] as $pipeline) {
             $this->comment("// {$pipeline['name']} Pipeline");
-            $phases = Teamleader::dealPhases()->forPipeline($pipeline['id']);
+            $phases = $this->sdk->dealPhases()->forPipeline($pipeline['id']);
             $this->exportResource($phases, 'name');
         }
         $this->newLine();
@@ -158,7 +170,7 @@ class TeamleaderExportUuidsCommand extends Command
     protected function exportDealSources()
     {
         $this->info('=== Deal Sources ===');
-        $response = Teamleader::dealSources()->list();
+        $response = $this->sdk->dealSources()->list();
         $this->exportResource($response, 'name');
         $this->newLine();
     }
@@ -166,7 +178,7 @@ class TeamleaderExportUuidsCommand extends Command
     protected function exportLostReasons()
     {
         $this->info('=== Lost Reasons ===');
-        $response = Teamleader::lostReasons()->list();
+        $response = $this->sdk->lostReasons()->list();
         $this->exportResource($response, 'name');
         $this->newLine();
     }
@@ -174,7 +186,7 @@ class TeamleaderExportUuidsCommand extends Command
     protected function exportPaymentTerms()
     {
         $this->info('=== Payment Terms ===');
-        $response = Teamleader::paymentTerms()->list();
+        $response = $this->sdk->paymentTerms()->list();
 
         foreach ($response['data'] as $item) {
             $name = $this->formatName($item['description']);
@@ -187,7 +199,7 @@ class TeamleaderExportUuidsCommand extends Command
     protected function exportTaxRates()
     {
         $this->info('=== Tax Rates ===');
-        $response = Teamleader::taxRates()->list();
+        $response = $this->sdk->taxRates()->list();
 
         foreach ($response['data'] as $item) {
             $name = 'vat_'.str_replace('.', '_', $item['rate']);
@@ -199,7 +211,7 @@ class TeamleaderExportUuidsCommand extends Command
     protected function exportPriceLists()
     {
         $this->info('=== Price Lists ===');
-        $response = Teamleader::priceLists()->list();
+        $response = $this->sdk->priceLists()->list();
         $this->exportResource($response, 'name');
         $this->newLine();
     }
@@ -210,7 +222,7 @@ class TeamleaderExportUuidsCommand extends Command
         $this->comment('// Specify country code: --country=BE');
 
         $country = $this->option('country') ?? 'BE';
-        $response = Teamleader::businessTypes()->forCountry($country);
+        $response = $this->sdk->businessTypes()->forCountry($country);
 
         $this->comment("// {$country} Business Types");
         $this->exportResource($response, 'name');
@@ -220,7 +232,7 @@ class TeamleaderExportUuidsCommand extends Command
     protected function exportProductCategories()
     {
         $this->info('=== Product Categories ===');
-        $response = Teamleader::productCategories()->list();
+        $response = $this->sdk->productCategories()->list();
         $this->exportResource($response, 'name');
         $this->newLine();
     }
@@ -228,7 +240,7 @@ class TeamleaderExportUuidsCommand extends Command
     protected function exportActivityTypes()
     {
         $this->info('=== Activity Types ===');
-        $response = Teamleader::activityTypes()->list();
+        $response = $this->sdk->activityTypes()->list();
         $this->exportResource($response, 'name');
         $this->newLine();
     }
@@ -236,7 +248,7 @@ class TeamleaderExportUuidsCommand extends Command
     protected function exportCallOutcomes()
     {
         $this->info('=== Call Outcomes ===');
-        $response = Teamleader::callOutcomes()->list();
+        $response = $this->sdk->callOutcomes()->list();
         $this->exportResource($response, 'name');
         $this->newLine();
     }
@@ -244,7 +256,7 @@ class TeamleaderExportUuidsCommand extends Command
     protected function exportUnitsOfMeasure()
     {
         $this->info('=== Units of Measure ===');
-        $response = Teamleader::unitsOfMeasure()->list();
+        $response = $this->sdk->unitsOfMeasure()->list();
         $this->exportResource($response, 'name');
         $this->newLine();
     }
@@ -252,7 +264,7 @@ class TeamleaderExportUuidsCommand extends Command
     protected function exportCustomFields()
     {
         $this->info('=== Custom Fields ===');
-        $response = Teamleader::customFields()->list();
+        $response = $this->sdk->customFields()->list();
 
         // Group by context
         $contexts = [];

@@ -66,8 +66,18 @@ abstract class TeamleaderCommand extends Command
     protected function sdk(): TeamleaderSDK
     {
         $name = $this->option('connection');
+        $manager = app(ConnectionManager::class);
 
-        return app(ConnectionManager::class)->connection(is_string($name) && $name !== '' ? $name : null);
+        if (! is_string($name) || $name === '') {
+            // Only named connections: say so, instead of the default's missing credentials
+            if (! $manager->hasDefaultConnection()) {
+                throw new InvalidArgumentException($manager->missingDefaultMessage());
+            }
+
+            return $manager->connection();
+        }
+
+        return $manager->connection($name);
     }
 
     /**

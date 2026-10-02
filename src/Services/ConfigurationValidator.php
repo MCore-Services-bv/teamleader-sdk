@@ -2,6 +2,9 @@
 
 namespace McoreServices\TeamleaderSDK\Services;
 
+use McoreServices\TeamleaderSDK\Connections\ConnectionManager;
+use Throwable;
+
 class ConfigurationValidator
 {
     private array $errors = [];
@@ -28,6 +31,18 @@ class ConfigurationValidator
      */
     private function validateRequired(): void
     {
+        // An application with only named connections has no flat keys at all:
+        // check that each connection is complete instead
+        if (empty(config('teamleader.client_id')) && $this->namedConnections() !== []) {
+            foreach ($this->namedConnections() as $name) {
+                if (! $this->manager()->isConfigured($name)) {
+                    $this->errors[] = "Teamleader connection '{$name}' is incomplete: it needs a client_id, a client_secret and a redirect_uri";
+                }
+            }
+
+            return;
+        }
+
         $required = [
             'teamleader.client_id' => 'TEAMLEADER_CLIENT_ID',
             'teamleader.client_secret' => 'TEAMLEADER_CLIENT_SECRET',
@@ -55,6 +70,28 @@ class ConfigurationValidator
     }
 
     /**
+     * Connections other than the flat 2.x keys: from config/teamleader.php and
+     * the database
+     *
+     * @return list<string>
+     */
+    private function namedConnections(): array
+    {
+        // With the flat keys empty, names() lists no flat 'default': whatever it
+        // returns is a connection of its own (config, database or extend())
+        try {
+            return $this->manager()->names();
+        } catch (Throwable) {
+            return [];
+        }
+    }
+
+    private function manager(): ConnectionManager
+    {
+        return app()->bound(ConnectionManager::class) ? app(ConnectionManager::class) : new ConnectionManager;
+    }
+
+    /**
      * Validate URL formats
      */
     private function validateUrls(): void
@@ -69,8 +106,9 @@ class ConfigurationValidator
             $url = config($config);
 
             if (empty($url)) {
-                // Only redirect_uri is required
-                if ($config === 'teamleader.redirect_uri') {
+                // Only redirect_uri is required — and only for the flat default
+                // connection; named connections were checked in validateRequired()
+                if ($config === 'teamleader.redirect_uri' && ! (empty(config('teamleader.client_id')) && $this->namedConnections() !== [])) {
                     $this->errors[] = "Missing {$name}";
                 }
 

@@ -26,7 +26,20 @@ class TeamleaderStatusCommand extends Command
         // Resolved here rather than injected: injecting TeamleaderSDK builds the
         // default connection, which fails when only named connections exist
         $name = $this->option('connection');
-        $sdk = $manager->connection(is_string($name) && $name !== '' ? $name : null);
+        $name = is_string($name) && $name !== '' ? $name : null;
+
+        // No usable default: every connection is the useful answer, not an error
+        if ($name === null && ! $manager->hasDefaultConnection()) {
+            if (! $this->option('json')) {
+                $this->line("No '{$manager->getDefaultConnection()}' connection; showing every connection. "
+                    .'Use --connection=<name> for the details of one.');
+                $this->newLine();
+            }
+
+            return $this->displayAllConnections($manager);
+        }
+
+        $sdk = $manager->connection($name);
 
         $this->info('🔍 Checking Teamleader SDK Status...');
         $this->newLine();
@@ -88,10 +101,11 @@ class TeamleaderStatusCommand extends Command
             $this->line('No Teamleader connections are configured.');
         } else {
             $this->table(
-                ['Connection', 'Account', 'Status', 'Expires in', 'Last refresh'],
+                ['Connection', 'Account', 'Account ID', 'Status', 'Expires in', 'Last refresh'],
                 array_map(fn (array $row) => [
                     $row['connection'],
-                    $row['account_name'] ?? $row['account_id'] ?? '—',
+                    $row['account_name'] ?? '—',
+                    $row['account_id'] ?? '—',
                     $this->statusLabel($row['status']),
                     $row['expires_in'] === null || $row['status'] !== ConnectionManager::STATUS_CONNECTED
                         ? '—'

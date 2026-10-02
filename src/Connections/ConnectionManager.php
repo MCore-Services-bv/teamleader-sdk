@@ -266,6 +266,25 @@ class ConnectionManager
         }
     }
 
+    /**
+     * Whether the default connection can be built. False in an application
+     * that only uses named connections and has no flat TEAMLEADER_CLIENT_ID.
+     */
+    public function hasDefaultConnection(): bool
+    {
+        return $this->isConfigured($this->getDefaultConnection());
+    }
+
+    /** What a command that needed the default connection tells the user */
+    public function missingDefaultMessage(): string
+    {
+        $names = array_values(array_filter($this->names(), fn (string $name) => $this->isConfigured($name)));
+
+        return "There is no '{$this->getDefaultConnection()}' Teamleader connection. Pass --connection=<name>"
+            .($names !== [] ? ' (configured: '.implode(', ', $names).')' : '')
+            .', or set TEAMLEADER_CONNECTION to the one to use by default.';
+    }
+
     private function tokenStore(): TokenStore
     {
         return app()->bound(TokenStore::class) ? app(TokenStore::class) : new DatabaseTokenStore;

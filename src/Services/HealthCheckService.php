@@ -12,14 +12,37 @@ use McoreServices\TeamleaderSDK\TeamleaderSDK;
 
 class HealthCheckService
 {
-    private TeamleaderSDK $sdk;
+    private ?TeamleaderSDK $sdk;
 
     private ConfigurationValidator $configValidator;
 
-    public function __construct(TeamleaderSDK $sdk, ConfigurationValidator $configValidator)
+    /**
+     * @param  TeamleaderSDK|null  $sdk  The connection to check; null checks the
+     *                                   default connection, when there is one.
+     *                                   (Untyped for the container: a typed
+     *                                   TeamleaderSDK would build the default
+     *                                   connection, which fails when an
+     *                                   application only has named ones.)
+     */
+    public function __construct(mixed $sdk = null, ?ConfigurationValidator $configValidator = null)
     {
-        $this->sdk = $sdk;
-        $this->configValidator = $configValidator;
+        $this->sdk = $sdk instanceof TeamleaderSDK ? $sdk : null;
+        $this->configValidator = $configValidator ?? new ConfigurationValidator;
+    }
+
+    /**
+     * The connection the per-connection checks run against, or null when the
+     * application has no default connection
+     */
+    private function sdk(): ?TeamleaderSDK
+    {
+        if ($this->sdk !== null) {
+            return $this->sdk;
+        }
+
+        $manager = app(ConnectionManager::class);
+
+        return $manager->hasDefaultConnection() ? $this->sdk = $manager->connection() : null;
     }
 
     /**
@@ -27,16 +50,27 @@ class HealthCheckService
      */
     public function check(): HealthCheckResult
     {
+        // These check one connection. Without a default, they are skipped and
+        // the Connections check reports every named connection instead
+        $hasSdk = $this->sdk() !== null;
+        $skipped = fn () => [
+            'status' => 'skipped',
+            'details' => [
+                'message' => 'No default connection; see Connections for each named one. '
+                    .'Set TEAMLEADER_CONNECTION to check one in full.',
+            ],
+        ];
+
         $checks = [
             'configuration' => $this->checkConfiguration(),
-            'authentication' => $this->checkAuthentication(),
-            'api_connectivity' => $this->checkApiConnectivity(),
-            'rate_limits' => $this->checkRateLimits(),
-            'token_status' => $this->checkTokenStatus(),
+            'authentication' => $hasSdk ? $this->checkAuthentication() : $skipped(),
+            'api_connectivity' => $hasSdk ? $this->checkApiConnectivity() : $skipped(),
+            'rate_limits' => $hasSdk ? $this->checkRateLimits() : $skipped(),
+            'token_status' => $hasSdk ? $this->checkTokenStatus() : $skipped(),
             'dependencies' => $this->checkDependencies(),
             'database_connection' => $this->checkDatabaseConnection(),
             'cache_system' => $this->checkCacheSystem(),
-            'error_handling' => $this->checkErrorHandling(),
+            'error_handling' => $hasSdk ? $this->checkErrorHandling() : $skipped(),
             'connections' => $this->checkConnections(),
         ];
 
