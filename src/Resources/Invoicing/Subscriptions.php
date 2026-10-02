@@ -508,6 +508,10 @@ PHP,
     /**
      * Update an existing subscription
      *
+     * The `subscription.updated` webhook fires for changes to the
+     * subscription's own fields, not for changes to its lines. Code that keeps
+     * a copy of the lines needs a periodic re-sync as well.
+     *
      * All fields except id are optional. Note:
      * - starts_on and billing_cycle can only be updated if no invoices have been generated yet
      *

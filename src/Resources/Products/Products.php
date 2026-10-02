@@ -171,6 +171,10 @@ class Products extends Resource
      *
      * Requires a name or a code.
      *
+     * A product has no department of its own. Which department and ledger
+     * account apply comes from its product category:
+     * `product_category.ledgers[].department` on productCategories.list.
+     *
      * @throws InvalidArgumentException When neither is given, or a field or value is not accepted
      */
     public function create(array $data): array
