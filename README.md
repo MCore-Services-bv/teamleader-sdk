@@ -723,9 +723,14 @@ The MIT License (MIT). See [LICENSE.md](LICENSE.md).
 - [x] Bulk operations: export, writes and queued bulk (v3.0)
 - [x] CLI for exploring and querying the API (v3.0)
 - [x] Events and request logging (v3.0)
-- [ ] Laravel Pulse recorder (v3.1)
-- [ ] Upsert helper for bulk writes (v3.1)
+- [x] Test fake and document downloads (v3.1)
+- [x] Connection management: rename, expected account, account ids (v3.2)
 - [x] Laravel Boost guidelines for AI coding agents (v3.3)
+- [ ] Webhook receiver: typed events per connection, duplicate protection, `webhooks:sync` (v3.4)
+- [ ] Upsert helper for bulk writes, with id mapping (v3.4)
+- [ ] Incremental sync and reconciliation (v3.5)
+- [ ] Cached lookups for reference data (v3.5)
+- [ ] Laravel Pulse recorder (v3.5)
 
 ---
 

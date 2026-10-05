@@ -34,6 +34,114 @@ use McoreServices\TeamleaderSDK\Traits\SanitizesLogData;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
+/**
+ * Every resource is reached as a method — `$sdk->companies()`, `Teamleader::connection('x')->deals()` —
+ * through __call(). These annotations let IDEs and static analysis (PHPStan, Larastan) see them.
+ * Kept in step with $resources by ResourceAccessorAnnotationsTest.
+ *
+ * General
+ *
+ * @method Resources\General\Departments departments()
+ * @method Resources\General\Users users()
+ * @method Resources\General\Teams teams()
+ * @method Resources\General\CustomFields customFields()
+ * @method Resources\General\WorkTypes workTypes()
+ * @method Resources\General\DocumentTemplates documentTemplates()
+ * @method Resources\General\Currencies currencies()
+ * @method Resources\General\Notes notes()
+ * @method Resources\General\EmailTracking emailTracking()
+ * @method Resources\General\ClosingDays closingDays()
+ * @method Resources\General\DayOffTypes dayOffTypes()
+ * @method Resources\General\DaysOff daysOff()
+ * @method Resources\General\UserSchedules userSchedules()
+ *
+ * CRM
+ * @method Resources\CRM\Companies companies()
+ * @method Resources\CRM\Contacts contacts()
+ * @method Resources\CRM\BusinessTypes businessTypes()
+ * @method Resources\CRM\Tags tags()
+ * @method Resources\CRM\Addresses addresses()
+ *
+ * Deals
+ * @method Resources\Deals\Deals deals()
+ * @method Resources\Deals\Quotations quotations()
+ * @method Resources\Deals\Orders orders()
+ * @method Resources\Deals\Phases dealPhases()
+ * @method Resources\Deals\Pipelines dealPipelines()
+ * @method Resources\Deals\Sources dealSources()
+ * @method Resources\Deals\LostReasons lostReasons()
+ *
+ * Calendar
+ * @method Resources\Calendar\Meetings meetings()
+ * @method Resources\Calendar\Calls calls()
+ * @method Resources\Calendar\CallOutcomes callOutcomes()
+ * @method Resources\Calendar\Events calendarEvents()
+ * @method Resources\Calendar\ActivityTypes activityTypes()
+ *
+ * Invoicing
+ * @method Resources\Invoicing\Invoices invoices()
+ * @method Resources\Invoicing\Creditnotes creditNotes()
+ * @method Resources\Invoicing\PaymentMethods paymentMethods()
+ * @method Resources\Invoicing\PaymentTerms paymentTerms()
+ * @method Resources\Invoicing\Subscriptions subscriptions()
+ * @method Resources\Invoicing\TaxRates taxRates()
+ * @method Resources\Invoicing\WithholdingTaxRates withholdingTaxRates()
+ * @method Resources\Invoicing\CommercialDiscounts commercialDiscounts()
+ *
+ * Expenses
+ * @method Resources\Expenses\Expenses expenses()
+ * @method Resources\Expenses\BookkeepingSubmissions bookkeepingSubmissions()
+ * @method Resources\Expenses\IncomingInvoices incomingInvoices()
+ * @method Resources\Expenses\IncomingCreditNotes incomingCreditNotes()
+ * @method Resources\Expenses\Receipts receipts()
+ *
+ * Products
+ * @method Resources\Products\PriceLists priceLists()
+ * @method Resources\Products\Categories productCategories()
+ * @method Resources\Products\Products products()
+ * @method Resources\Products\UnitOfMeasure unitsOfMeasure()
+ *
+ * Legacy Projects
+ * @method Resources\Projects\LegacyMilestones legacyMilestones()
+ * @method Resources\Projects\LegacyProjects legacyProjects()
+ *
+ * New Projects
+ * @method Resources\Projects\ExternalParties externalParties()
+ * @method Resources\Projects\Groups groups()
+ * @method Resources\Projects\Materials materials()
+ * @method Resources\Projects\ProjectLines projectLines()
+ * @method Resources\Projects\Projects projects()
+ * @method Resources\Projects\Projects nextgenProjects() Alias for projects() — Teamleader's webhook vocabulary
+ * @method Resources\Projects\ProjectTasks projectTasks()
+ *
+ * Planning
+ * @method Resources\Planning\PlannableItems plannableItems()
+ * @method Resources\Planning\Reservations reservations()
+ * @method Resources\Planning\UserAvailability userAvailability()
+ *
+ * Tasks
+ * @method Resources\Tasks\Tasks tasks()
+ *
+ * Time Tracking
+ * @method Resources\TimeTracking\TimeTracking timeTracking()
+ * @method Resources\TimeTracking\Timers timers()
+ *
+ * Tickets
+ * @method Resources\Tickets\TicketStatus ticketStatus()
+ * @method Resources\Tickets\Tickets tickets()
+ *
+ * Files
+ * @method Resources\Files\Files files()
+ *
+ * Templates
+ * @method Resources\Templates\MailTemplates mailTemplates()
+ *
+ * Other
+ * @method Resources\Other\Migrate migrate()
+ * @method Resources\Other\Webhooks webhooks()
+ * @method Resources\Other\CloudPlatforms cloudPlatforms()
+ * @method Resources\Other\Accounts accounts()
+ */
 class TeamleaderSDK
 {
     use DispatchesEvents;
@@ -144,7 +252,7 @@ class TeamleaderSDK
         'nextgenProjects' => Resources\Projects\Projects::class,
         'projectTasks' => Resources\Projects\ProjectTasks::class,
 
-        // Pganning
+        // Planning
         'plannableItems' => Resources\Planning\PlannableItems::class,
         'reservations' => Resources\Planning\Reservations::class,
         'userAvailability' => Resources\Planning\UserAvailability::class,

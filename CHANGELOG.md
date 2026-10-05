@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.3.1] - 2026-10-05
+
+### Fixed
+
+- **Static analysis sees the resources on a connection.**
+  `Teamleader::connection('x')->users()` and `$sdk->deals()` are reached
+  through `__call()`, and only the facade carried `@method` annotations, so
+  PHPStan and Larastan reported them as undefined methods and typed
+  everything after them as `mixed`. `TeamleaderSDK` now annotates every
+  resource. A test keeps the SDK's and the facade's annotations in step with
+  the resource registry.
+- As a result, `lazy()` on a connection's resource is seen as
+  `LazyCollection<int, array<string, mixed>>`, and each record as
+  `array<string, mixed>`, as `lazy()` and `Cursor` have declared since 3.0.
+  The `->resource('users')` plus `@var` workaround is no longer needed.
+
+### Documentation
+
+- README roadmap brought up to date: 3.1–3.3 marked done, and the plan for
+  3.4 (webhook receiver, upsert) and 3.5 (sync, lookups, Pulse).
+
 ## [3.3.0] - 2026-10-05
 
 ### Added
