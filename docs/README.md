@@ -52,6 +52,7 @@ queue. See
 | Looking up a resource | [API reference](reference/README.md) — one page per resource, generated from the code |
 | Upgrading from 2.x | [Upgrading](project/upgrading.md) — four steps for most applications |
 | Something went wrong | [Error handling](guides/error-handling.md) |
+| Working with an AI agent | [AI agents](guides/ai-agents.md) — Laravel Boost guidelines and `llms-full.txt` |
 
 ## Requirements
 

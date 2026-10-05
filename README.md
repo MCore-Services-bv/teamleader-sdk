@@ -51,6 +51,7 @@ consistent interface — for one Teamleader account or many.
 - **Events** — for every request, response, failure, rate-limit wait and token refresh, plus optional request logging
 - **Test Fake** — `Teamleader::fake()` records requests instead of sending them, with assertions per endpoint and connection
 - **Resource Introspection** — Query any resource's capabilities programmatically
+- **AI Agent Guidelines** — ships [Laravel Boost](https://laravel.com/docs/boost) guidelines, so Claude Code, Cursor and Copilot use the SDK correctly
 
 ### 🎯 API Coverage
 
@@ -504,6 +505,25 @@ they build. See [Testing your integration](https://teamleader-sdk.mcore-services
 
 ---
 
+## 🤖 AI Agents
+
+The package ships guidelines for [Laravel Boost](https://laravel.com/docs/boost).
+With Boost installed, your coding agent picks them up:
+
+```bash
+composer require laravel/boost --dev
+php artisan boost:install    # or boost:update, after upgrading the SDK
+```
+
+They teach the agent to go through the facade, to look up filters and fields
+instead of guessing them, and the API quirks that cost time to find out.
+
+Not using Boost? Point any agent at
+[`llms-full.txt`](https://teamleader-sdk.mcore-services.dev/llms-full.txt):
+the complete documentation as one file.
+
+---
+
 ## 📡 Events
 
 ```php
@@ -705,6 +725,7 @@ The MIT License (MIT). See [LICENSE.md](LICENSE.md).
 - [x] Events and request logging (v3.0)
 - [ ] Laravel Pulse recorder (v3.1)
 - [ ] Upsert helper for bulk writes (v3.1)
+- [x] Laravel Boost guidelines for AI coding agents (v3.3)
 
 ---
 

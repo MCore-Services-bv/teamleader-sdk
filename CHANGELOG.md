@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.3.0] - 2026-10-05
+
+### Added
+
+- **Laravel Boost guidelines.** The package ships
+  `resources/boost/guidelines/core.blade.php`. Run
+  `php artisan boost:install` (or `boost:update`) and coding agents such as
+  Claude Code, Cursor or Copilot learn how to use the SDK: go through the
+  facade, look up filters and fields instead of guessing them, use `lazy()`,
+  bulk operations and `Teamleader::fake()`, and the known API quirks.
+
+### Documentation
+
+- New guide: *AI agents*, covering the Boost guidelines and the
+  `llms.txt` / `llms-full.txt` files the documentation site serves for any
+  other agent.
+
 ## [3.2.0] - 2026-10-02
 
 ### Added

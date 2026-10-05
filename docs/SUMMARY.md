@@ -26,6 +26,7 @@
 * [Artisan Commands](guides/artisan-commands.md)
 * [Command Line](guides/cli.md)
 * [Testing Your Integration](guides/testing.md)
+* [AI Agents](guides/ai-agents.md)
 
 ## Project
 
