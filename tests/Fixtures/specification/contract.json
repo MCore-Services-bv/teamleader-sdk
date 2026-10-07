@@ -1,6 +1,6 @@
 {
   "_comment": "Generated — do not edit by hand. See generate-spec-fixtures.mjs.",
-  "specification_version": "1.221.0",
+  "specification_version": "1.223.0",
   "endpoint_count": 293,
   "endpoints": {
     "accounts.projects-v2-status": {
@@ -5252,14 +5252,21 @@
               "id",
               "type"
             ]
+          },
+          "ids": {
+            "type": "array",
+            "items": "string"
+          },
+          "term": {
+            "type": "string"
           }
         },
         "filter_keys": [
-          "subject"
+          "ids",
+          "subject",
+          "term"
         ],
-        "filter_required": [
-          "subject"
-        ],
+        "filter_required": [],
         "sort_fields": [
           "updated_at"
         ],

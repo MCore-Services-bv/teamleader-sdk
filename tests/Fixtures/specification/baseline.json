@@ -1,6 +1,6 @@
 {
     "_comment": "Known divergences from the specification. Remove an entry when you fix it; move it to \"accepted\" with a reason when it is deliberate. Regenerate with: php bin/spec-audit --write-baseline",
-    "specification_version": "1.221.0",
+    "specification_version": "1.223.0",
     "open": {},
     "accepted": {
         "users:endpoint.unwrapped:users.getWeekSchedule": "Deliberately not wrapped since v3.0: Teamleader deprecated the endpoint. userSchedules()->forUser() wraps its successor, userSchedules.list."

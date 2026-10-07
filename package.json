@@ -6,7 +6,7 @@
         "spec:fixtures": "node tests/Fixtures/specification/generate-spec-fixtures.mjs"
     },
     "devDependencies": {
-        "@teamleader/focus-api-specification": "1.221.0",
+        "@teamleader/focus-api-specification": "1.223.0",
         "js-yaml": "^5.4.2"
     }
 }

@@ -1,6 +1,6 @@
 {
   "_comment": "Generated — do not edit by hand. See generate-spec-fixtures.mjs.",
-  "specification_version": "1.221.0",
+  "specification_version": "1.223.0",
   "endpoints": {
     "orders.list": {
       "request": {

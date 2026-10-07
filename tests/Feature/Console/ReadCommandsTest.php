@@ -188,13 +188,35 @@ final class ReadCommandsTest extends ResourceTestCase
 
     public function test_a_resource_that_needs_a_subject_says_so_before_any_request(): void
     {
-        foreach (['notes' => 'notes.list', 'emailTracking' => 'emailTracking.list', 'files' => 'files.list'] as $resource => $endpoint) {
+        foreach (['notes' => 'notes.list', 'emailTracking' => 'emailTracking.list'] as $resource => $endpoint) {
             $this->artisan('teamleader:list', ['resource' => $resource])
                 ->expectsOutputToContain("{$endpoint} only lists records of one subject. Add --subject=<type>:<uuid>")
                 ->assertExitCode(2);
         }
 
+        $this->artisan('teamleader:list', ['resource' => 'files'])
+            ->expectsOutputToContain('files.list needs a subject or ids. Add --subject=<type>:<uuid>, e.g. --subject=deal:3f6c…, or --filter=ids[]=<uuid>')
+            ->assertExitCode(2);
+
         $this->assertSame(0, $this->api->callCount());
+    }
+
+    /**
+     * files.list takes ids instead of a subject since specification 1.223.0.
+     */
+    public function test_files_can_be_listed_by_ids_without_a_subject(): void
+    {
+        $this->api->queueListResponse([['id' => 'f1', 'name' => 'offerte.pdf']]);
+
+        $this->artisan('teamleader:list', ['resource' => 'files', '--filter' => ['ids[]=0b9a4c8e-1f2d-4e3a-9b5c-6d7e8f901234', 'term=offerte']])
+            ->expectsOutputToContain('offerte.pdf')
+            ->assertExitCode(0);
+
+        $this->assertSame('files.list', $this->api->lastEndpoint());
+        $this->assertSame(
+            ['ids' => ['0b9a4c8e-1f2d-4e3a-9b5c-6d7e8f901234'], 'term' => 'offerte'],
+            $this->api->lastBody()['filter']
+        );
     }
 
     public function test_a_malformed_subject_is_refused(): void

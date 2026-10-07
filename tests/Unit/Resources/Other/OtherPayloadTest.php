@@ -15,7 +15,7 @@ use McoreServices\TeamleaderSDK\Tests\ResourceTestCase;
 
 /**
  * Payload tests for the Files, Templates and Other categories, against
- * specification 1.221.0.
+ * specification 1.221.0 (files.list: 1.223.0).
  */
 final class OtherPayloadTest extends ResourceTestCase
 {
@@ -59,7 +59,7 @@ final class OtherPayloadTest extends ResourceTestCase
         $this->assertLastBodyHas('sort', [['field' => 'updated_at', 'order' => 'desc']]);
     }
 
-    public function test_files_reject_filters_other_than_subject(): void
+    public function test_files_reject_filters_other_than_subject_ids_and_term(): void
     {
         $this->expectRejected(fn () => $this->resource(Files::class)->list([
             'subject' => ['type' => 'deal', 'id' => 'deal-uuid'],
