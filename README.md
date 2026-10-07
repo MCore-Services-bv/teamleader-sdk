@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/github/license/MCore-Services-bv/teamleader-sdk)](https://github.com/MCore-Services-bv/teamleader-sdk/blob/main/LICENSE.md)
 [![Tests](https://github.com/MCore-Services-bv/teamleader-sdk/actions/workflows/tests.yml/badge.svg)](https://github.com/MCore-Services-bv/teamleader-sdk/actions/workflows/tests.yml)
 [![Docs](https://img.shields.io/badge/docs-teamleader--sdk.mcore--services.dev-blue)](https://teamleader-sdk.mcore-services.dev/)
-[![Teamleader API spec](https://img.shields.io/badge/Teamleader%20API%20spec-1.221.0-2ea44f)](#-specification-parity)
+[![Teamleader API spec](https://img.shields.io/badge/Teamleader%20API%20spec-1.223.0-2ea44f)](#-specification-parity)
 
 A Laravel package for the Teamleader Focus API. Handles OAuth, encrypted token
 storage and renewal, rate limiting, and around 70 API resources behind a
@@ -305,6 +305,8 @@ $entries = Teamleader::timeTracking()->betweenDates(
 Teamleader::files()->uploadFile(storage_path('contract.pdf'), 'deal', 'deal-uuid', 'Contracts');
 
 $files = Teamleader::files()->forDeal('deal-uuid');
+$offers = Teamleader::files()->forDeal('deal-uuid', ['filters' => ['term' => 'offerte']]);
+$some = Teamleader::files()->byIds(['file-uuid-1', 'file-uuid-2']);
 
 // Downloads: the bytes, or straight onto a Laravel disk
 $pdf = Teamleader::invoices()->downloadContents('invoice-uuid');
@@ -644,7 +646,7 @@ Plus `describe`, `list`, `info`, `export`, `import` and `call` — see
 
 Every resource is checked against Teamleader's machine-readable API
 specification, [`@teamleader/focus-api-specification`](https://www.npmjs.com/package/@teamleader/focus-api-specification),
-currently pinned at **1.221.0**.
+currently pinned at **1.223.0**.
 
 The Teamleader API answers `200 OK` to a filter, sort field, include or body
 field it does not recognise, and simply ignores it. A typo therefore looks like

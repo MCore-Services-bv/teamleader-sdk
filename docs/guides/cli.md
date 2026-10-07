@@ -74,7 +74,13 @@ php artisan teamleader:list files --subject=company:3f6c…
 php artisan teamleader:export emailTracking --subject=contact:3f6c… --format=jsonl
 ```
 
-Without it, the command stops before any request and says so.
+Without it, the command stops before any request and says so. `files` also
+lists by id instead, and searches file names with `term`:
+
+```bash
+php artisan teamleader:list files --filter=ids[]=a856… --filter=ids[]=b0e1…
+php artisan teamleader:list files --subject=deal:3f6c… --filter=term=offerte
+```
 
 ## One record
 

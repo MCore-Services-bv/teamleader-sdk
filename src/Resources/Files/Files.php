@@ -73,9 +73,11 @@ class Files extends Resource
     // Default includes
     protected array $defaultIncludes = [];
 
-    // Common filters based on API documentation
+    // Filters files.list accepts. subject or ids is required (spec 1.223.0)
     protected array $commonFilters = [
-        'subject' => 'REQUIRED: Object containing subject type and id — see $listSubjectTypes for accepted types',
+        'subject' => 'Object containing subject type and id — see $listSubjectTypes for accepted types. Required unless ids is given',
+        'ids' => 'Array of file UUIDs. Required unless subject is given; files the user has no access to are left out',
+        'term' => 'Search the file name. Accents and special characters are transliterated, so cafe also matches Café.pdf',
     ];
 
     // Available sort fields — updated_at is the only field the API accepts
@@ -137,6 +139,14 @@ class Files extends Resource
             'description' => 'Get all files for a company',
             'code' => '$files = $teamleader->files()->list([\'subject\' => [\'type\' => \'company\', \'id\' => \'company-uuid\']]);',
         ],
+        'search_for_subject' => [
+            'description' => 'Search the files of a deal by file name',
+            'code' => '$files = $teamleader->files()->forDeal(\'deal-uuid\', [\'filters\' => [\'term\' => \'offerte\']]);',
+        ],
+        'list_by_ids' => [
+            'description' => 'Get files by id, without naming their subject',
+            'code' => '$files = $teamleader->files()->byIds([\'file-uuid-1\', \'file-uuid-2\']);',
+        ],
         'list_for_product' => [
             'description' => 'Get all files attached to a product (technical sheets, EPB documentation)',
             'code' => '$files = $teamleader->files()->forProduct(\'product-uuid\');',
@@ -195,11 +205,12 @@ class Files extends Resource
     /**
      * Build query parameters for Files API requests.
      *
-     * The Files API requires a 'filter' object containing 'subject' with both
-     * type and id — there is no way to list files without one.
+     * files.list needs a 'filter' object with `subject` (type and id) or
+     * `ids`, or both. `term` narrows either one down by file name; on its own
+     * it is not enough.
      *
      * @param  array  $baseParams  Base parameters
-     * @param  array  $filters  Filters to apply (must contain 'subject' => ['type' => ..., 'id' => ...])
+     * @param  array  $filters  subject, ids and/or term — subject or ids is required
      * @param  string|null  $sort  Sorting field (only 'updated_at' is accepted)
      * @param  string  $sortOrder  Sort order
      * @param  int  $pageSize  Page size
@@ -207,7 +218,7 @@ class Files extends Resource
      * @param  mixed  $includes  Ignored — files do not support sideloading
      * @return array Complete parameters array
      *
-     * @throws InvalidArgumentException When the subject filter is missing or invalid
+     * @throws InvalidArgumentException When neither subject nor ids is given, or a filter is invalid
      */
     protected function buildQueryParams(
         array $baseParams = [],
@@ -220,43 +231,77 @@ class Files extends Resource
     ): array {
         $params = $baseParams;
 
-        // The subject filter is required by the API — fail here rather than
-        // sending a request that can only come back as a 400.
-        // Only `subject` exists; anything else was dropped without a word
-        // until v2.2.17.
-        $unknown = array_diff(array_keys($filters), ['subject']);
+        // Anything else was dropped without a word until v2.2.17.
+        $unknown = array_diff(array_keys($filters), array_keys($this->commonFilters));
 
         if ($unknown !== []) {
             throw new InvalidArgumentException(
                 'Unsupported filter '.(count($unknown) > 1 ? 'keys' : 'key').' for files.list: '
-                .implode(', ', $unknown).'. files.list filters on subject only.'
+                .implode(', ', $unknown).'. Supported: '.implode(', ', array_keys($this->commonFilters)).'.'
             );
         }
 
-        if (! isset($filters['subject'])) {
+        // subject or ids is required by the API — fail here rather than
+        // sending a request that can only come back as a 400.
+        if (! isset($filters['subject']) && ! isset($filters['ids'])) {
             throw new InvalidArgumentException(
-                'The subject filter is required for files.list. Pass '
-                ."['subject' => ['type' => ..., 'id' => ...]], or use one of the "
-                .'forCompany(), forDeal(), forProduct() helpers.'
+                'The subject filter is required for files.list, unless ids is given. Pass '
+                ."['subject' => ['type' => ..., 'id' => ...]] or ['ids' => [...]], or use one of the "
+                .'forCompany(), forDeal(), forProduct(), byIds() helpers.'
             );
         }
 
-        $subject = $filters['subject'];
+        $filter = [];
 
-        if (! is_array($subject) || ! isset($subject['type']) || ! isset($subject['id'])) {
-            throw new InvalidArgumentException(
-                'subject filter must contain both type and id'
-            );
-        }
+        if (isset($filters['subject'])) {
+            $subject = $filters['subject'];
 
-        $this->validateSubjectType($subject['type'], 'list');
+            if (! is_array($subject) || ! isset($subject['type']) || ! isset($subject['id'])) {
+                throw new InvalidArgumentException(
+                    'subject filter must contain both type and id'
+                );
+            }
 
-        $params['filter'] = [
-            'subject' => [
+            $this->validateSubjectType($subject['type'], 'list');
+
+            $filter['subject'] = [
                 'type' => $subject['type'],
                 'id' => $subject['id'],
-            ],
-        ];
+            ];
+        }
+
+        if (isset($filters['ids'])) {
+            $ids = is_array($filters['ids']) ? array_values($filters['ids']) : [$filters['ids']];
+
+            if ($ids === []) {
+                throw new InvalidArgumentException(
+                    'The ids filter for files.list needs at least one file id.'
+                );
+            }
+
+            foreach ($ids as $id) {
+                if (! is_string($id) || $id === '') {
+                    throw new InvalidArgumentException(
+                        'The ids filter for files.list takes file ids as non-empty strings.'
+                    );
+                }
+            }
+
+            $filter['ids'] = $ids;
+        }
+
+        if (isset($filters['term']) && $filters['term'] !== '') {
+            // The CLI reads term=2026 as an integer; the API wants a string.
+            if (! is_string($filters['term']) && ! is_int($filters['term']) && ! is_float($filters['term'])) {
+                throw new InvalidArgumentException(
+                    'The term filter for files.list must be a string.'
+                );
+            }
+
+            $filter['term'] = (string) $filters['term'];
+        }
+
+        $params['filter'] = $filter;
 
         // Build sort object.
         //
@@ -288,14 +333,15 @@ class Files extends Resource
     }
 
     /**
-     * List files for a subject.
+     * List files for a subject, or by id.
      *
-     * The subject filter is required — see buildQueryParams().
+     * subject or ids is required; term searches the file name within either
+     * — see buildQueryParams().
      *
-     * @param  array  $filters  Must contain 'subject' => ['type' => ..., 'id' => ...]
+     * @param  array  $filters  'subject' => ['type' => ..., 'id' => ...] and/or 'ids' => [...]; optionally 'term'
      * @param  array  $options  sort, sort_order, page_size, page_number
      *
-     * @throws InvalidArgumentException When the subject filter is missing or invalid
+     * @throws InvalidArgumentException When neither subject nor ids is given, or a filter is invalid
      */
     public function list(array $filters = [], array $options = []): array
     {
@@ -502,6 +548,8 @@ class Files extends Resource
      * @param  string  $subjectType  Subject type — see $listSubjectTypes
      * @param  string  $subjectId  Subject UUID
      * @param  array  $options  Additional options (sort, sort_order, page_size, page_number, filters)
+     *                          — filters takes term to search the file name:
+     *                          ['filters' => ['term' => 'offerte']]
      *
      * @throws InvalidArgumentException When the subject type is not valid for files.list
      */
@@ -516,6 +564,26 @@ class Files extends Resource
                     'id' => $subjectId,
                 ],
             ], $options['filters'] ?? []),
+            $options
+        );
+    }
+
+    /**
+     * Get files by id
+     *
+     * Uses the `ids` filter, added to files.list in specification 1.223.0:
+     * the one way to list files without naming their subject. Files the user
+     * has no access to are left out of the result rather than reported.
+     *
+     * @param  array<int, string>  $ids  File UUIDs
+     * @param  array  $options  sort, sort_order, page_size, page_number, filters (e.g. term)
+     *
+     * @throws InvalidArgumentException When $ids is empty or holds anything but non-empty strings
+     */
+    public function byIds(array $ids, array $options = []): array
+    {
+        return $this->list(
+            array_merge(['ids' => $ids], $options['filters'] ?? []),
             $options
         );
     }

@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.3.2] - 2026-10-07
+
+Brought in line with `@teamleader/focus-api-specification` **1.223.0**
+(was 1.221.0). The only change between the two is on `files.list`.
+
+### Added
+
+- **Files: `ids` and `term` filters.** `files.list` takes `ids`, and with it
+  no longer needs a subject, and `term`, which searches the file name (accents
+  are ignored, so `cafe` finds `Café.pdf`).
+  - `Teamleader::files()->byIds([...])` lists files by id. Files the user has
+    no access to are left out, not reported.
+  - `term` works with any subject helper:
+    `forDeal($id, ['filters' => ['term' => 'offerte']])`.
+  - `term` alone is not enough: `subject` or `ids` is still required, and
+    the SDK says so before a request is sent.
+- `teamleader:list files` and `teamleader:export files` accept
+  `--filter=ids[]=…` instead of `--subject`.
+
+### Changed
+
+- The spec pin, the fixtures, `API-list-endpoint-contract.md` and the API
+  reference move to 1.223.0.
+- The error for a filter files.list does not know now lists `subject`, `ids`
+  and `term` as supported.
+
 ## [3.3.1] - 2026-10-05
 
 ### Fixed

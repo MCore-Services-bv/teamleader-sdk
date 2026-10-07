@@ -28,7 +28,9 @@ Passed as the first argument to `list()`. Any other key throws.
 
 | Filter | Description |
 |---|---|
-| `subject` | REQUIRED: Object containing subject type and id — see $listSubjectTypes for accepted types |
+| `ids` | Array of file UUIDs. Required unless subject is given; files the user has no access to are left out |
+| `subject` | Object containing subject type and id — see $listSubjectTypes for accepted types. Required unless ids is given |
+| `term` | Search the file name. Accents and special characters are transliterated, so cafe also matches Café.pdf |
 
 ## Sorting
 
@@ -55,14 +57,15 @@ throw before the request is sent.
 list(array $filters = [], array $options = []): array
 ```
 
-List files for a subject.
+List files for a subject, or by id.
 
-The subject filter is required — see buildQueryParams().
+subject or ids is required; term searches the file name within either
+— see buildQueryParams().
 
-- `$filters` — Must contain 'subject' =&gt; ['type' =&gt; ..., 'id' =&gt; ...]
+- `$filters` — 'subject' =&gt; ['type' =&gt; ..., 'id' =&gt; ...] and/or 'ids' =&gt; [...]; optionally 'term'
 - `$options` — sort, sort_order, page_size, page_number
 
-**Throws** `InvalidArgumentException` When the subject filter is missing or invalid
+**Throws** `InvalidArgumentException` When neither subject nor ids is given, or a filter is invalid
 
 ### `info()`
 
@@ -160,9 +163,25 @@ Helper method to get files for a specific subject
 
 - `$subjectType` — Subject type — see $listSubjectTypes
 - `$subjectId` — Subject UUID
-- `$options` — Additional options (sort, sort_order, page_size, page_number, filters)
+- `$options` — Additional options (sort, sort_order, page_size, page_number, filters) — filters takes term to search the file name: ['filters' =&gt; ['term' =&gt; 'offerte']]
 
 **Throws** `InvalidArgumentException` When the subject type is not valid for files.list
+
+### `byIds()`
+
+```php
+byIds(array $ids, array $options = []): array
+```
+
+Get files by id
+
+Uses the `ids` filter, added to files.list in specification 1.223.0:
+the one way to list files without naming their subject. Files the user
+has no access to are left out of the result rather than reported.
+
+- `$options` — sort, sort_order, page_size, page_number, filters (e.g. term)
+
+**Throws** `InvalidArgumentException` When $ids is empty or holds anything but non-empty strings
 
 ### `forCompany()`
 
@@ -298,6 +317,18 @@ Get all files for a company:
 
 ```php
 $files = Teamleader::files()->list(['subject' => ['type' => 'company', 'id' => 'company-uuid']]);
+```
+
+Search the files of a deal by file name:
+
+```php
+$files = Teamleader::files()->forDeal('deal-uuid', ['filters' => ['term' => 'offerte']]);
+```
+
+Get files by id, without naming their subject:
+
+```php
+$files = Teamleader::files()->byIds(['file-uuid-1', 'file-uuid-2']);
 ```
 
 Get all files attached to a product (technical sheets, EPB documentation):

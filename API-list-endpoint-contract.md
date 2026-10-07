@@ -1,6 +1,6 @@
 # API list-endpoint contract
 
-Generated from `@teamleader/focus-api-specification` v1.221.0 by
+Generated from `@teamleader/focus-api-specification` v1.223.0 by
 `tests/Fixtures/specification/generate-spec-fixtures.mjs`. Do not edit by hand.
 
 58 `.list` endpoints. The specification types `includes` as a free-form
@@ -30,7 +30,7 @@ from response fields documented as "only included with `includes=...`".
 | `emailTracking` | `subject` | — | — | page |
 | `events` | `activity_type_id`, `attendee`, `done`, `ends_after`, `ids`, `link`, `starts_before`, `task_id`, `term`, `user_id` | `starts_at` | — | page |
 | `expenses` | `bookkeeping_statuses`, `department_ids`, `document_date`, `paid_at`, `payment_statuses`, `review_statuses`, `source_types`, `supplier`, `term` | `document_date`, `due_date`, `supplier_name` | — | page, meta via `includes=pagination` |
-| `files` | `subject` | `updated_at` | — | page |
+| `files` | `ids`, `subject`, `term` | `updated_at` | — | page |
 | `invoices` | `customer`, `deal_id`, `department_id`, `ids`, `invoice_date_after`, `invoice_date_before`, `invoice_number`, `payment_reference`, `project_id`, `purchase_order_number`, `status`, `subscription_id`, `term`, `updated_since` | `invoice_date`, `invoice_number` | `late_fees`, `totals.due_incasso_inclusive`, `totals.fixed_late_fee`, `totals.interest` | page |
 | `levelTwoAreas` | **none** | — | — | — |
 | `lostReasons` | `ids` | `name` | — | page |

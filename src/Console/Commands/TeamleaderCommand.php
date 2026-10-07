@@ -21,13 +21,18 @@ abstract class TeamleaderCommand extends Command
     protected const CONNECTION_OPTION = '{--connection= : The Teamleader connection (default: the default connection)}';
 
     /** For the list and export commands */
-    protected const SUBJECT_OPTION = '{--subject= : type:uuid, e.g. deal:3f6c… — required for notes, emailTracking and files}';
+    protected const SUBJECT_OPTION = '{--subject= : type:uuid, e.g. deal:3f6c… — required for notes and emailTracking, and for files unless --filter=ids[]=… is given}';
 
     /** Resources whose list endpoint refuses to run without a subject filter */
     protected const SUBJECT_REQUIRED = [
         'notes' => 'notes.list',
         'emailTracking' => 'emailTracking.list',
         'files' => 'files.list',
+    ];
+
+    /** A filter that does instead of a subject: files.list takes ids since spec 1.223.0 */
+    protected const SUBJECT_ALTERNATIVE = [
+        'files' => 'ids',
     ];
 
     /**
@@ -55,8 +60,15 @@ abstract class TeamleaderCommand extends Command
         $endpoint = self::SUBJECT_REQUIRED[$resource] ?? null;
 
         if ($endpoint !== null && ! isset($filters['subject']) && ! isset($filters['subject.type'])) {
-            throw new InvalidArgumentException(
-                "{$endpoint} only lists records of one subject. Add --subject=<type>:<uuid>, e.g. --subject=deal:3f6c…"
+            $alternative = self::SUBJECT_ALTERNATIVE[$resource] ?? null;
+
+            if ($alternative !== null && isset($filters[$alternative])) {
+                return $filters;
+            }
+
+            throw new InvalidArgumentException($alternative === null
+                ? "{$endpoint} only lists records of one subject. Add --subject=<type>:<uuid>, e.g. --subject=deal:3f6c…"
+                : "{$endpoint} needs a subject or {$alternative}. Add --subject=<type>:<uuid>, e.g. --subject=deal:3f6c…, or --filter={$alternative}[]=<uuid>"
             );
         }
 

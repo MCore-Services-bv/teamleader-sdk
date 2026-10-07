@@ -21,6 +21,9 @@ use McoreServices\TeamleaderSDK\Tests\ResourceTestCase;
  *    the wrong shape without erroring, so sorting silently never worked.
  * 3. filter.subject is required by the API. list() with no filters built a body
  *    with no filter at all, which can only come back as a 400.
+ *
+ * Since specification 1.223.0 (v3.3.2) files.list also takes `ids`, which does
+ * instead of a subject, and `term`, which searches the file name.
  */
 final class FilesResourceTest extends ResourceTestCase
 {
@@ -211,6 +214,108 @@ final class FilesResourceTest extends ResourceTestCase
         $this->expectExceptionMessage('both type and id');
 
         $this->files->list(['subject' => ['type' => 'company']]);
+    }
+
+    // ---------------------------------------------------------------------
+    // ids and term — specification 1.223.0
+    // ---------------------------------------------------------------------
+
+    public function test_ids_do_instead_of_a_subject(): void
+    {
+        $this->files->list(['ids' => ['file-1', 'file-2']]);
+
+        $this->assertLastEndpoint('files.list');
+        $this->assertSame(['ids' => ['file-1', 'file-2']], $this->lastBody()['filter']);
+    }
+
+    public function test_by_ids_sends_the_ids_filter(): void
+    {
+        $this->files->byIds(['file-1'], ['filters' => ['term' => 'offerte']]);
+
+        $this->assertSame(['ids' => ['file-1'], 'term' => 'offerte'], $this->lastBody()['filter']);
+    }
+
+    public function test_ids_are_reindexed_and_a_single_id_is_wrapped(): void
+    {
+        $this->files->list(['ids' => [3 => 'file-1', 7 => 'file-2']]);
+        $this->assertLastBodyHas('filter.ids', ['file-1', 'file-2']);
+
+        $this->files->list(['ids' => 'file-3']);
+        $this->assertLastBodyHas('filter.ids', ['file-3']);
+    }
+
+    public function test_subject_and_ids_can_be_combined(): void
+    {
+        $this->files->forDeal('deal-uuid', ['filters' => ['ids' => ['file-1']]]);
+
+        $this->assertLastBodyHas('filter.subject.id', 'deal-uuid');
+        $this->assertLastBodyHas('filter.ids', ['file-1']);
+    }
+
+    public function test_term_searches_within_a_subject(): void
+    {
+        $this->files->forDeal('deal-uuid', ['filters' => ['term' => 'offerte']]);
+
+        $this->assertLastBodyHas('filter.subject.type', 'deal');
+        $this->assertLastBodyHas('filter.term', 'offerte');
+    }
+
+    public function test_a_numeric_term_is_sent_as_a_string(): void
+    {
+        $this->files->forDeal('deal-uuid', ['filters' => ['term' => 2026]]);
+
+        $this->assertLastBodyHas('filter.term', '2026');
+    }
+
+    public function test_an_empty_term_is_left_out(): void
+    {
+        $this->files->forDeal('deal-uuid', ['filters' => ['term' => '']]);
+
+        $this->assertSame(['subject'], array_keys($this->lastBody()['filter']));
+    }
+
+    public function test_term_alone_is_not_enough(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('subject filter is required');
+
+        try {
+            $this->files->list(['term' => 'offerte']);
+        } finally {
+            $this->assertNoRequestMade();
+        }
+    }
+
+    public function test_empty_ids_throw(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('at least one file id');
+
+        try {
+            $this->files->byIds([]);
+        } finally {
+            $this->assertNoRequestMade();
+        }
+    }
+
+    public function test_ids_must_be_non_empty_strings(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('non-empty strings');
+
+        try {
+            $this->files->byIds(['file-1', 42]);
+        } finally {
+            $this->assertNoRequestMade();
+        }
+    }
+
+    public function test_an_array_term_throws(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('term filter for files.list must be a string');
+
+        $this->files->byIds(['file-1'], ['filters' => ['term' => ['offerte']]]);
     }
 
     // ---------------------------------------------------------------------
