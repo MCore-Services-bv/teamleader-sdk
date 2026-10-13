@@ -3,7 +3,7 @@
 Teamleader publishes a machine-readable description of the Focus API:
 [`@teamleader/focus-api-specification`](https://www.npmjs.com/package/@teamleader/focus-api-specification).
 The SDK is checked against it on every push. The pinned version is currently
-**1.223.0**.
+**1.225.0**.
 
 ## Why it matters
 
@@ -27,9 +27,11 @@ values** in the [API reference](../reference/README.md).
 **The spec audit.** Every registered resource's endpoints, filters, sort
 fields, includes and pagination are compared with the specification.
 Differences are recorded in a baseline; CI fails on anything not in it, and on
-any baseline entry that no longer applies. One difference is recorded as
+any baseline entry that no longer applies. Two differences are recorded as
 accepted: `users.getWeekSchedule` is not wrapped, because Teamleader deprecated
-it. `userSchedules()->forUser()` wraps its successor.
+it — `userSchedules()->forUser()` wraps its successor; and
+`dealPhases.duplicate`, which specification 1.225.0 removed, is still called by
+`dealPhases()->duplicate()`. That method is deprecated and goes in v4.0.
 
 **Fixture freshness.** CI regenerates the fixtures from the pinned
 specification and fails if they differ from what is committed.
