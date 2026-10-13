@@ -1,7 +1,7 @@
 {
   "_comment": "Generated — do not edit by hand. See generate-spec-fixtures.mjs.",
-  "specification_version": "1.223.0",
-  "endpoint_count": 293,
+  "specification_version": "1.225.0",
+  "endpoint_count": 292,
   "endpoints": {
     "accounts.projects-v2-status": {
       "tags": [
@@ -3024,42 +3024,6 @@
       "response": {
         "statuses": [
           "204"
-        ],
-        "properties": [],
-        "declares_meta": false,
-        "returns_collection": false,
-        "fields": {}
-      }
-    },
-    "dealPhases.duplicate": {
-      "tags": [
-        "deal_phases"
-      ],
-      "deprecated": false,
-      "request": {
-        "properties": [
-          "id"
-        ],
-        "required": [
-          "id"
-        ],
-        "filters": {},
-        "filter_keys": [],
-        "filter_required": [],
-        "sort_fields": [],
-        "sort_orders": [],
-        "declares_pagination": false,
-        "declares_sort": false,
-        "declares_includes": false,
-        "includes": [],
-        "response_includes": [],
-        "declares_pagination_meta": false,
-        "includes_example": null,
-        "enums": {}
-      },
-      "response": {
-        "statuses": [
-          "201"
         ],
         "properties": [],
         "declares_meta": false,

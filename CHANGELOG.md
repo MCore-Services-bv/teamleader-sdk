@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.3.3] - 2026-10-13
+
+Brought in line with `@teamleader/focus-api-specification` **1.225.0**
+(was 1.223.0). The only change between the two: `dealPhases.duplicate` is
+gone from the specification, without a successor. Closes #6.
+
+### Deprecated
+
+- **`dealPhases()->duplicate()`.** It still sends `dealPhases.duplicate`, so
+  existing code keeps working for as long as Teamleader keeps answering it,
+  but it now raises `E_USER_DEPRECATED` once per process. Create the phase
+  with `dealPhases()->create()` instead, copying the settings of the source
+  phase. The method is removed in v4.0.
+
+### Changed
+
+- The spec pin, the fixtures, `API-list-endpoint-contract.md` and the API
+  reference move to 1.225.0.
+- The spec-audit baseline records `dealPhases.duplicate` as an accepted
+  divergence until v4.0.
+- The *Duplicate an existing phase* usage example is gone from the deal phases
+  reference.
+
+### Documentation
+
+- *Upgrading* gets a *Deprecated in 3.x, removed in 4.0* table.
+
 ## [3.3.2] - 2026-10-07
 
 Brought in line with `@teamleader/focus-api-specification` **1.223.0**

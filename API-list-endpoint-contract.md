@@ -1,6 +1,6 @@
 # API list-endpoint contract
 
-Generated from `@teamleader/focus-api-specification` v1.223.0 by
+Generated from `@teamleader/focus-api-specification` v1.225.0 by
 `tests/Fixtures/specification/generate-spec-fixtures.mjs`. Do not edit by hand.
 
 58 `.list` endpoints. The specification types `includes` as a free-form

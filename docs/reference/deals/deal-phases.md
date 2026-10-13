@@ -115,11 +115,18 @@ deal phase.", which this turns into a ValidationException that says so.
 
 ### `duplicate()`
 
+> **Deprecated** 3.3.3 dealPhases.duplicate is no longer in the Teamleader API specification. Create the phase with create() instead, copying the settings of the source phase. Raises E_USER_DEPRECATED once per process and goes in v4.0.
+
 ```php
 duplicate(string $id): array
 ```
 
 Duplicate an existing deal phase
+
+Teamleader removed dealPhases.duplicate from the API specification in
+1.225.0, without a successor. The request is still sent, so code that
+calls this keeps working for as long as Teamleader keeps answering it,
+but nothing guarantees that it does.
 
 - `$id` — Source phase UUID
 
@@ -194,12 +201,6 @@ Create a new phase:
 
 ```php
 $phase = Teamleader::dealPhases()->create(['name' => 'New Phase', 'deal_pipeline_id' => 'uuid', 'requires_attention_after' => ['amount' => 7, 'unit' => 'days']]);
-```
-
-Duplicate an existing phase:
-
-```php
-$newPhase = Teamleader::dealPhases()->duplicate('source-phase-uuid');
 ```
 
 Move phase to new position:

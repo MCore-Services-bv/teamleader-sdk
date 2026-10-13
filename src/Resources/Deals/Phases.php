@@ -70,10 +70,6 @@ class Phases extends Resource
             'description' => 'Create a new phase',
             'code' => '$phase = $teamleader->dealPhases()->create([\'name\' => \'New Phase\', \'deal_pipeline_id\' => \'uuid\', \'requires_attention_after\' => [\'amount\' => 7, \'unit\' => \'days\']]);',
         ],
-        'duplicate_phase' => [
-            'description' => 'Duplicate an existing phase',
-            'code' => '$newPhase = $teamleader->dealPhases()->duplicate(\'source-phase-uuid\');',
-        ],
         'move_phase' => [
             'description' => 'Move phase to new position',
             'code' => '$teamleader->dealPhases()->move(\'phase-uuid\', \'after-phase-uuid\');',
@@ -261,10 +257,31 @@ class Phases extends Resource
     /**
      * Duplicate an existing deal phase
      *
+     * Teamleader removed dealPhases.duplicate from the API specification in
+     * 1.225.0, without a successor. The request is still sent, so code that
+     * calls this keeps working for as long as Teamleader keeps answering it,
+     * but nothing guarantees that it does.
+     *
+     * @deprecated 3.3.3 dealPhases.duplicate is no longer in the Teamleader
+     *             API specification. Create the phase with create() instead,
+     *             copying the settings of the source phase. Raises
+     *             E_USER_DEPRECATED once per process and goes in v4.0.
+     *
      * @param  string  $id  Source phase UUID
      */
     public function duplicate(string $id): array
     {
+        static $warned = false;
+
+        if (! $warned) {
+            $warned = true;
+            trigger_error(
+                'dealPhases.duplicate is no longer in the Teamleader API specification (removed in 1.225.0). '
+                .'Use dealPhases()->create() with the settings of the source phase instead.',
+                E_USER_DEPRECATED
+            );
+        }
+
         return $this->api->request('POST', $this->getBasePath().'.duplicate', [
             'id' => $id,
         ]);

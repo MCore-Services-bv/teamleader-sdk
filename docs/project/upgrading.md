@@ -1,5 +1,14 @@
 # Upgrading
 
+## Deprecated in 3.x, removed in 4.0
+
+These still work in 3.x and raise an `E_USER_DEPRECATED` notice, once per
+process, the first time they are called. Clear them before upgrading to 4.0:
+
+| Deprecated | Since | Use instead |
+|---|---|---|
+| `dealPhases()->duplicate($id)` | 3.3.3 | `dealPhases()->create([...])` with the settings of the source phase. Teamleader removed `dealPhases.duplicate` from the API specification in 1.225.0, so the call may stop working before 4.0 |
+
 ## From 2.3 to 3.0
 
 Most applications need four steps. Do them in this order:
