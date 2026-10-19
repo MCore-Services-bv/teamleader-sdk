@@ -1,0 +1,97 @@
+# Publishes docs/ on the MCore hub: https://hub.mcore-services.be/docs/teamleader-sdk
+#
+# - Automatically on every push to main that changes docs/ (or this workflow): the docs follow main, as they did on
+#   GitBook. Document a feature on main once it is about to be released.
+# - By hand: Actions → Docs → Run workflow. Leave "ref" empty to publish the latest release tag, or enter a branch,
+#   tag or commit to publish that instead.
+#
+# The API reference in docs/reference must match the code (composer docs:check), and the hub refuses documentation
+# with a broken link between pages, so a mistake fails this run instead of going live; the old pages stay online.
+#
+# Needs the repository secret HUB_RELEASE_TOKEN (the hub's HUB_RELEASE_TOKEN) and optionally the repository variable
+# HUB_URL (default https://hub.mcore-services.be). The product teamleader-sdk must exist on the hub
+# (php artisan hub:products:add teamleader-sdk "Teamleader SDK for Laravel").
+
+name: Docs
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Tag, branch or commit to publish (empty = the latest release tag)
+        type: string
+        required: false
+        default: ''
+
+# Read-only token: the upload goes to the hub, nothing is written to the repository.
+permissions:
+  contents: read
+
+concurrency:
+  group: docs
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish on the hub
+    runs-on: ubuntu-latest
+    env:
+      HUB_URL: ${{ vars.HUB_URL || 'https://hub.mcore-services.be' }}
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check out what to publish
+        env:
+          # A push publishes the pushed commit; a manual run the ref it was given
+          REF: ${{ github.event_name == 'push' && github.sha || inputs.ref }}
+        run: |
+          if [ -z "$REF" ]; then
+            # The latest stable release tag (pre-releases like v3.4.0-beta.1 are skipped)
+            REF="$(git tag --list 'v*.*.*' --sort=-version:refname | grep -v -- '-' | head -n 1)"
+
+            if [ -z "$REF" ]; then
+              echo "::error::There is no release tag yet; enter a ref to publish."
+              exit 1
+            fi
+          fi
+
+          git checkout --quiet "$REF"
+          echo "Publishing $REF ($(git rev-parse --short HEAD))"
+          echo "COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.4'
+          extensions: mbstring, json, curl
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: API reference matches the code
+        run: composer docs:check
+
+      - name: Zip the documentation
+        run: cd docs && zip -r -q ../documentation.zip . -i '*.md'
+
+      - name: Upload to the hub
+        env:
+          HUB_RELEASE_TOKEN: ${{ secrets.HUB_RELEASE_TOKEN }}
+        run: |
+          curl --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer $HUB_RELEASE_TOKEN" \
+            -H "Accept: application/json" \
+            -F product=teamleader-sdk \
+            -F commit="$COMMIT" \
+            -F "zip=@documentation.zip;type=application/zip" \
+            "$HUB_URL/api/v1/docs"
