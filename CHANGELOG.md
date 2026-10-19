@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.4.1] - 2026-10-19
+
+### Fixed
+
+- **The Pulse cards no longer show "This page has expired" on MySQL and
+  PostgreSQL.** Pulse stores its aggregates as DECIMAL, which those databases
+  return as strings (`"3.00"`); the cards expected numbers, threw a
+  `TypeError` while loading, and Livewire answers that with 419. SQLite, which
+  the tests used, returns numbers, so it went unnoticed. The cards now accept
+  both.
+
 ## [3.4.0] - 2026-10-19
 
 ### Added

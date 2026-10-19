@@ -47,10 +47,14 @@ trait StylesTeamleaderCards
 
     /**
      * A count recorded at a sample rate below 1, scaled back up.
+     *
+     * Takes whatever the database returns: Pulse stores aggregates as
+     * DECIMAL, which MySQL and PostgreSQL return as strings ("3.00") and
+     * SQLite as numbers.
      */
-    protected function scaled(int|float|null $count, float $sampleRate): float
+    protected function scaled(mixed $count, float $sampleRate): float
     {
-        $count = (float) ($count ?? 0);
+        $count = is_numeric($count) ? (float) $count : 0.0;
 
         return $sampleRate > 0 && $sampleRate < 1 ? $count / $sampleRate : $count;
     }
