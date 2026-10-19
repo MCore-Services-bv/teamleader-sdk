@@ -30,13 +30,12 @@ These work in a fresh Laravel application, without login or pages of your
 own. Open `/teamleader/connect` in the browser, approve the integration in
 Teamleader, and check the result with `php artisan teamleader:status`.
 
-{% hint style="warning" %}
-**Anyone who can open `/teamleader/connect` can connect a Teamleader account
-to your application.** Once the application is reachable by others, put both
-routes behind your login (`->middleware('auth')`) and redirect to a page of
-your own. Setting `expected_account_id` (see below) also stops the wrong
-account from being connected.
-{% endhint %}
+> [!WARNING]
+> **Anyone who can open `/teamleader/connect` can connect a Teamleader account
+> to your application.** Once the application is reachable by others, put both
+> routes behind your login (`->middleware('auth')`) and redirect to a page of
+> your own. Setting `expected_account_id` (see below) also stops the wrong
+> account from being connected.
 
 The callback path must match `TEAMLEADER_REDIRECT_URI` and the redirect URI of
 your integration exactly. Both routes need the `web` middleware group, for
@@ -155,6 +154,8 @@ connection to fix it.
 
 To be alerted, listen for the event. See
 [Events and Logging](../guides/events-and-logging.md#alert-when-an-account-needs-reconnecting).
+With Laravel Pulse, the connections card lists every connection in this
+state. See [Monitoring with Pulse](../guides/monitoring.md).
 
 ### Status
 

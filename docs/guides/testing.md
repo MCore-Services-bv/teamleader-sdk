@@ -6,9 +6,8 @@ network is needed, and the resources still validate what they build: a test
 that sends a filter or field Teamleader would ignore fails the same way
 production would.
 
-{% hint style="info" %}
-Available from v3.1.
-{% endhint %}
+> [!NOTE]
+> Available from v3.1.
 
 ## Faking and asserting
 

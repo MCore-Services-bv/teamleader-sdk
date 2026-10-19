@@ -444,8 +444,11 @@ class YourService
 
 ## 📚 Documentation
 
-Documentation lives in `docs/` and is published to GitBook from `main` through
-Git Sync, at [teamleader-sdk.mcore-services.dev](https://teamleader-sdk.mcore-services.dev/). It has two parts:
+Documentation lives in `docs/` and is published on the MCore hub, at
+[hub.mcore-services.be/docs/teamleader-sdk](https://hub.mcore-services.be/docs/teamleader-sdk), by the *Docs* workflow on every
+push to `main` that changes `docs/`. The hub refuses documentation with a broken
+link between pages, so a mistake fails the workflow and the old pages stay
+online. It has two parts:
 
 - **Guides** (`docs/getting-started`, `docs/guides`, `docs/project`) are written
   by hand. Change them in the same PR as the behaviour they describe.
@@ -453,6 +456,12 @@ Git Sync, at [teamleader-sdk.mcore-services.dev](https://teamleader-sdk.mcore-se
   classes by `bin/docs`: the facade method, endpoints, filters, sort fields,
   includes, public constants, public methods with their docblocks, and
   `$usageExamples`. Do not edit it by hand.
+
+Pages are GitHub Flavored Markdown. For a note or warning, use GitHub's alert
+syntax (`> [!NOTE]`, `> [!TIP]`, `> [!WARNING]`, `> [!CAUTION]`); raw HTML is
+stripped. Link between pages with relative `.md` paths, as GitHub does; the hub
+turns them into page addresses. `docs/SUMMARY.md` is the navigation: `##`
+headings are sections, and every entry links to a page.
 
 ```bash
 composer docs:build    # regenerate docs/reference and the reference part of docs/SUMMARY.md
@@ -493,7 +502,7 @@ php artisan teamleader:export-uuids
 
 ## 🤔 Questions?
 
-- **Documentation**: [teamleader-sdk.mcore-services.dev](https://teamleader-sdk.mcore-services.dev/)
+- **Documentation**: [hub.mcore-services.be/docs/teamleader-sdk](https://hub.mcore-services.be/docs/teamleader-sdk)
 - **Issues**: [Existing issues](https://github.com/MCore-Services-bv/teamleader-sdk/issues)
 - **Discussions**: [Start a discussion](https://github.com/MCore-Services-bv/teamleader-sdk/discussions)
 - **Email**: help@mcore-services.be

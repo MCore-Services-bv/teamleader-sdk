@@ -1,6 +1,6 @@
 ## mcore-services/teamleader-sdk
 
-Laravel SDK for the Teamleader Focus API: OAuth, encrypted token storage and renewal, rate limiting and ~70 API resources behind one interface, for one Teamleader account or many. Full documentation: https://teamleader-sdk.mcore-services.dev/ (complete text for agents: https://teamleader-sdk.mcore-services.dev/llms-full.txt).
+Laravel SDK for the Teamleader Focus API: OAuth, encrypted token storage and renewal, rate limiting and ~70 API resources behind one interface, for one Teamleader account or many. Full documentation: https://hub.mcore-services.be/docs/teamleader-sdk (complete text for agents: https://hub.mcore-services.be/docs/teamleader-sdk/llms-full.txt).
 
 ### Rules
 
@@ -108,6 +108,10 @@ Teamleader::fake([
 Teamleader::assertSent('deals.create', fn (array $body) => $body['title'] === 'Big deal');
 </code-snippet>
 @endverbatim
+
+### Monitoring
+
+To see Teamleader traffic in Laravel Pulse, do not write a custom recorder or wrap calls with `Http::`: the SDK ships `McoreServices\TeamleaderSDK\Pulse\Recorders\TeamleaderRequests` and `TeamleaderCallers` (add them to `recorders` in `config/pulse.php`) and the cards `<livewire:teamleader.requests />`, `<livewire:teamleader.connections />` and `<livewire:teamleader.callers />`. Pulse's own *Slow Outgoing Requests* card does not see SDK traffic. For alerts, listen to the SDK events (`TokenRefreshFailed` with `reauthorizationRequired`, `RequestFailed`) instead.
 
 ### Known API quirks
 

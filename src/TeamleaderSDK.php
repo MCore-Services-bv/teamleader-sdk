@@ -1033,13 +1033,15 @@ class TeamleaderSDK
                 self::$apiCalls = array_slice(self::$apiCalls, -self::API_CALL_LOG_LIMIT);
             }
 
+            // The body is sanitised only when a listener reads it: the Pulse
+            // recorder and other timing listeners never do.
             $this->fireEvent(ResponseReceived::class, fn () => new ResponseReceived(
                 (string) $method,
                 (string) $endpoint,
                 $statusCode,
                 round($callDetails['duration'] * 1000, 1),
-                is_array($responseData) ? (array) $this->sanitizeForLog($responseData) : null,
                 connection: $this->connectionConfig->name,
+                bodyUsing: fn () => is_array($responseData) ? (array) $this->sanitizeForLog($responseData) : null,
             ));
 
             // Update rate limiting state from response headers — only when the
@@ -1103,9 +1105,12 @@ class TeamleaderSDK
 
         } catch (GuzzleException $e) {
             // Before the handler, which throws when throw_exceptions is on
+            $durationMs = round((microtime(true) - $callDetails['timestamp']) * 1000, 1);
+
             $this->fireEvent(RequestFailed::class, fn () => new RequestFailed(
                 (string) $method, (string) $endpoint, null, $e->getMessage(), $e,
                 connection: $this->connectionConfig->name,
+                durationMs: $durationMs,
             ));
 
             $this->errorHandler->handleGuzzleException($e, "{$method} {$endpoint}");

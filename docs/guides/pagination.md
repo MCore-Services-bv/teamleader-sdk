@@ -57,9 +57,8 @@ Teamleader::deals()->lazy(['status' => 'open'])->take(10)->all();   // one reque
   `BadMethodCallException`. Those endpoints return everything in one `list()`
   response.
 
-{% hint style="info" %}
-`lazy()` and `cursor()` are available from v3.0.
-{% endhint %}
+> [!NOTE]
+> `lazy()` and `cursor()` are available from v3.0.
 
 ### Totals, progress and resuming
 

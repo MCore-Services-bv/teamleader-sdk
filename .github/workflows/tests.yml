@@ -92,6 +92,42 @@ jobs:
         run: composer audit
         if: matrix.php == '8.4' && matrix.laravel == '13.*'
 
+  without-pulse:
+    # laravel/pulse is a suggestion, not a dependency. The matrix above runs
+    # with Pulse installed (it is in require-dev); this job removes it and runs
+    # the suite again, so nothing outside src/Pulse comes to depend on it. The
+    # Pulse tests skip themselves here.
+    runs-on: ubuntu-latest
+    name: Without Laravel Pulse
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.4'
+          extensions: mbstring, json, curl
+
+      - name: Install dependencies without Pulse
+        run: |
+          composer remove laravel/pulse --dev --no-interaction --no-update
+          composer update --prefer-dist --prefer-stable --no-progress --no-interaction
+
+      - name: Pulse and Livewire are not installed
+        run: |
+          for package in laravel/pulse livewire/livewire; do
+            if composer show "$package" > /dev/null 2>&1; then
+              echo "$package is still installed"
+              exit 1
+            fi
+          done
+
+      - name: Run tests
+        run: vendor/bin/phpunit
+
   specification:
     # Runs once rather than per matrix cell: the checks below compare the SDK
     # with the pinned @teamleader/focus-api-specification and do not depend on

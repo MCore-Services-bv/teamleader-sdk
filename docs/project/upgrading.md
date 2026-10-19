@@ -81,12 +81,11 @@ The old plain-text cache keys are removed. If you ever rotate `APP_KEY`, see
 now defaults to `true`: a failed request throws a typed exception instead of
 returning an array with `error => true`.
 
-{% hint style="warning" %}
-**Published `config/teamleader.php`?** Your copy still says
-`env('TEAMLEADER_THROW_EXCEPTIONS', false)`, and it wins over the package's
-default. Exceptions then stay off until you change that line, or set the
-variable in `.env`.
-{% endhint %}
+> [!WARNING]
+> **Published `config/teamleader.php`?** Your copy still says
+> `env('TEAMLEADER_THROW_EXCEPTIONS', false)`, and it wins over the package's
+> default. Exceptions then stay off until you change that line, or set the
+> variable in `.env`.
 
 If you never set it, choose one:
 

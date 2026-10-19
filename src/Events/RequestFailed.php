@@ -26,6 +26,10 @@ final readonly class RequestFailed
      *                                     transport error, or the rate-limit wait
      *                                     running out
      * @param  string  $connection  The Teamleader connection, `default` for a single account
+     * @param  float|null  $durationMs  How long the request waited before it failed, when it
+     *                                  was sent and got no answer (a timeout or connection
+     *                                  error); null otherwise. An answered failure has its
+     *                                  duration on ResponseReceived.
      */
     public function __construct(
         public string $method,
@@ -34,5 +38,6 @@ final readonly class RequestFailed
         public string $message,
         public ?Throwable $exception = null,
         public string $connection = 'default',
+        public ?float $durationMs = null,
     ) {}
 }

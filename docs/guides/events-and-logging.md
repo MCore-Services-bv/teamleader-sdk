@@ -4,9 +4,8 @@ The SDK fires Laravel events for every request it sends, every answer it gets,
 every failure, every rate-limit wait and every token refresh. Listen to them to
 log, measure or alert, without wrapping the SDK.
 
-{% hint style="info" %}
-Available from v3.0.
-{% endhint %}
+> [!NOTE]
+> Available from v3.0.
 
 ## The events
 
@@ -19,8 +18,8 @@ redacted before the event is created.
 | Event | Fired when | Properties |
 |---|---|---|
 | `RequestSending` | A request is about to be sent — once per attempt, so a retry fires it again | `method`, `endpoint`, `body` |
-| `ResponseReceived` | The API answered, with any status | `method`, `endpoint`, `statusCode`, `durationMs`, `body`; `successful()` |
-| `RequestFailed` | An error status, no answer at all, no access token, or the rate-limit wait ran out | `method`, `endpoint`, `statusCode` (null when the API was not reached), `message`, `exception` |
+| `ResponseReceived` | The API answered, with any status | `method`, `endpoint`, `statusCode`, `durationMs`, `body` (built on first read); `successful()` |
+| `RequestFailed` | An error status, no answer at all, no access token, or the rate-limit wait ran out | `method`, `endpoint`, `statusCode` (null when the API was not reached), `message`, `exception`, `durationMs` (how long it waited, when it got no answer; since v3.4) |
 | `RateLimitWaited` | The SDK held a request back to stay inside the rate limit | `waitedMs`, `usagePercentage`, `endpoint`, `gaveUp` |
 | `TokenRefreshed` | The access token was refreshed and stored | `expiresIn` |
 | `TokenRefreshFailed` | A refresh failed | `reason`, `statusCode`, `reauthorizationRequired` |
@@ -69,6 +68,18 @@ Event::listen(function (TokenRefreshFailed $event) {
 An event nobody listens to is not built: the SDK checks for a listener first,
 so the request body is not copied or sanitised. With no listeners, the events
 cost one lookup per request.
+
+The body of `ResponseReceived` is sanitised the first time a listener reads
+`$event->body`, not when the event is fired (since v3.4). Redacting a 100-row
+listing takes tens of milliseconds, so a listener that only counts or times
+requests, like the [Pulse recorder](monitoring.md), costs next to nothing. A
+queued listener receives the body already built.
+
+### Monitoring
+
+To see these events on a dashboard instead of writing listeners, use the
+SDK's Laravel Pulse recorders and cards. See
+[Monitoring with Pulse](monitoring.md).
 
 ## Logging
 

@@ -6,7 +6,7 @@
 [![Laravel Version](https://img.shields.io/badge/Laravel-12%20%7C%2013-blue)](https://laravel.com)
 [![License](https://img.shields.io/github/license/MCore-Services-bv/teamleader-sdk)](https://github.com/MCore-Services-bv/teamleader-sdk/blob/main/LICENSE.md)
 [![Tests](https://github.com/MCore-Services-bv/teamleader-sdk/actions/workflows/tests.yml/badge.svg)](https://github.com/MCore-Services-bv/teamleader-sdk/actions/workflows/tests.yml)
-[![Docs](https://img.shields.io/badge/docs-teamleader--sdk.mcore--services.dev-blue)](https://teamleader-sdk.mcore-services.dev/)
+[![Docs](https://img.shields.io/badge/docs-hub.mcore--services.be-blue)](https://hub.mcore-services.be/docs/teamleader-sdk)
 [![Teamleader API spec](https://img.shields.io/badge/Teamleader%20API%20spec-1.225.0-2ea44f)](#-specification-parity)
 
 A Laravel package for the Teamleader Focus API. Handles OAuth, encrypted token
@@ -16,7 +16,7 @@ consistent interface — for one Teamleader account or many.
 **Quick Links:**
 - 📦 **Packagist:** [packagist.org/packages/mcore-services/teamleader-sdk](https://packagist.org/packages/mcore-services/teamleader-sdk)
 - 💻 **GitHub:** [github.com/MCore-Services-bv/teamleader-sdk](https://github.com/MCore-Services-bv/teamleader-sdk)
-- 📖 **Documentation:** [teamleader-sdk.mcore-services.dev](https://teamleader-sdk.mcore-services.dev/) — guides, and an API reference generated from the code
+- 📖 **Documentation:** [hub.mcore-services.be/docs/teamleader-sdk](https://hub.mcore-services.be/docs/teamleader-sdk) — guides, and an API reference generated from the code
 
 ---
 
@@ -49,6 +49,7 @@ consistent interface — for one Teamleader account or many.
 - **Fail-Fast Validation** — Unsupported filters, sort fields and includes throw before the request is sent, rather than being silently ignored by the API
 - **Typed Exceptions by Default** — a failed request throws an exception with an actionable message
 - **Events** — for every request, response, failure, rate-limit wait and token refresh, plus optional request logging
+- **Laravel Pulse Cards** — Teamleader traffic, failures, rate-limit waits and connections that need reconnecting on your Pulse dashboard, plus which routes and jobs spend their time on Teamleader
 - **Test Fake** — `Teamleader::fake()` records requests instead of sending them, with assertions per endpoint and connection
 - **Resource Introspection** — Query any resource's capabilities programmatically
 - **AI Agent Guidelines** — ships [Laravel Boost](https://laravel.com/docs/boost) guidelines, so Claude Code, Cursor and Copilot use the SDK correctly
@@ -148,7 +149,7 @@ The package schedules `teamleader:tokens:refresh` every ten minutes. Run
 `php artisan schedule:run` in production (Laravel Forge: *Scheduler*).
 
 > Upgrading from 2.x? See the
-> [upgrade guide](https://teamleader-sdk.mcore-services.dev/project/upgrading).
+> [upgrade guide](https://hub.mcore-services.be/docs/teamleader-sdk/project/upgrading).
 
 ---
 
@@ -503,7 +504,7 @@ Teamleader::assertSent('deals.create', fn (array $body) => $body['title'] === 'B
 ```
 
 No account, token or network needed, and the resources still validate what
-they build. See [Testing your integration](https://teamleader-sdk.mcore-services.dev/guides/testing).
+they build. See [Testing your integration](https://hub.mcore-services.be/docs/teamleader-sdk/guides/testing).
 
 ---
 
@@ -521,7 +522,7 @@ They teach the agent to go through the facade, to look up filters and fields
 instead of guessing them, and the API quirks that cost time to find out.
 
 Not using Boost? Point any agent at
-[`llms-full.txt`](https://teamleader-sdk.mcore-services.dev/llms-full.txt):
+[`llms-full.txt`](https://hub.mcore-services.be/docs/teamleader-sdk/llms-full.txt):
 the complete documentation as one file.
 
 ---
@@ -544,6 +545,45 @@ Event::listen(function (TokenRefreshFailed $event) {
 `BulkBatchFinished` are fired only when something listens. Set
 `TEAMLEADER_LOG_REQUESTS=true` to log every request to a channel of your
 choice.
+
+---
+
+## 📈 Monitoring with Pulse
+
+With [Laravel Pulse](https://laravel.com/docs/pulse) installed, add the SDK's
+recorders to `config/pulse.php`:
+
+```php
+'recorders' => [
+    \McoreServices\TeamleaderSDK\Pulse\Recorders\TeamleaderRequests::class => [
+        'enabled' => env('PULSE_TEAMLEADER_REQUESTS_ENABLED', true),
+        'sample_rate' => env('PULSE_TEAMLEADER_REQUESTS_SAMPLE_RATE', 1),
+        'threshold' => env('PULSE_TEAMLEADER_REQUESTS_THRESHOLD', 1000),
+        'ignore' => [],
+        'connections' => ['ignore' => [], 'groups' => []],
+    ],
+    \McoreServices\TeamleaderSDK\Pulse\Recorders\TeamleaderCallers::class => [
+        'enabled' => env('PULSE_TEAMLEADER_CALLERS_ENABLED', true),
+        'sample_rate' => env('PULSE_TEAMLEADER_CALLERS_SAMPLE_RATE', 1),
+        'ignore' => [],
+    ],
+    // …
+],
+```
+
+and the cards to your dashboard (`php artisan vendor:publish --tag=pulse-dashboard`):
+
+```blade
+<livewire:teamleader.requests cols="8" />
+<livewire:teamleader.connections cols="4" />
+<livewire:teamleader.callers cols="full" />
+```
+
+Requests and failures per connection and endpoint, rate-limit waits, token
+renewals, the connections that need reconnecting, and the share of each
+route's, job's and command's time spent on Teamleader. Bodies are never
+recorded. See
+[Monitoring with Pulse](https://hub.mcore-services.be/docs/teamleader-sdk/guides/monitoring).
 
 ---
 
@@ -713,7 +753,7 @@ The MIT License (MIT). See [LICENSE.md](LICENSE.md).
 
 ## 💬 Support
 
-- **Documentation**: [teamleader-sdk.mcore-services.dev](https://teamleader-sdk.mcore-services.dev/)
+- **Documentation**: [hub.mcore-services.be/docs/teamleader-sdk](https://hub.mcore-services.be/docs/teamleader-sdk)
 - **Email**: help@mcore-services.be
 - **Issues**: [GitHub Issues](https://github.com/MCore-Services-bv/teamleader-sdk/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/MCore-Services-bv/teamleader-sdk/discussions)
@@ -730,11 +770,11 @@ The MIT License (MIT). See [LICENSE.md](LICENSE.md).
 - [x] Test fake and document downloads (v3.1)
 - [x] Connection management: rename, expected account, account ids (v3.2)
 - [x] Laravel Boost guidelines for AI coding agents (v3.3)
-- [ ] Webhook receiver: typed events per connection, duplicate protection, `webhooks:sync` (v3.4)
-- [ ] Upsert helper for bulk writes, with id mapping (v3.4)
-- [ ] Incremental sync and reconciliation (v3.5)
-- [ ] Cached lookups for reference data (v3.5)
-- [ ] Laravel Pulse recorder (v3.5)
+- [x] Laravel Pulse recorders and cards (v3.4)
+- [ ] Webhook receiver: typed events per connection, duplicate protection, `webhooks:sync` (v3.5)
+- [ ] Upsert helper for bulk writes, with id mapping (v3.5)
+- [ ] Incremental sync and reconciliation (v3.6)
+- [ ] Cached lookups for reference data (v3.6)
 
 ---
 

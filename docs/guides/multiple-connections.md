@@ -5,10 +5,9 @@ environments, a handful of clients, or one per tenant. Each account is a
 **connection** with its own credentials, tokens, refresh lock and rate-limit
 window.
 
-{% hint style="info" %}
-Available from v3.0. Connecting each account is covered in
-[Authentication](../getting-started/authentication.md#several-accounts-one-callback).
-{% endhint %}
+> [!NOTE]
+> Available from v3.0. Connecting each account is covered in
+> [Authentication](../getting-started/authentication.md#several-accounts-one-callback).
 
 ## One integration per account
 

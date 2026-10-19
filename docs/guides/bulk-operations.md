@@ -3,9 +3,8 @@
 Moving many records in or out of Teamleader: paging, the rate limit and
 failures are handled for you.
 
-{% hint style="info" %}
-Available from v3.0.
-{% endhint %}
+> [!NOTE]
+> Available from v3.0.
 
 ## Export
 
