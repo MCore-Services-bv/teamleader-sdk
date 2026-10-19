@@ -7,6 +7,6 @@
     },
     "devDependencies": {
         "@teamleader/focus-api-specification": "1.225.0",
-        "js-yaml": "^5.4.2"
+        "js-yaml": "^5.4.3"
     }
 }
