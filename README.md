@@ -6,7 +6,7 @@
 [![Laravel Version](https://img.shields.io/badge/Laravel-12%20%7C%2013-blue)](https://laravel.com)
 [![License](https://img.shields.io/github/license/MCore-Services-bv/teamleader-sdk)](https://github.com/MCore-Services-bv/teamleader-sdk/blob/main/LICENSE.md)
 [![Tests](https://github.com/MCore-Services-bv/teamleader-sdk/actions/workflows/tests.yml/badge.svg)](https://github.com/MCore-Services-bv/teamleader-sdk/actions/workflows/tests.yml)
-[![Docs](https://img.shields.io/badge/docs-teamleader--sdk.mcore--services.dev-blue)](https://teamleader-sdk.mcore-services.dev/)
+[![Docs](https://img.shields.io/badge/docs-hub.mcore--services.be-blue)](https://hub.mcore-services.be/docs/teamleader-sdk)
 [![Teamleader API spec](https://img.shields.io/badge/Teamleader%20API%20spec-1.225.0-2ea44f)](#-specification-parity)
 
 A Laravel package for the Teamleader Focus API. Handles OAuth, encrypted token
@@ -16,7 +16,7 @@ consistent interface — for one Teamleader account or many.
 **Quick Links:**
 - 📦 **Packagist:** [packagist.org/packages/mcore-services/teamleader-sdk](https://packagist.org/packages/mcore-services/teamleader-sdk)
 - 💻 **GitHub:** [github.com/MCore-Services-bv/teamleader-sdk](https://github.com/MCore-Services-bv/teamleader-sdk)
-- 📖 **Documentation:** [teamleader-sdk.mcore-services.dev](https://teamleader-sdk.mcore-services.dev/) — guides, and an API reference generated from the code
+- 📖 **Documentation:** [hub.mcore-services.be/docs/teamleader-sdk](https://hub.mcore-services.be/docs/teamleader-sdk) — guides, and an API reference generated from the code
 
 ---
 
@@ -149,7 +149,7 @@ The package schedules `teamleader:tokens:refresh` every ten minutes. Run
 `php artisan schedule:run` in production (Laravel Forge: *Scheduler*).
 
 > Upgrading from 2.x? See the
-> [upgrade guide](https://teamleader-sdk.mcore-services.dev/project/upgrading).
+> [upgrade guide](https://hub.mcore-services.be/docs/teamleader-sdk/project/upgrading).
 
 ---
 
@@ -504,7 +504,7 @@ Teamleader::assertSent('deals.create', fn (array $body) => $body['title'] === 'B
 ```
 
 No account, token or network needed, and the resources still validate what
-they build. See [Testing your integration](https://teamleader-sdk.mcore-services.dev/guides/testing).
+they build. See [Testing your integration](https://hub.mcore-services.be/docs/teamleader-sdk/guides/testing).
 
 ---
 
@@ -522,7 +522,7 @@ They teach the agent to go through the facade, to look up filters and fields
 instead of guessing them, and the API quirks that cost time to find out.
 
 Not using Boost? Point any agent at
-[`llms-full.txt`](https://teamleader-sdk.mcore-services.dev/llms-full.txt):
+[`llms-full.txt`](https://hub.mcore-services.be/docs/teamleader-sdk/llms-full.txt):
 the complete documentation as one file.
 
 ---
@@ -583,7 +583,7 @@ Requests and failures per connection and endpoint, rate-limit waits, token
 renewals, the connections that need reconnecting, and the share of each
 route's, job's and command's time spent on Teamleader. Bodies are never
 recorded. See
-[Monitoring with Pulse](https://teamleader-sdk.mcore-services.dev/guides/monitoring).
+[Monitoring with Pulse](https://hub.mcore-services.be/docs/teamleader-sdk/guides/monitoring).
 
 ---
 
@@ -753,7 +753,7 @@ The MIT License (MIT). See [LICENSE.md](LICENSE.md).
 
 ## 💬 Support
 
-- **Documentation**: [teamleader-sdk.mcore-services.dev](https://teamleader-sdk.mcore-services.dev/)
+- **Documentation**: [hub.mcore-services.be/docs/teamleader-sdk](https://hub.mcore-services.be/docs/teamleader-sdk)
 - **Email**: help@mcore-services.be
 - **Issues**: [GitHub Issues](https://github.com/MCore-Services-bv/teamleader-sdk/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/MCore-Services-bv/teamleader-sdk/discussions)

@@ -71,9 +71,8 @@ Teamleader developer portal for a client ID and secret.
 5. Fill in the remaining required fields and save. You only need to request
    publication if the integration is meant for other Teamleader accounts.
 
-{% hint style="info" %}
-Teamleader accepts `http://` redirect URIs for local development only.
-{% endhint %}
+> [!NOTE]
+> Teamleader accepts `http://` redirect URIs for local development only.
 
 ## Add your credentials
 

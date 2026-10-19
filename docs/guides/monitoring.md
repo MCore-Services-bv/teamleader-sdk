@@ -14,10 +14,9 @@ production, per connection:
   made. This card explains a page that takes nine seconds because it makes 14
   Teamleader calls.
 
-{% hint style="info" %}
-Available from v3.4. Needs `laravel/pulse` 1.8 or later. Pulse is optional:
-without it, nothing under `McoreServices\TeamleaderSDK\Pulse` is loaded.
-{% endhint %}
+> [!NOTE]
+> Available from v3.4. Needs `laravel/pulse` 1.8 or later. Pulse is optional:
+> without it, nothing under `McoreServices\TeamleaderSDK\Pulse` is loaded.
 
 ## Why not Pulse's own cards
 

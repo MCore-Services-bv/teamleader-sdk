@@ -63,7 +63,7 @@ queue. See
 
 ## Links
 
-- [Documentation site](https://teamleader-sdk.mcore-services.dev/)
+- [Documentation site](https://hub.mcore-services.be/docs/teamleader-sdk)
 - [Packagist](https://packagist.org/packages/mcore-services/teamleader-sdk)
 - [GitHub](https://github.com/MCore-Services-bv/teamleader-sdk)
 - [Changelog](https://github.com/MCore-Services-bv/teamleader-sdk/blob/main/CHANGELOG.md)

@@ -106,11 +106,13 @@ final class ReferenceGenerator
     {
         $lines = [self::SUMMARY_START, '', '## API Reference', '', '* [All resources](reference/README.md)'];
 
+        // A section per category: the docs site lists sections and pages, and
+        // has no unlinked group entries to nest pages under
         foreach ($this->grouped() as $category => $resources) {
-            $lines[] = '* '.self::CATEGORIES[$category];
+            array_push($lines, '', '## Reference: '.self::CATEGORIES[$category], '');
 
             foreach ($resources as $resource) {
-                $lines[] = '  * ['.$this->title($resource).']('.$this->pagePath($resource).')';
+                $lines[] = '* ['.$this->title($resource).']('.$this->pagePath($resource).')';
             }
         }
 

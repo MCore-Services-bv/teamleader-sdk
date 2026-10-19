@@ -5,9 +5,8 @@ command goes through the same resource methods your code uses, so filters,
 sort fields and includes are validated the same way, and an error tells you
 what the endpoint accepts.
 
-{% hint style="info" %}
-Available from v3.0.
-{% endhint %}
+> [!NOTE]
+> Available from v3.0.
 
 **Nothing writes without `--write`.** With it, you are asked to confirm, and
 the question names the endpoint and the number of requests. `--force` skips
@@ -50,11 +49,10 @@ php artisan teamleader:list contacts --filter='tags[]=customer' --all --format=c
 Filter values are cast: `true`, `false`, `null` and numbers become their type.
 Quote a value to keep it a string: `--filter='term="2024"'`.
 
-{% hint style="warning" %}
-Put a filter with `[]` in single quotes: `--filter='status[]=open'`. Without
-them, zsh (the default shell on macOS) reads the brackets as a file pattern
-and stops with `no matches found`.
-{% endhint %}
+> [!WARNING]
+> Put a filter with `[]` in single quotes: `--filter='status[]=open'`. Without
+> them, zsh (the default shell on macOS) reads the brackets as a file pattern
+> and stops with `no matches found`.
 
 An unknown filter is refused before anything is sent, with the accepted list:
 

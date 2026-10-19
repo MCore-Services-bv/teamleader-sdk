@@ -59,6 +59,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   response body is built.
 - README: a *Monitoring with Pulse* section and feature line. The roadmap
   moves the webhook receiver and upsert to 3.5, and sync and lookups to 3.6.
+- **The documentation moves to the MCore hub:**
+  [hub.mcore-services.be/docs/teamleader-sdk](https://hub.mcore-services.be/docs/teamleader-sdk),
+  published by a *Docs* workflow on every push to `main` that changes `docs/`.
+  The old address, teamleader-sdk.mcore-services.dev, redirects there page
+  for page. `llms.txt`, `llms-full.txt` and every page as Markdown (`.md`)
+  are served there too. The `composer.json` homepage and docs links, the
+  README and the Boost guidelines point to the new address.
+- Notes in the docs use GitHub's alert syntax (`> [!NOTE]`) instead of
+  GitBook's `{% hint %}`, and the API reference lists each category as a
+  section of the navigation. `.gitbook.yaml` is removed.
 
 ## [3.3.3] - 2026-10-13
 

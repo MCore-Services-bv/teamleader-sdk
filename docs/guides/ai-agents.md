@@ -5,9 +5,8 @@ Teamleader code when they know how the SDK works. The SDK gives them that in
 two ways: guidelines for Laravel Boost, and the full documentation as plain
 text.
 
-{% hint style="info" %}
-Boost guidelines are available from v3.3.
-{% endhint %}
+> [!NOTE]
+> Boost guidelines are available from v3.3.
 
 ## Laravel Boost
 
@@ -50,12 +49,14 @@ The documentation site serves two files written for language models:
 
 | File | Contents |
 |---|---|
-| [`llms.txt`](https://teamleader-sdk.mcore-services.dev/llms.txt) | An index of every page, with links |
-| [`llms-full.txt`](https://teamleader-sdk.mcore-services.dev/llms-full.txt) | The complete documentation in one file |
+| [`llms.txt`](https://hub.mcore-services.be/docs/teamleader-sdk/llms.txt) | An index of every page, with links |
+| [`llms-full.txt`](https://hub.mcore-services.be/docs/teamleader-sdk/llms-full.txt) | The complete documentation in one file |
 
 Give `llms-full.txt` to an agent that has no Boost integration, or paste it
 into a chat. Every page is also available as Markdown by adding `.md` to its
-address.
+address, for example
+[`guides/testing.md`](https://hub.mcore-services.be/docs/teamleader-sdk/guides/testing.md); the start page is
+[`README.md`](https://hub.mcore-services.be/docs/teamleader-sdk/README.md).
 
 ## Let the agent check its own work
 

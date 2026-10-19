@@ -4,9 +4,8 @@ The SDK fires Laravel events for every request it sends, every answer it gets,
 every failure, every rate-limit wait and every token refresh. Listen to them to
 log, measure or alert, without wrapping the SDK.
 
-{% hint style="info" %}
-Available from v3.0.
-{% endhint %}
+> [!NOTE]
+> Available from v3.0.
 
 ## The events
 

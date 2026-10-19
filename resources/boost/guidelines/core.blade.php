@@ -1,6 +1,6 @@
 ## mcore-services/teamleader-sdk
 
-Laravel SDK for the Teamleader Focus API: OAuth, encrypted token storage and renewal, rate limiting and ~70 API resources behind one interface, for one Teamleader account or many. Full documentation: https://teamleader-sdk.mcore-services.dev/ (complete text for agents: https://teamleader-sdk.mcore-services.dev/llms-full.txt).
+Laravel SDK for the Teamleader Focus API: OAuth, encrypted token storage and renewal, rate limiting and ~70 API resources behind one interface, for one Teamleader account or many. Full documentation: https://hub.mcore-services.be/docs/teamleader-sdk (complete text for agents: https://hub.mcore-services.be/docs/teamleader-sdk/llms-full.txt).
 
 ### Rules
 
