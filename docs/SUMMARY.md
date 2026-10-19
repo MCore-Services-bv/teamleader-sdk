@@ -20,6 +20,7 @@
 * [Error Handling](guides/error-handling.md)
 * [Rate Limiting](guides/rate-limiting.md)
 * [Events and Logging](guides/events-and-logging.md)
+* [Monitoring with Pulse](guides/monitoring.md)
 * [Webhooks](guides/webhooks.md)
 * [Token Storage and Security](guides/token-storage-and-security.md)
 * [Multiple Connections](guides/multiple-connections.md)

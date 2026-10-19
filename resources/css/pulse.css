@@ -1,0 +1,81 @@
+/*
+ * Styles for the Teamleader SDK's Pulse cards. Pulse inlines this file once on
+ * the dashboard. Pulse's own stylesheet only contains the classes its cards
+ * use, so the few extra the SDK's cards need are defined here, prefixed with
+ * `teamleader-` so they cannot clash with anything else on the page.
+ */
+
+.teamleader-badge {
+    display: inline-block;
+    padding: 0 0.375rem;
+    border: 1px solid;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    line-height: 1.125rem;
+    font-weight: 600;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.teamleader-badge-neutral { color: #4b5563; background: #f9fafb; border-color: #e5e7eb; }
+.teamleader-badge-danger { color: #b91c1c; background: #fef2f2; border-color: #fecaca; }
+.teamleader-badge-warning { color: #b45309; background: #fffbeb; border-color: #fde68a; }
+.teamleader-badge-info { color: #1d4ed8; background: #eff6ff; border-color: #bfdbfe; }
+.teamleader-badge-purple { color: #7e22ce; background: #faf5ff; border-color: #e9d5ff; }
+
+:where(.dark) .teamleader-badge-neutral { color: #d1d5db; background: #1f2937; border-color: #374151; }
+:where(.dark) .teamleader-badge-danger { color: #fca5a5; background: #450a0a; border-color: #7f1d1d; }
+:where(.dark) .teamleader-badge-warning { color: #fcd34d; background: #451a03; border-color: #78350f; }
+:where(.dark) .teamleader-badge-info { color: #93c5fd; background: #172554; border-color: #1e3a8a; }
+:where(.dark) .teamleader-badge-purple { color: #d8b4fe; background: #3b0764; border-color: #581c87; }
+
+.teamleader-text-danger { color: #b91c1c; }
+.teamleader-text-warning { color: #b45309; }
+:where(.dark) .teamleader-text-danger { color: #fca5a5; }
+:where(.dark) .teamleader-text-warning { color: #fcd34d; }
+
+.teamleader-reasons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-top: 0.25rem;
+}
+
+.teamleader-bar {
+    height: 0.25rem;
+    margin-top: 0.25rem;
+    border-radius: 9999px;
+    background: #e5e7eb;
+    overflow: hidden;
+}
+
+.teamleader-bar > span {
+    display: block;
+    height: 100%;
+    border-radius: 9999px;
+    background: #a855f7;
+}
+
+:where(.dark) .teamleader-bar { background: #374151; }
+:where(.dark) .teamleader-bar > span { background: #c084fc; }
+
+.teamleader-attention {
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    border: 1px solid #fecaca;
+    border-radius: 0.375rem;
+    background: #fef2f2;
+}
+
+:where(.dark) .teamleader-attention { border-color: #7f1d1d; background: rgba(69, 10, 10, 0.5); }
+
+.teamleader-attention-row + .teamleader-attention-row {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid #fecaca;
+}
+
+:where(.dark) .teamleader-attention-row + .teamleader-attention-row { border-top-color: #7f1d1d; }
+
+.teamleader-nowrap { white-space: nowrap; }
+.teamleader-gap { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }

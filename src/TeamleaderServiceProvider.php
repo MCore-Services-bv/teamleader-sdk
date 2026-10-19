@@ -7,6 +7,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
+use Livewire\LivewireManager;
 use McoreServices\TeamleaderSDK\Connections\ConnectionManager;
 use McoreServices\TeamleaderSDK\Connections\DatabaseConnectionStore;
 use McoreServices\TeamleaderSDK\Events\RequestSending;
@@ -88,6 +89,8 @@ class TeamleaderServiceProvider extends ServiceProvider
 
         $this->registerTrafficLogging();
 
+        $this->registerPulseCards();
+
         // Validate configuration on boot (if enabled)
         $this->validateConfigurationOnBoot();
     }
@@ -127,6 +130,29 @@ class TeamleaderServiceProvider extends ServiceProvider
         if (config('teamleader.logging.log_responses')) {
             Event::listen(ResponseReceived::class, [LogApiTraffic::class, 'responseReceived']);
         }
+    }
+
+    /**
+     * The Laravel Pulse cards: `<livewire:teamleader.requests />`,
+     * `<livewire:teamleader.connections />` and `<livewire:teamleader.callers />`.
+     *
+     * Only when Pulse is installed: laravel/pulse is a suggestion, not a
+     * dependency, and nothing under src/Pulse is loaded without it. The
+     * recorders are added to config/pulse.php by the application.
+     */
+    protected function registerPulseCards(): void
+    {
+        if (! class_exists(\Laravel\Pulse\Pulse::class) || ! class_exists(LivewireManager::class)) {
+            return;
+        }
+
+        $this->loadViewsFrom(__DIR__.'/../resources/views', 'teamleader');
+
+        $this->callAfterResolving('livewire', function (LivewireManager $livewire) {
+            $livewire->component('teamleader.requests', Pulse\Livewire\Requests::class);
+            $livewire->component('teamleader.connections', Pulse\Livewire\Connections::class);
+            $livewire->component('teamleader.callers', Pulse\Livewire\Callers::class);
+        });
     }
 
     /**

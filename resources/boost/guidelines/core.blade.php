@@ -109,6 +109,10 @@ Teamleader::assertSent('deals.create', fn (array $body) => $body['title'] === 'B
 </code-snippet>
 @endverbatim
 
+### Monitoring
+
+To see Teamleader traffic in Laravel Pulse, do not write a custom recorder or wrap calls with `Http::`: the SDK ships `McoreServices\TeamleaderSDK\Pulse\Recorders\TeamleaderRequests` and `TeamleaderCallers` (add them to `recorders` in `config/pulse.php`) and the cards `<livewire:teamleader.requests />`, `<livewire:teamleader.connections />` and `<livewire:teamleader.callers />`. Pulse's own *Slow Outgoing Requests* card does not see SDK traffic. For alerts, listen to the SDK events (`TokenRefreshFailed` with `reauthorizationRequired`, `RequestFailed`) instead.
+
 ### Known API quirks
 
 - Invoice grouped lines without a section title must omit the `section` key entirely; `null` and `''` are rejected.

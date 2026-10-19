@@ -155,6 +155,8 @@ connection to fix it.
 
 To be alerted, listen for the event. See
 [Events and Logging](../guides/events-and-logging.md#alert-when-an-account-needs-reconnecting).
+With Laravel Pulse, the connections card lists every connection in this
+state. See [Monitoring with Pulse](../guides/monitoring.md).
 
 ### Status
 

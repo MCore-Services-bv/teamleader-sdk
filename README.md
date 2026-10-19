@@ -49,6 +49,7 @@ consistent interface — for one Teamleader account or many.
 - **Fail-Fast Validation** — Unsupported filters, sort fields and includes throw before the request is sent, rather than being silently ignored by the API
 - **Typed Exceptions by Default** — a failed request throws an exception with an actionable message
 - **Events** — for every request, response, failure, rate-limit wait and token refresh, plus optional request logging
+- **Laravel Pulse Cards** — Teamleader traffic, failures, rate-limit waits and connections that need reconnecting on your Pulse dashboard, plus which routes and jobs spend their time on Teamleader
 - **Test Fake** — `Teamleader::fake()` records requests instead of sending them, with assertions per endpoint and connection
 - **Resource Introspection** — Query any resource's capabilities programmatically
 - **AI Agent Guidelines** — ships [Laravel Boost](https://laravel.com/docs/boost) guidelines, so Claude Code, Cursor and Copilot use the SDK correctly
@@ -547,6 +548,45 @@ choice.
 
 ---
 
+## 📈 Monitoring with Pulse
+
+With [Laravel Pulse](https://laravel.com/docs/pulse) installed, add the SDK's
+recorders to `config/pulse.php`:
+
+```php
+'recorders' => [
+    \McoreServices\TeamleaderSDK\Pulse\Recorders\TeamleaderRequests::class => [
+        'enabled' => env('PULSE_TEAMLEADER_REQUESTS_ENABLED', true),
+        'sample_rate' => env('PULSE_TEAMLEADER_REQUESTS_SAMPLE_RATE', 1),
+        'threshold' => env('PULSE_TEAMLEADER_REQUESTS_THRESHOLD', 1000),
+        'ignore' => [],
+        'connections' => ['ignore' => [], 'groups' => []],
+    ],
+    \McoreServices\TeamleaderSDK\Pulse\Recorders\TeamleaderCallers::class => [
+        'enabled' => env('PULSE_TEAMLEADER_CALLERS_ENABLED', true),
+        'sample_rate' => env('PULSE_TEAMLEADER_CALLERS_SAMPLE_RATE', 1),
+        'ignore' => [],
+    ],
+    // …
+],
+```
+
+and the cards to your dashboard (`php artisan vendor:publish --tag=pulse-dashboard`):
+
+```blade
+<livewire:teamleader.requests cols="8" />
+<livewire:teamleader.connections cols="4" />
+<livewire:teamleader.callers cols="full" />
+```
+
+Requests and failures per connection and endpoint, rate-limit waits, token
+renewals, the connections that need reconnecting, and the share of each
+route's, job's and command's time spent on Teamleader. Bodies are never
+recorded. See
+[Monitoring with Pulse](https://teamleader-sdk.mcore-services.dev/guides/monitoring).
+
+---
+
 ## 🪝 Webhooks
 
 ```php
@@ -730,11 +770,11 @@ The MIT License (MIT). See [LICENSE.md](LICENSE.md).
 - [x] Test fake and document downloads (v3.1)
 - [x] Connection management: rename, expected account, account ids (v3.2)
 - [x] Laravel Boost guidelines for AI coding agents (v3.3)
-- [ ] Webhook receiver: typed events per connection, duplicate protection, `webhooks:sync` (v3.4)
-- [ ] Upsert helper for bulk writes, with id mapping (v3.4)
-- [ ] Incremental sync and reconciliation (v3.5)
-- [ ] Cached lookups for reference data (v3.5)
-- [ ] Laravel Pulse recorder (v3.5)
+- [x] Laravel Pulse recorders and cards (v3.4)
+- [ ] Webhook receiver: typed events per connection, duplicate protection, `webhooks:sync` (v3.5)
+- [ ] Upsert helper for bulk writes, with id mapping (v3.5)
+- [ ] Incremental sync and reconciliation (v3.6)
+- [ ] Cached lookups for reference data (v3.6)
 
 ---
 

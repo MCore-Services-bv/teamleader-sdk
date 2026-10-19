@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.4.0] - 2026-10-19
+
+### Added
+
+- **Laravel Pulse recorders and cards.** With `laravel/pulse` installed, add
+  `TeamleaderRequests` and `TeamleaderCallers` (in
+  `McoreServices\TeamleaderSDK\Pulse\Recorders`) to `config/pulse.php` and
+  three cards to the dashboard:
+  - `<livewire:teamleader.requests />`: requests per connection and
+    endpoint, with failures and their reason (HTTP status, needs
+    reconnecting, not connected, rate-limit wait ran out, no answer), slow
+    requests, average and slowest. Sortable, filterable by connection.
+  - `<livewire:teamleader.connections />`: per connection, traffic, error
+    rate, rate-limit waits and token renewals, with every connection that
+    needs reconnecting or was never connected listed first.
+  - `<livewire:teamleader.callers />`: per route, queued job and Artisan
+    command, the time spent on Teamleader (calls and rate-limit waits), its
+    share of the whole, and the calls made.
+  Pulse's own *Slow Outgoing Requests* card never saw Teamleader traffic: it
+  only watches Laravel's `Http` client, and the SDK sends through Guzzle.
+- `sample_rate` (successful requests only; failures are always recorded),
+  `threshold` per endpoint, `ignore` for endpoints, and `connections.ignore`
+  / `connections.groups`, so an application with a connection per tenant can
+  show them as one row. A connection's state is never grouped.
+- `RequestFailed::$durationMs`: how long a request waited before it failed
+  without an answer (a timeout or connection error). Null for answered
+  failures, whose duration is on `ResponseReceived`. The Pulse callers
+  card uses it, so a page stuck on a 30-second timeout shows where the time
+  went.
+- `laravel/pulse` is a suggestion, not a dependency. Without it nothing under
+  `src/Pulse` is loaded. A new CI job runs the suite without Pulse.
+
+### Changed
+
+- **`ResponseReceived` builds its body on first read.** The body was
+  sanitised whenever anything listened to the event, also for listeners that
+  never read it. For a 100-row listing that is tens of milliseconds per
+  request; the Pulse recorder would have added it to every call.
+  `$event->body` reads as before, a queued listener receives it already
+  built, and the constructor takes the same arguments plus an optional
+  `bodyUsing` closure. `json_encode($event)` (and so log context),
+  `dump($event)` and `toArray()` include the body. The class is no longer
+  declared `readonly` as a whole; its properties still cannot be changed. One
+  difference remains: `get_object_vars()` and reflection no longer list
+  `body` as a property.
+
+### Documentation
+
+- New guide: *Monitoring with Pulse*. *Events and Logging* explains when the
+  response body is built.
+- README: a *Monitoring with Pulse* section and feature line. The roadmap
+  moves the webhook receiver and upsert to 3.5, and sync and lookups to 3.6.
+
 ## [3.3.3] - 2026-10-13
 
 Brought in line with `@teamleader/focus-api-specification` **1.225.0**

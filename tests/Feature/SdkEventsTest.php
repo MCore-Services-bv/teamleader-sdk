@@ -98,6 +98,8 @@ final class SdkEventsTest extends TestCase
         $this->assertFalse($this->fired[1]->successful());
         $this->assertSame(422, $this->fired[2]->statusCode);
         $this->assertSame('name is required', $this->fired[2]->message);
+        // The duration is on ResponseReceived, so a listener adding both does not count it twice
+        $this->assertNull($this->fired[2]->durationMs);
     }
 
     public function test_a_connection_failure_fires_failed_without_a_status(): void
@@ -109,6 +111,9 @@ final class SdkEventsTest extends TestCase
         $this->assertSame([RequestSending::class, RequestFailed::class], $this->firedClasses());
         $this->assertNull($this->fired[1]->statusCode);
         $this->assertInstanceOf(ConnectException::class, $this->fired[1]->exception);
+        // v3.4: how long it waited for an answer that never came
+        $this->assertIsFloat($this->fired[1]->durationMs);
+        $this->assertGreaterThanOrEqual(0.0, $this->fired[1]->durationMs);
     }
 
     public function test_no_access_token_fires_failed_and_sends_nothing(): void
