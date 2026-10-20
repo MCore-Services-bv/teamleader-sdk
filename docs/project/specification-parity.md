@@ -3,7 +3,7 @@
 Teamleader publishes a machine-readable description of the Focus API:
 [`@teamleader/focus-api-specification`](https://www.npmjs.com/package/@teamleader/focus-api-specification).
 The SDK is checked against it on every push. The pinned version is currently
-**1.225.0**.
+**1.229.0**.
 
 ## Why it matters
 

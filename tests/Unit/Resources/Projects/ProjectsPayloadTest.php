@@ -485,8 +485,71 @@ final class ProjectsPayloadTest extends ResourceTestCase
     public function test_milestone_update_rejects_create_only_fields(): void
     {
         $this->expectRejected(fn () => $this->resource(LegacyMilestones::class)->update('milestone-uuid', [
+            'project_id' => 'p',
+        ]), 'project_id');
+    }
+
+    /**
+     * Before v3.4.2 milestones.update rejected billing_method, budget and
+     * price; specification 1.229.0 added them.
+     */
+    public function test_milestone_update_to_a_fixed_price(): void
+    {
+        $this->resource(LegacyMilestones::class)->update('milestone-uuid', [
+            'billing_method' => 'fixed_price', 'price' => ['amount' => 1500, 'currency' => 'EUR'],
+        ]);
+
+        $this->assertLastEndpoint('milestones.update');
+        $this->assertLastBody([
             'billing_method' => 'fixed_price',
+            'price' => ['amount' => 1500, 'currency' => 'EUR'],
+            'id' => 'milestone-uuid',
+        ]);
+    }
+
+    public function test_milestone_update_with_a_budget(): void
+    {
+        $this->resource(LegacyMilestones::class)->update('milestone-uuid', [
+            'billing_method' => 'time_and_materials', 'budget' => ['amount' => 800, 'currency' => 'EUR'],
+        ]);
+
+        $this->assertLastEndpoint('milestones.update');
+        $this->assertLastBodyHas('budget.amount', 800);
+    }
+
+    public function test_milestone_update_billing_method_needs_a_budget(): void
+    {
+        $this->expectRejected(fn () => $this->resource(LegacyMilestones::class)->update('milestone-uuid', [
+            'billing_method' => 'non_invoiceable',
+        ]), 'budget is required');
+    }
+
+    public function test_milestone_update_fixed_price_needs_a_price(): void
+    {
+        $this->expectRejected(fn () => $this->resource(LegacyMilestones::class)->update('milestone-uuid', [
+            'billing_method' => 'fixed_price', 'budget' => ['amount' => 1, 'currency' => 'EUR'],
+        ]), 'price is required');
+    }
+
+    public function test_milestone_update_price_needs_fixed_price(): void
+    {
+        $this->expectRejected(fn () => $this->resource(LegacyMilestones::class)->update('milestone-uuid', [
+            'price' => ['amount' => 1, 'currency' => 'EUR'],
+        ]), 'fixed_price');
+    }
+
+    public function test_milestone_update_billing_method_is_checked(): void
+    {
+        $this->expectRejected(fn () => $this->resource(LegacyMilestones::class)->update('milestone-uuid', [
+            'billing_method' => 'unit_price', 'budget' => ['amount' => 1, 'currency' => 'EUR'],
         ]), 'billing_method');
+    }
+
+    public function test_milestone_update_currency_is_checked(): void
+    {
+        $this->expectRejected(fn () => $this->resource(LegacyMilestones::class)->update('milestone-uuid', [
+            'billing_method' => 'fixed_price', 'price' => ['amount' => 1, 'currency' => 'XYZ'],
+        ]), 'price.currency');
     }
 
     // -- external parties ----------------------------------------------------------

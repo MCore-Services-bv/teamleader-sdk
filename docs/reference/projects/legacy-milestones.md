@@ -59,7 +59,7 @@ throw before the request is sent.
 | `CREATE_FIELDS` | `project_id`, `starts_on`, `due_on`, `name`, `description`, `responsible_user_id`, `depends_on`, `custom_fields`, `billing_method`, `budget`, `price` |
 | `CURRENCIES` | `BAM`, `CAD`, `CHF`, `CLP`, `CNY`, `COP`, `CZK`, `DKK`, `EUR`, `GBP`, `INR`, `ISK`, `JPY`, `MAD`, `MXN`, `NOK`, `PEN`, `PLN`, `RON`, `SEK`, `TRY`, `USD`, `ZAR` |
 | `STATUSES` | `open`, `closed` |
-| `UPDATE_FIELDS` | `starts_on`, `due_on`, `name`, `description`, `responsible_user_id`, `depends_on`, `propagate_date_changes`, `custom_fields` |
+| `UPDATE_FIELDS` | `starts_on`, `due_on`, `name`, `description`, `responsible_user_id`, `depends_on`, `propagate_date_changes`, `custom_fields`, `billing_method`, `budget`, `price` |
 
 ## Methods
 
@@ -93,6 +93,10 @@ update($id, array $data): array
 ```
 
 Update an existing milestone
+
+Since specification 1.229.0 the billing can change too: send
+billing_method with a budget (non_invoiceable, time_and_materials) or
+with a price (fixed_price).
 
 - `$id` — Milestone UUID
 - `$data` — Data to update
@@ -287,6 +291,15 @@ Update a milestone:
 $result = Teamleader::legacyMilestones()->update('milestone-uuid', [
                 'name' => 'Updated name',
                 'due_on' => '2024-12-31'
+            ]);
+```
+
+Change a milestone to a fixed price:
+
+```php
+$result = Teamleader::legacyMilestones()->update('milestone-uuid', [
+                'billing_method' => 'fixed_price',
+                'price' => ['amount' => 1500, 'currency' => 'EUR']
             ]);
 ```
 

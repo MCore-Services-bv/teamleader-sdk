@@ -1,6 +1,6 @@
 {
     "_comment": "Known divergences from the specification. Remove an entry when you fix it; move it to \"accepted\" with a reason when it is deliberate. Regenerate with: php bin/spec-audit --write-baseline",
-    "specification_version": "1.225.0",
+    "specification_version": "1.229.0",
     "open": {},
     "accepted": {
         "dealPhases:endpoint.unknown:dealPhases.duplicate": "Deliberately kept, deprecated, since 3.3.3: specification 1.225.0 removed the endpoint. dealPhases()->duplicate() raises E_USER_DEPRECATED and is removed in v4.0.",
