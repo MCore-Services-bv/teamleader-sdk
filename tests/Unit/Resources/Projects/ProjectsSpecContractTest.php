@@ -105,6 +105,10 @@ final class ProjectsSpecContractTest extends TestCase
             'legacy currency' => ['projects.update', 'budget.currency', LegacyProjects::CURRENCIES],
             'milestones status' => ['milestones.list', 'filter.status', LegacyMilestones::STATUSES],
             'milestones currency' => ['milestones.create', 'price.currency', LegacyMilestones::CURRENCIES],
+            'milestones billing_method' => ['milestones.create', 'billing_method', LegacyMilestones::BILLING_METHODS],
+            'milestones update billing_method' => ['milestones.update', 'billing_method', LegacyMilestones::BILLING_METHODS],
+            'milestones update budget currency' => ['milestones.update', 'budget.currency', LegacyMilestones::CURRENCIES],
+            'milestones update price currency' => ['milestones.update', 'price.currency', LegacyMilestones::CURRENCIES],
         ];
     }
 
@@ -119,20 +123,6 @@ final class ProjectsSpecContractTest extends TestCase
         sort($constant);
 
         $this->assertSame($declared, $constant, "{$path} on {$endpoint} has drifted from the specification.");
-    }
-
-    /**
-     * milestones.create's billing_method is split over two oneOf branches:
-     * "With budget" enumerates non_invoiceable and time_and_materials, "With
-     * price" types it as a string with example fixed_price. The fixture holds
-     * the enumerated part only.
-     */
-    public function test_milestone_billing_methods_cover_the_specification(): void
-    {
-        $declared = self::spec()->endpoint('milestones.create')['request']['enums']['billing_method'];
-
-        $this->assertSame([], array_values(array_diff($declared, LegacyMilestones::BILLING_METHODS)));
-        $this->assertSame(['fixed_price'], array_values(array_diff(LegacyMilestones::BILLING_METHODS, $declared)));
     }
 
     public function test_project_includes_match(): void

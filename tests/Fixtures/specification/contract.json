@@ -1,6 +1,6 @@
 {
   "_comment": "Generated — do not edit by hand. See generate-spec-fixtures.mjs.",
-  "specification_version": "1.225.0",
+  "specification_version": "1.229.0",
   "endpoint_count": 292,
   "endpoints": {
     "accounts.projects-v2-status": {
@@ -8629,7 +8629,8 @@
           ],
           "billing_method": [
             "non_invoiceable",
-            "time_and_materials"
+            "time_and_materials",
+            "fixed_price"
           ],
           "budget.currency": [
             "BAM",
@@ -8987,12 +8988,15 @@
       "deprecated": false,
       "request": {
         "properties": [
+          "billing_method",
+          "budget",
           "custom_fields",
           "depends_on",
           "description",
           "due_on",
           "id",
           "name",
+          "price",
           "propagate_date_changes",
           "responsible_user_id",
           "starts_on"
@@ -9018,6 +9022,61 @@
             "contact",
             "product",
             "user"
+          ],
+          "billing_method": [
+            "non_invoiceable",
+            "time_and_materials",
+            "fixed_price"
+          ],
+          "budget.currency": [
+            "BAM",
+            "CAD",
+            "CHF",
+            "CLP",
+            "CNY",
+            "COP",
+            "CZK",
+            "DKK",
+            "EUR",
+            "GBP",
+            "INR",
+            "ISK",
+            "JPY",
+            "MAD",
+            "MXN",
+            "NOK",
+            "PEN",
+            "PLN",
+            "RON",
+            "SEK",
+            "TRY",
+            "USD",
+            "ZAR"
+          ],
+          "price.currency": [
+            "BAM",
+            "CAD",
+            "CHF",
+            "CLP",
+            "CNY",
+            "COP",
+            "CZK",
+            "DKK",
+            "EUR",
+            "GBP",
+            "INR",
+            "ISK",
+            "JPY",
+            "MAD",
+            "MXN",
+            "NOK",
+            "PEN",
+            "PLN",
+            "RON",
+            "SEK",
+            "TRY",
+            "USD",
+            "ZAR"
           ]
         }
       },

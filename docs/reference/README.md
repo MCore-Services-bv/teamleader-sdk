@@ -8,7 +8,7 @@ includes it accepts, the constants that hold its accepted values, and every
 public method.
 
 Filters, sort fields, includes and body fields are checked against
-`@teamleader/focus-api-specification` **1.225.0** — see
+`@teamleader/focus-api-specification` **1.229.0** — see
 [Specification parity](../project/specification-parity.md). Anything not listed
 on a page throws an `InvalidArgumentException` before a request is sent.
 

@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.4.2] - 2026-10-20
+
+Brought in line with `@teamleader/focus-api-specification` **1.229.0**
+(was 1.225.0). The only change between the two is on the legacy milestones:
+`milestones.update` takes the billing fields that `milestones.create` already
+had. Closes #9.
+
+### Fixed
+
+- **Legacy milestones: `update()` accepts `billing_method`, `budget` and
+  `price`.** The SDK rejected them before the request was sent; specification
+  1.229.0 adds them to `milestones.update`. They follow the same two shapes as
+  on create: `fixed_price` with a `price` (no budget), or `non_invoiceable` /
+  `time_and_materials` with a `budget` (no price). On update the budget is
+  required as soon as `billing_method` is sent, as the specification says.
+  Currencies are checked against `LegacyMilestones::CURRENCIES`.
+
+### Changed
+
+- The spec pin, the fixtures, `API-list-endpoint-contract.md`, the spec-audit
+  baseline and the API reference move to 1.229.0.
+- The specification now enumerates `fixed_price` for milestone billing, so the
+  spec contract tests compare `LegacyMilestones::BILLING_METHODS` with it
+  directly, on create and on update.
+- A currency error on a milestone names the endpoint it came from
+  (`milestones.create` or `milestones.update`).
+
+### Documentation
+
+- Legacy milestones reference: a *Change a milestone to a fixed price*
+  example.
+
 ## [3.4.1] - 2026-10-19
 
 ### Fixed

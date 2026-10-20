@@ -25,12 +25,13 @@ class LegacyMilestones extends Resource
     /** Body fields milestones.update accepts, besides `id` */
     public const UPDATE_FIELDS = [
         'starts_on', 'due_on', 'name', 'description', 'responsible_user_id', 'depends_on',
-        'propagate_date_changes', 'custom_fields',
+        'propagate_date_changes', 'custom_fields', 'billing_method', 'budget', 'price',
     ];
 
     /**
-     * milestones.create takes either a budget (non_invoiceable or
-     * time_and_materials, the default) or a price (fixed_price).
+     * milestones.create and milestones.update take either a budget
+     * (non_invoiceable or time_and_materials, the default on create) or a
+     * price (fixed_price).
      */
     public const BILLING_METHODS = ['non_invoiceable', 'time_and_materials', 'fixed_price'];
 
@@ -118,6 +119,13 @@ class LegacyMilestones extends Resource
                 \'due_on\' => \'2024-12-31\'
             ]);',
         ],
+        'update_milestone_billing' => [
+            'description' => 'Change a milestone to a fixed price',
+            'code' => '$result = $teamleader->legacyMilestones()->update(\'milestone-uuid\', [
+                \'billing_method\' => \'fixed_price\',
+                \'price\' => [\'amount\' => 1500, \'currency\' => \'EUR\']
+            ]);',
+        ],
         'close_milestone' => [
             'description' => 'Close a milestone',
             'code' => '$result = $teamleader->legacyMilestones()->close(\'milestone-uuid\');',
@@ -199,10 +207,23 @@ class LegacyMilestones extends Resource
         }
 
         $this->rejectUnknownFields($data, self::CREATE_FIELDS, 'milestones.create');
-        $this->assertEnum($data['billing_method'] ?? null, self::BILLING_METHODS, 'billing_method', 'milestones.create');
+        $this->assertMilestoneBilling($data, 'milestones.create');
+        $this->assertMilestoneDates($data);
+    }
 
-        // "With price": fixed_price requires a price and takes no budget.
-        // "With budget": the other two take an optional budget and no price.
+    /**
+     * The two oneOf branches of milestones.create and milestones.update.
+     * "With price": fixed_price requires a price and takes no budget.
+     * "With budget": the other two take a budget and no price. On update
+     * the budget is required as soon as billing_method is sent (since
+     * specification 1.229.0); on create it is optional, as before.
+     *
+     * @throws InvalidArgumentException
+     */
+    private function assertMilestoneBilling(array $data, string $endpoint): void
+    {
+        $this->assertEnum($data['billing_method'] ?? null, self::BILLING_METHODS, 'billing_method', $endpoint);
+
         if (($data['billing_method'] ?? null) === 'fixed_price') {
             if (empty($data['price'])) {
                 throw new InvalidArgumentException('price is required when billing_method is fixed_price');
@@ -212,10 +233,11 @@ class LegacyMilestones extends Resource
             }
         } elseif (isset($data['price'])) {
             throw new InvalidArgumentException('price is only accepted with billing_method fixed_price');
+        } elseif ($endpoint === 'milestones.update' && isset($data['billing_method']) && empty($data['budget'])) {
+            throw new InvalidArgumentException("budget is required on milestones.update when billing_method is {$data['billing_method']}");
         }
 
-        $this->assertMilestoneMoney($data, ['budget', 'price']);
-        $this->assertMilestoneDates($data);
+        $this->assertMilestoneMoney($data, ['budget', 'price'], $endpoint);
     }
 
     /**
@@ -223,7 +245,7 @@ class LegacyMilestones extends Resource
      *
      * @throws InvalidArgumentException
      */
-    private function assertMilestoneMoney(array $data, array $fields): void
+    private function assertMilestoneMoney(array $data, array $fields, string $endpoint): void
     {
         foreach ($fields as $field) {
             if (! isset($data[$field])) {
@@ -234,7 +256,7 @@ class LegacyMilestones extends Resource
                 throw new InvalidArgumentException("{$field} must be ['amount' => number, 'currency' => code]");
             }
 
-            $this->assertEnum($data[$field]['currency'], self::CURRENCIES, "{$field}.currency", 'milestones.create');
+            $this->assertEnum($data[$field]['currency'], self::CURRENCIES, "{$field}.currency", $endpoint);
         }
     }
 
@@ -266,6 +288,10 @@ class LegacyMilestones extends Resource
     /**
      * Update an existing milestone
      *
+     * Since specification 1.229.0 the billing can change too: send
+     * billing_method with a budget (non_invoiceable, time_and_materials) or
+     * with a price (fixed_price).
+     *
      * @param  string  $id  Milestone UUID
      * @param  array  $data  Data to update
      *
@@ -278,6 +304,7 @@ class LegacyMilestones extends Resource
         $data['id'] = $id;
 
         $this->rejectUnknownFields($data, [...self::UPDATE_FIELDS, 'id'], 'milestones.update');
+        $this->assertMilestoneBilling($data, 'milestones.update');
         $this->assertMilestoneDates($data);
 
         return $this->api->request('POST', $this->getBasePath().'.update', $data);
