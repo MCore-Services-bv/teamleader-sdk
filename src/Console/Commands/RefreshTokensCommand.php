@@ -16,19 +16,31 @@ use Throwable;
  * connection nobody uses for a while is never renewed, and a revoked refresh
  * token is only discovered when a real request fails. The package schedules
  * this every ten minutes (teamleader.tokens.auto_refresh).
+ *
+ * It fails (exit 1) when a refresh fails, or when Teamleader refuses a refresh
+ * token in this run. A connection that already needed reauthorization before
+ * the run is listed but does not fail it again: nothing in the application can
+ * fix that, only a person connecting the account again, and the
+ * TokenRefreshFailed event already fired when it dropped. Otherwise one
+ * customer who disconnected would fail every scheduled run until reconnected.
+ * --strict counts those connections as failures too (a deploy check).
  */
 class RefreshTokensCommand extends Command
 {
     protected $signature = 'teamleader:tokens:refresh
                             {--connection=* : Only these connections (repeatable); default: every connection with tokens}
-                            {--force : Refresh even when the token is not due}';
+                            {--force : Refresh even when the token is not due}
+                            {--strict : Also fail on connections that already needed reauthorization before this run}';
 
     protected $description = 'Refresh Teamleader access tokens that expire soon';
 
     public function handle(ConnectionManager $manager): int
     {
         $within = (int) config('teamleader.tokens.refresh_before', 1800);
-        $names = $this->option('connection') ?: array_keys($manager->statuses());
+        // Read before refreshing: which connections were waiting for reauthorization already
+        $statuses = $manager->statuses();
+        $names = $this->option('connection') ?: array_keys($statuses);
+        $strict = (bool) $this->option('strict');
 
         if ($names === []) {
             $this->line('No Teamleader connections to refresh.');
@@ -38,6 +50,7 @@ class RefreshTokensCommand extends Command
 
         $rows = [];
         $problems = 0;
+        $waiting = 0;
 
         foreach ($names as $name) {
             if (! $manager->isConfigured($name)) {
@@ -51,6 +64,16 @@ class RefreshTokensCommand extends Command
                 $result = $manager->connection($name)->getTokenService()->refreshIfDue($within, (bool) $this->option('force'));
             } catch (Throwable $e) {
                 $result = TokenService::FAILED.': '.$e->getMessage();
+            }
+
+            $known = $result === TokenService::NEEDS_REAUTHORIZATION
+                && ($statuses[$name]['status'] ?? null) === ConnectionManager::STATUS_NEEDS_REAUTHORIZATION;
+
+            if ($known && ! $strict) {
+                $waiting++;
+                $rows[] = [$name, '<fg=yellow>needs reauthorization (already known)</>'];
+
+                continue;
             }
 
             if (str_starts_with($result, TokenService::FAILED) || $result === TokenService::NEEDS_REAUTHORIZATION) {
@@ -68,6 +91,10 @@ class RefreshTokensCommand extends Command
         }
 
         $this->table(['Connection', 'Result'], $rows);
+
+        if ($waiting > 0) {
+            $this->line("{$waiting} connection(s) still wait to be connected again (not counted as a failure; --strict to fail on them).");
+        }
 
         if ($problems > 0) {
             $this->warn("{$problems} connection(s) could not be refreshed. Run `php artisan teamleader:status --all`.");

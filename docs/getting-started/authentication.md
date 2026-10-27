@@ -137,7 +137,18 @@ twice. That matters, because each refresh returns a new refresh token.
 php artisan teamleader:tokens:refresh                     # every connection that is due
 php artisan teamleader:tokens:refresh --connection=ghent  # one
 php artisan teamleader:tokens:refresh --force             # even when not due
+php artisan teamleader:tokens:refresh --strict            # also fail on connections that already need reauthorization
 ```
+
+The command exits with 1 when a refresh fails, or when Teamleader refuses a
+refresh token during that run. A connection that already needed
+reauthorization before the run is listed as *needs reauthorization (already
+known)* but does not fail it again: only a person connecting the account again
+fixes it, and `TokenRefreshFailed` already fired when it dropped. So one
+customer who disconnected doesn't make every scheduled run fail (and your error
+tracker report it every ten minutes). Use `--strict` where those should fail
+too, or `teamleader:status --all`, which exits with 1 while any connection
+needs reauthorization.
 
 `TEAMLEADER_TOKENS_AUTO_REFRESH=false` turns the schedule off;
 `TEAMLEADER_TOKENS_REFRESH_BEFORE` (seconds, default 1800) sets how early.

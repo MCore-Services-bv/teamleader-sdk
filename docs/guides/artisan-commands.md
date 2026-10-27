@@ -8,7 +8,7 @@
 | `teamleader:connections:add` / `list` / `remove` | Manage connections whose credentials are stored in the database |
 | `teamleader:connections:rename {from} {to}` | Rename a connection, keeping its credentials and tokens |
 | `teamleader:connections:expect {name} --current` | Pin the account a stored connection must connect to; `--all`, an id, or `--clear` |
-| `teamleader:tokens:refresh` | Renew tokens that expire soon — scheduled every ten minutes by the package |
+| `teamleader:tokens:refresh` | Renew tokens that expire soon — scheduled every ten minutes by the package. Fails on a refresh that fails in this run; `--strict` also on connections that already needed reauthorization |
 | `teamleader:health` | Health checks: configuration, authentication, tokens, every connection, API connectivity, rate limits, database, the token cache and dependencies |
 | `teamleader:config:validate` | Validate the configuration and environment |
 | `teamleader:export-uuids` | Print account UUIDs for `config/teamleader.php` |

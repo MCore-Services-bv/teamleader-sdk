@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.5.0] - 2026-10-27
+
+### Changed
+
+- **`teamleader:tokens:refresh` no longer fails again on a connection that
+  already needed reauthorization.** Before, one connection whose account was
+  disconnected (often a customer's) failed every scheduled run until someone
+  connected it again, so the scheduler reported the same failure every ten
+  minutes. A connection that was `needs_reauthorization` before the run is now
+  listed as *needs reauthorization (already known)* and the run still succeeds.
+  The command still fails (exit 1) when a refresh fails, or when Teamleader
+  refuses a refresh token during that run; `TokenRefreshFailed` fires then, as
+  before.
+
+### Added
+
+- `teamleader:tokens:refresh --strict`: also fail on connections that already
+  needed reauthorization (the previous behaviour), for a deploy check.
+
+### Documentation
+
+- Authentication guide and Artisan commands: when the refresh command fails,
+  and `--strict`.
+
 ## [3.4.2] - 2026-10-20
 
 Brought in line with `@teamleader/focus-api-specification` **1.229.0**

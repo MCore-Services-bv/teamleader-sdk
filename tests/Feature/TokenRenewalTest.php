@@ -156,6 +156,32 @@ final class TokenRenewalTest extends TestCase
             ->assertExitCode(1);
     }
 
+    public function test_the_command_does_not_fail_again_on_a_connection_that_already_needed_reauthorization(): void
+    {
+        $this->answerRefresh('antwerp', []);
+        $this->answerRefresh('ghent', []);
+        $this->connect('antwerp', expiresIn: 3600);
+        $this->connect('ghent', expiresIn: 600, status: StoredTokens::NEEDS_REAUTHORIZATION);
+
+        $this->artisan('teamleader:tokens:refresh')
+            ->expectsOutputToContain('needs reauthorization (already known)')
+            ->expectsOutputToContain('1 connection(s) still wait to be connected again')
+            ->assertExitCode(0);
+
+        // Nothing is sent for it
+        $this->assertSame([], $this->history['ghent']);
+    }
+
+    public function test_the_command_fails_on_a_known_reauthorization_with_strict(): void
+    {
+        $this->answerRefresh('ghent', []);
+        $this->connect('ghent', expiresIn: 600, status: StoredTokens::NEEDS_REAUTHORIZATION);
+
+        $this->artisan('teamleader:tokens:refresh', ['--connection' => ['ghent'], '--strict' => true])
+            ->expectsOutputToContain('needs reauthorization')
+            ->assertExitCode(1);
+    }
+
     public function test_the_command_records_the_account_of_a_connection_upgraded_from_2x(): void
     {
         // A 2.x token table has no account: the refresh run looks it up once
