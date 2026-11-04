@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.6.0] - 2026-11-04
+
+Brought in line with `@teamleader/focus-api-specification` **1.235.0**
+(was 1.229.0). Closes #11.
+
+### Added
+
+- **Projects: `created_at` and `updated_at` filters on `list()`.** Each takes
+  an operator — `between`, `equals`, `before` or `after` — and ISO 8601
+  datetimes with a timezone: `['operator' => 'after', 'value' =>
+  '2026-11-01T00:00:00+00:00']`, or `between` with `start` and `end`. The
+  operator, the operands it needs and the datetime format are checked before
+  the request is sent; operands the operator does not use are dropped.
+  Accepted operators are in `Projects::DATE_OPERATORS`.
+- **Projects: `created_at` and `updated_at` as sort fields.**
+- `Projects::updatedAfter($since, $options)`: projects changed after a moment,
+  oldest change first — the building block for an incremental sync.
+- `Projects::createdBetween($start, $end, $options)`.
+
+### Changed
+
+- The spec pin, the fixtures, `API-list-endpoint-contract.md`, the spec-audit
+  baseline and the API reference move to 1.235.0.
+- `projects.info` and `projects.list` responses now carry `created_at` and
+  `updated_at`. The SDK returns responses as they come, so they are there
+  without a change on your side.
+
+### Not yet wrapped
+
+Specification 1.235.0 also adds optional body fields the SDK does not send
+yet. Nothing that worked before breaks:
+
+- `assignee_id` on `tasks.schedule`, to schedule a task in another user's
+  calendar.
+- `refusal_reason_code` on `incomingInvoices.refuse` and
+  `incomingCreditNotes.refuse`.
+
 ## [3.5.0] - 2026-10-27
 
 ### Changed

@@ -353,6 +353,98 @@ final class ProjectsPayloadTest extends ResourceTestCase
         $this->expectRejected(fn () => $this->resource(Projects::class)->list(['status' => 'active']), 'filter.status');
     }
 
+    /**
+     * Specification 1.235.0 added created_at and updated_at to projects.list,
+     * as filters and as sort fields. Before v3.6.0 the SDK rejected both.
+     */
+    public function test_project_list_filters_on_updated_at_after(): void
+    {
+        $this->resource(Projects::class)->list(
+            ['updated_at' => ['operator' => 'after', 'value' => '2026-11-01T00:00:00+00:00']],
+            ['sort' => 'updated_at', 'sort_order' => 'asc']
+        );
+
+        $this->assertLastEndpoint('projects-v2/projects.list');
+        $this->assertLastBody([
+            'filter' => ['updated_at' => ['operator' => 'after', 'value' => '2026-11-01T00:00:00+00:00']],
+            'sort' => [['field' => 'updated_at', 'order' => 'asc']],
+            'includes' => 'pagination',
+        ]);
+    }
+
+    public function test_project_list_filters_on_created_at_between(): void
+    {
+        $this->resource(Projects::class)->list(
+            ['created_at' => ['operator' => 'between', 'start' => '2026-10-01T00:00:00+00:00', 'end' => '2026-10-31T23:59:59Z']],
+            ['sort' => 'created_at']
+        );
+
+        $this->assertLastBody([
+            'filter' => ['created_at' => ['operator' => 'between', 'start' => '2026-10-01T00:00:00+00:00', 'end' => '2026-10-31T23:59:59Z']],
+            'sort' => [['field' => 'created_at', 'order' => 'desc']],
+            'includes' => 'pagination',
+        ]);
+    }
+
+    public function test_project_date_filter_drops_operands_the_operator_does_not_use(): void
+    {
+        $this->resource(Projects::class)->list([
+            'created_at' => ['operator' => 'before', 'value' => '2026-11-01T00:00:00+00:00', 'start' => '2026-10-01T00:00:00+00:00'],
+        ]);
+
+        $this->assertLastBodyHas('filter.created_at', ['operator' => 'before', 'value' => '2026-11-01T00:00:00+00:00']);
+    }
+
+    public function test_project_updated_after_sorts_oldest_change_first(): void
+    {
+        $this->resource(Projects::class)->updatedAfter('2026-11-01T00:00:00+00:00');
+
+        $this->assertLastBody([
+            'filter' => ['updated_at' => ['operator' => 'after', 'value' => '2026-11-01T00:00:00+00:00']],
+            'sort' => [['field' => 'updated_at', 'order' => 'asc']],
+            'includes' => 'pagination',
+        ]);
+    }
+
+    public function test_project_updated_after_keeps_a_sort_of_its_own(): void
+    {
+        $this->resource(Projects::class)->updatedAfter('2026-11-01T00:00:00+00:00', ['sort' => 'title', 'sort_order' => 'asc']);
+
+        $this->assertLastBodyHas('sort', [['field' => 'title', 'order' => 'asc']]);
+    }
+
+    public function test_project_created_between(): void
+    {
+        $this->resource(Projects::class)->createdBetween('2026-10-01T00:00:00+00:00', '2026-10-31T23:59:59+00:00');
+
+        $this->assertLastBodyHas('filter.created_at', [
+            'operator' => 'between', 'start' => '2026-10-01T00:00:00+00:00', 'end' => '2026-10-31T23:59:59+00:00',
+        ]);
+    }
+
+    /**
+     * @return array<string, array{0: array<string, mixed>, 1: string}>
+     */
+    public static function invalidProjectDateFilters(): array
+    {
+        return [
+            'unknown operator' => [['created_at' => ['operator' => 'is_empty']], 'filter.created_at.operator'],
+            'no operator' => [['created_at' => ['value' => '2026-11-01T00:00:00+00:00']], 'operator'],
+            'no value' => [['updated_at' => ['operator' => 'before']], 'needs value'],
+            'between without end' => [['updated_at' => ['operator' => 'between', 'start' => '2026-11-01T00:00:00+00:00']], 'needs start and end'],
+            'date without time' => [['updated_at' => ['operator' => 'after', 'value' => '2026-11-01']], 'ISO 8601'],
+            'datetime without timezone' => [['updated_at' => ['operator' => 'after', 'value' => '2026-11-01T00:00:00']], 'ISO 8601'],
+            'a bare string' => [['created_at' => '2026-11-01T00:00:00+00:00'], 'filter.created_at'],
+            'unknown key' => [['created_at' => ['operator' => 'after', 'value' => '2026-11-01T00:00:00+00:00', 'from' => 'x']], 'from'],
+        ];
+    }
+
+    #[DataProvider('invalidProjectDateFilters')]
+    public function test_project_date_filter_is_checked(array $filters, string $message): void
+    {
+        $this->expectRejected(fn () => $this->resource(Projects::class)->list($filters), $message);
+    }
+
     public function test_project_info_accepts_legacy_project_only(): void
     {
         $this->resource(Projects::class)->info('project-uuid', 'legacy_project');

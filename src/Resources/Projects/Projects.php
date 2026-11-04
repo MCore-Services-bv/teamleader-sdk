@@ -61,6 +61,12 @@ class Projects extends ProjectsV2Resource
     /** `filter.status` on projects.list */
     public const STATUSES = ['open', 'planned', 'running', 'overdue', 'over_budget', 'closed'];
 
+    /** `filter.created_at.operator` and `filter.updated_at.operator` on projects.list */
+    public const DATE_OPERATORS = ['between', 'equals', 'before', 'after'];
+
+    /** Filters on projects.list that take {operator, value | start + end} */
+    private const DATE_FILTERS = ['created_at', 'updated_at'];
+
     public const CUSTOMER_TYPES = ['contact', 'company'];
 
     public const DELETE_STRATEGIES = [
@@ -125,6 +131,8 @@ class Projects extends ProjectsV2Resource
         'deal_ids' => 'Array of deal UUIDs',
         'term' => 'Search term (searches project number, title, customer names, assignee names, owner names)',
         'customers' => 'Array of customer objects [{type, id}]',
+        'created_at' => 'Creation date: [operator => between|equals|before|after, value | start + end => ISO 8601 datetime]',
+        'updated_at' => 'Last update date: [operator => between|equals|before|after, value | start + end => ISO 8601 datetime]',
     ];
 
     /**
@@ -136,6 +144,7 @@ class Projects extends ProjectsV2Resource
         'amount_paid' => 'Amount paid',
         'amount_unbilled' => 'Amount not yet billed',
         'cost' => 'Cost',
+        'created_at' => 'Creation date',
         'customer' => 'Customer name',
         'end_date' => 'End date',
         'external_budget' => 'External budget',
@@ -150,6 +159,7 @@ class Projects extends ProjectsV2Resource
         'time_estimated' => 'Estimated time',
         'time_tracked' => 'Tracked time',
         'title' => 'Title',
+        'updated_at' => 'Last update date',
     ];
 
     // Kept for backwards compatibility — see the constants above
@@ -166,6 +176,14 @@ class Projects extends ProjectsV2Resource
         'filter_by_status' => [
             'description' => 'Get open projects',
             'code' => '$projects = $teamleader->projects()->open();',
+        ],
+        'changed_since' => [
+            'description' => 'Get projects changed since a moment, oldest change first',
+            'code' => '$projects = $teamleader->projects()->updatedAfter("2026-11-01T00:00:00+00:00");',
+        ],
+        'filter_by_creation_date' => [
+            'description' => 'Get projects created in October 2026',
+            'code' => '$projects = $teamleader->projects()->createdBetween("2026-10-01T00:00:00+00:00", "2026-10-31T23:59:59+00:00");',
         ],
         'create_project' => [
             'description' => 'Create a new project',
@@ -216,7 +234,11 @@ class Projects extends ProjectsV2Resource
      * `includes=pagination` is always sent, so the response carries
      * `meta.matches` with the total number of matching projects.
      *
-     * @param  array  $filters  ids, status, quotation_ids, deal_ids, term, customers
+     * `created_at` and `updated_at` (specification 1.235.0) take an operator
+     * and ISO 8601 datetimes: `['operator' => 'after', 'value' => '2026-11-01T00:00:00+00:00']`,
+     * or `between` with `start` and `end`. Both are sort fields too.
+     *
+     * @param  array  $filters  ids, status, quotation_ids, deal_ids, term, customers, created_at, updated_at
      * @param  array  $options  page_size, page_number, sort, sort_order, include(s)
      *
      * @throws InvalidArgumentException On an unknown filter key, option, sort field or include
@@ -550,6 +572,42 @@ class Projects extends ProjectsV2Resource
     }
 
     /**
+     * Get projects changed after a moment, oldest change first
+     *
+     * Meant for incremental syncs: store the `updated_at` of the last project
+     * you processed and pass it on the next run. Sorted on `updated_at`
+     * ascending unless $options carries its own sort.
+     *
+     * @param  string  $since  ISO 8601 datetime with a timezone, e.g. 2026-11-01T00:00:00+00:00
+     * @param  array  $options  Same as list()
+     *
+     * @throws InvalidArgumentException On a malformed datetime
+     */
+    public function updatedAfter(string $since, array $options = []): array
+    {
+        if (empty($options['sort'])) {
+            $options['sort'] = 'updated_at';
+            $options['sort_order'] = 'asc';
+        }
+
+        return $this->list(['updated_at' => ['operator' => 'after', 'value' => $since]], $options);
+    }
+
+    /**
+     * Get projects created between two moments
+     *
+     * @param  string  $start  ISO 8601 datetime with a timezone
+     * @param  string  $end  ISO 8601 datetime with a timezone
+     * @param  array  $options  Same as list()
+     *
+     * @throws InvalidArgumentException On a malformed datetime
+     */
+    public function createdBetween(string $start, string $end, array $options = []): array
+    {
+        return $this->list(['created_at' => ['operator' => 'between', 'start' => $start, 'end' => $end]], $options);
+    }
+
+    /**
      * Get projects by IDs
      *
      * @param  array  $ids  Array of project UUIDs
@@ -662,8 +720,78 @@ class Projects extends ProjectsV2Resource
         $this->assertEnum($filters['status'] ?? null, self::STATUSES, 'filter.status', $endpoint);
         $this->assertItemEnum($filters, 'customers', 'type', self::CUSTOMER_TYPES, $endpoint);
 
+        foreach (self::DATE_FILTERS as $key) {
+            if (isset($filters[$key])) {
+                $filters[$key] = $this->buildDateFilter($filters[$key], $key, $endpoint);
+            }
+        }
+
         // ids, deal_ids and quotation_ids are arrays; a lone string is wrapped
         return $this->wrapArrayFilters($filters, ['ids', 'deal_ids', 'quotation_ids']);
+    }
+
+    /**
+     * Build a created_at / updated_at filter
+     *
+     * - `equals`, `before`, `after` take `value`
+     * - `between` takes `start` and `end`
+     *
+     * Each is an ISO 8601 datetime with a timezone. Operands the operator does
+     * not use are dropped, so a reused array does not send a stray `value`.
+     *
+     * @throws InvalidArgumentException When the operator or its operands are missing or invalid
+     */
+    private function buildDateFilter(mixed $filter, string $key, string $endpoint): array
+    {
+        if (! is_array($filter)) {
+            throw new InvalidArgumentException(
+                "filter.{$key} on {$endpoint} takes ['operator' => ..., 'value' | 'start' + 'end' => ISO 8601 datetime]."
+            );
+        }
+
+        $this->rejectUnknownFields($filter, ['operator', 'value', 'start', 'end'], "{$endpoint} filter.{$key}");
+
+        $operator = $filter['operator'] ?? null;
+
+        if ($operator === null) {
+            throw new InvalidArgumentException(
+                "filter.{$key}.operator on {$endpoint} is required: ".implode(', ', self::DATE_OPERATORS).'.'
+            );
+        }
+
+        $this->assertEnum($operator, self::DATE_OPERATORS, "filter.{$key}.operator", $endpoint);
+
+        $operands = $operator === 'between' ? ['start', 'end'] : ['value'];
+        $built = ['operator' => $operator];
+
+        foreach ($operands as $operand) {
+            if (empty($filter[$operand])) {
+                throw new InvalidArgumentException(
+                    "filter.{$key} with operator {$operator} on {$endpoint} needs ".implode(' and ', $operands).'.'
+                );
+            }
+
+            $this->assertFilterDateTime($filter[$operand], "filter.{$key}.{$operand}", $endpoint);
+            $built[$operand] = $filter[$operand];
+        }
+
+        return $built;
+    }
+
+    /**
+     * An ISO 8601 datetime with a timezone (offset or Z)
+     *
+     * @throws InvalidArgumentException
+     */
+    private function assertFilterDateTime(mixed $value, string $field, string $endpoint): void
+    {
+        $pattern = '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/';
+
+        if (! is_string($value) || ! preg_match($pattern, $value) || strtotime($value) === false) {
+            throw new InvalidArgumentException(
+                "{$field} on {$endpoint} must be an ISO 8601 datetime with a timezone, e.g. 2026-11-01T00:00:00+00:00."
+            );
+        }
     }
 
     /**
