@@ -1,6 +1,6 @@
 {
   "_comment": "Generated — do not edit by hand. See generate-spec-fixtures.mjs.",
-  "specification_version": "1.229.0",
+  "specification_version": "1.235.0",
   "endpoint_count": 292,
   "endpoints": {
     "accounts.projects-v2-status": {
@@ -5649,7 +5649,8 @@
       "deprecated": false,
       "request": {
         "properties": [
-          "id"
+          "id",
+          "refusal_reason_code"
         ],
         "required": [
           "id"
@@ -5666,7 +5667,23 @@
         "response_includes": [],
         "declares_pagination_meta": false,
         "includes_example": null,
-        "enums": {}
+        "enums": {
+          "refusal_reason_code": [
+            "INCORRECT_VAT_RATE",
+            "INCORRECT_TOTAL_AMOUNT",
+            "CALCULATION_ERROR",
+            "MISSING_LEGAL_INFORMATION",
+            "DUPLICATE_INVOICE",
+            "WRONG_RECIPIENT",
+            "UNKNOWN_TRANSACTION",
+            "UNKNOWN_ISSUER",
+            "CONTRACT_ENDED",
+            "DOUBLE_INVOICING",
+            "ORDER_NUMBER_ERROR",
+            "WRONG_ELECTRONIC_BILLING_ADDRESS",
+            "MISSING_CONTRACTUAL_REFERENCE"
+          ]
+        }
       },
       "response": {
         "statuses": [
@@ -6265,7 +6282,8 @@
       "deprecated": false,
       "request": {
         "properties": [
-          "id"
+          "id",
+          "refusal_reason_code"
         ],
         "required": [
           "id"
@@ -6282,7 +6300,23 @@
         "response_includes": [],
         "declares_pagination_meta": false,
         "includes_example": null,
-        "enums": {}
+        "enums": {
+          "refusal_reason_code": [
+            "INCORRECT_VAT_RATE",
+            "INCORRECT_TOTAL_AMOUNT",
+            "CALCULATION_ERROR",
+            "MISSING_LEGAL_INFORMATION",
+            "DUPLICATE_INVOICE",
+            "WRONG_RECIPIENT",
+            "UNKNOWN_TRANSACTION",
+            "UNKNOWN_ISSUER",
+            "CONTRACT_ENDED",
+            "DOUBLE_INVOICING",
+            "ORDER_NUMBER_ERROR",
+            "WRONG_ELECTRONIC_BILLING_ADDRESS",
+            "MISSING_CONTRACTUAL_REFERENCE"
+          ]
+        }
       },
       "response": {
         "statuses": [
@@ -12693,6 +12727,8 @@
           "data.start_date": "string, nullable",
           "data.end_date": "string, nullable",
           "data.purchase_order_number": "string, nullable",
+          "data.created_at": "string",
+          "data.updated_at": "string",
           "data.company_entity": "object",
           "data.company_entity.id": "string",
           "data.company_entity.type": "string",
@@ -12782,15 +12818,35 @@
           "customers": {
             "type": "array",
             "items": "object"
+          },
+          "created_at": {
+            "type": "object",
+            "properties": [
+              "end",
+              "operator",
+              "start",
+              "value"
+            ]
+          },
+          "updated_at": {
+            "type": "object",
+            "properties": [
+              "end",
+              "operator",
+              "start",
+              "value"
+            ]
           }
         },
         "filter_keys": [
+          "created_at",
           "customers",
           "deal_ids",
           "ids",
           "quotation_ids",
           "status",
-          "term"
+          "term",
+          "updated_at"
         ],
         "filter_required": [],
         "sort_fields": [
@@ -12798,6 +12854,7 @@
           "amount_paid",
           "amount_unbilled",
           "cost",
+          "created_at",
           "customer",
           "end_date",
           "external_budget",
@@ -12811,7 +12868,8 @@
           "time_budget",
           "time_estimated",
           "time_tracked",
-          "title"
+          "title",
+          "updated_at"
         ],
         "sort_orders": [],
         "declares_pagination": true,
@@ -12839,11 +12897,24 @@
             "contact",
             "company"
           ],
+          "filter.created_at.operator": [
+            "between",
+            "equals",
+            "before",
+            "after"
+          ],
+          "filter.updated_at.operator": [
+            "between",
+            "equals",
+            "before",
+            "after"
+          ],
           "sort[].field": [
             "amount_billed",
             "amount_paid",
             "amount_unbilled",
             "cost",
+            "created_at",
             "customer",
             "end_date",
             "external_budget_spent",
@@ -12857,7 +12928,8 @@
             "time_budget",
             "time_estimated",
             "time_tracked",
-            "title"
+            "title",
+            "updated_at"
           ]
         }
       },
@@ -12926,6 +12998,8 @@
           "data[].margin_percentage": "number, nullable",
           "data[].start_date": "string, nullable",
           "data[].end_date": "string, nullable",
+          "data[].created_at": "string",
+          "data[].updated_at": "string",
           "data[].company_entity": "object",
           "data[].company_entity.id": "string",
           "data[].company_entity.type": "string",
@@ -17302,6 +17376,7 @@
       "deprecated": false,
       "request": {
         "properties": [
+          "assignee_id",
           "ends_at",
           "id",
           "starts_at"

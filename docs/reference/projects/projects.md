@@ -69,12 +69,14 @@ Passed as the first argument to `list()`. Any other key throws.
 
 | Filter | Description |
 |---|---|
+| `created_at` | Creation date: [operator =&gt; between\|equals\|before\|after, value \| start + end =&gt; ISO 8601 datetime] |
 | `customers` | Array of customer objects [{type, id}] |
 | `deal_ids` | Array of deal UUIDs |
 | `ids` | Array of project UUIDs to filter by |
 | `quotation_ids` | Array of quotation UUIDs |
 | `status` | Project status (open, planned, running, overdue, over_budget, closed) |
 | `term` | Search term (searches project number, title, customer names, assignee names, owner names) |
+| `updated_at` | Last update date: [operator =&gt; between\|equals\|before\|after, value \| start + end =&gt; ISO 8601 datetime] |
 
 ## Sorting
 
@@ -86,6 +88,7 @@ Pass `sort` (and optionally `sort_order`) in the options. Any other field throws
 | `amount_paid` | Amount paid |
 | `amount_unbilled` | Amount not yet billed |
 | `cost` | Cost |
+| `created_at` | Creation date |
 | `customer` | Customer name |
 | `end_date` | End date |
 | `external_budget` | External budget |
@@ -100,6 +103,7 @@ Pass `sort` (and optionally `sort_order`) in the options. Any other field throws
 | `time_estimated` | Estimated time |
 | `time_tracked` | Tracked time |
 | `title` | Title |
+| `updated_at` | Last update date |
 
 ## Includes
 
@@ -122,6 +126,7 @@ throw before the request is sent.
 | `CREATE_FIELDS` | `title`, `description`, `owner_ids`, `time_budget`, `billing_method`, `external_budget`, `internal_budget`, `fixed_price`, `start_date`, `end_date`, `purchase_order_number`, `company_entity_id`, `color`, `customers`, `assignees`, `deal_ids`, `quotation_ids`, `initial_time_tracked`, `initial_price`, `initial_cost`, `initial_amount_billed`, `initial_amount_paid`, `custom_fields` |
 | `CURRENCIES` | `BAM`, `CAD`, `CHF`, `CLP`, `CNY`, `COP`, `CZK`, `DKK`, `EUR`, `GBP`, `INR`, `ISK`, `JPY`, `MAD`, `MXN`, `NOK`, `PEN`, `PLN`, `RON`, `SEK`, `TRY`, `USD`, `ZAR` |
 | `CUSTOMER_TYPES` | `contact`, `company` |
+| `DATE_OPERATORS` | `between`, `equals`, `before`, `after` |
 | `DELETE_STRATEGIES` | `unlink_tasks_and_time_trackings`, `delete_tasks_and_time_trackings`, `delete_tasks_unlink_time_trackings` |
 | `INCLUDES` | `custom_fields`, `legacy_project` |
 | `INFO_INCLUDES` | `legacy_project` |
@@ -156,7 +161,11 @@ List projects
 `includes=pagination` is always sent, so the response carries
 `meta.matches` with the total number of matching projects.
 
-- `$filters` — ids, status, quotation_ids, deal_ids, term, customers
+`created_at` and `updated_at` (specification 1.235.0) take an operator
+and ISO 8601 datetimes: `['operator' => 'after', 'value' => '2026-11-01T00:00:00+00:00']`,
+or `between` with `start` and `end`. Both are sort fields too.
+
+- `$filters` — ids, status, quotation_ids, deal_ids, term, customers, created_at, updated_at
 - `$options` — page_size, page_number, sort, sort_order, include(s)
 
 **Throws** `InvalidArgumentException` On an unknown filter key, option, sort field or include
@@ -385,6 +394,37 @@ Search projects by term
 - `$term` — Search term
 - `$options` — Additional options
 
+### `updatedAfter()`
+
+```php
+updatedAfter(string $since, array $options = []): array
+```
+
+Get projects changed after a moment, oldest change first
+
+Meant for incremental syncs: store the `updated_at` of the last project
+you processed and pass it on the next run. Sorted on `updated_at`
+ascending unless $options carries its own sort.
+
+- `$since` — ISO 8601 datetime with a timezone, e.g. 2026-11-01T00:00:00+00:00
+- `$options` — Same as list()
+
+**Throws** `InvalidArgumentException` On a malformed datetime
+
+### `createdBetween()`
+
+```php
+createdBetween(string $start, string $end, array $options = []): array
+```
+
+Get projects created between two moments
+
+- `$start` — ISO 8601 datetime with a timezone
+- `$end` — ISO 8601 datetime with a timezone
+- `$options` — Same as list()
+
+**Throws** `InvalidArgumentException` On a malformed datetime
+
 ### `byIds()`
 
 ```php
@@ -500,6 +540,18 @@ Get open projects:
 
 ```php
 $projects = Teamleader::projects()->open();
+```
+
+Get projects changed since a moment, oldest change first:
+
+```php
+$projects = Teamleader::projects()->updatedAfter("2026-11-01T00:00:00+00:00");
+```
+
+Get projects created in October 2026:
+
+```php
+$projects = Teamleader::projects()->createdBetween("2026-10-01T00:00:00+00:00", "2026-10-31T23:59:59+00:00");
 ```
 
 Create a new project:

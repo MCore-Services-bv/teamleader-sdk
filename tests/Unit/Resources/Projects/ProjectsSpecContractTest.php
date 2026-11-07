@@ -81,6 +81,8 @@ final class ProjectsSpecContractTest extends TestCase
             'projects customers type' => ['projects-v2/projects.create', 'customers[].type', Projects::CUSTOMER_TYPES],
             'projects assignees type' => ['projects-v2/projects.create', 'assignees[].type', ProjectsV2Resource::ASSIGNEE_TYPES],
             'projects filter status' => ['projects-v2/projects.list', 'filter.status', Projects::STATUSES],
+            'projects filter created_at' => ['projects-v2/projects.list', 'filter.created_at.operator', Projects::DATE_OPERATORS],
+            'projects filter updated_at' => ['projects-v2/projects.list', 'filter.updated_at.operator', Projects::DATE_OPERATORS],
             'projects delete' => ['projects-v2/projects.delete', 'delete_strategy', Projects::DELETE_STRATEGIES],
             'projects close' => ['projects-v2/projects.close', 'closing_strategy', Projects::CLOSING_STRATEGIES],
             'projects assign' => ['projects-v2/projects.assign', 'assignee.type', ProjectsV2Resource::ASSIGNEE_TYPES],
