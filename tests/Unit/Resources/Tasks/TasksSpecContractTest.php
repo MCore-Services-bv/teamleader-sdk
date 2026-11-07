@@ -32,6 +32,18 @@ final class TasksSpecContractTest extends TestCase
         $this->assertEqualsCanonicalizing($declared['required'], Tasks::REQUIRED_ON_CREATE);
     }
 
+    /**
+     * schedule() builds its body from its arguments; this catches a field the
+     * specification adds or drops (assignee_id arrived in 1.235.0).
+     */
+    public function test_schedule_fields_match(): void
+    {
+        $declared = self::spec()->endpoint('tasks.schedule')['request'];
+
+        $this->assertEqualsCanonicalizing(['id', 'starts_at', 'ends_at', 'assignee_id'], $declared['properties']);
+        $this->assertEqualsCanonicalizing(['id', 'starts_at', 'ends_at'], $declared['required']);
+    }
+
     public function test_update_fields_match(): void
     {
         $declared = self::spec()->endpoint('tasks.update')['request']['properties'];

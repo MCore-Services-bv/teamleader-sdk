@@ -164,6 +164,31 @@ final class TasksPayloadTest extends ResourceTestCase
         $this->assertLastBody(['id' => 'task-uuid', 'starts_at' => '2026-01-01T09:00:00Z', 'ends_at' => '2026-01-01T10:00:00Z']);
     }
 
+    /**
+     * Specification 1.235.0 added assignee_id: schedule in another user's
+     * calendar. Before v3.6.1 there was no way to send it.
+     */
+    public function test_schedule_in_another_users_calendar(): void
+    {
+        $this->tasks()->schedule('task-uuid', '2026-01-01T09:00:00Z', '2026-01-01T10:00:00Z', 'user-uuid');
+
+        $this->assertLastEndpoint('tasks.schedule');
+        $this->assertLastBody([
+            'id' => 'task-uuid',
+            'starts_at' => '2026-01-01T09:00:00Z',
+            'ends_at' => '2026-01-01T10:00:00Z',
+            'assignee_id' => 'user-uuid',
+        ]);
+    }
+
+    public function test_schedule_rejects_an_empty_assignee_id(): void
+    {
+        $this->expectRejected(
+            fn () => $this->tasks()->schedule('task-uuid', '2026-01-01T09:00:00Z', '2026-01-01T10:00:00Z', ' '),
+            'assignee_id'
+        );
+    }
+
     public function test_schedule_end_must_follow_start(): void
     {
         $this->expectRejected(

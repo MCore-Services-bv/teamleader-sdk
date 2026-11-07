@@ -42,6 +42,7 @@ throw before the request is sent.
 |---|---|
 | `CURRENCIES` | `BAM`, `CAD`, `CHF`, `CLP`, `CNY`, `COP`, `CZK`, `DKK`, `EUR`, `GBP`, `INR`, `ISK`, `JPY`, `MAD`, `MXN`, `NOK`, `PEN`, `PLN`, `RON`, `SEK`, `TRY`, `USD`, `ZAR` |
 | `PAYMENT_STATUSES` | `unknown`, `paid`, `partially_paid`, `credited`, `not_paid` |
+| `REFUSAL_REASON_CODES` | `INCORRECT_VAT_RATE`, `INCORRECT_TOTAL_AMOUNT`, `CALCULATION_ERROR`, `MISSING_LEGAL_INFORMATION`, `DUPLICATE_INVOICE`, `WRONG_RECIPIENT`, `UNKNOWN_TRANSACTION`, `UNKNOWN_ISSUER`, `CONTRACT_ENDED`, `DOUBLE_INVOICING`, `ORDER_NUMBER_ERROR`, `WRONG_ELECTRONIC_BILLING_ADDRESS`, `MISSING_CONTRACTUAL_REFERENCE` |
 | `REGISTER_PAYMENT_FIELDS` | `payment`, `paid_at`, `payment_method_id`, `remark` |
 | `REVIEW_STATUSES` | `pending`, `approved`, `refused` |
 | `TOTAL_KEYS` | `tax_exclusive`, `tax_inclusive` |
@@ -128,10 +129,20 @@ Approve an expense document
 ### `refuse()`
 
 ```php
-refuse(string $id): array
+refuse(string $id, ?string $reasonCode = null): array
 ```
 
 Refuse an expense document
+
+Incoming invoices and credit notes take a reason code (specification
+1.235.0). Under the French e-invoicing reform it is required when the
+document came in as an electronic invoice; it is not needed for
+documents uploaded by hand or through OCR. Receipts take none.
+
+- `$id` — Document UUID
+- `$reasonCode` — One of REFUSAL_REASON_CODES — incoming invoices and credit notes only
+
+**Throws** `InvalidArgumentException` On an unknown reason code, or a reason code on a receipt
 
 ### `markAsPendingReview()`
 
@@ -248,6 +259,12 @@ Register a payment for an invoice:
 
 ```php
 Teamleader::incomingInvoices()->registerPayment('invoice-uuid', ['amount' => 500.00, 'currency' => 'EUR'], '2024-01-15T10:00:00Z');
+```
+
+Refuse an e-invoiced invoice with a reason code:
+
+```php
+Teamleader::incomingInvoices()->refuse('invoice-uuid', 'INCORRECT_VAT_RATE');
 ```
 
 Remove a payment from an invoice:

@@ -81,6 +81,23 @@ final class ExpensesSpecContractTest extends TestCase
         $this->assertSame(['id', 'payment_id'], self::spec()->endpoint("{$base}.updatePayment")['request']['required']);
     }
 
+    /**
+     * refusal_reason_code arrived in specification 1.235.0, on incoming
+     * invoices and credit notes only.
+     */
+    #[DataProvider('documents')]
+    public function test_refuse_fields_match(string $base, array $fields, array $statuses): void
+    {
+        $request = self::spec()->endpoint("{$base}.refuse")['request'];
+        $takesReason = $base !== 'receipts';
+
+        $this->assertEqualsCanonicalizing($takesReason ? ['id', 'refusal_reason_code'] : ['id'], $request['properties']);
+
+        if ($takesReason) {
+            $this->assertEqualsCanonicalizing($request['enums']['refusal_reason_code'], ExpenseDocument::REFUSAL_REASON_CODES);
+        }
+    }
+
     #[DataProvider('documents')]
     public function test_currencies_match(string $base, array $fields, array $statuses): void
     {

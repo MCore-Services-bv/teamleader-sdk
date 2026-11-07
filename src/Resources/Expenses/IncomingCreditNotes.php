@@ -19,6 +19,9 @@ class IncomingCreditNotes extends ExpenseDocument
     /** `payment_status` on incomingCreditNotes.info */
     public const PAYMENT_STATUSES = ['unknown', 'paid', 'not_paid'];
 
+    // refuse() takes a refusal_reason_code (specification 1.235.0)
+    protected bool $acceptsRefusalReason = true;
+
     protected string $description = 'Manage incoming credit notes from suppliers in Teamleader Focus';
 
     // `payment_status` values incomingCreditNotes.info returns
@@ -36,6 +39,10 @@ class IncomingCreditNotes extends ExpenseDocument
         'refuse_creditnote' => [
             'description' => 'Refuse a credit note',
             'code' => '$teamleader->incomingCreditNotes()->refuse(\'creditnote-uuid\');',
+        ],
+        'refuse_creditnote_with_reason' => [
+            'description' => 'Refuse an e-invoiced credit note with a reason code',
+            'code' => '$teamleader->incomingCreditNotes()->refuse(\'creditnote-uuid\', \'DUPLICATE_INVOICE\');',
         ],
         'send_to_bookkeeping' => [
             'description' => 'Send credit note to bookkeeping',

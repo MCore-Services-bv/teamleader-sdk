@@ -19,6 +19,9 @@ class IncomingInvoices extends ExpenseDocument
     /** `payment_status` on incomingInvoices.info */
     public const PAYMENT_STATUSES = ['unknown', 'paid', 'partially_paid', 'credited', 'not_paid'];
 
+    // refuse() takes a refusal_reason_code (specification 1.235.0)
+    protected bool $acceptsRefusalReason = true;
+
     protected string $description = 'Manage incoming invoices from suppliers in Teamleader Focus';
 
     // `payment_status` values incomingInvoices.info returns. Until v2.2.8 this
@@ -33,6 +36,10 @@ class IncomingInvoices extends ExpenseDocument
         'register_payment' => [
             'description' => 'Register a payment for an invoice',
             'code' => '$teamleader->incomingInvoices()->registerPayment(\'invoice-uuid\', [\'amount\' => 500.00, \'currency\' => \'EUR\'], \'2024-01-15T10:00:00Z\');',
+        ],
+        'refuse_with_reason' => [
+            'description' => 'Refuse an e-invoiced invoice with a reason code',
+            'code' => '$teamleader->incomingInvoices()->refuse(\'invoice-uuid\', \'INCORRECT_VAT_RATE\');',
         ],
         'remove_payment' => [
             'description' => 'Remove a payment from an invoice',
