@@ -44,6 +44,23 @@ abstract class ExpenseDocument extends Resource
 
     public const UPDATE_PAYMENT_FIELDS = ['payment_id', 'payment', 'paid_at', 'payment_method_id', 'remark'];
 
+    /**
+     * `refusal_reason_code` on incomingInvoices.refuse and
+     * incomingCreditNotes.refuse (specification 1.235.0). receipts.refuse
+     * does not take one.
+     */
+    public const REFUSAL_REASON_CODES = [
+        'INCORRECT_VAT_RATE', 'INCORRECT_TOTAL_AMOUNT', 'CALCULATION_ERROR', 'MISSING_LEGAL_INFORMATION',
+        'DUPLICATE_INVOICE', 'WRONG_RECIPIENT', 'UNKNOWN_TRANSACTION', 'UNKNOWN_ISSUER', 'CONTRACT_ENDED',
+        'DOUBLE_INVOICING', 'ORDER_NUMBER_ERROR', 'WRONG_ELECTRONIC_BILLING_ADDRESS',
+        'MISSING_CONTRACTUAL_REFERENCE',
+    ];
+
+    /**
+     * Whether this document's refuse endpoint takes a `refusal_reason_code`.
+     */
+    protected bool $acceptsRefusalReason = false;
+
     protected bool $supportsCreation = true;
 
     protected bool $supportsUpdate = true;
@@ -197,12 +214,35 @@ abstract class ExpenseDocument extends Resource
 
     /**
      * Refuse an expense document
+     *
+     * Incoming invoices and credit notes take a reason code (specification
+     * 1.235.0). Under the French e-invoicing reform it is required when the
+     * document came in as an electronic invoice; it is not needed for
+     * documents uploaded by hand or through OCR. Receipts take none.
+     *
+     * @param  string  $id  Document UUID
+     * @param  string|null  $reasonCode  One of REFUSAL_REASON_CODES — incoming invoices and credit notes only
+     *
+     * @throws InvalidArgumentException On an unknown reason code, or a reason code on a receipt
      */
-    public function refuse(string $id): array
+    public function refuse(string $id, ?string $reasonCode = null): array
     {
         $this->requireId($id);
+        $endpoint = $this->getBasePath().'.refuse';
+        $body = ['id' => $id];
 
-        return $this->api->request('POST', $this->getBasePath().'.refuse', ['id' => $id]);
+        if ($reasonCode !== null) {
+            if (! $this->acceptsRefusalReason) {
+                throw new InvalidArgumentException(
+                    "{$endpoint} does not accept a refusal_reason_code. The API would ignore it and report success."
+                );
+            }
+
+            $this->assertEnum($reasonCode, self::REFUSAL_REASON_CODES, 'refusal_reason_code', $endpoint);
+            $body['refusal_reason_code'] = $reasonCode;
+        }
+
+        return $this->api->request('POST', $endpoint, $body);
     }
 
     /**

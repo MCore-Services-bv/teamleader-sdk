@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.6.1] - 2026-11-07
+
+The two body fields from specification 1.235.0 that v3.6.0 listed as not yet
+wrapped. Both are optional, so existing calls send exactly what they did.
+
+### Fixed
+
+- **Tasks: `schedule()` can schedule in another user's calendar.** A fourth,
+  optional argument `$assigneeId` is sent as `assignee_id`. Without it the
+  task goes in your own calendar, as before. It needs access to that user's
+  calendar and does not change who the task is assigned to. An empty string
+  throws.
+- **Incoming invoices and credit notes: `refuse()` takes a reason code.** A
+  second, optional argument is sent as `refusal_reason_code`, checked against
+  `ExpenseDocument::REFUSAL_REASON_CODES` (13 codes). Under the French
+  e-invoicing reform it is required when the document came in as an
+  electronic invoice. `receipts()->refuse()` throws when given one:
+  `receipts.refuse` does not take it, and the API would ignore it.
+
+### Changed
+
+- Spec contract tests now cover the `tasks.schedule` and `*.refuse` body
+  fields, so the next field Teamleader adds there fails a test instead of
+  going unnoticed.
+
 ## [3.6.0] - 2026-11-04
 
 Brought in line with `@teamleader/focus-api-specification` **1.235.0**

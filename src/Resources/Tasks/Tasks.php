@@ -137,6 +137,10 @@ class Tasks extends Resource
     "2025-02-15T10:00:00+00:00"
 );',
         ],
+        'schedule_for_colleague' => [
+            'description' => 'Schedule a task in a colleague\'s calendar',
+            'code' => '$event = $teamleader->tasks()->schedule("task-uuid", "2025-02-15T09:00:00+00:00", "2025-02-15T10:00:00+00:00", "user-uuid");',
+        ],
     ];
 
     protected function getBasePath(): string
@@ -264,15 +268,20 @@ class Tasks extends Resource
     }
 
     /**
-     * Schedule a task in your calendar
+     * Schedule a task in a user's calendar
+     *
+     * Without $assigneeId the task goes in your own calendar. With it
+     * (specification 1.235.0) it goes in that user's calendar, which needs
+     * access to their calendar. It does not change who the task is assigned to.
      *
      * @param  string  $id  Task UUID
      * @param  string  $startsAt  ISO 8601 datetime, e.g. 2025-02-04T16:00:00+00:00
      * @param  string  $endsAt  ISO 8601 datetime, after $startsAt
+     * @param  string|null  $assigneeId  UUID of the user in whose calendar to schedule the task
      *
-     * @throws InvalidArgumentException On a malformed datetime, or an end before the start
+     * @throws InvalidArgumentException On a malformed datetime, an end before the start, or an empty assignee id
      */
-    public function schedule(string $id, string $startsAt, string $endsAt): array
+    public function schedule(string $id, string $startsAt, string $endsAt, ?string $assigneeId = null): array
     {
         $this->validateDateTimeFormat($startsAt, 'starts_at');
         $this->validateDateTimeFormat($endsAt, 'ends_at');
@@ -281,11 +290,21 @@ class Tasks extends Resource
             throw new InvalidArgumentException('ends_at must be after starts_at');
         }
 
-        return $this->api->request('POST', $this->getBasePath().'.schedule', [
+        $body = [
             'id' => $id,
             'starts_at' => $startsAt,
             'ends_at' => $endsAt,
-        ]);
+        ];
+
+        if ($assigneeId !== null) {
+            if (trim($assigneeId) === '') {
+                throw new InvalidArgumentException('assignee_id on tasks.schedule must be a user UUID, or null for your own calendar');
+            }
+
+            $body['assignee_id'] = $assigneeId;
+        }
+
+        return $this->api->request('POST', $this->getBasePath().'.schedule', $body);
     }
 
     /**

@@ -153,16 +153,21 @@ Reopen a task that had been marked as complete
 ### `schedule()`
 
 ```php
-schedule(string $id, string $startsAt, string $endsAt): array
+schedule(string $id, string $startsAt, string $endsAt, ?string $assigneeId = null): array
 ```
 
-Schedule a task in your calendar
+Schedule a task in a user's calendar
+
+Without $assigneeId the task goes in your own calendar. With it
+(specification 1.235.0) it goes in that user's calendar, which needs
+access to their calendar. It does not change who the task is assigned to.
 
 - `$id` — Task UUID
 - `$startsAt` — ISO 8601 datetime, e.g. 2025-02-04T16:00:00+00:00
 - `$endsAt` — ISO 8601 datetime, after $startsAt
+- `$assigneeId` — UUID of the user in whose calendar to schedule the task
 
-**Throws** `InvalidArgumentException` On a malformed datetime, or an end before the start
+**Throws** `InvalidArgumentException` On a malformed datetime, an end before the start, or an empty assignee id
 
 ### `forUser()`
 
@@ -338,4 +343,10 @@ $event = Teamleader::tasks()->schedule(
     "2025-02-15T09:00:00+00:00",
     "2025-02-15T10:00:00+00:00"
 );
+```
+
+Schedule a task in a colleague's calendar:
+
+```php
+$event = Teamleader::tasks()->schedule("task-uuid", "2025-02-15T09:00:00+00:00", "2025-02-15T10:00:00+00:00", "user-uuid");
 ```

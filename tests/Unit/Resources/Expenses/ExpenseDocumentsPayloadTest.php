@@ -91,6 +91,54 @@ final class ExpenseDocumentsPayloadTest extends ResourceTestCase
     }
 
     /**
+     * Specification 1.235.0 added refusal_reason_code to incomingInvoices.refuse
+     * and incomingCreditNotes.refuse, not to receipts.refuse.
+     *
+     * @return array<string, array{0: class-string, 1: string}>
+     */
+    public static function refusableWithReason(): array
+    {
+        return [
+            'incoming invoices' => [IncomingInvoices::class, 'incomingInvoices'],
+            'incoming credit notes' => [IncomingCreditNotes::class, 'incomingCreditNotes'],
+        ];
+    }
+
+    #[DataProvider('refusableWithReason')]
+    public function test_refuse_with_a_reason_code(string $class, string $base): void
+    {
+        $this->resource($class)->refuse('document-uuid', 'DUPLICATE_INVOICE');
+
+        $this->assertLastEndpoint("{$base}.refuse");
+        $this->assertLastBody(['id' => 'document-uuid', 'refusal_reason_code' => 'DUPLICATE_INVOICE']);
+    }
+
+    #[DataProvider('refusableWithReason')]
+    public function test_refuse_reason_code_is_checked(string $class, string $base): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('refusal_reason_code');
+
+        try {
+            $this->resource($class)->refuse('document-uuid', 'duplicate_invoice');
+        } finally {
+            $this->assertNoRequestMade();
+        }
+    }
+
+    public function test_receipts_refuse_takes_no_reason_code(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('receipts.refuse does not accept a refusal_reason_code');
+
+        try {
+            $this->resource(Receipts::class)->refuse('receipt-uuid', 'DUPLICATE_INVOICE');
+        } finally {
+            $this->assertNoRequestMade();
+        }
+    }
+
+    /**
      * Only the two IDs are required; before v2.2.8 the payment amount was.
      */
     #[DataProvider('documents')]
