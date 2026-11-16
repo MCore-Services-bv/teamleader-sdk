@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.7.0] - 2026-11-16
+
+Brought in line with `@teamleader/focus-api-specification` **1.246.0**
+(was 1.235.0), skipping 1.241.0 — its changes are all in 1.246.0. Closes #12
+and #13.
+
+### Added
+
+- **Projects: `customer_name` and `external_party_name` filters on
+  `list()`** (specification 1.241.0). Each takes an operator — `contains` or
+  `does_not_contain` — and a text `value`, which the API matches
+  case-insensitively: `['customer_name' => ['operator' => 'contains', 'value'
+  => 'acme']]`. `does_not_contain` also returns projects without customers or
+  external parties. The operator and a non-empty string value are checked
+  before the request is sent. Accepted operators are in
+  `Projects::NAME_OPERATORS`.
+- **Tax rates: `list()` returns the total count** (specification 1.246.0).
+  `includes=pagination` is now sent on every call, so the response carries
+  `meta.page` and `meta.matches`. `data` is unchanged; `meta` is new.
+
+### Changed
+
+- The spec pin, the fixtures, `API-list-endpoint-contract.md`, the spec-audit
+  baseline and the API reference move to 1.246.0.
+- The fixture generator reports an `includes` request property whose only
+  value is `pagination` as pagination meta, not as a sideload. `taxRates.list`
+  is the first endpoint to declare it that way; without this, the audit asked
+  for `$supportsSideloading` on a resource that has nothing to sideload.
+- 3.7.x is now the supported 3.x line (see SECURITY.md). No breaking changes.
+
 ## [3.6.1] - 2026-11-07
 
 The two body fields from specification 1.235.0 that v3.6.0 listed as not yet

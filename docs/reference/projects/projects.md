@@ -70,8 +70,10 @@ Passed as the first argument to `list()`. Any other key throws.
 | Filter | Description |
 |---|---|
 | `created_at` | Creation date: [operator =&gt; between\|equals\|before\|after, value \| start + end =&gt; ISO 8601 datetime] |
+| `customer_name` | Customer names: [operator =&gt; contains\|does_not_contain, value =&gt; text, matched case-insensitively]. does_not_contain also returns projects without customers |
 | `customers` | Array of customer objects [{type, id}] |
 | `deal_ids` | Array of deal UUIDs |
+| `external_party_name` | External party names: [operator =&gt; contains\|does_not_contain, value =&gt; text, matched case-insensitively]. does_not_contain also returns projects without external parties |
 | `ids` | Array of project UUIDs to filter by |
 | `quotation_ids` | Array of quotation UUIDs |
 | `status` | Project status (open, planned, running, overdue, over_budget, closed) |
@@ -130,6 +132,7 @@ throw before the request is sent.
 | `DELETE_STRATEGIES` | `unlink_tasks_and_time_trackings`, `delete_tasks_and_time_trackings`, `delete_tasks_unlink_time_trackings` |
 | `INCLUDES` | `custom_fields`, `legacy_project` |
 | `INFO_INCLUDES` | `legacy_project` |
+| `NAME_OPERATORS` | `contains`, `does_not_contain` |
 | `STATUSES` | `open`, `planned`, `running`, `overdue`, `over_budget`, `closed` |
 | `TIME_UNITS` | `hours`, `minutes`, `seconds` |
 | `UPDATE_FIELDS` | `title`, `description`, `time_budget`, `billing_method`, `external_budget`, `internal_budget`, `fixed_price`, `start_date`, `end_date`, `purchase_order_number`, `company_entity_id`, `color`, `initial_time_tracked`, `initial_price`, `initial_cost`, `initial_amount_billed`, `initial_amount_paid`, `custom_fields` |
@@ -165,7 +168,11 @@ List projects
 and ISO 8601 datetimes: `['operator' => 'after', 'value' => '2026-11-01T00:00:00+00:00']`,
 or `between` with `start` and `end`. Both are sort fields too.
 
-- `$filters` — ids, status, quotation_ids, deal_ids, term, customers, created_at, updated_at
+`customer_name` and `external_party_name` (specification 1.241.0) take
+`contains` or `does_not_contain` and a text, matched case-insensitively:
+`['operator' => 'contains', 'value' => 'acme']`.
+
+- `$filters` — ids, status, quotation_ids, deal_ids, term, customers, created_at, updated_at, customer_name, external_party_name
 - `$options` — page_size, page_number, sort, sort_order, include(s)
 
 **Throws** `InvalidArgumentException` On an unknown filter key, option, sort field or include
@@ -552,6 +559,12 @@ Get projects created in October 2026:
 
 ```php
 $projects = Teamleader::projects()->createdBetween("2026-10-01T00:00:00+00:00", "2026-10-31T23:59:59+00:00");
+```
+
+Get projects whose customer name contains a text, case-insensitively:
+
+```php
+$projects = Teamleader::projects()->list(['customer_name' => ['operator' => 'contains', 'value' => 'acme']]);
 ```
 
 Create a new project:

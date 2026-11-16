@@ -1,6 +1,6 @@
 # API list-endpoint contract
 
-Generated from `@teamleader/focus-api-specification` v1.235.0 by
+Generated from `@teamleader/focus-api-specification` v1.246.0 by
 `tests/Fixtures/specification/generate-spec-fixtures.mjs`. Do not edit by hand.
 
 58 `.list` endpoints. The specification types `includes` as a free-form
@@ -48,7 +48,7 @@ from response fields documented as "only included with `includes=...`".
 | `projects-v2/materials` | `ids` | — | — | page |
 | `projects-v2/projectGroups` | `ids`, `project_id` | — | — | page |
 | `projects-v2/projectLines` | `assignees`, `types` | — | — | — |
-| `projects-v2/projects` | `created_at`, `customers`, `deal_ids`, `ids`, `quotation_ids`, `status`, `term`, `updated_at` | `amount_billed`, `amount_paid`, `amount_unbilled`, `cost`, `created_at`, `customer`, `end_date`, `external_budget`, `external_budget_spent`, `internal_budget`, `margin`, `price`, `project_key`, `start_date`, `status`, `time_budget`, `time_estimated`, `time_tracked`, `title`, `updated_at` | `custom_fields`, `legacy_project` | page, meta via `includes=pagination` |
+| `projects-v2/projects` | `created_at`, `customer_name`, `customers`, `deal_ids`, `external_party_name`, `ids`, `quotation_ids`, `status`, `term`, `updated_at` | `amount_billed`, `amount_paid`, `amount_unbilled`, `cost`, `created_at`, `customer`, `end_date`, `external_budget`, `external_budget_spent`, `internal_budget`, `margin`, `price`, `project_key`, `start_date`, `status`, `time_budget`, `time_estimated`, `time_tracked`, `title`, `updated_at` | `custom_fields`, `legacy_project` | page, meta via `includes=pagination` |
 | `projects-v2/tasks` | `ids` | — | — | page |
 | `projects` | `customer`, `participant_id`, `status`, `term`, `updated_since` | `created_at`, `due_on`, `title` | — | page |
 | `quotations` | `ids` | — | `expiry` | page, includes named in response only |
@@ -56,7 +56,7 @@ from response fields documented as "only included with `includes=...`".
 | `subscriptions` | `customer`, `deal_id`, `department_id`, `ids`, `invoice_id`, `status` | `created_at`, `status`, `title` | — | page |
 | `tags` | **none** | `tag` | — | page |
 | `tasks` | `completed`, `customer`, `due_by`, `due_from`, `ids`, `milestone_id`, `scheduled`, `term`, `user_id` | `created_at`, `due_on` | — | page |
-| `taxRates` | `department_id` | `department_id`, `description`, `rate` | — | page |
+| `taxRates` | `department_id` | `department_id`, `description`, `rate` | — | page, meta via `includes=pagination` |
 | `teams` | `ids`, `team_lead_id`, `term` | `name` | — | — |
 | `tickets` | `assignee_ids`, `exclude`, `ids`, `project_ids`, `relates_to` | — | — | page |
 | `ticketStatus` | `ids` | — | — | — |

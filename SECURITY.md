@@ -4,8 +4,8 @@
 
 | Version | Supported | Notes |
 | ------- | --------- | ----- |
-| 3.6.x | ✅ Active | Current release — receives every fix |
-| 3.0.x – 3.5.x | ❌ Unsupported | Upgrade to 3.6.x — same requirements, no breaking changes |
+| 3.7.x | ✅ Active | Current release — receives every fix |
+| 3.0.x – 3.6.x | ❌ Unsupported | Upgrade to 3.7.x — same requirements, no breaking changes |
 | 2.3.x | ⚠️ Security fixes only | Until 1 January 2027. See the upgrade guide |
 | 2.0.x – 2.2.x | ❌ Unsupported | Upgrade to 2.3.x — same requirements, no breaking changes |
 | < 2.0 | ❌ Unsupported | Requires Laravel 10 or 11 — both EOL with unpatched CVEs |
