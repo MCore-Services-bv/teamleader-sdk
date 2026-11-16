@@ -67,6 +67,12 @@ class Projects extends ProjectsV2Resource
     /** Filters on projects.list that take {operator, value | start + end} */
     private const DATE_FILTERS = ['created_at', 'updated_at'];
 
+    /** `filter.customer_name.operator` and `filter.external_party_name.operator` on projects.list */
+    public const NAME_OPERATORS = ['contains', 'does_not_contain'];
+
+    /** Filters on projects.list that take {operator, value} with a name fragment */
+    private const NAME_FILTERS = ['customer_name', 'external_party_name'];
+
     public const CUSTOMER_TYPES = ['contact', 'company'];
 
     public const DELETE_STRATEGIES = [
@@ -133,6 +139,8 @@ class Projects extends ProjectsV2Resource
         'customers' => 'Array of customer objects [{type, id}]',
         'created_at' => 'Creation date: [operator => between|equals|before|after, value | start + end => ISO 8601 datetime]',
         'updated_at' => 'Last update date: [operator => between|equals|before|after, value | start + end => ISO 8601 datetime]',
+        'customer_name' => 'Customer names: [operator => contains|does_not_contain, value => text, matched case-insensitively]. does_not_contain also returns projects without customers',
+        'external_party_name' => 'External party names: [operator => contains|does_not_contain, value => text, matched case-insensitively]. does_not_contain also returns projects without external parties',
     ];
 
     /**
@@ -184,6 +192,10 @@ class Projects extends ProjectsV2Resource
         'filter_by_creation_date' => [
             'description' => 'Get projects created in October 2026',
             'code' => '$projects = $teamleader->projects()->createdBetween("2026-10-01T00:00:00+00:00", "2026-10-31T23:59:59+00:00");',
+        ],
+        'filter_by_customer_name' => [
+            'description' => 'Get projects whose customer name contains a text, case-insensitively',
+            'code' => '$projects = $teamleader->projects()->list([\'customer_name\' => [\'operator\' => \'contains\', \'value\' => \'acme\']]);',
         ],
         'create_project' => [
             'description' => 'Create a new project',
@@ -238,7 +250,12 @@ class Projects extends ProjectsV2Resource
      * and ISO 8601 datetimes: `['operator' => 'after', 'value' => '2026-11-01T00:00:00+00:00']`,
      * or `between` with `start` and `end`. Both are sort fields too.
      *
-     * @param  array  $filters  ids, status, quotation_ids, deal_ids, term, customers, created_at, updated_at
+     * `customer_name` and `external_party_name` (specification 1.241.0) take
+     * `contains` or `does_not_contain` and a text, matched case-insensitively:
+     * `['operator' => 'contains', 'value' => 'acme']`.
+     *
+     * @param  array  $filters  ids, status, quotation_ids, deal_ids, term, customers, created_at, updated_at,
+     *                          customer_name, external_party_name
      * @param  array  $options  page_size, page_number, sort, sort_order, include(s)
      *
      * @throws InvalidArgumentException On an unknown filter key, option, sort field or include
@@ -726,6 +743,12 @@ class Projects extends ProjectsV2Resource
             }
         }
 
+        foreach (self::NAME_FILTERS as $key) {
+            if (isset($filters[$key])) {
+                $filters[$key] = $this->buildNameFilter($filters[$key], $key, $endpoint);
+            }
+        }
+
         // ids, deal_ids and quotation_ids are arrays; a lone string is wrapped
         return $this->wrapArrayFilters($filters, ['ids', 'deal_ids', 'quotation_ids']);
     }
@@ -776,6 +799,46 @@ class Projects extends ProjectsV2Resource
         }
 
         return $built;
+    }
+
+    /**
+     * Build a customer_name / external_party_name filter
+     *
+     * Both take an operator (`contains`, `does_not_contain`) and a non-empty
+     * text `value`, which the API matches case-insensitively. Added in
+     * specification 1.241.0.
+     *
+     * @throws InvalidArgumentException When the operator or value is missing or invalid
+     */
+    private function buildNameFilter(mixed $filter, string $key, string $endpoint): array
+    {
+        if (! is_array($filter)) {
+            throw new InvalidArgumentException(
+                "filter.{$key} on {$endpoint} takes ['operator' => contains|does_not_contain, 'value' => text]."
+            );
+        }
+
+        $this->rejectUnknownFields($filter, ['operator', 'value'], "{$endpoint} filter.{$key}");
+
+        $operator = $filter['operator'] ?? null;
+
+        if ($operator === null) {
+            throw new InvalidArgumentException(
+                "filter.{$key}.operator on {$endpoint} is required: ".implode(', ', self::NAME_OPERATORS).'.'
+            );
+        }
+
+        $this->assertEnum($operator, self::NAME_OPERATORS, "filter.{$key}.operator", $endpoint);
+
+        $value = $filter['value'] ?? null;
+
+        if (! is_string($value) || trim($value) === '') {
+            throw new InvalidArgumentException(
+                "filter.{$key}.value on {$endpoint} must be a non-empty string."
+            );
+        }
+
+        return ['operator' => $operator, 'value' => $value];
     }
 
     /**

@@ -345,6 +345,13 @@ function extract(endpoint) {
     const mentioned = responseIncludes(operation);
     const sortOrder = flatten(sortItems.properties?.order ?? {});
     const includes = flatten(requestProperties.includes ?? {});
+    // `pagination` adds a meta block rather than sideloading a resource. Most
+    // endpoints only name it in response descriptions; taxRates.list (1.246.0)
+    // is the first whose `includes` property names nothing else. Report it as
+    // pagination meta in both cases, so it is never mistaken for a sideload.
+    const requestedIncludes = declaredIncludes(requestProperties.includes ?? {});
+    const sideloads = requestedIncludes.filter((include) => include !== 'pagination');
+    const paginationOnly = requestedIncludes.length > 0 && sideloads.length === 0;
 
     const filters = {};
     for (const [name, child] of Object.entries(filter.properties ?? {})) {
@@ -369,12 +376,12 @@ function extract(endpoint) {
             sort_orders: (sortOrder.enum ?? []).slice().sort(),
             declares_pagination: 'page' in requestProperties,
             declares_sort: 'sort' in requestProperties,
-            declares_includes: 'includes' in requestProperties,
-            includes: declaredIncludes(requestProperties.includes ?? {}),
+            declares_includes: 'includes' in requestProperties && !paginationOnly,
+            includes: sideloads,
             // Includes named only in response field descriptions; `pagination`
             // (which adds a meta block) is reported separately below.
             response_includes: mentioned.filter((include) => include !== 'pagination'),
-            declares_pagination_meta: mentioned.includes('pagination'),
+            declares_pagination_meta: mentioned.includes('pagination') || requestedIncludes.includes('pagination'),
             includes_example: includes.example ?? null,
             enums: requestEnums(request),
         },

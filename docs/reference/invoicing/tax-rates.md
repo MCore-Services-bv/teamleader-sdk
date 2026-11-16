@@ -12,7 +12,7 @@ Teamleader::taxRates()
 |---|---|
 | Class | `McoreServices\TeamleaderSDK\Resources\Invoicing\TaxRates` |
 | Create / update / delete | — / — / — |
-| Pagination | `page_size` / `page_number`; no totals — a short page is the last one. Every page: [`lazy()` / `cursor()`](../../guides/pagination.md#fetching-everything) |
+| Pagination | `page_size` / `page_number`; the response includes `meta` with totals. Every page: [`lazy()` / `cursor()`](../../guides/pagination.md#fetching-everything) |
 
 ## Endpoints
 
@@ -45,6 +45,9 @@ list(array $filters = [], array $options = []): array
 ```
 
 List tax rates with filtering, sorting, and pagination
+
+`includes=pagination` is always sent, so the response carries the total
+match count in `meta.matches` (specification 1.246.0).
 
 - `$filters` — Filter parameters
 - `$options` — Pagination and sorting options

@@ -208,6 +208,21 @@ final class InvoicingPayloadTest extends ResourceTestCase
         $this->assertLastBodyHas('sort', [['field' => 'rate', 'order' => 'asc']]);
     }
 
+    /**
+     * Specification 1.246.0 added includes=pagination to taxRates.list.
+     */
+    public function test_tax_rate_list_requests_the_pagination_meta(): void
+    {
+        $this->resource(TaxRates::class)->list(['department_id' => 'department-uuid'], ['page_size' => 50]);
+
+        $this->assertLastEndpoint('taxRates.list');
+        $this->assertLastBody([
+            'filter' => ['department_id' => 'department-uuid'],
+            'page' => ['size' => 50, 'number' => 1],
+            'includes' => 'pagination',
+        ]);
+    }
+
     public function test_payment_method_status_is_wrapped(): void
     {
         $this->resource(PaymentMethods::class)->list(['status' => 'active']);

@@ -445,6 +445,50 @@ final class ProjectsPayloadTest extends ResourceTestCase
         $this->expectRejected(fn () => $this->resource(Projects::class)->list($filters), $message);
     }
 
+    /**
+     * Specification 1.241.0 added customer_name and external_party_name to
+     * projects.list. Before v3.7.0 the SDK rejected both.
+     */
+    public function test_project_list_filters_on_customer_name(): void
+    {
+        $this->resource(Projects::class)->list(['customer_name' => ['operator' => 'contains', 'value' => 'acme']]);
+
+        $this->assertLastEndpoint('projects-v2/projects.list');
+        $this->assertLastBody([
+            'filter' => ['customer_name' => ['operator' => 'contains', 'value' => 'acme']],
+            'includes' => 'pagination',
+        ]);
+    }
+
+    public function test_project_list_filters_on_external_party_name(): void
+    {
+        $this->resource(Projects::class)->list(['external_party_name' => ['operator' => 'does_not_contain', 'value' => 'architects']]);
+
+        $this->assertLastBodyHas('filter.external_party_name', ['operator' => 'does_not_contain', 'value' => 'architects']);
+    }
+
+    /**
+     * @return array<string, array{0: array<string, mixed>, 1: string}>
+     */
+    public static function invalidProjectNameFilters(): array
+    {
+        return [
+            'unknown operator' => [['customer_name' => ['operator' => 'equals', 'value' => 'acme']], 'filter.customer_name.operator'],
+            'no operator' => [['external_party_name' => ['value' => 'acme']], 'operator'],
+            'no value' => [['customer_name' => ['operator' => 'contains']], 'filter.customer_name.value'],
+            'empty value' => [['external_party_name' => ['operator' => 'contains', 'value' => ' ']], 'filter.external_party_name.value'],
+            'value not a string' => [['customer_name' => ['operator' => 'contains', 'value' => ['acme']]], 'filter.customer_name.value'],
+            'a bare string' => [['customer_name' => 'acme'], 'filter.customer_name'],
+            'unknown key' => [['customer_name' => ['operator' => 'contains', 'value' => 'acme', 'type' => 'company']], 'type'],
+        ];
+    }
+
+    #[DataProvider('invalidProjectNameFilters')]
+    public function test_project_name_filter_is_checked(array $filters, string $message): void
+    {
+        $this->expectRejected(fn () => $this->resource(Projects::class)->list($filters), $message);
+    }
+
     public function test_project_info_accepts_legacy_project_only(): void
     {
         $this->resource(Projects::class)->info('project-uuid', 'legacy_project');

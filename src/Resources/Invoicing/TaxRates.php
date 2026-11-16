@@ -29,6 +29,13 @@ class TaxRates extends Resource
 
     protected bool $supportsSideloading = false;
 
+    /**
+     * `includes=pagination` adds a meta block with the total match count —
+     * taxRates.list documents it since specification 1.246.0, so it is
+     * requested on every call.
+     */
+    protected bool $requestsPaginationMeta = true;
+
     // Available includes for sideloading
     protected array $availableIncludes = [];
 
@@ -86,6 +93,9 @@ class TaxRates extends Resource
     /**
      * List tax rates with filtering, sorting, and pagination
      *
+     * `includes=pagination` is always sent, so the response carries the total
+     * match count in `meta.matches` (specification 1.246.0).
+     *
      * @param  array  $filters  Filter parameters
      * @param  array  $options  Pagination and sorting options
      */
@@ -110,6 +120,9 @@ class TaxRates extends Resource
         if (isset($options['sort'])) {
             $params['sort'] = $this->buildSort($options['sort'], $options['sort_order'] ?? 'asc');
         }
+
+        // Request the meta block (total match count)
+        $params['includes'] = 'pagination';
 
         return $this->api->request('POST', $this->getBasePath().'.list', $params);
     }
@@ -375,6 +388,9 @@ class TaxRates extends Resource
                     'data[].department' => 'Department reference object',
                     'data[].department.id' => 'Department UUID',
                     'data[].department.type' => 'Resource type ("department")',
+                    'meta.page.size' => 'Page size',
+                    'meta.page.number' => 'Page number',
+                    'meta.matches' => 'Total number of tax rates that match the filter',
                 ],
             ],
         ];

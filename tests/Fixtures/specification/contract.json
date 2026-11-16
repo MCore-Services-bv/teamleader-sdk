@@ -1,6 +1,6 @@
 {
   "_comment": "Generated — do not edit by hand. See generate-spec-fixtures.mjs.",
-  "specification_version": "1.235.0",
+  "specification_version": "1.246.0",
   "endpoint_count": 292,
   "endpoints": {
     "accounts.projects-v2-status": {
@@ -12819,6 +12819,20 @@
             "type": "array",
             "items": "object"
           },
+          "customer_name": {
+            "type": "object",
+            "properties": [
+              "operator",
+              "value"
+            ]
+          },
+          "external_party_name": {
+            "type": "object",
+            "properties": [
+              "operator",
+              "value"
+            ]
+          },
           "created_at": {
             "type": "object",
             "properties": [
@@ -12840,8 +12854,10 @@
         },
         "filter_keys": [
           "created_at",
+          "customer_name",
           "customers",
           "deal_ids",
+          "external_party_name",
           "ids",
           "quotation_ids",
           "status",
@@ -12896,6 +12912,14 @@
           "filter.customers[].type": [
             "contact",
             "company"
+          ],
+          "filter.customer_name.operator": [
+            "contains",
+            "does_not_contain"
+          ],
+          "filter.external_party_name.operator": [
+            "contains",
+            "does_not_contain"
           ],
           "filter.created_at.operator": [
             "between",
@@ -17484,6 +17508,7 @@
       "request": {
         "properties": [
           "filter",
+          "includes",
           "page",
           "sort"
         ],
@@ -17511,8 +17536,8 @@
         "declares_includes": false,
         "includes": [],
         "response_includes": [],
-        "declares_pagination_meta": false,
-        "includes_example": null,
+        "declares_pagination_meta": true,
+        "includes_example": "pagination",
         "enums": {
           "sort[].field": [
             "department_id",
@@ -17530,9 +17555,10 @@
           "200"
         ],
         "properties": [
-          "data"
+          "data",
+          "meta"
         ],
-        "declares_meta": false,
+        "declares_meta": true,
         "returns_collection": true,
         "fields": {
           "data[].id": "string",
